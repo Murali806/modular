@@ -29,12 +29,12 @@ block-beta
   H --> D
 ```
 
-| Model A payload | Result |
-|---|---:|
-| One token | 46,080 B |
-| One 128-token page | 5.625 MiB |
-| Whole pages in an ideal 1 GiB KV budget | 182 |
-| Token slots in those pages | 23,296 |
+| Model A payload                         |    Result |
+|-----------------------------------------|----------:|
+| One token                               |  46,080 B |
+| One 128-token page                      | 5.625 MiB |
+| Whole pages in an ideal 1 GiB KV budget |       182 |
+| Token slots in those pages              |    23,296 |
 
 `ideal payload != deployable budget`
 
@@ -103,13 +103,13 @@ stateDiagram-v2
 
 The two-block production-class probe observed:
 
-| Event | Free LRU order | Prefix cache |
-|---|---|---|
-| initial | `[0, 1]` | `{}` |
-| commit A, release | `[1, 0]` | `A -> 0` |
-| hit A | `[1]` | `A -> 0` |
-| release A, then commit/release B | `[0, 1]` | `A -> 0, B -> 1` |
-| allocate LRU | `[1]` | `B -> 1`; A evicted |
+| Event                            | Free LRU order | Prefix cache        |
+|----------------------------------|----------------|---------------------|
+| initial                          | `[0, 1]`       | `{}`                |
+| commit A, release                | `[1, 0]`       | `A -> 0`            |
+| hit A                            | `[1]`          | `A -> 0`            |
+| release A, then commit/release B | `[0, 1]`       | `A -> 0, B -> 1`    |
+| allocate LRU                     | `[1]`          | `B -> 1`; A evicted |
 
 ## Prefix Hash Chain
 

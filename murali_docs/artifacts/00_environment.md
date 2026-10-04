@@ -34,26 +34,26 @@ block-beta
 
 ## Evidence Snapshot
 
-| Item | Observed value | Tag |
-|---|---|---|
-| Branch / revision | `main` / `d8bfe64874` | `CPU-RUN` |
-| Pre-commit dirty state | only `murali_docs/` learning files | `CPU-RUN` |
-| MAX | `26.7.0.dev2026100305` | `CPU-RUN` |
-| Mojo | `1.2.0.dev2026100305 (4ad841b8)` | `CPU-RUN` |
-| Server Python | `3.13.11` | `CPU-RUN` |
-| Client Python | `3.10.12` | `CPU-RUN` |
-| CPU | `AMD EPYC 9555P`, 8 visible cores | `CPU-RUN` |
-| RAM / swap | `31 GiB / 31 GiB` | `CPU-RUN` |
-| Accelerator | none; no `nvidia-smi` or `rocminfo` | `CPU-RUN` |
-| Model | `modularai/SmolLM-135M-Instruct-FP32` | `CPU-RUN` |
-| HF revision | `1ade67aacf72511c94c55529056f7222c1c0b586` | `CPU-RUN` |
-| Weight | `model.safetensors`, 538 MB download | `CPU-RUN` |
-| Architecture | `LlamaForCausalLM` -> `Llama3Model` | `CPU-RUN` |
-| Model shape | 30 layers, hidden 576, 9 Q heads, 3 KV heads | `CPU-RUN` |
-| Server ports | API `18000`, metrics `18001` | `CPU-RUN` |
-| HF cache | `/local/mnt/workspace/.murali_hf` | `CPU-RUN` |
-| Bazel caches | `/local/mnt/workspace/.murali_bazel` | `CPU-RUN` |
-| CLI source | `//max/python/max/_entrypoints:pipelines` | `CPU-RUN` |
+| Item                   | Observed value                               | Tag       |
+|------------------------|----------------------------------------------|-----------|
+| Branch / revision      | `main` / `d8bfe64874`                        | `CPU-RUN` |
+| Pre-commit dirty state | only `murali_docs/` learning files           | `CPU-RUN` |
+| MAX                    | `26.7.0.dev2026100305`                       | `CPU-RUN` |
+| Mojo                   | `1.2.0.dev2026100305 (4ad841b8)`             | `CPU-RUN` |
+| Server Python          | `3.13.11`                                    | `CPU-RUN` |
+| Client Python          | `3.10.12`                                    | `CPU-RUN` |
+| CPU                    | `AMD EPYC 9555P`, 8 visible cores            | `CPU-RUN` |
+| RAM / swap             | `31 GiB / 31 GiB`                            | `CPU-RUN` |
+| Accelerator            | none; no `nvidia-smi` or `rocminfo`          | `CPU-RUN` |
+| Model                  | `modularai/SmolLM-135M-Instruct-FP32`        | `CPU-RUN` |
+| HF revision            | `1ade67aacf72511c94c55529056f7222c1c0b586`   | `CPU-RUN` |
+| Weight                 | `model.safetensors`, 538 MB download         | `CPU-RUN` |
+| Architecture           | `LlamaForCausalLM` -> `Llama3Model`          | `CPU-RUN` |
+| Model shape            | 30 layers, hidden 576, 9 Q heads, 3 KV heads | `CPU-RUN` |
+| Server ports           | API `18000`, metrics `18001`                 | `CPU-RUN` |
+| HF cache               | `/local/mnt/workspace/.murali_hf`            | `CPU-RUN` |
+| Bazel caches           | `/local/mnt/workspace/.murali_bazel`         | `CPU-RUN` |
+| CLI source             | `//max/python/max/_entrypoints:pipelines`    | `CPU-RUN` |
 
 ## CPU Baseline Command
 
@@ -161,12 +161,12 @@ sequenceDiagram
     Note over Engine,MEF: No GPU allocation or execution
 ```
 
-| Exported graph | Key visible signature |
-|---|---|
-| `llama3` | ragged tokens -> `[rows, 49152]` logits on `gpu:0` |
-| `top_k_sampler` | logits/history/sampling params -> token on `gpu:0` |
-| `ragged_logprobs` | logits/token metadata -> probabilities on `gpu:0` |
-| `realize_future_token_graph` | overlap-scheduler token realization |
+| Exported graph               | Key visible signature                              |
+|------------------------------|----------------------------------------------------|
+| `llama3`                     | ragged tokens -> `[rows, 49152]` logits on `gpu:0` |
+| `top_k_sampler`              | logits/history/sampling params -> token on `gpu:0` |
+| `ragged_logprobs`            | logits/token metadata -> probabilities on `gpu:0`  |
+| `realize_future_token_graph` | overlap-scheduler token realization                |
 
 MEFs stay in `/tmp`; they are not committed.
 
@@ -218,7 +218,10 @@ stateDiagram-v2
 
 Source pins:
 
-- Virtual devices: [`config.py`](../../max/python/max/_entrypoints/cli/config.py#L468)
+- Virtual devices:
+  [`config.py`](../../max/python/max/_entrypoints/cli/config.py#L468)
 - Target parsing: [`serve/config.py`](../../max/python/max/serve/config.py#L601)
-- Compile-only refusal: [`engine/api.py`](../../max/python/max/engine/api.py#L456)
-- CPU-to-GPU MEF workflow: [`precompile_pipeline.py`](../../max/tests/integration/tools/precompile_pipeline.py#L14)
+- Compile-only refusal:
+  [`engine/api.py`](../../max/python/max/engine/api.py#L456)
+- CPU-to-GPU MEF workflow:
+  [`precompile_pipeline.py`](../../max/tests/integration/tools/precompile_pipeline.py#L14)

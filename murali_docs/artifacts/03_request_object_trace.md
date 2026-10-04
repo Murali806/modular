@@ -213,20 +213,20 @@ flowchart LR
 
 `SOURCE`
 
-| Wire field | Validate / normalize | Stored | First consumer | Returned or discarded |
-|---|---|---|---|---|
-| `model` | Pydantic `str`; served-model check | request + context | route / scheduler metadata | response `model` |
-| `messages` | non-empty list; roles/content normalized | frozen request only | chat template | replaced by token IDs before IPC |
-| `prompt_tokens` | optional `list[int]` | request `prompt` | tokenizer direct-ID path | may return as `prompt_token_ids` |
-| `temperature` | optional wire value; range `[0,2]` | `SamplingParams` in request/context | sampler | not returned |
-| `top_k` | `0 -> -1`; `< -1` rejected | `SamplingParams` | sampler | not returned |
-| `max_tokens` | non-negative; `max_completion_tokens` wins | `max_new_tokens` | context length calculation | `finish_reason=length` if reached |
-| `stop` | `str -> list[str]` | request sampling + context tracker | token EOS check + API string check | stop text removed; reason=`stop` |
-| `seed` | optional integer; absent/zero replaced | `SamplingParams` | sampler RNG | not returned |
-| `logprobs` | bool + count validation | request/context | model output + route formatter | optional response logprobs |
-| `stream` | optional bool | route branch only | SSE/non-SSE selection | discarded after branch |
-| `stream_options` | OpenAI schema | response generator | final usage chunk | not sent to worker |
-| `return_token_ids` | MAX bool extension | response generator only | response assembly | opt-in token IDs |
+| Wire field         | Validate / normalize                       | Stored                              | First consumer                     | Returned or discarded             |
+|--------------------|--------------------------------------------|-------------------------------------|------------------------------------|-----------------------------------|
+| `model`            | Pydantic `str`; served-model check         | request + context                   | route / scheduler metadata         | response `model`                  |
+| `messages`         | non-empty list; roles/content normalized   | frozen request only                 | chat template                      | replaced by token IDs before IPC  |
+| `prompt_tokens`    | optional `list[int]`                       | request `prompt`                    | tokenizer direct-ID path           | may return as `prompt_token_ids`  |
+| `temperature`      | optional wire value; range `[0,2]`         | `SamplingParams` in request/context | sampler                            | not returned                      |
+| `top_k`            | `0 -> -1`; `< -1` rejected                 | `SamplingParams`                    | sampler                            | not returned                      |
+| `max_tokens`       | non-negative; `max_completion_tokens` wins | `max_new_tokens`                    | context length calculation         | `finish_reason=length` if reached |
+| `stop`             | `str -> list[str]`                         | request sampling + context tracker  | token EOS check + API string check | stop text removed; reason=`stop`  |
+| `seed`             | optional integer; absent/zero replaced     | `SamplingParams`                    | sampler RNG                        | not returned                      |
+| `logprobs`         | bool + count validation                    | request/context                     | model output + route formatter     | optional response logprobs        |
+| `stream`           | optional bool                              | route branch only                   | SSE/non-SSE selection              | discarded after branch            |
+| `stream_options`   | OpenAI schema                              | response generator                  | final usage chunk                  | not sent to worker                |
+| `return_token_ids` | MAX bool extension                         | response generator only             | response assembly                  | opt-in token IDs                  |
 
 ## Temperature Path
 
@@ -259,11 +259,11 @@ stateDiagram-v2
 
 Live CPU result, same prompt:
 
-| Run | Temperature | Output token IDs | Text |
-|---|---:|---|---|
-| baseline | `0.7` | `[1780, 253, 1109, 1962]` | `What a great question` |
-| greedy 1 | `0.0` | `[4590, 359, 827, 4683]` | `Here are two colors` |
-| greedy 2 | `0.0` | `[4590, 359, 827, 4683]` | `Here are two colors` |
+| Run      | Temperature | Output token IDs          | Text                    |
+|----------|------------:|---------------------------|-------------------------|
+| baseline |       `0.7` | `[1780, 253, 1109, 1962]` | `What a great question` |
+| greedy 1 |       `0.0` | `[4590, 359, 827, 4683]`  | `Here are two colors`   |
+| greedy 2 |       `0.0` | `[4590, 359, 827, 4683]`  | `Here are two colors`   |
 
 ## Stop-Sequence Path
 
@@ -357,13 +357,13 @@ sequenceDiagram
 
 Measured checks:
 
-| Probe | Result |
-|---|---|
-| proxy cancellation lab | cancel queue received `phase3-baseline` |
-| API pending-output map | request removed |
-| live SSE disconnect | closed after 2 frames at `39.95 ms` |
-| post-disconnect health | `200` |
-| regression test | disconnect produces backend cancellation |
+| Probe                  | Result                                   |
+|------------------------|------------------------------------------|
+| proxy cancellation lab | cancel queue received `phase3-baseline`  |
+| API pending-output map | request removed                          |
+| live SSE disconnect    | closed after 2 frames at `39.95 ms`      |
+| post-disconnect health | `200`                                    |
+| regression test        | disconnect produces backend cancellation |
 
 ## Validation and HTTP Commit Boundary
 
@@ -435,36 +435,54 @@ python3 murali_docs/labs/client/max_serve_client.py \
 
 ## Evidence Card
 
-| Item | Result |
-|---|---|
-| Repository revision traced | `8d8b1b3e40` |
-| Model revision | `1ade67aacf72511c94c55529056f7222c1c0b586` |
-| Device | CPU |
-| Prompt | 112 characters -> 22 `int64` IDs |
-| Context length | `22 + 4 = 26` |
-| IPC identity | new Python object, equal tokens, unshared storage |
-| Initial scheduler lane | CE / prefill |
-| Schema failures | `list_type`, `extra_forbidden` -> HTTP `400` |
-| Semantic failure | `temperature=3` -> HTTP `400` |
-| GPU claim | none; this phase ends before model execution |
+| Item                       | Result                                            |
+|----------------------------|---------------------------------------------------|
+| Repository revision traced | `8d8b1b3e40`                                      |
+| Model revision             | `1ade67aacf72511c94c55529056f7222c1c0b586`        |
+| Device                     | CPU                                               |
+| Prompt                     | 112 characters -> 22 `int64` IDs                  |
+| Context length             | `22 + 4 = 26`                                     |
+| IPC identity               | new Python object, equal tokens, unshared storage |
+| Initial scheduler lane     | CE / prefill                                      |
+| Schema failures            | `list_type`, `extra_forbidden` -> HTTP `400`      |
+| Semantic failure           | `temperature=3` -> HTTP `400`                     |
+| GPU claim                  | none; this phase ends before model execution      |
 
 Source pins:
 
-- Request schema construction: [`openai.py`](../../max/python/max/serve/schemas/openai.py#L330)
-- Chat request schema: [`openai.py`](../../max/python/max/serve/schemas/openai.py#L448)
-- JSON parsing: [`openai_routes.py`](../../max/python/max/serve/router/openai_routes.py#L3070)
-- Message normalization: [`openai_routes.py`](../../max/python/max/serve/router/openai_routes.py#L1719)
-- Sampling and request construction: [`openai_routes.py`](../../max/python/max/serve/router/openai_routes.py#L2404)
-- Frozen request definition: [`text_generation.py`](../../max/python/max/pipelines/modeling/types/pipeline_variants/text_generation.py#L335)
-- Tokenize and submit: [`llm.py`](../../max/python/max/serve/pipelines/llm.py#L294)
-- Chat rendering and encoding: [`tokenizer.py`](../../max/python/max/pipelines/lib/tokenizer.py#L604)
-- Context construction: [`tokenizer.py`](../../max/python/max/pipelines/lib/tokenizer.py#L819)
-- Mutable context: [`context.py`](../../max/python/max/pipelines/context/context.py#L455)
-- Token-buffer layout: [`tokens.py`](../../max/python/max/pipelines/context/tokens.py#L164)
-- IPC admission/cancellation: [`zmq_interface.py`](../../max/python/max/serve/worker_interface/zmq_interface.py#L105)
-- ZMQ NumPy serialization: [`_zmq_queue.py`](../../max/python/max/serve/worker_interface/_zmq_queue.py#L318)
-- Scheduler queue drain: [`text_generation_scheduler.py`](../../max/python/max/serve/scheduler/text_generation_scheduler.py#L160)
-- First CE admission: [`text_batch_constructor.py`](../../max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py#L677)
-- Stop-token state update: [`context.py`](../../max/python/max/pipelines/context/context.py#L884)
-- API stop-string handling: [`llm.py`](../../max/python/max/serve/pipelines/llm.py#L587)
-- Disconnect regression: [`test_openai_routes.py`](../../max/tests/tests/serve/test_openai_routes.py#L1474)
+- Request schema construction:
+  [`openai.py`](../../max/python/max/serve/schemas/openai.py#L330)
+- Chat request schema:
+  [`openai.py`](../../max/python/max/serve/schemas/openai.py#L448)
+- JSON parsing:
+  [`openai_routes.py`](../../max/python/max/serve/router/openai_routes.py#L3070)
+- Message normalization:
+  [`openai_routes.py`](../../max/python/max/serve/router/openai_routes.py#L1719)
+- Sampling and request construction:
+  [`openai_routes.py`](../../max/python/max/serve/router/openai_routes.py#L2404)
+- Frozen request definition:
+  [`text_generation.py`](../../max/python/max/pipelines/modeling/types/pipeline_variants/text_generation.py#L335)
+- Tokenize and submit:
+  [`llm.py`](../../max/python/max/serve/pipelines/llm.py#L294)
+- Chat rendering and encoding:
+  [`tokenizer.py`](../../max/python/max/pipelines/lib/tokenizer.py#L604)
+- Context construction:
+  [`tokenizer.py`](../../max/python/max/pipelines/lib/tokenizer.py#L819)
+- Mutable context:
+  [`context.py`](../../max/python/max/pipelines/context/context.py#L455)
+- Token-buffer layout:
+  [`tokens.py`](../../max/python/max/pipelines/context/tokens.py#L164)
+- IPC admission/cancellation:
+  [`zmq_interface.py`](../../max/python/max/serve/worker_interface/zmq_interface.py#L105)
+- ZMQ NumPy serialization:
+  [`_zmq_queue.py`](../../max/python/max/serve/worker_interface/_zmq_queue.py#L318)
+- Scheduler queue drain:
+  [`text_generation_scheduler.py`](../../max/python/max/serve/scheduler/text_generation_scheduler.py#L160)
+- First CE admission:
+  [`text_batch_constructor.py`](../../max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py#L677)
+- Stop-token state update:
+  [`context.py`](../../max/python/max/pipelines/context/context.py#L884)
+- API stop-string handling:
+  [`llm.py`](../../max/python/max/serve/pipelines/llm.py#L587)
+- Disconnect regression:
+  [`test_openai_routes.py`](../../max/tests/tests/serve/test_openai_routes.py#L1474)

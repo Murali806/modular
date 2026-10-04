@@ -186,14 +186,14 @@ stateDiagram-v2
 
 `CPU-RUN`, warmed server, 2026-10-04.
 
-| Call | Result |
-|---|---|
-| `GET /health` | `200`, empty body |
-| `GET /v1/models` | `200`, model ID + `max_model_len: 256` |
-| valid non-stream chat | `200`, 16 prompt + 8 completion tokens |
-| invalid `messages` type | `400`, `invalid_request_error` |
-| stream | first frame `22.31 ms`, `[DONE]` `117.73 ms` |
-| disconnect | client closed after 2 data frames; server stayed healthy |
+| Call                    | Result                                                   |
+|-------------------------|----------------------------------------------------------|
+| `GET /health`           | `200`, empty body                                        |
+| `GET /v1/models`        | `200`, model ID + `max_model_len: 256`                   |
+| valid non-stream chat   | `200`, 16 prompt + 8 completion tokens                   |
+| invalid `messages` type | `400`, `invalid_request_error`                           |
+| stream                  | first frame `22.31 ms`, `[DONE]` `117.73 ms`             |
+| disconnect              | client closed after 2 data frames; server stayed healthy |
 
 Compact non-stream result:
 
@@ -227,13 +227,13 @@ pipeline        -> input/output token counters
 streaming layer -> TTFT / ITL / request time
 ```
 
-| Signal | Value |
-|---|---:|
-| chat `200` / `400` | `3 / 1` |
-| CE batches / TG batches | `3 / 16` |
-| input / output tokens | `49 / 18` |
-| mean TTFT | `29.01 ms` |
-| mean recorded ITL | `13.72 ms` |
+| Signal                  |           Value |
+|-------------------------|----------------:|
+| chat `200` / `400`      |         `3 / 1` |
+| CE batches / TG batches |        `3 / 16` |
+| input / output tokens   |       `49 / 18` |
+| mean TTFT               |      `29.01 ms` |
+| mean recorded ITL       |      `13.72 ms` |
 | KV prefix hits / misses | `0 / 49 tokens` |
 
 ## Header Commit Boundary
@@ -267,12 +267,20 @@ python3 murali_docs/labs/client/max_serve_client.py \
 
 Source pins:
 
-- Route and schema conversion: [`openai_routes.py`](../../max/python/max/serve/router/openai_routes.py#L2217)
-- `TextGenerationRequest`: [`openai_routes.py`](../../max/python/max/serve/router/openai_routes.py#L2482)
-- SSE commit boundary: [`openai_routes.py`](../../max/python/max/serve/router/openai_routes.py#L2508)
-- Tokenize + submit: [`llm.py`](../../max/python/max/serve/pipelines/llm.py#L294)
+- Route and schema conversion:
+  [`openai_routes.py`](../../max/python/max/serve/router/openai_routes.py#L2217)
+- `TextGenerationRequest`:
+  [`openai_routes.py`](../../max/python/max/serve/router/openai_routes.py#L2482)
+- SSE commit boundary:
+  [`openai_routes.py`](../../max/python/max/serve/router/openai_routes.py#L2508)
+- Tokenize + submit:
+  [`llm.py`](../../max/python/max/serve/pipelines/llm.py#L294)
 - Worker handoff: [`llm.py`](../../max/python/max/serve/pipelines/llm.py#L431)
-- ZMQ proxy: [`zmq_interface.py`](../../max/python/max/serve/worker_interface/zmq_interface.py#L52)
-- Scheduler iteration: [`text_generation_scheduler.py`](../../max/python/max/serve/scheduler/text_generation_scheduler.py#L205)
-- Batch construction: [`text_batch_constructor.py`](../../max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py#L1845)
-- Model + sampling step: [`text_generation.py`](../../max/python/max/pipelines/lib/pipeline_variants/text_generation.py#L515)
+- ZMQ proxy:
+  [`zmq_interface.py`](../../max/python/max/serve/worker_interface/zmq_interface.py#L52)
+- Scheduler iteration:
+  [`text_generation_scheduler.py`](../../max/python/max/serve/scheduler/text_generation_scheduler.py#L205)
+- Batch construction:
+  [`text_batch_constructor.py`](../../max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py#L1845)
+- Model + sampling step:
+  [`text_generation.py`](../../max/python/max/pipelines/lib/pipeline_variants/text_generation.py#L515)

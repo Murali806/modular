@@ -194,19 +194,19 @@ stateDiagram-v2
 
 `CPU-RUN`, local time, warm model-download cache.
 
-| Time | Event | Delta |
-|---|---|---:|
-| `08:54:05.226` | CLI re-exec with jemalloc | start |
-| `08:54:11.282` | task resolved as text generation | `+6.1s` |
-| `08:54:13.958` | server lifespan + metrics start | `+8.7s` |
-| `08:54:14.812` | model worker spawned | `+9.6s` |
-| `08:54:18.417` | pipeline initialization begins | `+13.2s` |
-| `08:54:25.928` | graph build/compile begins | `+20.7s` |
-| `08:54:26.439` | model graph built | `0.5s build` |
-| `08:54:54.546` | model compiled | `28.1s compile` |
-| `08:55:04.353` | sampler compiled | `9.4s compile` |
-| `08:55:04.466` | model worker ready | `49.5s worker total` |
-| `08:55:04.511` | API server ready | `59.3s from re-exec` |
+| Time           | Event                            |                Delta |
+|----------------|----------------------------------|---------------------:|
+| `08:54:05.226` | CLI re-exec with jemalloc        |                start |
+| `08:54:11.282` | task resolved as text generation |              `+6.1s` |
+| `08:54:13.958` | server lifespan + metrics start  |              `+8.7s` |
+| `08:54:14.812` | model worker spawned             |              `+9.6s` |
+| `08:54:18.417` | pipeline initialization begins   |             `+13.2s` |
+| `08:54:25.928` | graph build/compile begins       |             `+20.7s` |
+| `08:54:26.439` | model graph built                |         `0.5s build` |
+| `08:54:54.546` | model compiled                   |      `28.1s compile` |
+| `08:55:04.353` | sampler compiled                 |       `9.4s compile` |
+| `08:55:04.466` | model worker ready               | `49.5s worker total` |
+| `08:55:04.511` | API server ready                 | `59.3s from re-exec` |
 
 Prometheus startup split:
 
@@ -297,26 +297,35 @@ SIGTERM after frame 1
 
 ## Ownership Table
 
-| Object | Owner process | Lifetime |
-|---|---|---|
-| Uvicorn + FastAPI app | API | server lifetime |
-| tokenizer + response detokenizers | API | tokenizer: server; detokenizer: request |
-| ZMQ proxy + per-request output queue | API | server / request |
-| metrics ASGI endpoint | metrics worker | server lifetime |
-| model weights + executable model | model worker | worker lifetime |
-| scheduler + batch constructor | model worker | worker lifetime |
-| KV manager/pages | model worker | worker / request reuse |
-| CPU kernels/runtime resources | model worker/native runtime | executable lifetime |
+| Object                               | Owner process               | Lifetime                                |
+|--------------------------------------|-----------------------------|-----------------------------------------|
+| Uvicorn + FastAPI app                | API                         | server lifetime                         |
+| tokenizer + response detokenizers    | API                         | tokenizer: server; detokenizer: request |
+| ZMQ proxy + per-request output queue | API                         | server / request                        |
+| metrics ASGI endpoint                | metrics worker              | server lifetime                         |
+| model weights + executable model     | model worker                | worker lifetime                         |
+| scheduler + batch constructor        | model worker                | worker lifetime                         |
+| KV manager/pages                     | model worker                | worker / request reuse                  |
+| CPU kernels/runtime resources        | model worker/native runtime | executable lifetime                     |
 
 Source pins:
 
-- CLI config creation: [`pipelines.py`](../../max/python/max/_entrypoints/pipelines.py#L434)
-- Registry + app creation: [`serve_api_and_model_worker.py`](../../max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L59)
-- Lifespan worker startup: [`api_server.py`](../../max/python/max/serve/api_server.py#L110)
-- Pipeline compile timing: [`model_worker.py`](../../max/python/max/serve/pipelines/model_worker.py#L319)
-- Scheduler loop: [`model_worker.py`](../../max/python/max/serve/pipelines/model_worker.py#L527)
-- Worker readiness + channel connect: [`model_worker.py`](../../max/python/max/serve/pipelines/model_worker.py#L612)
-- Architecture registration: [`llama3/arch.py`](../../max/python/max/pipelines/architectures/llama3/arch.py#L28)
-- Graph load template: [`pipeline_model.py`](../../max/python/max/pipelines/lib/interfaces/pipeline_model.py#L948)
+- CLI config creation:
+  [`pipelines.py`](../../max/python/max/_entrypoints/pipelines.py#L434)
+- Registry + app creation:
+  [`serve_api_and_model_worker.py`](../../max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L59)
+- Lifespan worker startup:
+  [`api_server.py`](../../max/python/max/serve/api_server.py#L110)
+- Pipeline compile timing:
+  [`model_worker.py`](../../max/python/max/serve/pipelines/model_worker.py#L319)
+- Scheduler loop:
+  [`model_worker.py`](../../max/python/max/serve/pipelines/model_worker.py#L527)
+- Worker readiness + channel connect:
+  [`model_worker.py`](../../max/python/max/serve/pipelines/model_worker.py#L612)
+- Architecture registration:
+  [`llama3/arch.py`](../../max/python/max/pipelines/architectures/llama3/arch.py#L28)
+- Graph load template:
+  [`pipeline_model.py`](../../max/python/max/pipelines/lib/interfaces/pipeline_model.py#L948)
 - Compile/init API: [`engine/api.py`](../../max/python/max/engine/api.py#L1048)
-- Child-process cleanup: [`process_control.py`](../../max/python/max/serve/process_control.py#L92)
+- Child-process cleanup:
+  [`process_control.py`](../../max/python/max/serve/process_control.py#L92)
