@@ -45,7 +45,8 @@ flowchart LR
 | 9     | [Graph API vs ModuleV3](artifacts/09_graph_api_vs_modulev3.md)           | `SOURCE`                             |
 | 10    | [Python to Mojo to hardware](artifacts/10_python_to_mojo_to_hardware.md) | `SOURCE`, `COMPILE-ONLY`, `GPU-LAB`  |
 | 11    | [Paged KV cache](artifacts/11_kv_cache.md)                               | `CPU-RUN`, `SOURCE`, `TEST`          |
-| 12-14 | [Master plan](Plan_max_internals_learning.md)                            | queued                               |
+| 12    | [Performance report](artifacts/12_performance_report.md)                 | `CPU-RUN`, `SOURCE`, `GPU-LAB`       |
+| 13-14 | [Master plan](Plan_max_internals_learning.md)                            | queued                               |
 
 ## Reproduce
 
@@ -87,6 +88,9 @@ murali_docs/labs/graph/inspect_mef_manifest.py \
 
 # Block lifecycle, hash chain, contiguous lookup, and prefix reuse
 murali_docs/labs/kv_cache/run_kv_cache_trace.sh --compact
+
+# CPU benchmark semantics + Prometheus correlation (server must be running)
+murali_docs/labs/performance/run_cpu_benchmark.sh
 ```
 
 Evidence was captured through repository revision `8236b97fc9` on 2026-10-04.

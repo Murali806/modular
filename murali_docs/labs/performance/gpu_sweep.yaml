@@ -1,0 +1,13 @@
+benchmark_config:
+  backend: modular
+  endpoint: /v1/chat/completions
+  dataset_name: random
+  num_prompts: 200
+  seed: 24301
+  random_input_len: 512
+  random_output_len: 128
+  max_output_len: 128
+  max_concurrency: [1, 2, 4, 8, 16, 32]
+  collect_gpu_stats: true
+  collect_server_stats: true
+  disable_tqdm: true

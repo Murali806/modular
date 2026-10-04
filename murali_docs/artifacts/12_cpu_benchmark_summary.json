@@ -1,0 +1,105 @@
+{
+  "evidence": "CPU-RUN",
+  "runs": [
+    {
+      "accounting": {
+        "accepted": 40,
+        "accepted_note": "exact: every offered request completed",
+        "cancelled": 0,
+        "completed": 40,
+        "offered": 40,
+        "rejected_429": 0,
+        "timed_out": 0,
+        "unclassified_failures": 0
+      },
+      "aggregate_output_tokens_per_s": 42.016,
+      "duration_s": 7.616,
+      "latency_ms": {
+        "itl_p50": 14.953,
+        "itl_p95": 36.734,
+        "tpot_p50": 15.126,
+        "tpot_p95": 33.409,
+        "ttft_p50": 24.698,
+        "ttft_p95": 81.457
+      },
+      "max_concurrency": 1,
+      "request_throughput_per_s": 5.252,
+      "server": {
+        "cache_hit_tokens": 0.0,
+        "cache_miss_tokens": 1335.0,
+        "input_tokens": 1335.0,
+        "mean_ce_batch_size": 1.0,
+        "mean_kv_used_percent": 10.938,
+        "mean_tg_batch_size": 1.0
+      },
+      "server_output_tokens": 320.0
+    },
+    {
+      "accounting": {
+        "accepted": 40,
+        "accepted_note": "exact: every offered request completed",
+        "cancelled": 0,
+        "completed": 40,
+        "offered": 40,
+        "rejected_429": 0,
+        "timed_out": 0,
+        "unclassified_failures": 0
+      },
+      "aggregate_output_tokens_per_s": 109.738,
+      "duration_s": 2.916,
+      "latency_ms": {
+        "itl_p50": 15.344,
+        "itl_p95": 16.52,
+        "tpot_p50": 15.49,
+        "tpot_p95": 21.605,
+        "ttft_p50": 33.391,
+        "ttft_p95": 41.234
+      },
+      "max_concurrency": 2,
+      "request_throughput_per_s": 13.717,
+      "server": {
+        "cache_hit_tokens": 0.0,
+        "cache_miss_tokens": 1337.0,
+        "input_tokens": 1337.0,
+        "mean_ce_batch_size": 2.0,
+        "mean_kv_used_percent": 21.875,
+        "mean_tg_batch_size": 2.0
+      },
+      "server_output_tokens": 320.0
+    },
+    {
+      "accounting": {
+        "accepted": 40,
+        "accepted_note": "exact: every offered request completed",
+        "cancelled": 0,
+        "completed": 40,
+        "offered": 40,
+        "rejected_429": 0,
+        "timed_out": 0,
+        "unclassified_failures": 0
+      },
+      "aggregate_output_tokens_per_s": 198.712,
+      "duration_s": 1.61,
+      "latency_ms": {
+        "itl_p50": 16.28,
+        "itl_p95": 18.307,
+        "tpot_p50": 16.379,
+        "tpot_p95": 19.903,
+        "ttft_p50": 43.495,
+        "ttft_p95": 48.084
+      },
+      "max_concurrency": 4,
+      "request_throughput_per_s": 24.839,
+      "server": {
+        "cache_hit_tokens": 0.0,
+        "cache_miss_tokens": 1334.0,
+        "input_tokens": 1334.0,
+        "mean_ce_batch_size": 4.0,
+        "mean_kv_used_percent": 43.75,
+        "mean_tg_batch_size": 4.0
+      },
+      "server_output_tokens": 320.0
+    }
+  ],
+  "scope": "semantic smoke test; not GPU capacity data"
+}

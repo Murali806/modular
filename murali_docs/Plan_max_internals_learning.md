@@ -52,7 +52,8 @@ ASCII map -> Mermaid sequence/block/state view -> tiny source map -> evidence
 [done] Phase 9  Graph API versus ModuleV3 authoring paths
 [done] Phase 10 Python custom op -> Mojo dispatch -> hardware launch API
 [done] Phase 11 paged KV cache and prefix caching
-[next] Phase 12 benchmark, profile, and metrics
+[done] Phase 12 benchmark, profile, and metrics
+[next] Phase 13 single-node parallelism
 ```
 
 Artifacts: [`murali_docs/README.md`](README.md).
@@ -63,7 +64,7 @@ flowchart LR
     P2 --> P3[Phase 3 done] --> P4[Phase 4 done] --> P5[Phase 5 done]
     P5 --> P6[Phase 6 done] --> P7[Phase 7 done] --> P8[Phase 8 done]
     P8 --> P9[Phase 9 done] --> P10[Phase 10 done] --> P11[Phase 11 done]
-    P11 --> P12[Phase 12 next]
+    P11 --> P12[Phase 12 done] --> P13[Phase 13 next]
     P2 --> CPU[CPU execution lane]
     P2 --> VC[GPU compile-only lane]
     VC --> GL[Future GPU runtime lab]
