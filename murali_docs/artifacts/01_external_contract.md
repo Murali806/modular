@@ -230,7 +230,7 @@ streaming layer -> TTFT / ITL / request time
 | Signal                  |           Value |
 |-------------------------|----------------:|
 | chat `200` / `400`      |         `3 / 1` |
-| CE batches / TG batches |        `3 / 16` |
+| CE = context encoding (prefill) / TG = text generation (decode) batches |        `3 / 16` |
 | input / output tokens   |       `49 / 18` |
 | mean TTFT               |      `29.01 ms` |
 | mean recorded ITL       |      `13.72 ms` |
