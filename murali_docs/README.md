@@ -49,7 +49,7 @@ flowchart LR
 | 13    | [Single-node parallelism](artifacts/13_parallelism.md)                   | `SOURCE`, `COMPILE-ONLY`, `GPU-LAB`     |
 | 14    | [Production design](artifacts/14_production_design.md)                   | `SOURCE`, `BOUNDARY`, `GPU-LAB`         |
 | Final | [Capstone](artifacts/15_capstone.md)                                     | complete; GPU runtime remains `GPU-LAB` |
-| Q&A   | [Component flow explainer](artifacts/16_component_flow_explainer.md)     | `SOURCE`, `BOUNDARY`                    |
+| Q&A   | [Component flow explainer](artifacts/000_component_flow_explainer.md)    | `SOURCE`, `BOUNDARY`                    |
 
 ## Reproduce
 
