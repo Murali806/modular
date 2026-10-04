@@ -47,8 +47,8 @@ flowchart LR
 | 11    | [Paged KV cache](artifacts/11_kv_cache.md)                               | `CPU-RUN`, `SOURCE`, `TEST`          |
 | 12    | [Performance report](artifacts/12_performance_report.md)                 | `CPU-RUN`, `SOURCE`, `GPU-LAB`       |
 | 13    | [Single-node parallelism](artifacts/13_parallelism.md)                   | `SOURCE`, `COMPILE-ONLY`, `GPU-LAB`  |
-| 14    | [Master plan](Plan_max_internals_learning.md)                            | next                                 |
-| Final | [Master plan](Plan_max_internals_learning.md)                            | queued                               |
+| 14    | [Production design](artifacts/14_production_design.md)                   | `SOURCE`, `BOUNDARY`, `GPU-LAB`      |
+| Final | [Master plan](Plan_max_internals_learning.md)                            | next                                 |
 
 ## Reproduce
 

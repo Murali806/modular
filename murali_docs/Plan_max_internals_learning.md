@@ -54,8 +54,8 @@ ASCII map -> Mermaid sequence/block/state view -> tiny source map -> evidence
 [done] Phase 11 paged KV cache and prefix caching
 [done] Phase 12 benchmark, profile, and metrics
 [done] Phase 13 single-node parallelism
-[next] Phase 14 production service design
-[todo] Capstone integrated report
+[done] Phase 14 production service design
+[next] Capstone integrated report
 ```
 
 Artifacts: [`murali_docs/README.md`](README.md).
@@ -67,7 +67,7 @@ flowchart LR
     P5 --> P6[Phase 6 done] --> P7[Phase 7 done] --> P8[Phase 8 done]
     P8 --> P9[Phase 9 done] --> P10[Phase 10 done] --> P11[Phase 11 done]
     P11 --> P12[Phase 12 done] --> P13[Phase 13 done]
-    P13 --> P14[Phase 14 next] --> CAP[Capstone queued]
+    P13 --> P14[Phase 14 done] --> CAP[Capstone next]
     P2 --> CPU[CPU execution lane]
     P2 --> VC[GPU compile-only lane]
     VC --> GL[Future GPU runtime lab]
