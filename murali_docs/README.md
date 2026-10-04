@@ -46,7 +46,9 @@ flowchart LR
 | 10    | [Python to Mojo to hardware](artifacts/10_python_to_mojo_to_hardware.md) | `SOURCE`, `COMPILE-ONLY`, `GPU-LAB`  |
 | 11    | [Paged KV cache](artifacts/11_kv_cache.md)                               | `CPU-RUN`, `SOURCE`, `TEST`          |
 | 12    | [Performance report](artifacts/12_performance_report.md)                 | `CPU-RUN`, `SOURCE`, `GPU-LAB`       |
-| 13-14 | [Master plan](Plan_max_internals_learning.md)                            | queued                               |
+| 13    | [Single-node parallelism](artifacts/13_parallelism.md)                   | `SOURCE`, `COMPILE-ONLY`, `GPU-LAB`  |
+| 14    | [Master plan](Plan_max_internals_learning.md)                            | next                                 |
+| Final | [Master plan](Plan_max_internals_learning.md)                            | queued                               |
 
 ## Reproduce
 
