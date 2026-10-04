@@ -38,7 +38,10 @@ flowchart LR
 | 2     | [Startup topology](artifacts/02_startup_topology.md)         | `CPU-RUN`, `SOURCE`, `BOUNDARY`     |
 | 3     | [Request object trace](artifacts/03_request_object_trace.md) | `CPU-RUN`, `SOURCE`, `TEST`         |
 | 4     | [IPC and backpressure](artifacts/04_ipc_backpressure.md)     | `CPU-RUN`, `SOURCE`, `TEST`         |
-| 5-14  | [Master plan](Plan_max_internals_learning.md)                | queued                              |
+| 5     | [Scheduler trace](artifacts/05_scheduler_trace.md)           | `CPU-RUN`, `SOURCE`, `TEST`         |
+| 6     | [Batch to token](artifacts/06_batch_to_token.md)             | `CPU-RUN`, `SOURCE`, `COMPILE-ONLY` |
+| 7     | [Model resolution](artifacts/07_model_resolution.md)         | `CPU-RUN`, `SOURCE`, `BOUNDARY`     |
+| 8-14  | [Master plan](Plan_max_internals_learning.md)                | queued                              |
 
 ## Reproduce
 
@@ -64,6 +67,15 @@ murali_docs/labs/tracing/run_request_object_trace.sh
 
 # IPC framing -> response routing -> caps -> cancellation
 murali_docs/labs/tracing/run_ipc_backpressure_trace.sh
+
+# Continuous batching, chunking, preemption, and DP placement
+murali_docs/labs/scheduler/run_scheduler_trace.sh
+
+# CE/TG contexts -> ragged token and row-offset buffers
+murali_docs/labs/graph/run_ragged_batch_probe.sh
+
+# HF config -> registry components + adapted weight names
+murali_docs/labs/graph/run_model_resolution_probe.sh
 ```
 
-Evidence was captured through repository revision `1de3369d51` on 2026-10-04.
+Evidence was captured through repository revision `c44d2c99b8` on 2026-10-04.

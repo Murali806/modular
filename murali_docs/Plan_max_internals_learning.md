@@ -45,7 +45,10 @@ ASCII map -> Mermaid sequence/block/state view -> tiny source map -> evidence
 [done] Phase 2  CLI -> API/metrics/model processes -> graph compile -> ready
 [done] Phase 3  OpenAI fields -> prompt -> tokens -> TextContext
 [done] Phase 4  IPC -> backpressure -> cancellation
-[next] Phase 5  continuous batching and scheduler iterations
+[done] Phase 5  continuous batching and scheduler iterations
+[done] Phase 6  ragged buffers -> model -> sampler -> host token
+[done] Phase 7  HF config -> registry -> weights -> Llama implementation
+[next] Phase 8  Graph API construction, compilation, initialization, MEFs
 ```
 
 Artifacts: [`murali_docs/README.md`](README.md).
@@ -53,7 +56,8 @@ Artifacts: [`murali_docs/README.md`](README.md).
 ```mermaid
 flowchart LR
     P0[Phase 0 done] --> P1[Phase 1 done] --> P2[Phase 2 done]
-    P2 --> P3[Phase 3 done] --> P4[Phase 4 done] --> P5[Phase 5 next]
+    P2 --> P3[Phase 3 done] --> P4[Phase 4 done] --> P5[Phase 5 done]
+    P5 --> P6[Phase 6 done] --> P7[Phase 7 done] --> P8[Phase 8 next]
     P2 --> CPU[CPU execution lane]
     P2 --> VC[GPU compile-only lane]
     VC --> GL[Future GPU runtime lab]
