@@ -69,7 +69,7 @@ flowchart LR
 | request mapping | JSON -> 22 prompt IDs -> `TextContext` traced             |
 | IPC overload    | bounded fault injection produced 105 HTTP 429 responses   |
 | scheduler       | mixed CE/TG, chunking, preemption, DP placement traced    |
-| graph           | CUDA and HIP MEFs exported without accelerator execution  |
+| graph           | CUDA/HIP MEFs exported; CPU MEFs re-imported successfully |
 | KV              | 46,080 B/token; lifecycle and prefix invariants exercised |
 | benchmark       | 40/40 completions at concurrency 1, 2, and 4 on CPU       |
 | GPU runtime     | intentionally not run: this host has no accelerator       |
@@ -532,6 +532,15 @@ Cross-compile evidence:
 | CUDA `sm_80` | 53.6 s |  10.4 s |        8.0 s |    4 | 3,564,123 | not run |
 | HIP `gfx942` | 70.2 s |  14.5 s |        7.9 s |    4 | 6,375,651 | not run |
 
+CPU reuse evidence:
+
+```text
+export process: model compile 20.8 s | sampler compile 0.9 s
+import process: model compile  0.0 s | sampler compile 0.0 s
+
+accelerator MEF initialization still requires a real matching GPU
+```
+
 Drill-down: [Phase 7](07_model_resolution.md),
 [Phase 8](08_graph_compilation.md), and
 [Phase 9](09_graph_api_vs_modulev3.md).
@@ -653,11 +662,11 @@ Drill-down: [Phase 11](11_kv_cache.md).
 
 `CPU-RUN`; semantic smoke test, not GPU capacity.
 
-| Concurrency | Completed | Request/s | Output tok/s | TTFT p50/p95 ms | TPOT p50/p95 ms |
-|------------:|----------:|----------:|-------------:|----------------:|----------------:|
-|           1 |     40/40 |      5.25 |         42.0 |   24.70 / 81.46 |   15.13 / 33.41 |
-|           2 |     40/40 |     13.72 |        109.7 |   33.39 / 41.23 |   15.49 / 21.60 |
-|           4 |     40/40 |     24.84 |        198.7 |   43.49 / 48.08 |   16.38 / 19.90 |
+| Concurrency | Completed | Request/s | Output tok/s |    TTFT p50/p95/p99 ms |    TPOT p50/p95/p99 ms |
+|------------:|----------:|----------:|-------------:|-----------------------:|-----------------------:|
+|           1 |     40/40 |      5.25 |         42.0 | 24.70 / 81.46 / 226.84 | 15.13 / 33.41 / 152.06 |
+|           2 |     40/40 |     13.72 |        109.7 |  33.39 / 41.23 / 69.42 |  15.49 / 21.60 / 22.02 |
+|           4 |     40/40 |     24.84 |        198.7 |  43.49 / 48.08 / 48.36 |  16.38 / 19.90 / 22.80 |
 
 ```mermaid
 xychart-beta
@@ -675,6 +684,9 @@ metrics join works                  production capacity
 batches 1/2/4 form                  Model B latency
 all requests accounted              saturation knee beyond 4
 ```
+
+Mean scheduler pending and admission queue values were zero at all three
+points. The p99 values are descriptive for 40-request CPU runs, not SLO data.
 
 GPU benchmark order:
 
@@ -974,7 +986,8 @@ flowchart TD
 [x] API/model-worker IPC, backpressure, cancellation
 [x] continuous scheduler and ragged batches
 [x] model registry, config, weights, and memory plan
-[x] graph construction, compilation, initialization, and MEF reuse
+[x] graph construction, compilation, and initialization
+[x] CPU MEF export/reuse; accelerator import boundary documented
 [x] Graph API versus ModuleV3 mental model
 [x] Python custom op -> Mojo dispatch -> launch API
 [x] paged KV allocation, prefix reuse, pressure, and preemption

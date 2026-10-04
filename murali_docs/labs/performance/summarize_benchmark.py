@@ -75,10 +75,13 @@ def _summarize(path: Path) -> dict[str, Any]:
         "latency_ms": {
             "ttft_p50": _round(result.get("median_ttft_ms")),
             "ttft_p95": _round(result.get("p95_ttft_ms")),
+            "ttft_p99": _round(result.get("p99_ttft_ms")),
             "tpot_p50": _round(result.get("median_tpot_ms")),
             "tpot_p95": _round(result.get("p95_tpot_ms")),
+            "tpot_p99": _round(result.get("p99_tpot_ms")),
             "itl_p50": _round(result.get("median_itl_ms")),
             "itl_p95": _round(result.get("p95_itl_ms")),
+            "itl_p99": _round(result.get("p99_itl_ms")),
         },
         "server": {
             "input_tokens": _round(
@@ -99,6 +102,23 @@ def _summarize(path: Path) -> dict[str, Any]:
                 _histogram(result, 'maxserve_batch_size{batch_type="TG"}').get(
                     "mean"
                 )
+            ),
+            "mean_ce_pending_requests": _round(
+                _histogram(
+                    result,
+                    'maxserve_batch_pending_reqs{batch_type="CE"}',
+                ).get("mean")
+            ),
+            "mean_tg_pending_requests": _round(
+                _histogram(
+                    result,
+                    'maxserve_batch_pending_reqs{batch_type="TG"}',
+                ).get("mean")
+            ),
+            "mean_awaiting_admission": _round(
+                _histogram(
+                    result, "maxserve_requests_awaiting_admission"
+                ).get("mean")
             ),
             "mean_kv_used_percent": _round(
                 _histogram(result, "maxserve_cache_used_kv_pct_percent").get(

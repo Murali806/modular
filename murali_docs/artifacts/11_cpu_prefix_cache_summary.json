@@ -1,0 +1,28 @@
+{
+  "evidence": "CPU-RUN",
+  "model": "modularai/SmolLM-135M-Instruct-FP32",
+  "requests_per_mode": 10,
+  "shared_prefix_tokens_per_trial": 128,
+  "trials_per_mode": 5,
+  "enabled": {
+    "reset_status": 200,
+    "prompt_tokens_per_request": 157,
+    "g0_hit_tokens": 640,
+    "miss_tokens": 930,
+    "median_seed_ttft_ms": 57.106,
+    "median_shared_ttft_ms": 24.693,
+    "median_seed_e2e_ms": 57.556,
+    "median_shared_e2e_ms": 24.802
+  },
+  "disabled": {
+    "reset_status": 400,
+    "prompt_tokens_per_request": 157,
+    "g0_hit_tokens": 0,
+    "miss_tokens": 0,
+    "median_seed_ttft_ms": 41.162,
+    "median_shared_ttft_ms": 41.363,
+    "median_seed_e2e_ms": 41.285,
+    "median_shared_e2e_ms": 41.488
+  },
+  "scope": "Semantic CPU evidence; timings are not production capacity data"
+}

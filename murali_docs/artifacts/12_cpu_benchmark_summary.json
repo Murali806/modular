@@ -17,10 +17,13 @@
       "latency_ms": {
         "itl_p50": 14.953,
         "itl_p95": 36.734,
+        "itl_p99": 244.525,
         "tpot_p50": 15.126,
         "tpot_p95": 33.409,
+        "tpot_p99": 152.056,
         "ttft_p50": 24.698,
-        "ttft_p95": 81.457
+        "ttft_p95": 81.457,
+        "ttft_p99": 226.837
       },
       "max_concurrency": 1,
       "request_throughput_per_s": 5.252,
@@ -28,9 +31,12 @@
         "cache_hit_tokens": 0.0,
         "cache_miss_tokens": 1335.0,
         "input_tokens": 1335.0,
+        "mean_awaiting_admission": 0.0,
         "mean_ce_batch_size": 1.0,
+        "mean_ce_pending_requests": 0.0,
         "mean_kv_used_percent": 10.938,
-        "mean_tg_batch_size": 1.0
+        "mean_tg_batch_size": 1.0,
+        "mean_tg_pending_requests": 0.0
       },
       "server_output_tokens": 320.0
     },
@@ -50,10 +56,13 @@
       "latency_ms": {
         "itl_p50": 15.344,
         "itl_p95": 16.52,
+        "itl_p99": 18.197,
         "tpot_p50": 15.49,
         "tpot_p95": 21.605,
+        "tpot_p99": 22.019,
         "ttft_p50": 33.391,
-        "ttft_p95": 41.234
+        "ttft_p95": 41.234,
+        "ttft_p99": 69.418
       },
       "max_concurrency": 2,
       "request_throughput_per_s": 13.717,
@@ -61,9 +70,12 @@
         "cache_hit_tokens": 0.0,
         "cache_miss_tokens": 1337.0,
         "input_tokens": 1337.0,
+        "mean_awaiting_admission": 0.0,
         "mean_ce_batch_size": 2.0,
+        "mean_ce_pending_requests": 0.0,
         "mean_kv_used_percent": 21.875,
-        "mean_tg_batch_size": 2.0
+        "mean_tg_batch_size": 2.0,
+        "mean_tg_pending_requests": 0.0
       },
       "server_output_tokens": 320.0
     },
@@ -83,10 +95,13 @@
       "latency_ms": {
         "itl_p50": 16.28,
         "itl_p95": 18.307,
+        "itl_p99": 28.119,
         "tpot_p50": 16.379,
         "tpot_p95": 19.903,
+        "tpot_p99": 22.797,
         "ttft_p50": 43.495,
-        "ttft_p95": 48.084
+        "ttft_p95": 48.084,
+        "ttft_p99": 48.359
       },
       "max_concurrency": 4,
       "request_throughput_per_s": 24.839,
@@ -94,9 +109,12 @@
         "cache_hit_tokens": 0.0,
         "cache_miss_tokens": 1334.0,
         "input_tokens": 1334.0,
+        "mean_awaiting_admission": 0.0,
         "mean_ce_batch_size": 4.0,
+        "mean_ce_pending_requests": 0.0,
         "mean_kv_used_percent": 43.75,
-        "mean_tg_batch_size": 4.0
+        "mean_tg_batch_size": 4.0,
+        "mean_tg_pending_requests": 0.0
       },
       "server_output_tokens": 320.0
     }

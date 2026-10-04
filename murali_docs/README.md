@@ -91,8 +91,12 @@ murali_docs/labs/graph/inspect_mef_manifest.py \
 # Block lifecycle, hash chain, contiguous lookup, and prefix reuse
 murali_docs/labs/kv_cache/run_kv_cache_trace.sh --compact
 
+# Live CPU prefix-cache comparison (run with enabled, then disabled server)
+python3 murali_docs/labs/kv_cache/http_prefix_cache_probe.py --mode enabled
+
 # CPU benchmark semantics + Prometheus correlation (server must be running)
 murali_docs/labs/performance/run_cpu_benchmark.sh
 ```
 
-Evidence was captured through repository revision `8bba6b588c` on 2026-10-04.
+Evidence was re-verified through repository revision `4820070fe7` on
+2026-10-04.

@@ -105,11 +105,23 @@ CE batch     1          2                  4
 TG batch     1          2                  4
 ```
 
-| Concurrency | Offered / accepted / completed | 429 / timeout / cancel | Request/s | Server output tok/s | TTFT p50 / p95 ms | TPOT p50 / p95 ms | Mean KV used |
-|------------:|-------------------------------:|-----------------------:|----------:|--------------------:|------------------:|------------------:|-------------:|
-|           1 |                   40 / 40 / 40 |              0 / 0 / 0 |      5.25 |                42.0 |     24.70 / 81.46 |     15.13 / 33.41 |       10.94% |
-|           2 |                   40 / 40 / 40 |              0 / 0 / 0 |     13.72 |               109.7 |     33.39 / 41.23 |     15.49 / 21.60 |       21.88% |
-|           4 |                   40 / 40 / 40 |              0 / 0 / 0 |     24.84 |               198.7 |     43.49 / 48.08 |     16.38 / 19.90 |       43.75% |
+| Concurrency | Offered / accepted / completed | 429 / timeout / cancel | Request/s | Output tok/s |
+|------------:|-------------------------------:|-----------------------:|----------:|-------------:|
+|           1 |                   40 / 40 / 40 |              0 / 0 / 0 |      5.25 |         42.0 |
+|           2 |                   40 / 40 / 40 |              0 / 0 / 0 |     13.72 |        109.7 |
+|           4 |                   40 / 40 / 40 |              0 / 0 / 0 |     24.84 |        198.7 |
+
+| Concurrency | TTFT p50 / p95 / p99 ms | TPOT p50 / p95 / p99 ms | ITL p50 / p95 / p99 ms |
+|------------:|------------------------:|------------------------:|-----------------------:|
+|           1 |  24.70 / 81.46 / 226.84 |  15.13 / 33.41 / 152.06 | 14.95 / 36.73 / 244.53 |
+|           2 |   33.39 / 41.23 / 69.42 |   15.49 / 21.60 / 22.02 |  15.34 / 16.52 / 18.20 |
+|           4 |   43.49 / 48.08 / 48.36 |   16.38 / 19.90 / 22.80 |  16.28 / 18.31 / 28.12 |
+
+| Concurrency | Mean CE/TG batch | Mean CE/TG pending | Mean admission wait | Mean KV used |
+|------------:|-----------------:|-------------------:|--------------------:|-------------:|
+|           1 |          `1 / 1` |            `0 / 0` |                 0.0 |       10.94% |
+|           2 |          `2 / 2` |            `0 / 0` |                 0.0 |       21.88% |
+|           4 |          `4 / 4` |            `0 / 0` |                 0.0 |       43.75% |
 
 [Machine-readable summary](12_cpu_benchmark_summary.json)
 
@@ -122,11 +134,29 @@ xychart-beta
 ```
 
 ```text
+queue pressure    0 -------- 0 -------- 0
+mean KV use    10.94% ---- 21.88% ---- 43.75%
+concurrency        1          2          4
+```
+
+```mermaid
+xychart-beta
+    title "CPU smoke test: mean KV utilization"
+    x-axis "max concurrency" [1, 2, 4]
+    y-axis "mean KV used (%)" 0 --> 50
+    line [10.94, 21.88, 43.75]
+```
+
+```text
 Valid conclusion: benchmark -> server -> Prometheus wiring works;
                   scheduler formed batches of 1, 2, and 4.
 
 Invalid conclusion: these CPU numbers predict GPU capacity or production SLOs.
 ```
+
+The p99 values are descriptive only: each point has 40 requests, and the
+concurrency-1 run contains a visible tail outlier. This sweep did not reach a
+queueing or rejection knee.
 
 Raw run files remain outside Git:
 
@@ -330,7 +360,18 @@ Nsight Systems answers: where did time go?
 Nsight Compute answers: why is this kernel slow?
 ```
 
-## Acceptance Gate
+## CPU Completion Gate
+
+```text
+[x] fixed workload and model identity
+[x] offered / accepted / completed / 429 / timeout / cancel accounting
+[x] p50 / p95 / p99 TTFT, TPOT, and ITL
+[x] CE/TG batch, pending queue, admission, and KV metrics
+[x] machine-readable summary
+[x] fresh end-to-end rerun during final audit
+```
+
+## GPU Acceptance Gate
 
 ```text
 [ ] exact model revision + encoding + MAX revision

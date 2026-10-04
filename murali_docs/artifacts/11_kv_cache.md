@@ -169,6 +169,47 @@ flowchart LR
     H2 -->|miss| Stop2[Reusable prefix = 2]
 ```
 
+## Live HTTP Prefix Comparison
+
+`CPU-RUN`; five seed/shared pairs per server mode.
+
+```text
+prefix caching enabled
+  seed   157 tokens -> 157 misses -> retain first 128-token page
+  shared 157 tokens -> 128 hits + 29 misses -> shorter prefill
+
+prefix caching disabled
+  seed/shared -> full prefill; cache counters remain inactive
+```
+
+```mermaid
+sequenceDiagram
+    actor C as External client
+    participant A as MAX API
+    participant K as Prefix cache
+    participant G as CPU graph
+    C->>A: seed prompt, 157 tokens
+    A->>K: lookup
+    K-->>A: 0 hit, 157 miss
+    A->>G: full prefill
+    G-->>K: retain full 128-token page
+    C->>A: same prefix + new suffix
+    A->>K: lookup
+    K-->>A: 128 hit, 29 miss
+    A->>G: prefill uncached suffix
+```
+
+| Mode     | G0 hit tokens | Miss tokens | Seed TTFT median | Shared TTFT median |
+|----------|--------------:|------------:|-----------------:|-------------------:|
+| enabled  |           640 |         930 |         57.11 ms |           24.69 ms |
+| disabled |             0 |           0 |         41.16 ms |           41.36 ms |
+
+Enabled totals cover five pairs: exactly `5 x 128 = 640` cached tokens. With
+caching disabled, MAX does not publish hit/miss work for these requests.
+Timings are a semantic CPU check, not a production speed claim.
+
+[Machine-readable summary](11_cpu_prefix_cache_summary.json)
+
 ## Tier Walk
 
 `SOURCE + BOUNDARY`
@@ -292,6 +333,13 @@ KV utilization, preemptions, accelerator utilization, and kernel mix.
 ```bash
 murali_docs/labs/kv_cache/run_kv_cache_trace.sh --compact \
   > /tmp/phase11_kv_cache_trace.json
+
+# Run once against the default server, then restart it with
+# --no-enable-prefix-caching and run the disabled mode.
+python3 murali_docs/labs/kv_cache/http_prefix_cache_probe.py \
+  --mode enabled --trials 5
+python3 murali_docs/labs/kv_cache/http_prefix_cache_probe.py \
+  --mode disabled --trials 5
 ```
 
 ## Source Pins

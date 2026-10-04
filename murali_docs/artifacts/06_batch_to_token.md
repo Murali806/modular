@@ -119,13 +119,13 @@ flowchart LR
 
 CUDA `sm_80` exported signature for Model A:
 
-| Buffer               | Shape                     | Device  |
-|----------------------|---------------------------|---------|
-| tokens               | `[total_seq_len]`         | `gpu:0` |
-| row offsets          | `[input_row_offsets_len]` | `gpu:0` |
-| return-logit control | symbolic                  | `cpu:0` |
-| paged KV storage     | `[pages,2,30,128,3,64]`   | `gpu:0` |
-| logits               | `[batch,49152]`           | `gpu:0` |
+| Buffer               | Shape                               | Device  |
+|----------------------|-------------------------------------|---------|
+| tokens               | `[total_seq_len]`                   | `gpu:0` |
+| row offsets          | `[input_row_offsets_len]`           | `gpu:0` |
+| return-logit control | symbolic                            | `cpu:0` |
+| paged KV storage     | `[pages,2,30,128,3,64]`             | `gpu:0` |
+| logits               | `[input_row_offsets_len - 1,49152]` | `gpu:0` |
 
 ## Model + Sampler Split
 

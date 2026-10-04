@@ -229,6 +229,46 @@ flowchart LR
 Details:
 [accelerator compile manifest](08_graph/accelerator_compile_manifest.md).
 
+## MEF Reuse And IR Proof
+
+`CPU-RUN + COMPILE-ONLY + BOUNDARY`
+
+```text
+CPU Graphs -> compile + export 3 MEFs -> new process -> import -> init
+                    20.8s model compile                  0.0s compile
+
+CUDA virtual graph -> pre-jit -> emitted Mojo + staged MLIR
+CUDA MEF path       -> virtual init blocked -> real GPU required
+```
+
+```mermaid
+sequenceDiagram
+    participant A as CPU export process
+    participant M as MEF directory
+    participant B as New CPU process
+    participant V as CUDA virtual device
+    participant G as Real GPU host
+    A->>M: compile and export 3 graphs
+    B->>M: match graph fingerprints
+    M-->>B: load artifacts; compile time 0.0 s
+    B->>B: initialize executable models
+    V->>V: pre-jit emits Mojo and MLIR
+    V->>M: accelerator import reaches init boundary
+    M-->>V: reject virtual-device initialization
+    M->>G: supported import and initialization path
+```
+
+| CPU run        | Model compile | Sampler compile | Wall time | Result               |
+|----------------|--------------:|----------------:|----------:|----------------------|
+| export process |        20.8 s |           0.9 s |   34.16 s | 3 MEFs, 4,879,528 B  |
+| import process |         0.0 s |           0.0 s |   11.51 s | initialized from MEF |
+
+The CUDA `pre-jit` run emitted one `55,591 B` Mojo file plus eight staged MLIR
+files, then stopped before kernel JIT as requested. Accelerator MEF execution
+and initialization remain `GPU-LAB`.
+
+Details: [CPU MEF reuse and IR evidence](08_graph/cpu_mef_reuse.md).
+
 ## Native Boundary
 
 `BOUNDARY`
