@@ -31,13 +31,14 @@ flowchart LR
 
 ## Progress
 
-| Phase | Artifact | Evidence |
-|---|---|---|
-| 0 | [Environment](artifacts/00_environment.md) | `CPU-RUN`, `COMPILE-ONLY`, `SOURCE` |
-| 1 | [External contract](artifacts/01_external_contract.md) | `CPU-RUN`, `SOURCE` |
-| 2 | [Startup topology](artifacts/02_startup_topology.md) | `CPU-RUN`, `SOURCE`, `BOUNDARY` |
-| 3 | [Request object trace](artifacts/03_request_object_trace.md) | `CPU-RUN`, `SOURCE`, `TEST` |
-| 4-14 | [Master plan](Plan_max_internals_learning.md) | queued |
+| Phase | Artifact                                                     | Evidence                            |
+|-------|--------------------------------------------------------------|-------------------------------------|
+| 0     | [Environment](artifacts/00_environment.md)                   | `CPU-RUN`, `COMPILE-ONLY`, `SOURCE` |
+| 1     | [External contract](artifacts/01_external_contract.md)       | `CPU-RUN`, `SOURCE`                 |
+| 2     | [Startup topology](artifacts/02_startup_topology.md)         | `CPU-RUN`, `SOURCE`, `BOUNDARY`     |
+| 3     | [Request object trace](artifacts/03_request_object_trace.md) | `CPU-RUN`, `SOURCE`, `TEST`         |
+| 4     | [IPC and backpressure](artifacts/04_ipc_backpressure.md)     | `CPU-RUN`, `SOURCE`, `TEST`         |
+| 5-14  | [Master plan](Plan_max_internals_learning.md)                | queued                              |
 
 ## Reproduce
 
@@ -60,6 +61,9 @@ python3 murali_docs/labs/client/max_serve_client.py --mode all
 
 # Route -> prompt -> tokens -> context -> local ZMQ round trip
 murali_docs/labs/tracing/run_request_object_trace.sh
+
+# IPC framing -> response routing -> caps -> cancellation
+murali_docs/labs/tracing/run_ipc_backpressure_trace.sh
 ```
 
-Evidence was captured through repository revision `8d8b1b3e40` on 2026-10-04.
+Evidence was captured through repository revision `1de3369d51` on 2026-10-04.

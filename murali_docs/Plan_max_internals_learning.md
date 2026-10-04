@@ -44,7 +44,8 @@ ASCII map -> Mermaid sequence/block/state view -> tiny source map -> evidence
 [done] Phase 1  external Python -> JSON/SSE/error/disconnect contract
 [done] Phase 2  CLI -> API/metrics/model processes -> graph compile -> ready
 [done] Phase 3  OpenAI fields -> prompt -> tokens -> TextContext
-[next] Phase 4  IPC -> backpressure -> cancellation
+[done] Phase 4  IPC -> backpressure -> cancellation
+[next] Phase 5  continuous batching and scheduler iterations
 ```
 
 Artifacts: [`murali_docs/README.md`](README.md).
@@ -52,7 +53,7 @@ Artifacts: [`murali_docs/README.md`](README.md).
 ```mermaid
 flowchart LR
     P0[Phase 0 done] --> P1[Phase 1 done] --> P2[Phase 2 done]
-    P2 --> P3[Phase 3 done] --> P4[Phase 4 next]
+    P2 --> P3[Phase 3 done] --> P4[Phase 4 done] --> P5[Phase 5 next]
     P2 --> CPU[CPU execution lane]
     P2 --> VC[GPU compile-only lane]
     VC --> GL[Future GPU runtime lab]
@@ -310,35 +311,35 @@ to HTTP 429 before streaming response headers are committed.
 Use this as an index, not as the reading order. The phases below provide the
 reading order.
 
-| Layer | Primary source locations | What to identify |
-|---|---|---|
-| CLI | `max/python/max/_entrypoints/pipelines.py` | `cli_serve`, option-to-config conversion |
-| Startup | `max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py` | registry lookup, app creation, lifespan, shutdown |
-| HTTP server | `max/python/max/serve/api_server.py` | app state, worker lifecycle, 429 handler, health and metrics |
-| OpenAI routes | `max/python/max/serve/router/openai_routes.py` | chat request conversion, stream/non-stream response generators |
-| API pipeline | `max/python/max/serve/pipelines/llm.py` | context creation, submission, detokenization, stop handling |
-| IPC | `max/python/max/serve/worker_interface/zmq_interface.py` | proxy, request/response/cancel queues, stream ownership |
-| Worker | `max/python/max/serve/pipelines/model_worker.py` | process entry, pipeline/KV setup, warmup, scheduler loop |
-| Scheduler | `max/python/max/serve/scheduler/text_generation_scheduler.py` | queue drain, batch construction, execute, response publication |
-| Batch policy | `max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py` | CE/TG queues, token budget, admission, preemption, DP placement |
-| Scheduler config | `max/python/max/serve/scheduler/config.py` | batch and token constraints |
-| Pipeline registry | `max/python/max/pipelines/lib/registry.py` | architecture, tokenizer, context, factory selection |
-| Text pipeline | `max/python/max/pipelines/lib/pipeline_variants/text_generation.py` | execute path, model run, sampling, output mapping |
-| Model interface | `max/python/max/pipelines/lib/interfaces/pipeline_model.py` | Graph API and ModuleV3 load/execute contracts |
-| Llama Graph API | `max/python/max/pipelines/architectures/llama3/` | config, weights, graph, execution inputs/outputs |
-| Llama ModuleV3 | `max/python/max/pipelines/architectures/llama3_modulev3/` | lazy module construction and `compile()` |
-| Engine | `max/python/max/engine/api.py` | compile/init/load, MEF reuse, executable model |
-| Native API edge | `max/python/max/_core/engine.pyi` | native engine contracts and visible metadata |
-| Attention layer | `max/python/max/nn/attention/attention_with_rope.py` | graph-level attention composition |
-| Python custom ops | `max/python/max/nn/kernels.py` | custom op name and arguments |
-| Mojo registration | `max/kernels/src/graph_compiler/builtin_kernels/attention.mojo` | `@extensibility.register` entry point |
-| Attention dispatch | `max/kernels/src/nn/kv_cache_ragged.mojo`, `max/kernels/src/nn/attention/gpu/mha.mojo` | CPU/GPU and architecture-specific dispatch |
-| Matmul kernels | `max/kernels/src/linalg/matmul/` | tiled/vendor/hardware implementations |
-| Device runtime | `max/mojo/max/gpu/` | `DeviceContext`, buffers, launch mechanisms |
-| KV planning | `max/python/max/pipelines/kv_cache/memory_planner.py` | memory budget and cache sizing |
-| Paged KV | `max/python/max/pipelines/kv_cache/paged_kv_cache/` | block management, prefix reuse, cache lifecycle |
-| Metrics/tracing | `max/python/max/serve/telemetry/` | request, batch, queue, KV, and latency signals |
-| Reference tests | `max/tests/integration/serve/` | expected E2E behavior and lifecycle contracts |
+| Layer              | Primary source locations                                                               | What to identify                                                |
+|--------------------|----------------------------------------------------------------------------------------|-----------------------------------------------------------------|
+| CLI                | `max/python/max/_entrypoints/pipelines.py`                                             | `cli_serve`, option-to-config conversion                        |
+| Startup            | `max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py`                  | registry lookup, app creation, lifespan, shutdown               |
+| HTTP server        | `max/python/max/serve/api_server.py`                                                   | app state, worker lifecycle, 429 handler, health and metrics    |
+| OpenAI routes      | `max/python/max/serve/router/openai_routes.py`                                         | chat request conversion, stream/non-stream response generators  |
+| API pipeline       | `max/python/max/serve/pipelines/llm.py`                                                | context creation, submission, detokenization, stop handling     |
+| IPC                | `max/python/max/serve/worker_interface/zmq_interface.py`                               | proxy, request/response/cancel queues, stream ownership         |
+| Worker             | `max/python/max/serve/pipelines/model_worker.py`                                       | process entry, pipeline/KV setup, warmup, scheduler loop        |
+| Scheduler          | `max/python/max/serve/scheduler/text_generation_scheduler.py`                          | queue drain, batch construction, execute, response publication  |
+| Batch policy       | `max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py`           | CE/TG queues, token budget, admission, preemption, DP placement |
+| Scheduler config   | `max/python/max/serve/scheduler/config.py`                                             | batch and token constraints                                     |
+| Pipeline registry  | `max/python/max/pipelines/lib/registry.py`                                             | architecture, tokenizer, context, factory selection             |
+| Text pipeline      | `max/python/max/pipelines/lib/pipeline_variants/text_generation.py`                    | execute path, model run, sampling, output mapping               |
+| Model interface    | `max/python/max/pipelines/lib/interfaces/pipeline_model.py`                            | Graph API and ModuleV3 load/execute contracts                   |
+| Llama Graph API    | `max/python/max/pipelines/architectures/llama3/`                                       | config, weights, graph, execution inputs/outputs                |
+| Llama ModuleV3     | `max/python/max/pipelines/architectures/llama3_modulev3/`                              | lazy module construction and `compile()`                        |
+| Engine             | `max/python/max/engine/api.py`                                                         | compile/init/load, MEF reuse, executable model                  |
+| Native API edge    | `max/python/max/_core/engine.pyi`                                                      | native engine contracts and visible metadata                    |
+| Attention layer    | `max/python/max/nn/attention/attention_with_rope.py`                                   | graph-level attention composition                               |
+| Python custom ops  | `max/python/max/nn/kernels.py`                                                         | custom op name and arguments                                    |
+| Mojo registration  | `max/kernels/src/graph_compiler/builtin_kernels/attention.mojo`                        | `@extensibility.register` entry point                           |
+| Attention dispatch | `max/kernels/src/nn/kv_cache_ragged.mojo`, `max/kernels/src/nn/attention/gpu/mha.mojo` | CPU/GPU and architecture-specific dispatch                      |
+| Matmul kernels     | `max/kernels/src/linalg/matmul/`                                                       | tiled/vendor/hardware implementations                           |
+| Device runtime     | `max/mojo/max/gpu/`                                                                    | `DeviceContext`, buffers, launch mechanisms                     |
+| KV planning        | `max/python/max/pipelines/kv_cache/memory_planner.py`                                  | memory budget and cache sizing                                  |
+| Paged KV           | `max/python/max/pipelines/kv_cache/paged_kv_cache/`                                    | block management, prefix reuse, cache lifecycle                 |
+| Metrics/tracing    | `max/python/max/serve/telemetry/`                                                      | request, batch, queue, KV, and latency signals                  |
+| Reference tests    | `max/tests/integration/serve/`                                                         | expected E2E behavior and lifecycle contracts                   |
 
 Terminology used by the scheduler:
 
@@ -356,7 +357,8 @@ Every phase uses the same loop:
 1. **Read:** identify ownership, inputs, outputs, and invariants.
 2. **Predict:** write what should happen before running the experiment.
 3. **Trace:** follow one request id or one batch through the relevant layer.
-4. **Measure:** collect a log, test result, metric, trace, graph dump, or profile.
+4. **Measure:** collect a log, test result, metric, trace, graph dump, or
+   profile.
 5. **Explain:** reconcile the observation with source.
 6. **Preserve:** save a small artifact under `murali_docs/artifacts/`.
 
@@ -803,7 +805,8 @@ artifact, weight initialization, executable model, and per-batch execution.
 
 - What does `F.lazy()` defer?
 - How does a `Module` become a compiled callable?
-- How do module state-dict names and explicit Graph API weight registries differ?
+- How do module state-dict names and explicit Graph API weight registries
+  differ?
 - Where are compile input types produced?
 - Which serving, scheduler, KV-cache, and batch-processing layers remain the
   same?
@@ -822,13 +825,13 @@ artifact, weight initialization, executable model, and per-batch execution.
 
 Build a side-by-side table:
 
-| Concern | Llama Graph API | Llama ModuleV3 |
-|---|---|---|
-| model construction | explicit graph values | Python modules under `F.lazy()` |
-| input contract | graph input types | batch-processor symbolic input types |
-| weights | explicit registry | module state dict passed to `compile()` |
-| compilation entry | `session.load(...)` | `nn_model.compile(...)` |
-| execution return | engine buffers | compiled tensor wrapper to buffers |
+| Concern            | Llama Graph API       | Llama ModuleV3                          |
+|--------------------|-----------------------|-----------------------------------------|
+| model construction | explicit graph values | Python modules under `F.lazy()`         |
+| input contract     | graph input types     | batch-processor symbolic input types    |
+| weights            | explicit registry     | module state dict passed to `compile()` |
+| compilation entry  | `session.load(...)`   | `nn_model.compile(...)`                 |
+| execution return   | engine buffers        | compiled tensor wrapper to buffers      |
 
 Add exact source links and fill the table with observed details rather than only
 these headings.
@@ -992,7 +995,8 @@ tokens-per-second number.
 - Which quantities are per request, per output token, per batch, or global?
 - How do prompt length, output length, concurrency, and request rate change the
   bottleneck?
-- When is the GPU idle because the server, scheduler, or workload cannot feed it?
+- When is the GPU idle because the server, scheduler, or workload cannot feed
+  it?
 - Which kernel families dominate prefill versus decode?
 
 **Read**
@@ -1025,9 +1029,9 @@ queue depth, KV utilization, and GPU utilization.
 
 **Completion gate**
 
-You can explain each curve using a scheduler, KV, graph-execution, data-transfer,
-or kernel observation, and can identify the saturation point without hiding
-rejected or timed-out requests.
+You can explain each curve using a scheduler, KV, graph-execution,
+data-transfer, or kernel observation, and can identify the saturation point
+without hiding rejected or timed-out requests.
 
 ### Phase 13: study single-node production scaling
 
@@ -1168,20 +1172,20 @@ implemented by MAX Serve or by surrounding infrastructure.
 Do not jump directly to thousands of clients. Increase load in stages so each
 new effect has a clear cause.
 
-| Stage | Workload | Main question | Required evidence |
-|---|---|---|---|
-| 1 | one non-streaming request | Is the contract correct? | response and request trace |
-| 2 | one streaming request | Where does each token wait? | SSE/token timeline |
-| 3 | two overlapping requests | Does continuous batching occur? | per-iteration batch composition |
-| 4 | mixed prompt/output sizes | How are prefill and decode balanced? | CE/TG scheduler trace |
-| 5 | concurrency sweep | Where does useful batching saturate? | latency/throughput curves |
-| 6 | request-rate sweep | When does queueing become unstable? | offered/accepted load and queue depth |
-| 7 | tiny queue overload | Is load shedding bounded and early? | 429 rate and memory stability |
-| 8 | shared prefixes | Is prefix caching effective? | cache-hit/reused-token metrics and TTFT |
-| 9 | KV pressure | How does preemption affect tails? | KV utilization and preemption trace |
-| 10 | multi-GPU | Which parallelism meets the target? | per-device profile and SLO comparison |
-| 11 | multiple replicas | How should routing/autoscaling work? | fleet-level capacity model |
-| 12 | failures and rollout | Does service degrade and recover safely? | failure-injection report |
+| Stage | Workload                  | Main question                            | Required evidence                       |
+|-------|---------------------------|------------------------------------------|-----------------------------------------|
+| 1     | one non-streaming request | Is the contract correct?                 | response and request trace              |
+| 2     | one streaming request     | Where does each token wait?              | SSE/token timeline                      |
+| 3     | two overlapping requests  | Does continuous batching occur?          | per-iteration batch composition         |
+| 4     | mixed prompt/output sizes | How are prefill and decode balanced?     | CE/TG scheduler trace                   |
+| 5     | concurrency sweep         | Where does useful batching saturate?     | latency/throughput curves               |
+| 6     | request-rate sweep        | When does queueing become unstable?      | offered/accepted load and queue depth   |
+| 7     | tiny queue overload       | Is load shedding bounded and early?      | 429 rate and memory stability           |
+| 8     | shared prefixes           | Is prefix caching effective?             | cache-hit/reused-token metrics and TTFT |
+| 9     | KV pressure               | How does preemption affect tails?        | KV utilization and preemption trace     |
+| 10    | multi-GPU                 | Which parallelism meets the target?      | per-device profile and SLO comparison   |
+| 11    | multiple replicas         | How should routing/autoscaling work?     | fleet-level capacity model              |
+| 12    | failures and rollout      | Does service degrade and recover safely? | failure-injection report                |
 
 For request-rate tests, use open-loop arrival control where possible. A pure
 closed-loop concurrency test can hide overload because slow responses reduce
@@ -1301,17 +1305,17 @@ measurement.
 The schedule assumes focused part-time study. Move faster only when the
 completion gate is satisfied.
 
-| Week | Phases | Outcome |
-|---|---|---|
-| 1 | 0-2 | reproducible baseline and startup/process model |
-| 2 | 3-4 | request conversion, streaming, IPC, cancellation, overload |
-| 3 | 5 | continuous batching and scheduler model |
-| 4 | 6-7 | batch buffers, sampling, registry, config, and weights |
-| 5 | 8 | Graph API construction, compilation, initialization, MEF |
-| 6 | 9-10 | ModuleV3 comparison and Python-to-Mojo kernel trace |
-| 7 | 11-12 | KV cache, benchmarking, profiling, and metrics |
-| 8 | 13-14 | multi-GPU and production deployment design |
-| 9 | capstone | integrated report and review |
+| Week | Phases   | Outcome                                                    |
+|------|----------|------------------------------------------------------------|
+| 1    | 0-2      | reproducible baseline and startup/process model            |
+| 2    | 3-4      | request conversion, streaming, IPC, cancellation, overload |
+| 3    | 5        | continuous batching and scheduler model                    |
+| 4    | 6-7      | batch buffers, sampling, registry, config, and weights     |
+| 5    | 8        | Graph API construction, compilation, initialization, MEF   |
+| 6    | 9-10     | ModuleV3 comparison and Python-to-Mojo kernel trace        |
+| 7    | 11-12    | KV cache, benchmarking, profiling, and metrics             |
+| 8    | 13-14    | multi-GPU and production deployment design                 |
+| 9    | capstone | integrated report and review                               |
 
 ## 12. Planned Artifact Layout
 
