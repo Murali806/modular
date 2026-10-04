@@ -36,7 +36,8 @@ flowchart LR
 | 0 | [Environment](artifacts/00_environment.md) | `CPU-RUN`, `COMPILE-ONLY`, `SOURCE` |
 | 1 | [External contract](artifacts/01_external_contract.md) | `CPU-RUN`, `SOURCE` |
 | 2 | [Startup topology](artifacts/02_startup_topology.md) | `CPU-RUN`, `SOURCE`, `BOUNDARY` |
-| 3-14 | [Master plan](Plan_max_internals_learning.md) | queued |
+| 3 | [Request object trace](artifacts/03_request_object_trace.md) | `CPU-RUN`, `SOURCE`, `TEST` |
+| 4-14 | [Master plan](Plan_max_internals_learning.md) | queued |
 
 ## Reproduce
 
@@ -56,6 +57,9 @@ MAX_SERVE_METRICS_ENDPOINT_PORT=18001 \
 
 # Terminal 2: dependency-free external client
 python3 murali_docs/labs/client/max_serve_client.py --mode all
+
+# Route -> prompt -> tokens -> context -> local ZMQ round trip
+murali_docs/labs/tracing/run_request_object_trace.sh
 ```
 
-Evidence was captured at repository revision `d8bfe64874` on 2026-10-04.
+Evidence was captured through repository revision `8d8b1b3e40` on 2026-10-04.

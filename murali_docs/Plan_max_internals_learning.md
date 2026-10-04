@@ -43,7 +43,8 @@ ASCII map -> Mermaid sequence/block/state view -> tiny source map -> evidence
 [done] Phase 0  CPU environment + CUDA sm_80 virtual-device compile
 [done] Phase 1  external Python -> JSON/SSE/error/disconnect contract
 [done] Phase 2  CLI -> API/metrics/model processes -> graph compile -> ready
-[next] Phase 3  OpenAI fields -> prompt -> tokens -> TextContext
+[done] Phase 3  OpenAI fields -> prompt -> tokens -> TextContext
+[next] Phase 4  IPC -> backpressure -> cancellation
 ```
 
 Artifacts: [`murali_docs/README.md`](README.md).
@@ -51,7 +52,7 @@ Artifacts: [`murali_docs/README.md`](README.md).
 ```mermaid
 flowchart LR
     P0[Phase 0 done] --> P1[Phase 1 done] --> P2[Phase 2 done]
-    P2 --> P3[Phase 3 next]
+    P2 --> P3[Phase 3 done] --> P4[Phase 4 next]
     P2 --> CPU[CPU execution lane]
     P2 --> VC[GPU compile-only lane]
     VC --> GL[Future GPU runtime lab]
