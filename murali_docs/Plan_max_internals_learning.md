@@ -55,7 +55,7 @@ ASCII map -> Mermaid sequence/block/state view -> tiny source map -> evidence
 [done] Phase 12 benchmark, profile, and metrics
 [done] Phase 13 single-node parallelism
 [done] Phase 14 production service design
-[next] Capstone integrated report
+[done] Capstone integrated report; GPU runtime appendix remains GPU-LAB
 ```
 
 Artifacts: [`murali_docs/README.md`](README.md).
@@ -67,7 +67,7 @@ flowchart LR
     P5 --> P6[Phase 6 done] --> P7[Phase 7 done] --> P8[Phase 8 done]
     P8 --> P9[Phase 9 done] --> P10[Phase 10 done] --> P11[Phase 11 done]
     P11 --> P12[Phase 12 done] --> P13[Phase 13 done]
-    P13 --> P14[Phase 14 done] --> CAP[Capstone next]
+    P13 --> P14[Phase 14 done] --> CAP[Capstone done]
     P2 --> CPU[CPU execution lane]
     P2 --> VC[GPU compile-only lane]
     VC --> GL[Future GPU runtime lab]
@@ -1267,6 +1267,9 @@ numbers.
 The capstone has two checkpoints: a CPU/source/compile-only report on this host,
 then a GPU runtime appendix produced on a matching accelerator system.
 
+Status: [integrated report complete](artifacts/15_capstone.md); the GPU runtime
+appendix remains an explicit `GPU-LAB` because this host has no accelerator.
+
 ### Scenario
 
 Serve an OpenAI-compatible chat model under a realistic mix of:
@@ -1331,9 +1334,9 @@ completion gate is satisfied.
 | 8    | 13-14    | multi-GPU and production deployment design                 |
 | 9    | capstone | integrated report and review                               |
 
-## 12. Planned Artifact Layout
+## 12. Artifact Layout
 
-Create these only as the corresponding phase begins:
+Final learning artifacts:
 
 ```text
 murali_docs/
@@ -1352,16 +1355,18 @@ murali_docs/
 │   ├── 09_graph_api_vs_modulev3.md
 │   ├── 10_python_to_mojo_to_hardware.md
 │   ├── 11_kv_cache.md
+│   ├── 12_cpu_benchmark_summary.json
 │   ├── 12_performance_report.md
 │   ├── 13_parallelism.md
-│   └── 14_production_design.md
+│   ├── 14_production_design.md
+│   └── 15_capstone.md
 ├── labs/
 │   ├── client/
 │   ├── tracing/
 │   ├── scheduler/
 │   ├── graph/
-│   ├── kernels/
-│   └── load/
+│   ├── kv_cache/
+│   └── performance/
 └── results/
     └── <date>-<revision>-<model>-<hardware>/
 ```
