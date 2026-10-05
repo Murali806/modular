@@ -183,6 +183,37 @@ receiver owns a ZMQ-backed view and does not share the sender's NumPy storage.
 
 `SOURCE + CPU-RUN`
 
+<details>
+<summary>Q&A: What is the difference between the response worker and the worker?</summary>
+
+In this section, **worker** means the **model worker process**. It owns the
+LLM scheduler, model graph, compiled executable, KV cache, and device/runtime
+execution. It consumes requests and produces `SchedulerResult` objects.
+
+`response_worker` is a small **API-process coroutine**, not another model
+worker and not a thread that runs the model. It reads result dictionaries from
+the response ZMQ queue, looks at each `request_id`, and puts each result into
+the matching in-memory `pending_out_queues[request_id]`. The request's route
+then reads that queue and sends HTTP/SSE data to the correct client.
+
+```text
+MODEL WORKER PROCESS                         API PROCESS
+--------------------                         ----------
+scheduler + graph + KV + runtime             response_worker()
+       |                                             |
+       | SchedulerResult {A: ..., B: ...}            |
+       +------------ response ZMQ ----------------->+
+                                                     |
+                                      request_id A -> pending[A] -> Client A
+                                      request_id B -> pending[B] -> Client B
+```
+
+So, the model worker **computes**; `response_worker` **routes**. The word
+“worker” is overloaded in casual diagrams, so this document uses **model
+worker** when referring to the separate inference process.
+
+</details>
+
 ```text
 Client A -> request id A -----------------------> worker
 Client B -> request id B -----------------------> worker
