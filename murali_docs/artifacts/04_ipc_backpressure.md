@@ -85,6 +85,61 @@ state in one Python runtime.
 
 `SOURCE + CPU-RUN`
 
+<details>
+<summary>Q&A: What does “multipart wire” mean?</summary>
+
+“Wire” means the serialized representation of a Python message while it
+crosses the ZMQ IPC boundary. It is not the public HTTP wire.
+
+```text
+API Python object
+      |
+      v
+msgpack metadata + NumPy buffer frames
+      |
+      v
+ZMQ IPC message
+      |
+      v
+model-worker Python object
+```
+
+For a small array, one logical message can contain one frame:
+
+```text
+Frame 0: msgpack metadata + array bytes
+```
+
+For a large array, MAX uses multiple frames:
+
+```text
+Frame 0: metadata, shape, dtype, frame reference
+Frame 1: raw NumPy array buffer
+```
+
+The receiver combines the frames and reconstructs the `TextContext`. The
+large-array example below is `8,192 int64 values x 8 bytes = 65,536 bytes`,
+which reaches the approximately 64 KiB out-of-band threshold.
+
+`copy=False` avoids an extra memory copy; the received NumPy array can be a
+read-only view backed by ZMQ-owned memory.
+
+```text
+msgpack       = describes the object
+NumPy frame   = carries large numerical data
+multipart     = keeps the frames together as one ZMQ message
+wire          = serialized data crossing API -> worker
+```
+
+The complete multipart message must be admitted together. Sending frame 0 and
+then failing on frame 1 would corrupt the message stream, which is why MAX
+checks writability before sending and protects admission with a lock.
+
+The model graph, KV cache, and scheduler objects stay in the worker. Only
+request/output data and required metadata cross this boundary.
+
+</details>
+
 ```text
 small text context array: 22 x int64 = 176 B
 
