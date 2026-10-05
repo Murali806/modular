@@ -8,16 +8,23 @@
 operator shell
     |
     v
-Bazel client (2366209) -> Bazel wrapper (2366218)
+*Bazel client (2366209) -> Bazel wrapper (2366218) (Bazel = CLI util starts/builds/runs the server)
     |
     v
 API process (2366224, 336 MiB RSS)
-    |-- TCP :18000  Uvicorn / FastAPI / tokenizer / ZMQ proxy
-    |-- resource tracker (2368002, 27 MiB)
+    |-- TCP :18000  Uvicorn / FastAPI / tokenizer / ZMQ proxy (main MAX Serve API process)
+    |-- resource tracker (2368002, 27 MiB)       (tracks - shared resources like semaphores/shared memory)
     |-- metrics worker  (2368004, 168 MiB) -> TCP :18001
     `-- model worker    (2368039, 2.34 GiB)
-          Llama pipeline / scheduler / KV cache / compiled model / CPU runtime
+         `--Llama pipeline / scheduler / KV cache / compiled model / CPU runtime
 ```
+
+*Bazel is commonly used in microservice organizations, especially large monorepos, but it is not a microservices framework.
+
+*Bazel = builds, tests, packages, and launches services
+  Kubernetes/Docker = deploys and runs services
+  HTTP/gRPC = services communicate
+
 
 RSS is a one-time process snapshot; shared pages make the values non-additive.
 
@@ -43,8 +50,10 @@ block-beta
 
 `SOURCE + CPU-RUN`
 
+
+
 ```text
-Operator -> Bazel -> CLI -> PipelineArgs -> HF config -> Registry
+Operator -> Bazel -> CLI -> PipelineArgs* -> HF config* -> Registry
                                                     |
                               +---------------------+------------------+
                               v                                        v
@@ -56,7 +65,10 @@ Operator -> Bazel -> CLI -> PipelineArgs -> HF config -> Registry
                                                     |
                                       metrics process + ZMQ interface
 ```
+*HF cache => The folder where we download model from Hugging Face and cache.
 
+*PipelineArgs =>
+pipeline registry is MAX’s internal lookup table for model implementations. for llama it says LlamaCausalLM and which max to use.
 ```mermaid
 sequenceDiagram
     autonumber
@@ -194,19 +206,29 @@ stateDiagram-v2
 
 `CPU-RUN`, local time, warm model-download cache.
 
-| Time           | Event                            |                Delta |
-|----------------|----------------------------------|---------------------:|
-| `08:54:05.226` | CLI re-exec with jemalloc        |                start |
-| `08:54:11.282` | task resolved as text generation |              `+6.1s` |
-| `08:54:13.958` | server lifespan + metrics start  |              `+8.7s` |
-| `08:54:14.812` | model worker spawned             |              `+9.6s` |
-| `08:54:18.417` | pipeline initialization begins   |             `+13.2s` |
-| `08:54:25.928` | graph build/compile begins       |             `+20.7s` |
-| `08:54:26.439` | model graph built                |         `0.5s build` |
-| `08:54:54.546` | model compiled                   |      `28.1s compile` |
-| `08:55:04.353` | sampler compiled                 |       `9.4s compile` |
-| `08:55:04.466` | model worker ready               | `49.5s worker total` |
-| `08:55:04.511` | API server ready                 | `59.3s from re-exec` |
+| Time           | Event                            | Delta from re-exec | Delta from previous event |
+|----------------|----------------------------------|-------------------:|--------------------------:|
+| `08:54:05.226` | CLI re-exec with jemalloc        |              start |                         - |
+| `08:54:11.282` | task resolved as text generation |            `+6.1s` |                    `6.1s` |
+| `08:54:13.958` | server lifespan + metrics start  |            `+8.7s` |                    `2.7s` |
+| `08:54:14.812` | model worker spawned             |            `+9.6s` |                    `0.9s` |
+| `08:54:18.417` | pipeline initialization begins   |           `+13.2s` |                    `3.6s` |
+| `08:54:25.928` | graph build/compile begins       |           `+20.7s` |                    `7.5s` |
+| `08:54:26.439` | model graph built                |           `+21.2s` |             `0.5s build` |
+| `08:54:54.546` | model compiled                   |           `+49.3s` |          `28.1s compile` |
+| `08:55:04.353` | sampler compiled                 |           `+59.1s` |          `9.8s by timestamps` |
+| `08:55:04.466` | model worker ready               |           `+59.2s` |            `0.1s` |
+| `08:55:04.511` | API server ready                 |           `+59.3s` |            `0.0s` |
+
+The `Delta from re-exec` column is calculated from `08:54:05.226` and rounded
+to one decimal place. The `Delta from previous event` column is calculated from
+the adjacent timestamps. Therefore sampler compilation is `9.807s`, shown as
+`9.8s`; the earlier `9.4s` was inconsistent with these timestamps and should
+only be retained if it came from a separate internal instrumentation timer.
+
+`model worker total` is `08:55:04.466 - 08:54:14.812 = 49.654s`, rounded to
+`49.7s`. The API-ready time is `08:55:04.511 - 08:54:05.226 = 59.285s`,
+rounded to `59.3s`.
 
 Prometheus startup split:
 
