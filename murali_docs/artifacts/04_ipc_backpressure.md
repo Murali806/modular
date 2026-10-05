@@ -85,8 +85,8 @@ state in one Python runtime.
 
 `SOURCE + CPU-RUN`
 
-<details>
-<summary>Q&A: What does “multipart wire” mean?</summary>
+<details markdown="1">
+<summary><strong>Q&A: What does “multipart wire” mean?</strong></summary>
 
 “Wire” means the serialized representation of a Python message while it
 crosses the ZMQ IPC boundary. It is not the public HTTP wire.
