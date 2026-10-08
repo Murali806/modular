@@ -419,6 +419,52 @@ murali_docs/labs/tracing/run_request_object_trace.sh \
   > /tmp/phase3_request_trace.json
 
 python3 -m json.tool /tmp/phase3_request_trace.json
+
+What happens:
+
+  run_request_object_trace.sh
+    |
+    +--> prepares the Bazel-built MAX Python environment
+    +--> locates MAX native extensions and libraries
+    +--> uses the Hugging Face model/config from cache
+    +--> runs request_object_trace.py
+    `--> prints trace results as JSON
+
+  The > operator redirects standard output into:
+
+  /tmp/p>h  e3_request_trace.json
+
+  The script traces a synthetic request through:
+
+  OpenAI JSON
+    -> Pydantic schema
+    -> TextGenerationRequest
+    -> chat-template prompt
+    -> token IDs
+    -> TextContext
+    -> local ZMQ serialization/copy
+    -> scheduler-visible TextContext
+
+  It also checks:
+
+  - temperature=0 becomes greedy sampling with top_k=1
+  - stop strings become stop-token tracking data
+  - malformed requests are rejected
+  - client cancellation reaches the cancellation queue
+  - the worker receives a new object whose token values match the API object, without shared memory
+
+  Important: this lab does not start a live max serve HTTP server. It directly exercises MAX Serve Python APIs and uses a local ZMQ pair
+  to reproduce the IPC boundary.
+
+  Then:
+
+  python3 -m json.tool /tmp/phase3_request_trace.json
+
+  This does two things:
+
+  1. Reads and validates the JSON file.
+  2. Pretty-prints it with indentation to the terminal.
+
 ```
 
 Live-server cross-check:
@@ -431,6 +477,9 @@ Live-server cross-check:
 python3 murali_docs/labs/client/max_serve_client.py \
   --mode stream --prompt 'Count upward slowly from one to fifty.' \
   --max-tokens 64 --disconnect-after 2
+
+This command runs an external Python client against an already-running MAX Serve server
+
 ```
 
 ## Evidence Card

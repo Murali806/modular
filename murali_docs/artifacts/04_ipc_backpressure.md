@@ -1,4 +1,4 @@
-# Phase 4: IPC, Backpressure, and Cancellation
+pp# Phase 4: IPC, Backpressure, and Cancellation
 
 ## Four Backlogs
 
@@ -186,15 +186,7 @@ receiver owns a ZMQ-backed view and does not share the sender's NumPy storage.
 <details>
 <summary>Q&A: What is the difference between the response worker and the worker?</summary>
 
-In this section, **worker** means the **model worker process**. It owns the
-LLM scheduler, model graph, compiled executable, KV cache, and device/runtime
-execution. It consumes requests and produces `SchedulerResult` objects.
 
-`response_worker` is a small **API-process coroutine**, not another model
-worker and not a thread that runs the model. It reads result dictionaries from
-the response ZMQ queue, looks at each `request_id`, and puts each result into
-the matching in-memory `pending_out_queues[request_id]`. The request's route
-then reads that queue and sends HTTP/SSE data to the correct client.
 
 ```text
 MODEL WORKER PROCESS                         API PROCESS
@@ -206,6 +198,24 @@ scheduler + graph + KV + runtime             response_worker()
                                                      |
                                       request_id A -> pending[A] -> Client A
                                       request_id B -> pending[B] -> Client B
+
+
+- Model worker: separate inference process. Owns the scheduler, model graph, compiled
+    executable, KV cache, and runs the LLM.
+
+  - response_worker: API-process coroutine. Does not run inference. It receives results from
+    the model worker, checks each request_id, and routes output to the correct client queue.
+
+  Model worker: computes
+        |
+        | SchedulerResult {A, B}
+        v
+  response_worker: routes
+        |
+        +--> pending[A] --> Client A
+        +--> pending[B] --> Client B
+
+
 ```
 
 So, the model worker **computes**; `response_worker` **routes**. The word
@@ -272,11 +282,11 @@ request accepted
 tokenize / build TextContext
       |
       v
-acquire admission lock
+acquire admission lock (The admission lock is a small API-process lock that allows only one request at a time to perform this critical sequence)
       |
-      +-- request ZMQ writable? -- no --> RequestQueueFull
-      |                                      |
-      |                                      v
+      +-- request ZMQ writable(Q full)? -- no --> RequestQueueFull
+      |                                            |
+      |                                            v
       |                         HTTP 429 + Retry-After: 1
       |                         no pending[id], no put
       |
@@ -384,6 +394,43 @@ t=5-6.5s accepted requests finish
 
 result: 95 x HTTP 200 | 105 x HTTP 429 | health 200 before and after
 ```
+
+<details>
+<summary>Q&A: How should this burst timeline be read?</summary>
+
+At `t=0`, `SIGSTOP model worker` means the operating system stopped the model
+worker process. It cannot run Python, drain request IPC, schedule work, or
+produce tokens until `SIGCONT` is sent. The API process is separate, so it can
+still accept HTTP requests, tokenize them, enter the admission path, return
+429s, serve `/health`, and keep already admitted requests waiting.
+
+At `t=0`, the 200 POSTs are released while the worker is stopped. They do not
+all fail immediately. `N=1` is the request ZMQ high-water mark, not a hard HTTP
+connection limit, and it is approximate. `M=1` limits the worker's pending CE
+queue, but the worker is stopped and is not making scheduler decisions. Some
+API tasks successfully pass the admission gate and then wait for the worker to
+resume; the rest see the request IPC as not writable and return HTTP 429.
+
+`first fast 429 responses` means the earliest overload rejections came back
+quickly, before the worker resumed. In this run, those 429s were admission
+failures, not model failures. They were "fast" because the API could reject
+them as soon as the request IPC gate was full; it did not need to wait for
+inference.
+
+At `t=5s`, `SIGCONT model worker` resumes the stopped process. After that, the
+worker starts draining the requests that were already accepted into the IPC/API
+path before they received any response. It does not accept the previous 429
+requests again; those HTTP requests are already finished and the clients would
+need to retry. The accepted requests then complete between `t=5s` and
+`t=6.5s`.
+
+The final result, `95 x HTTP 200 | 105 x HTTP 429`, means 95 of the 200 burst
+requests were admitted before rejection pressure won, waited during the stop,
+and completed after resume. The remaining 105 were rejected by admission
+backpressure. `/health` returning 200 before and after shows the API/health
+surface stayed alive even while the model worker was intentionally paused.
+
+</details>
 
 ```mermaid
 sequenceDiagram
@@ -585,6 +632,35 @@ MAX_SERVE_METRICS_ENDPOINT_PORT=18001 \
   --max-batch-size 1 --max-queue-size 1 --max-pending-requests 1 \
   --host 127.0.0.1 --port 18000 --allow-cold-interpreter-cache
 ```
+
+<details>
+<summary>Q&A: What does this server command do?</summary>
+
+This starts a local MAX Serve instance through Bazel for a small Hugging Face
+model, using CPU execution and intentionally tiny queue limits for
+backpressure testing.
+
+`HF_HOME=/local/mnt/workspace/.murali_hf` sets the Hugging Face cache location.
+`MAX_SERVE_METRICS_ENDPOINT_PORT=18001` exposes metrics on port `18001`.
+`./bazelw ... run //max/python/max/_entrypoints:pipelines --` builds/runs the
+MAX pipelines entrypoint; arguments after `--` are passed to MAX, not Bazel.
+
+`serve --model modularai/SmolLM-135M-Instruct-FP32` starts the OpenAI-compatible
+server with that model. `--devices cpu` runs inference on CPU.
+`--quantization-encoding float32` uses FP32 encoding. `--max-length 256` limits
+request length.
+
+`--max-batch-size 1` allows one request in the active model batch.
+`--max-queue-size 1` sets the API-to-worker request IPC high-water mark.
+`--max-pending-requests 1` limits the worker scheduler's pending queue.
+Together these small values make overload and HTTP 429 behavior easy to
+observe.
+
+`--host 127.0.0.1 --port 18000` serves locally on port `18000`.
+`--allow-cold-interpreter-cache` permits startup even when the interpreter cache
+has not been warmed yet.
+
+</details>
 
 Find the model worker, then inject a five-second stall and burst. Use only on
 the disposable learning server:

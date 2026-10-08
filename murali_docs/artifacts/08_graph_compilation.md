@@ -243,19 +243,21 @@ CUDA MEF path       -> virtual init blocked -> real GPU required
 
 ```mermaid
 sequenceDiagram
+    autonumber
     participant A as CPU export process
     participant M as MEF directory
     participant B as New CPU process
     participant V as CUDA virtual device
     participant G as Real GPU host
-    A->>M: compile and export 3 graphs
-    B->>M: match graph fingerprints
-    M-->>B: load artifacts; compile time 0.0 s
-    B->>B: initialize executable models
-    V->>V: pre-jit emits Mojo and MLIR
-    V->>M: accelerator import reaches init boundary
-    M-->>V: reject virtual-device initialization
-    M->>G: supported import and initialization path
+    A->>M: Compile CPU graphs and export 3 MEFs
+    B->>M: Match graph fingerprints
+    M-->>B: Load artifacts, compile time 0.0 s
+    B->>B: Initialize executable models
+    V->>V: Pre-JIT emits Mojo and MLIR
+    V->>M: Import accelerator MEF
+    M-->>V: Initialization rejected on virtual device
+    G->>M: Import accelerator MEF on matching GPU
+    M-->>G: Supported initialization path
 ```
 
 | CPU run        | Model compile | Sampler compile | Wall time | Result               |
