@@ -114,7 +114,7 @@ note_awaiting_admission(+1)
 - `self.model_worker.note_awaiting_admission(...)`: marks API-side backlog
   before and after handoff. <strong><em><a href="0008_note_awaiting_admission.md"><span style="color:#0b63ce">See focused note: 0008_note_awaiting_admission.md</span></a></em></strong>.
 - `self.model_worker.stream(context.request_id, context)`: submits the request
-  to the worker and receives the response stream.
+  to the worker and receives the response stream. <strong><em><a href="0009_model_worker_stream.md"><span style="color:#0b63ce">See focused note: 0009_model_worker_stream.md</span></a></em></strong>.
 
 **Indented Flow**
 
