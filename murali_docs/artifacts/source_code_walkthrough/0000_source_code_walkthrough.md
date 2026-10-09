@@ -96,6 +96,17 @@ detokenization, and admission metrics.
 
 **Code Landmarks**
 
+These bullets are learning landmarks, not strict execution order. The actual
+runtime order starts the awaiting-admission metric before tokenization:
+
+```text
+note_awaiting_admission(+1)
+  -> self.tokenizer.new_context(request)
+  -> create_buffered_detokenizer(...)
+  -> await self.model_worker.stream(...)
+  -> note_awaiting_admission(-1)
+```
+
 - `self.tokenizer.new_context(request)`: creates the scheduler context from the
   user request. <strong><em><a href="0006_tokenizer_new_context.md"><span style="color:#0b63ce">See focused note: 0006_tokenizer_new_context.md</span></a></em></strong>.
 - `create_buffered_detokenizer(...)`: prevents broken UTF-8 output when tokens

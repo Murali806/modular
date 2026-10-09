@@ -27,14 +27,25 @@ self.model_worker.note_awaiting_admission(-1)
 
 ## Big Picture
 
+This note is numbered after `0006_tokenizer_new_context.md` because it was
+added later as a focused metric note. That numbering is **not** the runtime
+order.
+
+Runtime order in `llm.py`:
+
 ```text
 HTTP request accepted
   |
   v
 note_awaiting_admission(+1)
   |
-  | request is still API-side
-  | examples: tokenization, TextContext creation, pre-submit work
+  | request is now counted as waiting for model-worker admission
+  |
+  v
+self.tokenizer.new_context(request)
+  |
+  | tokenization, TextContext creation, API-side preprocessing
+  |
   v
 model_worker.stream(request_id, context)
   |
