@@ -208,17 +208,55 @@ waiting even after that request already failed.
 
 ## What The Metric Means
 
+Important wording:
+
+```text
+"awaiting admission"
+  =
+"accepted by API server, but not yet admitted into model worker/scheduler"
+```
+
+So tokenization and API-side preprocessing are **inside** this measured window,
+not before it.
+
 ```text
 high awaiting-admission count
   |
-  +-- likely pressure before worker handoff
+  +-- likely pressure before completed worker handoff
   |     examples:
   |       - slow tokenization
+  |           happens after note_awaiting_admission(+1)
+  |           and before model_worker.stream(...)
+  |
   |       - API-side preprocessing backlog
+  |           also happens after API accept
+  |           and before worker admission completes
+  |
   |       - worker submit path blocked or failing
+              this is the handoff boundary itself
+              the request is not considered admitted until stream(...) succeeds
   |
   +-- not the same as scheduler queue depth
         scheduler queue starts after model_worker.stream(...) accepts context
+```
+
+Timeline:
+
+```text
+API server accepts request
+  |
+  v
+note_awaiting_admission(+1)
+  |
+  +-- tokenization
+  +-- API-side preprocessing
+  +-- submit TextContext to worker via model_worker.stream(...)
+  |
+  v
+note_awaiting_admission(-1)
+  |
+  v
+worker/scheduler owns the request
 ```
 
 ## Metric Flow
