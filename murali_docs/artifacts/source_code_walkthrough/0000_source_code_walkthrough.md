@@ -5,19 +5,19 @@ the code by request lifecycle and ownership boundary, not by repository folder.
 
 ## 1. Start With The Big Folders
 
-- [`max/python/max/serve/`](../../max/python/max/serve/): HTTP server, request routing, workers, and scheduler.
-- [`max/python/max/pipelines/`](../../max/python/max/pipelines/): tokenizer, contexts, model pipeline, and Llama architecture.
-- [`max/python/max/engine/`](../../max/python/max/engine/): graph compile/init/load and MEF boundary.
-- [`max/python/max/nn/`](../../max/python/max/nn/): Python graph ops such as attention and linear.
-- [`max/kernels/src/`](../../max/kernels/src/): Mojo kernels and graph-compiler custom op registrations.
-- [`max/mojo/max/gpu/`](../../max/mojo/max/gpu/): lower-level GPU and device APIs.
+- [`max/python/max/serve/`](../../../max/python/max/serve/): HTTP server, request routing, workers, and scheduler.
+- [`max/python/max/pipelines/`](../../../max/python/max/pipelines/): tokenizer, contexts, model pipeline, and Llama architecture.
+- [`max/python/max/engine/`](../../../max/python/max/engine/): graph compile/init/load and MEF boundary.
+- [`max/python/max/nn/`](../../../max/python/max/nn/): Python graph ops such as attention and linear.
+- [`max/kernels/src/`](../../../max/kernels/src/): Mojo kernels and graph-compiler custom op registrations.
+- [`max/mojo/max/gpu/`](../../../max/mojo/max/gpu/): lower-level GPU and device APIs.
 
 ## 2. Follow One Request Top-Down
 
 Use this path as the main traversal for a single OpenAI-compatible text request:
 
 <details>
-<summary><strong>1. HTTP/OpenAI Ingress</strong> - <a href="../../max/python/max/serve/router/openai_routes.py#L2217"><code>openai_routes.py</code></a></summary>
+<summary><strong>1. HTTP/OpenAI Ingress</strong> - <a href="../../../max/python/max/serve/router/openai_routes.py#L2217"><code>openai_routes.py</code></a></summary>
 
 **Source Role**
 
@@ -33,15 +33,16 @@ pipeline layer.
 
 **Code Landmarks**
 
-- `_parse_openai_request_body(...)`: converts raw HTTP body into a typed schema.
+- `_parse_openai_request_body(...)`: converts raw HTTP body into a typed
+  schema. <strong><em><a href="0001_parse_openai_request_body.md"><span style="color:#0b63ce">See focused note: 0001_parse_openai_request_body.md</span></a></em></strong>.
 - `get_pipeline(request, completion_request.model)`: chooses the pipeline for
-  the requested model name.
+  the requested model name. <strong><em><a href="0002_get_pipeline.md"><span style="color:#0b63ce">See focused note: 0002_get_pipeline.md</span></a></em></strong>.
 - `openai_parse_chat_completion_request(...)`: normalizes messages, images,
-  videos, roles, and content wrapping.
+  videos, roles, and content wrapping. <strong><em><a href="0003_openai_parse_chat_completion_request.md"><span style="color:#0b63ce">See focused note: 0003_openai_parse_chat_completion_request.md</span></a></em></strong>.
 - `TextGenerationRequest(...)`: converts the OpenAI request into MAX's internal
-  request object.
+  request object. <strong><em><a href="0004_TextGenerationRequest.md"><span style="color:#0b63ce">See focused note: 0004_TextGenerationRequest.md</span></a></em></strong>.
 - Streaming versus non-streaming response branches: chooses the HTTP response
-  shape before tokens are produced.
+  shape before tokens are produced. <strong><em><a href="0005_streaming_vs_non_streaming.md"><span style="color:#0b63ce">See focused note: 0005_streaming_vs_non_streaming.md</span></a></em></strong>.
 
 **Indented Flow**
 
@@ -80,7 +81,7 @@ is a typed serving request that can be tokenized and scheduled.
 </details>
 
 <details>
-<summary><strong>2. LLM Pipeline Handoff</strong> - <a href="../../max/python/max/serve/pipelines/llm.py#L294"><code>llm.py</code></a></summary>
+<summary><strong>2. LLM Pipeline Handoff</strong> - <a href="../../../max/python/max/serve/pipelines/llm.py#L294"><code>llm.py</code></a></summary>
 
 **Source Role**
 
@@ -96,11 +97,11 @@ detokenization, and admission metrics.
 **Code Landmarks**
 
 - `self.tokenizer.new_context(request)`: creates the scheduler context from the
-  user request.
+  user request. <strong><em><a href="0006_tokenizer_new_context.md"><span style="color:#0b63ce">See focused note: 0006_tokenizer_new_context.md</span></a></em></strong>.
 - `create_buffered_detokenizer(...)`: prevents broken UTF-8 output when tokens
-  split multi-byte characters.
+  split multi-byte characters. <strong><em><a href="0007_create_buffered_detokenizer.md"><span style="color:#0b63ce">See focused note: 0007_create_buffered_detokenizer.md</span></a></em></strong>.
 - `self.model_worker.note_awaiting_admission(...)`: marks API-side backlog
-  before and after handoff.
+  before and after handoff. <strong><em><a href="0008_note_awaiting_admission.md"><span style="color:#0b63ce">See focused note: 0008_note_awaiting_admission.md</span></a></em></strong>.
 - `self.model_worker.stream(context.request_id, context)`: submits the request
   to the worker and receives the response stream.
 
@@ -143,7 +144,7 @@ before streaming headers are committed.
 </details>
 
 <details>
-<summary><strong>3. Worker IPC Boundary</strong> - <a href="../../max/python/max/serve/worker_interface/zmq_interface.py#L105"><code>zmq_interface.py</code></a></summary>
+<summary><strong>3. Worker IPC Boundary</strong> - <a href="../../../max/python/max/serve/worker_interface/zmq_interface.py#L105"><code>zmq_interface.py</code></a></summary>
 
 **Source Role**
 
@@ -203,7 +204,7 @@ and decides when each request participates in a prefill or decode batch.
 </details>
 
 <details>
-<summary><strong>4. Scheduler Iteration</strong> - <a href="../../max/python/max/serve/scheduler/text_generation_scheduler.py#L205"><code>text_generation_scheduler.py</code></a></summary>
+<summary><strong>4. Scheduler Iteration</strong> - <a href="../../../max/python/max/serve/scheduler/text_generation_scheduler.py#L205"><code>text_generation_scheduler.py</code></a></summary>
 
 **Source Role**
 
@@ -261,7 +262,7 @@ placement become concrete batch inputs.
 </details>
 
 <details>
-<summary><strong>5. Batch Construction</strong> - <a href="../../max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py#L677"><code>text_batch_constructor.py</code></a></summary>
+<summary><strong>5. Batch Construction</strong> - <a href="../../../max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py#L677"><code>text_batch_constructor.py</code></a></summary>
 
 **Source Role**
 
@@ -326,7 +327,7 @@ and returns per-request outputs.
 </details>
 
 <details>
-<summary><strong>6. Pipeline Execution</strong> - <a href="../../max/python/max/pipelines/lib/pipeline_variants/text_generation.py#L515"><code>text_generation.py</code></a></summary>
+<summary><strong>6. Pipeline Execution</strong> - <a href="../../../max/python/max/pipelines/lib/pipeline_variants/text_generation.py#L515"><code>text_generation.py</code></a></summary>
 
 **Source Role**
 
@@ -391,7 +392,7 @@ buffers, KV-cache inputs, and signal buffers are assembled.
 </details>
 
 <details>
-<summary><strong>7. Llama Input Staging</strong> - <a href="../../max/python/max/pipelines/architectures/llama3/batch_processor.py#L163"><code>batch_processor.py</code></a></summary>
+<summary><strong>7. Llama Input Staging</strong> - <a href="../../../max/python/max/pipelines/architectures/llama3/batch_processor.py#L163"><code>batch_processor.py</code></a></summary>
 
 **Source Role**
 
@@ -452,7 +453,7 @@ passes its buffers to the compiled executable model.
 </details>
 
 <details>
-<summary><strong>8. Llama Model Execution</strong> - <a href="../../max/python/max/pipelines/architectures/llama3/model.py#L183"><code>model.py</code></a></summary>
+<summary><strong>8. Llama Model Execution</strong> - <a href="../../../max/python/max/pipelines/architectures/llama3/model.py#L183"><code>model.py</code></a></summary>
 
 **Source Role**
 
@@ -580,25 +581,25 @@ Use this path for understanding how `max serve` turns a model ID into runnable
 pipeline components:
 
 1. Registry lookup:
-   [`registry.py`](../../max/python/max/pipelines/lib/registry.py#L335)
+   [`registry.py`](../../../max/python/max/pipelines/lib/registry.py#L335)
 
 2. Architecture lookup records:
-   [`arch_lookup.py`](../../max/python/max/pipelines/lib/arch_lookup.py)
+   [`arch_lookup.py`](../../../max/python/max/pipelines/lib/arch_lookup.py)
 
 3. Llama registration:
-   [`arch.py`](../../max/python/max/pipelines/architectures/llama3/arch.py#L28)
+   [`arch.py`](../../../max/python/max/pipelines/architectures/llama3/arch.py#L28)
 
 4. Llama config and finalization:
-   [`model_config.py`](../../max/python/max/pipelines/architectures/llama3/model_config.py#L108)
+   [`model_config.py`](../../../max/python/max/pipelines/architectures/llama3/model_config.py#L108)
 
 5. Weight-name conversion:
-   [`weight_adapters.py`](../../max/python/max/pipelines/architectures/llama3/weight_adapters.py)
+   [`weight_adapters.py`](../../../max/python/max/pipelines/architectures/llama3/weight_adapters.py)
 
 6. Graph model selection:
-   [`model.py`](../../max/python/max/pipelines/architectures/llama3/model.py#L306)
+   [`model.py`](../../../max/python/max/pipelines/architectures/llama3/model.py#L306)
 
 7. Shared graph load template:
-   [`pipeline_model.py`](../../max/python/max/pipelines/lib/interfaces/pipeline_model.py#L936)
+   [`pipeline_model.py`](../../../max/python/max/pipelines/lib/interfaces/pipeline_model.py#L936)
 
 The mental model is:
 
@@ -618,19 +619,19 @@ HF config.json
 This is where Python graph construction becomes a compiled executable model:
 
 1. Llama graph body:
-   [`llama3.py`](../../max/python/max/pipelines/architectures/llama3/llama3.py#L75)
+   [`llama3.py`](../../../max/python/max/pipelines/architectures/llama3/llama3.py#L75)
 
 2. Engine load:
-   [`api.py`](../../max/python/max/engine/api.py#L768)
+   [`api.py`](../../../max/python/max/engine/api.py#L768)
 
 3. MEF reuse path:
-   [`api.py`](../../max/python/max/engine/api.py#L883)
+   [`api.py`](../../../max/python/max/engine/api.py#L883)
 
 4. Model initialization:
-   [`api.py`](../../max/python/max/engine/api.py#L1146)
+   [`api.py`](../../../max/python/max/engine/api.py#L1146)
 
 5. Native public contract:
-   [`engine.pyi`](../../max/python/max/_core/engine.pyi)
+   [`engine.pyi`](../../../max/python/max/_core/engine.pyi)
 
 The mental model is:
 
@@ -649,31 +650,31 @@ Llama3 Python module
 For attention and KV-cache execution:
 
 1. Python attention op:
-   [`attention_with_rope.py`](../../max/python/max/nn/attention/attention_with_rope.py#L53)
+   [`attention_with_rope.py`](../../../max/python/max/nn/attention/attention_with_rope.py#L53)
 
 2. Python custom op bridge:
-   [`kernels.py`](../../max/python/max/nn/kernels.py)
+   [`kernels.py`](../../../max/python/max/nn/kernels.py)
 
 3. Mojo graph-compiler registration:
-   [`attention.mojo`](../../max/kernels/src/graph_compiler/builtin_kernels/attention.mojo)
+   [`attention.mojo`](../../../max/kernels/src/graph_compiler/builtin_kernels/attention.mojo)
 
 4. Mojo argument adapter:
-   [`kernels.mojo`](../../max/kernels/src/graph_compiler/builtin_kernels/kernels.mojo)
+   [`kernels.mojo`](../../../max/kernels/src/graph_compiler/builtin_kernels/kernels.mojo)
 
 5. Ragged KV attention and matmul dispatch:
-   [`kv_cache_ragged.mojo`](../../max/kernels/src/nn/kv_cache_ragged.mojo#L103)
+   [`kv_cache_ragged.mojo`](../../../max/kernels/src/nn/kv_cache_ragged.mojo#L103)
 
 6. GPU MHA selection:
-   [`mha.mojo`](../../max/kernels/src/nn/attention/gpu/mha.mojo)
+   [`mha.mojo`](../../../max/kernels/src/nn/attention/gpu/mha.mojo)
 
 7. Linear graph op:
-   [`linear.py`](../../max/python/max/nn/linear.py)
+   [`linear.py`](../../../max/python/max/nn/linear.py)
 
 8. Matmul kernels:
-   [`matmul`](../../max/kernels/src/linalg/matmul)
+   [`matmul`](../../../max/kernels/src/linalg/matmul)
 
 9. Device APIs:
-   [`max.gpu`](../../max/mojo/max/gpu)
+   [`max.gpu`](../../../max/mojo/max/gpu)
 
 The mental model is:
 
