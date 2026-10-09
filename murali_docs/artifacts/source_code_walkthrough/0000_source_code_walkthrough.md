@@ -170,11 +170,13 @@ blocking after partial response state has been created.
 
 **Code Landmarks**
 
+- `stream(...)`: registers output routing, performs worker admission, pushes
+  the context, and returns an async response generator. <strong><em><a href="0009_model_worker_stream.md"><span style="color:#0b63ce">See focused note: 0009_model_worker_stream.md</span></a></em></strong>.
 - `wait_until_connected(...)`: startup-time handshake so runtime failures mean
-  queue pressure, not a still-connecting worker.
-- `pending_out_queues`: per-request response queues in the API process.
-- `_admission_lock`: serializes the writability check and push.
-- `RequestQueueFull`: the failure that maps to load shedding.
+  queue pressure, not a still-connecting worker. <strong><em><a href="0009_model_worker_stream.md"><span style="color:#0b63ce">See focused note: 0009_model_worker_stream.md</span></a></em></strong>.
+- `pending_out_queues`: per-request response queues in the API process. <strong><em><a href="0009_model_worker_stream.md"><span style="color:#0b63ce">See focused note: 0009_model_worker_stream.md</span></a></em></strong>.
+- `_admission_lock`: serializes the writability check and push. <strong><em><a href="0009_model_worker_stream.md"><span style="color:#0b63ce">See focused note: 0009_model_worker_stream.md</span></a></em></strong>.
+- `RequestQueueFull`: the failure that maps to load shedding. <strong><em><a href="0009_model_worker_stream.md"><span style="color:#0b63ce">See focused note: 0009_model_worker_stream.md</span></a></em></strong>.
 
 **Indented Flow**
 
@@ -230,11 +232,11 @@ progress, failures, telemetry, and empty-batch behavior.
 **Code Landmarks**
 
 - `_retrieve_pending_requests()`: pulls newly admitted contexts from the worker
-  queue.
+  queue. <strong><em><a href="0010_scheduler_iteration.md"><span style="color:#0b63ce">See focused note: 0010_scheduler_iteration.md</span></a></em></strong>.
 - `batch_constructor.construct_batch()`: converts queued contexts into model
-  work.
-- `_schedule(inputs)`: executes the selected batch through the pipeline.
-- `SchedulerProgress`: tells the serving loop whether useful work happened.
+  work. <strong><em><a href="0011_text_batch_constructor.md"><span style="color:#0b63ce">See focused note: 0011_text_batch_constructor.md</span></a></em></strong>.
+- `_schedule(inputs)`: executes the selected batch through the pipeline. <strong><em><a href="0010_scheduler_iteration.md"><span style="color:#0b63ce">See focused note: 0010_scheduler_iteration.md</span></a></em></strong>.
+- `SchedulerProgress`: tells the serving loop whether useful work happened. <strong><em><a href="0010_scheduler_iteration.md"><span style="color:#0b63ce">See focused note: 0010_scheduler_iteration.md</span></a></em></strong>.
 
 **Indented Flow**
 
@@ -288,12 +290,12 @@ and produces the `TextGenerationInputs` consumed by the pipeline.
 **Code Landmarks**
 
 - `submit_grammar_build(...)`: starts constrained-decoding grammar work early
-  when needed.
-- `enqueue_new_request(...)`: first admission point for a new `TextContext`.
+  when needed. <strong><em><a href="0011_text_batch_constructor.md"><span style="color:#0b63ce">See focused note: 0011_text_batch_constructor.md</span></a></em></strong>.
+- `enqueue_new_request(...)`: first admission point for a new `TextContext`. <strong><em><a href="0011_text_batch_constructor.md"><span style="color:#0b63ce">See focused note: 0011_text_batch_constructor.md</span></a></em></strong>.
 - `_admit_request(...)`: decides whether to place the request immediately or
-  defer it for data-parallel balancing.
-- `_bind_request(...)`: attaches a request to a replica queue.
-- `construct_batch()`: the main method to follow after request admission.
+  defer it for data-parallel balancing. <strong><em><a href="0011_text_batch_constructor.md"><span style="color:#0b63ce">See focused note: 0011_text_batch_constructor.md</span></a></em></strong>.
+- `_bind_request(...)`: attaches a request to a replica queue. <strong><em><a href="0011_text_batch_constructor.md"><span style="color:#0b63ce">See focused note: 0011_text_batch_constructor.md</span></a></em></strong>.
+- `construct_batch()`: the main method to follow after request admission. <strong><em><a href="0011_text_batch_constructor.md"><span style="color:#0b63ce">See focused note: 0011_text_batch_constructor.md</span></a></em></strong>.
 
 **Indented Flow**
 
@@ -354,12 +356,12 @@ and token selection.
 **Code Landmarks**
 
 - `prepare_batch(inputs.batches)`: creates model inputs and the flat context
-  batch.
+  batch. <strong><em><a href="0012_pipeline_execution.md"><span style="color:#0b63ce">See focused note: 0012_pipeline_execution.md</span></a></em></strong>.
 - `FusedSamplingProcessor(...)`: prepares the sampling path for the current
-  batch.
-- `_launch_forward_pass(...)`: calls the architecture-specific model.
-- `logits_for_sampling(...)`: chooses which logits should be sampled.
-- `apply_logits_processors(...)`: applies request-specific sampling controls.
+  batch. <strong><em><a href="0012_pipeline_execution.md"><span style="color:#0b63ce">See focused note: 0012_pipeline_execution.md</span></a></em></strong>.
+- `_launch_forward_pass(...)`: calls the architecture-specific model. <strong><em><a href="0012_pipeline_execution.md"><span style="color:#0b63ce">See focused note: 0012_pipeline_execution.md</span></a></em></strong>.
+- `logits_for_sampling(...)`: chooses which logits should be sampled. <strong><em><a href="0012_pipeline_execution.md"><span style="color:#0b63ce">See focused note: 0012_pipeline_execution.md</span></a></em></strong>.
+- `apply_logits_processors(...)`: applies request-specific sampling controls. <strong><em><a href="0012_pipeline_execution.md"><span style="color:#0b63ce">See focused note: 0012_pipeline_execution.md</span></a></em></strong>.
 
 **Indented Flow**
 
@@ -418,11 +420,11 @@ signature that was compiled earlier.
 
 **Code Landmarks**
 
-- `Llama3BatchProcessor`: the normal Llama text-generation batch processor.
-- `_make_inputs(...)`: constructs `Llama3Inputs`.
-- `process_outputs(...)`: converts raw graph outputs into `ModelOutputs`.
+- `Llama3BatchProcessor`: the normal Llama text-generation batch processor. <strong><em><a href="0013_llama_input_staging.md"><span style="color:#0b63ce">See focused note: 0013_llama_input_staging.md</span></a></em></strong>.
+- `_make_inputs(...)`: constructs `Llama3Inputs`. <strong><em><a href="0013_llama_input_staging.md"><span style="color:#0b63ce">See focused note: 0013_llama_input_staging.md</span></a></em></strong>.
+- `process_outputs(...)`: converts raw graph outputs into `ModelOutputs`. <strong><em><a href="0013_llama_input_staging.md"><span style="color:#0b63ce">See focused note: 0013_llama_input_staging.md</span></a></em></strong>.
 - EP/data-parallel subclasses: show how extra communication buffers are added
-  for more complex deployments.
+  for more complex deployments. <strong><em><a href="0013_llama_input_staging.md"><span style="color:#0b63ce">See focused note: 0013_llama_input_staging.md</span></a></em></strong>.
 
 **Indented Flow**
 
@@ -480,13 +482,13 @@ weights, and builds the single-device, tensor-parallel, or data-parallel graph.
 **Code Landmarks**
 
 - `Llama3Inputs.buffers`: defines the exact positional argument order passed to
-  the compiled model.
-- `execute(...)`: runtime hot path into the compiled model.
-- `_create_model_config(...)`: initializes and finalizes `Llama3Config`.
+  the compiled model. <strong><em><a href="0014_llama_model_execution.md"><span style="color:#0b63ce">See focused note: 0014_llama_model_execution.md</span></a></em></strong>.
+- `execute(...)`: runtime hot path into the compiled model. <strong><em><a href="0014_llama_model_execution.md"><span style="color:#0b63ce">See focused note: 0014_llama_model_execution.md</span></a></em></strong>.
+- `_create_model_config(...)`: initializes and finalizes `Llama3Config`. <strong><em><a href="0014_llama_model_execution.md"><span style="color:#0b63ce">See focused note: 0014_llama_model_execution.md</span></a></em></strong>.
 - `_build_graph_for_compile(...)`: chooses single-device, tensor-parallel, or
-  data-parallel graph construction.
+  data-parallel graph construction. <strong><em><a href="0014_llama_model_execution.md"><span style="color:#0b63ce">See focused note: 0014_llama_model_execution.md</span></a></em></strong>.
 - `Llama3Model.__init__(...)`: wires pipeline config, session, devices,
-  KV-cache config, weights, adapter, and memory plan into the shared base class.
+  KV-cache config, weights, adapter, and memory plan into the shared base class. <strong><em><a href="0014_llama_model_execution.md"><span style="color:#0b63ce">See focused note: 0014_llama_model_execution.md</span></a></em></strong>.
 
 **Indented Flow**
 
