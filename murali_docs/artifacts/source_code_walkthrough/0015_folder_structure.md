@@ -21,6 +21,21 @@ bazel-bin/             # generated binary-output view
 bazel-out/             # generated configured-output view
 bazel-testlogs/        # generated test-log view
 ```
+
+```text
+bazel/internal/cc-toolchain/tools/
+  +-- builtin_module_map.bzl
+  +-- linker-driver.sh
+  +-- multi-platform-clang.sh
+bazel/pip/pycross/
+  +-- dependency.py
+  +-- download.py
+  +-- generate.py
+bazel/lint/
+  +-- buildifier_wrapper.py
+  +-- ruff_wrapper.py
+  +-- rumdl_wrapper.py
+```
 </details>
 
 <details>
@@ -33,6 +48,17 @@ Init/
 +-- lib/               # initialization implementation
 +-- integration-test/  # integration tests
 +-- unittests/         # unit tests
+```
+
+```text
+Init/include/Init/
+  +-- Init.h
+  +-- DevelopmentSignalHandler.h
+Init/lib/
+  +-- Init.cpp
+  +-- DevelopmentSignalHandler.cpp
+Init/unittests/
+  +-- DevelopmentSignalHandlerTests.cpp
 ```
 </details>
 
@@ -50,6 +76,21 @@ AsyncRT/
 +-- unittests/         # runtime unit tests
 +-- tools/             # runtime diagnostic tools
 ```
+
+```text
+AsyncRT/include/AsyncRT/Runtime/
+  +-- AsyncValue.h
+  +-- WorkQueue.h
+  +-- TimerHeap.h
+  +-- Globals/RuntimeGlobal.h
+AsyncRT/lib/Runtime/
+  +-- AsyncValue.cpp
+  +-- ThreadPoolWorkQueue.cpp
+  +-- TimerHeap.cpp
+AsyncRT/unittests/
+  +-- AsyncValueTest.cpp
+  +-- WorkQueueTest.cpp
+```
 </details>
 
 <details>
@@ -64,6 +105,19 @@ Cache/
 +-- test/cache-mgr/    # cache-manager fixtures/tests
 +-- unittests/         # cache unit tests
 ```
+
+```text
+Cache/include/Cache/
+  +-- BlobCache.h
+  +-- CachedTransform.h
+  +-- Support/Keys.h
+Cache/lib/
+  +-- BlobCache.cpp
+  +-- CachedTransform.cpp
+Cache/test/cache-mgr/Inputs/
+  +-- empty.txt
+  +-- some_file.txt
+```
 </details>
 
 <details>
@@ -75,6 +129,12 @@ Config/
 +-- include/Config/    # public configuration/version headers
 +-- lib/               # configuration implementation
 +-- BUILD.bazel        # Config build target
+```
+
+```text
+Config/include/Config/Version.h
+Config/include/GeneratedVersion.h.tmpl
+Config/lib/Version.cpp
 ```
 </details>
 
@@ -90,6 +150,22 @@ Support/
 +-- test/              # integration tests
 +-- unittests/         # unit tests
 +-- benchmarks/        # benchmarks
+```
+
+```text
+Support/include/Support/
+  +-- ADT/DenseStringMap.h
+  +-- Compiler/Bytecode.h
+  +-- ML/DType.h
+  +-- ML/TensorShape.h
+  +-- Telemetry/Telemetry.h
+  +-- Threading/HWInfo.h
+Support/lib/
+  +-- Compiler/DiagnosticHandler.cpp
+  +-- ML/TensorShape.cpp
+  +-- Telemetry/TelemetryContext.cpp
+Support/tools/system-info/system-info.cpp
+Support/unittests/Log/LogTest.cpp
 ```
 </details>
 
@@ -108,6 +184,23 @@ Mojo/
 +-- test/              # compiler/language tests
 +-- unittests/         # tooling/compiler unit tests
 ```
+
+```text
+Mojo/stdlib/std/collections/string/
+  +-- string.mojo
+  +-- format.mojo
+  +-- _parsing_numbers/parsing_floats.mojo
+Mojo/stdlib/std/testing/prop/strategy/
+  +-- list_strategy.mojo
+  +-- string_strategy.mojo
+Mojo/lib/MojoParser/
+  +-- Lexer.cpp
+  +-- ParserExprs.cpp
+Mojo/tools/mojo/
+  +-- Format/mojo-format.cpp
+  +-- Doc/mojo-doc.cpp
+  +-- Run/mojo-run.cpp
+```
 </details>
 
 <details>
@@ -119,6 +212,13 @@ tools/
 +-- build_defs/cc/     # C/C++ build definitions
 +-- bazel              # repository Bazel helper
 ```
+
+```text
+tools/build_defs/cc/
+  +-- BUILD.bazel
+  +-- link_hack.bzl
++-- bazel
+```
 </details>
 
 <details>
@@ -129,6 +229,14 @@ utils/
 |
 +-- local_transformers_setup/  # local transformer setup/cleanup
 +-- setup-gpu-clock.sh         # GPU clock utility
+```
+
+```text
+utils/local_transformers_setup/
+  +-- README.md
+  +-- setup_local_transformers.sh
+  +-- cleanup_local_transformers.sh
++-- setup-gpu-clock.sh
 ```
 </details>
 
@@ -142,6 +250,14 @@ README.md             # repository orientation
 CONTRIBUTING.md       # contribution workflow
 pyproject.toml        # Python project/tool configuration
 ```
+
+```text
++-- docs/                 # documentation files and subfolders
++-- Licenses/             # license files
++-- README.md
++-- CONTRIBUTING.md
++-- pyproject.toml
+```
 </details>
 
 <details>
@@ -152,6 +268,27 @@ murali_docs/
 |
 +-- artifacts/
     +-- source_code_walkthrough/  # numbered request-flow notes and this guide
+```
+
+```text
+murali_docs/artifacts/source_code_walkthrough/
+  +-- AGENTS.md
+  +-- 0000_source_code_walkthrough.md
+  +-- 0001_parse_openai_request_body.md
+  +-- 0002_get_pipeline.md
+  +-- 0003_openai_parse_chat_completion_request.md
+  +-- 0004_TextGenerationRequest.md
+  +-- 0005_streaming_vs_non_streaming.md
+  +-- 0006_tokenizer_new_context.md
+  +-- 0007_create_buffered_detokenizer.md
+  +-- 0008_note_awaiting_admission.md
+  +-- 0009_model_worker_stream.md
+  +-- 0010_scheduler_iteration.md
+  +-- 0011_text_batch_constructor.md
+  +-- 0012_pipeline_execution.md
+  +-- 0013_llama_input_staging.md
+  +-- 0014_llama_model_execution.md
+  +-- 0015_folder_structure.md
 ```
 </details>
 
@@ -534,8 +671,13 @@ modular/                                                        # repository roo
 The `max/` tree above is the request-flow focus. The following branches are
 separate repository-level siblings that provide build, language, runtime,
 cache, configuration, support, and developer-tool infrastructure. All of the
-root-level branches are kept in one continuous tree below.
+root-level branches are kept in individual expandable trees below.
 
+## Individual Root Folder Trees
+
+<!-- The previous consolidated non-MAX tree is hidden because each root folder
+     now has its own expandable tree above. -->
+<!--
 ```text
 modular/
 |
@@ -1202,6 +1344,8 @@ modular/
 |
 |   # end of the single root-level folder tree
 ```
+
+-->
 
 Relationship to the MAX Serve path
 
