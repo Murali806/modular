@@ -11,6 +11,8 @@ Sources:
 - `TextContext` definition in
   [`context.py`](../../../max/python/max/pipelines/context/context.py#L456)
 
+<strong><em><a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md"><span style="color:#0b63ce">See complete code walkthrough: 0006_A_1_tokenizer_new_context_prompt_and_tokens.md</span></a></em></strong>.
+
 ## One-Line Purpose
 
 `self.tokenizer.new_context(request)` converts a `TextGenerationRequest` into a

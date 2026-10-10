@@ -9,6 +9,8 @@ Sources:
 - `BufferedDetokenizer` interface in
   [`incremental_detokenizer.py`](../../../max/python/max/serve/pipelines/incremental_detokenizer.py#L90)
 
+<strong><em><a href="0007_A_1_create_buffered_detokenizer_factory_and_decode.md"><span style="color:#0b63ce">See complete code walkthrough: 0007_A_1_create_buffered_detokenizer_factory_and_decode.md</span></a></em></strong>.
+
 ## One-Line Purpose
 
 `create_buffered_detokenizer(...)` creates a per-request decoder that converts

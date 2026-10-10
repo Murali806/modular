@@ -7,6 +7,8 @@ Sources:
 - Dataclass definition in
   [`text_generation.py`](../../../max/python/max/pipelines/modeling/types/pipeline_variants/text_generation.py#L336)
 
+<strong><em><a href="0004_A_1_TextGenerationRequest_construction_and_validation.md"><span style="color:#0b63ce">See complete code walkthrough: 0004_A_1_TextGenerationRequest_construction_and_validation.md</span></a></em></strong>.
+
 ## One-Line Purpose
 
 `TextGenerationRequest(...)` is MAX's internal request object for text

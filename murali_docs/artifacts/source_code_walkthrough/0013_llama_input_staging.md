@@ -11,6 +11,8 @@ Sources:
 - `process_outputs(...)` in
   [`batch_processor.py`](../../../max/python/max/pipelines/architectures/llama3/batch_processor.py#L153)
 
+<strong><em><a href="0013_A_1_llama_input_staging_ragged_buffers.md"><span style="color:#0b63ce">See complete code walkthrough: 0013_A_1_llama_input_staging_ragged_buffers.md</span></a></em></strong>.
+
 ## One-Line Purpose
 
 `Llama3BatchProcessor` converts scheduled `TextContext` batches into the exact

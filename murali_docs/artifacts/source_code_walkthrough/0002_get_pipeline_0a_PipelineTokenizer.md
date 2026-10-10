@@ -3,6 +3,8 @@
 Source:
 [`tokenizer.py`](../../../max/python/max/pipelines/modeling/types/tokenizer.py#L186)
 
+<strong><em><a href="0002_B_1_get_pipeline_pipeline_tokenizer_protocol.md"><span style="color:#0b63ce">See complete code walkthrough: 0002_B_1_get_pipeline_pipeline_tokenizer_protocol.md</span></a></em></strong>.
+
 ## One-Line Purpose
 
 `PipelineTokenizer` is the protocol that says: "this tokenizer object has the

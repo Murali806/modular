@@ -13,6 +13,8 @@ Sources:
 - `Llama3Model.__init__(...)` in
   [`model.py`](../../../max/python/max/pipelines/architectures/llama3/model.py#L316)
 
+<strong><em><a href="0014_A_1_llama_model_execution_runtime_and_graph.md"><span style="color:#0b63ce">See complete code walkthrough: 0014_A_1_llama_model_execution_runtime_and_graph.md</span></a></em></strong>.
+
 ## One-Line Purpose
 
 `model.py` owns the Llama pipeline model wrapper: at runtime it calls the

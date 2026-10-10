@@ -11,6 +11,8 @@ Sources:
 - Metric emission in
   [`metrics.py`](../../../max/python/max/serve/telemetry/metrics.py#L1132)
 
+<strong><em><a href="0008_A_1_note_awaiting_admission_counter_lifecycle.md"><span style="color:#0b63ce">See complete code walkthrough: 0008_A_1_note_awaiting_admission_counter_lifecycle.md</span></a></em></strong>.
+
 ## One-Line Purpose
 
 `self.model_worker.note_awaiting_admission(...)` tracks how many accepted API

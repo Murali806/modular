@@ -11,6 +11,8 @@ Sources:
 - `_launch_forward_pass(...)` in
   [`text_generation.py`](../../../max/python/max/pipelines/lib/pipeline_variants/text_generation.py#L655)
 
+<strong><em><a href="0012_A_1_pipeline_execution_prepare_forward_sample.md"><span style="color:#0b63ce">See complete code walkthrough: 0012_A_1_pipeline_execution_prepare_forward_sample.md</span></a></em></strong>.
+
 ## One-Line Purpose
 
 `execute(inputs)` runs one generation step for the scheduled batch: prepare

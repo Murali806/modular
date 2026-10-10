@@ -11,6 +11,8 @@ Sources:
 - Non-streaming `complete(...)` in
   [`openai_routes.py`](../../../max/python/max/serve/router/openai_routes.py#L1159)
 
+<strong><em><a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md"><span style="color:#0b63ce">See complete code walkthrough: 0005_A_1_streaming_vs_non_streaming_response_dispatch.md</span></a></em></strong>.
+
 ## One-Line Purpose
 
 This branch decides the HTTP response shape:

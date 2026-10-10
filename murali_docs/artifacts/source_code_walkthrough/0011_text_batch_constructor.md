@@ -11,6 +11,8 @@ Sources:
 - `construct_batch(...)` in
   [`text_batch_constructor.py`](../../../max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py#L1845)
 
+<strong><em><a href="0011_A_1_text_batch_constructor_request_admission.md"><span style="color:#0b63ce">See complete code walkthrough: 0011_A_1_text_batch_constructor_request_admission.md</span></a></em></strong>.
+
 ## One-Line Purpose
 
 The batch constructor turns admitted `TextContext` objects into concrete

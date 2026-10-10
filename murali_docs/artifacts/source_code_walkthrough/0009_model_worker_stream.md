@@ -11,6 +11,8 @@ Sources:
 - Scheduler request drain in
   [`text_generation_scheduler.py`](../../../max/python/max/serve/scheduler/text_generation_scheduler.py#L185)
 
+<strong><em><a href="0009_A_1_model_worker_stream_admission_and_response_drain.md"><span style="color:#0b63ce">See complete code walkthrough: 0009_A_1_model_worker_stream_admission_and_response_drain.md</span></a></em></strong>.
+
 ## One-Line Purpose
 
 `self.model_worker.stream(context.request_id, context)` submits the prepared

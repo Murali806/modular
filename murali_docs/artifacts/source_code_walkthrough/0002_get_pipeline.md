@@ -3,6 +3,8 @@
 Source:
 [`openai_routes.py`](../../../max/python/max/serve/router/openai_routes.py#L458)
 
+<strong><em><a href="0002_A_1_get_pipeline_model_selection.md"><span style="color:#0b63ce">See complete code walkthrough: 0002_A_1_get_pipeline_model_selection.md</span></a></em></strong>.
+
 ## One-Line Purpose
 
 `get_pipeline(...)` validates the requested model name and returns the already

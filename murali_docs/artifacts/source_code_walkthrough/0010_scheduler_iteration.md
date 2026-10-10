@@ -11,6 +11,8 @@ Sources:
 - `SchedulerProgress` in
   [`base.py`](../../../max/python/max/serve/scheduler/base.py#L24)
 
+<strong><em><a href="0010_A_1_scheduler_iteration_queue_batch_execute.md"><span style="color:#0b63ce">See complete code walkthrough: 0010_A_1_scheduler_iteration_queue_batch_execute.md</span></a></em></strong>.
+
 ## One-Line Purpose
 
 `run_iteration(...)` is one pass of the text-generation scheduler loop: drain
