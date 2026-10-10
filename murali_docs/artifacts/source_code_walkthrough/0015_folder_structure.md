@@ -372,6 +372,128 @@ modular/                                                        # repository roo
 |                                                               # Python and compiled code eventually
 |                                                               # use these facilities for device work.
 |
+## Other Root-Level Folders
+
+The `max/` tree above is the request-flow focus. These are separate
+repository-level siblings that provide build, language, runtime, cache,
+configuration, support, and developer-tool infrastructure.
+
+```text
+modular/
+|
++-- bazel/                                                       # repository build rules and tooling
+|   +-- BUILD.bazel                                               # Bazel package definition
+|   +-- api.bzl                                                    # shared Bazel APIs/rules
+|   +-- config.bzl                                                 # build configuration helpers
+|   +-- internal/                                                  # internal build macros and tools
+|   +-- lint/                                                      # build and lint integration
+|   +-- pip/                                                       # Python dependency integration
+|   +-- docs/                                                      # Bazel usage documentation
+|
++-- bazelw                                                        # checked-in Bazel wrapper script
++-- BUILD.bazel                                                    # root Bazel package entry point
++-- MODULE.bazel                                                   # Bazel module declarations
++-- MODULE.bazel.lock                                              # resolved Bazel dependency versions
++-- REPO.bazel                                                      # repository-level Bazel configuration
++-- bazel-bin -> generated binaries link                            # Bazel output/bin view
++-- bazel-out -> generated output link                              # configured/intermediate outputs
++-- bazel-testlogs -> generated test-log link                        # test results and logs
++-- bazel-modular -> Bazel execution-root link                       # active Bazel workspace view
++-- build/                                                         # local build resources and logs
+|
++-- Init/                                                          # process initialization support
+|   +-- include/Init/                                               # public initialization headers
+|   +-- lib/                                                        # initialization implementation
+|   |   +-- Init.cpp                                                # initialization behavior
+|   |   +-- DevelopmentSignalHandler.cpp                            # development signal handling
+|   +-- integration-test/python/                                    # Python integration tests
+|   +-- unittests/                                                   # initialization unit tests
+|
++-- AsyncRT/                                                       # asynchronous runtime library
+|   +-- include/AsyncRT/                                             # public async runtime headers
+|   +-- lib/                                                        # runtime implementation libraries
+|   |   +-- Runtime/                                                # async runtime implementation
+|   |   +-- CompilerSupport/                                        # compiler/runtime support
+|   |   +-- JemallocPreload/                                        # allocator preload support
+|   |   +-- Support/                                                # shared async support
+|   +-- docs/                                                       # AsyncRT API/concept documentation
+|   +-- benchmarks/                                                 # async runtime benchmarks
+|   +-- test/                                                       # runtime tests
+|   +-- unittests/                                                  # runtime unit tests
+|   +-- tools/                                                      # runtime diagnostic tools
+|
++-- Cache/                                                         # caching library and cache-manager support
+|   +-- include/Cache/                                               # public cache headers
+|   +-- lib/                                                        # cache implementation
+|   |   +-- BlobCache.cpp                                            # blob cache behavior
+|   |   +-- CachedTransform.cpp                                      # cached transformation behavior
+|   |   +-- CacheTelemetryContext.cpp                                # cache telemetry context
+|   +-- docs/                                                       # cache documentation
+|   +-- tools/cache-mgr/                                             # cache-manager tools
+|   +-- test/cache-mgr/                                              # cache-manager tests
+|   +-- unittests/                                                   # cache unit tests
+|
++-- Config/                                                        # configuration and version support
+|   +-- include/Config/                                               # public configuration headers
+|   |   +-- GeneratedVersion.h.tmpl                                  # generated version template
+|   +-- lib/                                                         # configuration implementation
+|       +-- Version.cpp                                               # version implementation
+|
++-- Support/                                                       # shared C++ platform support library
+|   +-- include/Support/                                              # public support headers
+|   +-- lib/                                                         # reusable support implementation
+|   |   +-- diagnostics/error handling                               # diagnostics infrastructure
+|   |   +-- filesystem/process/threading                             # platform services
+|   |   +-- Log/Metrics/Telemetry                                    # observability support
+|   |   +-- DeviceSpecs/CPUCache                                    # system/device information
+|   +-- docs/                                                        # support API documentation
+|   +-- test/                                                        # support integration tests
+|   +-- unittests/                                                   # support unit tests
+|   +-- tools/                                                       # support command-line tools
+|   +-- benchmarks/                                                  # support benchmarks
+|
++-- Mojo/                                                          # Mojo language and platform source
+|   +-- stdlib/                                                      # Mojo standard library
+|   +-- lib/                                                         # compiler, dialect, and runtime libraries
+|   +-- include/                                                     # public Mojo/compiler headers
+|   +-- docs/                                                        # Mojo language/API documentation
+|   +-- examples/                                                    # learning and feature examples
+|   +-- integration-test/                                            # integration tests
+|   +-- test/                                                        # compiler/language/tool tests
+|   +-- unittests/                                                   # compiler/tooling unit tests
+|   +-- tools/                                                       # Mojo developer tools
+|   +-- proposals/                                                   # language/library proposals
+|   +-- python/                                                      # Python interoperability support
+|
++-- tools/                                                         # repository-level developer tools
+|   +-- build_defs/                                                   # shared build definitions
+|   |   +-- cc/                                                       # C/C++ build definitions
+|   +-- bazel                                                         # repository Bazel helper
+|
++-- utils/                                                         # small operational/setup utilities
+|   +-- local_transformers_setup/                                    # local transformer environment setup
+|   |   +-- setup_local_transformers.sh                               # setup script
+|   |   +-- cleanup_local_transformers.sh                             # cleanup script
+|   |   +-- README.md                                                  # setup instructions
+|   +-- setup-gpu-clock.sh                                             # GPU clock setup utility
+|
++-- docs/                                                          # repository-wide documentation
++-- Licenses/                                                       # third-party license materials
++-- README.md                                                       # repository orientation
++-- CONTRIBUTING.md                                                # contribution workflow
++-- pyproject.toml                                                  # Python project/tool configuration
+```
+
+```text
+Relationship to the MAX Serve path
+
+max/python/max/serve
+  -> uses bazel/ and bazelw for build/test orchestration
+  -> uses MAX engine/NN/kernel/Mojo code under max/
+  -> may use shared Cache/, Config/, Support/, Init/, and AsyncRT/ libraries
+  -> is developed with tools/, utils/, and repository-wide docs/configuration
+```
+
 +-- murali_docs/                                                # documentation created for this study
     |
     +-- artifacts/                                               # generated/working documentation artifacts
