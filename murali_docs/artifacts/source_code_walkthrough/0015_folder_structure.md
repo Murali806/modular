@@ -374,9 +374,10 @@ modular/                                                        # repository roo
 |
 ## Other Root-Level Folders
 
-The `max/` tree above is the request-flow focus. These are separate
-repository-level siblings that provide build, language, runtime, cache,
-configuration, support, and developer-tool infrastructure.
+The `max/` tree above is the request-flow focus. The following branches are
+separate repository-level siblings that provide build, language, runtime,
+cache, configuration, support, and developer-tool infrastructure. All of the
+root-level branches are kept in one continuous tree below.
 
 ```text
 modular/
@@ -482,13 +483,8 @@ modular/
 +-- README.md                                                       # repository orientation
 +-- CONTRIBUTING.md                                                # contribution workflow
 +-- pyproject.toml                                                  # Python project/tool configuration
-```
-
-## Deeper Root-Level View
-
-```text
-modular/
 |
+|   # deeper Bazel, runtime, cache, Support, Mojo, tools, and utils branches
 +-- bazel/
 |   +-- internal/                                                  # implementation of repository build rules
 |   |   +-- modular_cc_library.bzl                                  # C/C++ library macro
@@ -649,16 +645,8 @@ modular/
     |   +-- cleanup_local_transformers.sh                               # cleanup
     |   +-- README.md                                                    # instructions
     +-- setup-gpu-clock.sh                                               # GPU clock utility
-```
-
-## Further Recursive Examples
-
-These branches show another level where a folder contains a subsystem, and
-that subsystem contains concrete headers, implementations, tests, or tools.
-
-```text
-modular/
 |
+|   # further nested implementation branches
 +-- bazel/
 |   +-- internal/
 |   |   +-- cc-toolchain/
@@ -790,13 +778,8 @@ modular/
     +-- Precompile/mojo-precompile.cpp                                        # precompile subcommand
     +-- REPL/mojo-repl.cpp                                                    # REPL subcommand
     +-- Run/mojo-run.cpp                                                      # run subcommand
-```
-
-## One More Recursive Layer
-
-```text
-modular/
 |
+|   # additional nested implementation branches
 +-- bazel/
 |   +-- internal/cc-toolchain/
 |   |   +-- args/
@@ -921,13 +904,8 @@ modular/
 |       |   +-- mojo-format.cpp                                                  # formatter command
 |       +-- Doc/
 |           +-- mojo-doc.cpp                                                     # documentation command
-```
-
-## Three-To-Four-Level Examples
-
-```text
-modular/
 |
+|   # deepest concrete implementation branches
 +-- bazel/
 |   +-- internal/cc-toolchain/
 |       +-- args/
@@ -1044,9 +1022,30 @@ modular/
         +-- RunDescription.td                                                 # run command description
         +-- RunOptions.td                                                      # run options
         +-- mojo-run.cpp                                                       # run implementation
+|
++-- murali_docs/                                                # documentation created for this study
+    +-- artifacts/source_code_walkthrough/                       # walkthrough documentation
+        +-- AGENTS.md                                            # local documentation rules
+        +-- 0000_source_code_walkthrough.md                      # main index
+        +-- 0001_parse_openai_request_body.md                     # HTTP body -> typed request
+        +-- 0002_get_pipeline.md                                  # model name -> pipeline
+        +-- 0003_openai_parse_chat_completion_request.md           # chat normalization
+        +-- 0004_TextGenerationRequest.md                          # API data -> internal request
+        +-- 0005_streaming_vs_non_streaming.md                    # response mode selection
+        +-- 0006_tokenizer_new_context.md                          # request -> TextContext
+        +-- 0007_create_buffered_detokenizer.md                    # tokens -> text fragments
+        +-- 0008_note_awaiting_admission.md                        # admission metric lifecycle
+        +-- 0009_model_worker_stream.md                            # context -> worker stream
+        +-- 0010_scheduler_iteration.md                            # queue -> scheduler iteration
+        +-- 0011_text_batch_constructor.md                         # contexts -> batch
+        +-- 0012_pipeline_execution.md                             # batch -> sampled tokens
+        +-- 0013_llama_input_staging.md                            # contexts -> Llama3Inputs
+        +-- 0014_llama_model_execution.md                          # inputs -> compiled model
+        +-- 0015_folder_structure.md                               # this folder guide
+|
+|   # end of the single root-level folder tree
 ```
 
-```text
 Relationship to the MAX Serve path
 
 max/python/max/serve
@@ -1054,37 +1053,6 @@ max/python/max/serve
   -> uses MAX engine/NN/kernel/Mojo code under max/
   -> may use shared Cache/, Config/, Support/, Init/, and AsyncRT/ libraries
   -> is developed with tools/, utils/, and repository-wide docs/configuration
-```
-
-+-- murali_docs/                                                # documentation created for this study
-    |
-    +-- artifacts/                                               # generated/working documentation artifacts
-        |
-        +-- source_code_walkthrough/                             # one-request learning path
-            |
-            +-- AGENTS.md                                       # local rules for this documentation folder
-            |                                                    # style; links; validation; git workflow
-            |
-            +-- 0000_source_code_walkthrough.md                 # main index and top-level source path
-            |                                                    # one collapsible section per major file
-            |
-            +-- 0001_parse_openai_request_body.md                # raw HTTP body -> typed Pydantic request
-            +-- 0002_get_pipeline.md                             # model name -> selected pipeline
-            +-- 0002_get_pipeline_0a_PipelineTokenizer.md        # tokenizer capability contract
-            +-- 0003_openai_parse_chat_completion_request.md     # OpenAI chat data -> normalized messages
-            +-- 0004_TextGenerationRequest.md                     # normalized API data -> internal request
-            +-- 0005_streaming_vs_non_streaming.md               # response mode -> HTTP response shape
-            +-- 0006_tokenizer_new_context.md                     # internal request -> TextContext
-            +-- 0007_create_buffered_detokenizer.md               # token IDs -> safe text fragments
-            +-- 0008_note_awaiting_admission.md                   # admission metric before/after handoff
-            +-- 0009_model_worker_stream.md                       # context -> worker queue -> response stream
-            +-- 0010_scheduler_iteration.md                       # worker queue -> scheduler iteration
-            +-- 0011_text_batch_constructor.md                    # contexts -> prefill/decode batch
-            +-- 0012_pipeline_execution.md                        # batch -> logits -> sampled token IDs
-            +-- 0013_llama_input_staging.md                       # contexts -> packed Llama3Inputs buffers
-            +-- 0014_llama_model_execution.md                     # Llama3Inputs -> compiled Llama model
-            +-- 0015_folder_structure.md                          # this tree and its explanations
-```
 
 ## The Request Path Inside The Tree
 
