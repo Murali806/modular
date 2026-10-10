@@ -792,6 +792,137 @@ modular/
     +-- Run/mojo-run.cpp                                                      # run subcommand
 ```
 
+## One More Recursive Layer
+
+```text
+modular/
+|
++-- bazel/
+|   +-- internal/cc-toolchain/
+|   |   +-- args/
+|   |   |   +-- BUILD.bazel                                           # compiler-argument targets
+|   |   |   +-- interface-libraries/                                  # interface-library argument set
+|   |   |   +-- modular/                                              # Modular argument set
+|   |   +-- features/
+|   |   |   +-- features.bzl                                           # declared toolchain features
+|   |   +-- tools/
+|   |       +-- builtin_module_map.bzl                                 # builtin module mapping
+|   |       +-- linker-driver.sh                                       # linker invocation wrapper
+|   |       +-- multi-platform-clang.sh                                # platform-aware clang wrapper
+|   +-- internal/llvm-lit/
+|       +-- lit_shim.py                                                # test-runner entry point
+|       +-- modular_test_format.py                                     # Modular test discovery/format
+|       +-- lit.common.cfg.py                                          # common lit configuration
+|       +-- validate_lit_features.py                                   # lit feature validation
+|
++-- AsyncRT/
+|   +-- include/AsyncRT/Support/
+|   |   +-- ConcurrentQueue.h                                           # concurrent queue interface
+|   |   +-- ConcurrentMPMCQueue.h                                       # multi-producer/multi-consumer queue
+|   |   +-- LockFreeRingBuffer.h                                        # lock-free ring buffer
+|   |   +-- Semaphore.h                                                 # semaphore interface
+|   |   +-- ThreadAffinity.h                                            # thread placement interface
+|   |   +-- Diagnostic.h                                                 # runtime diagnostic interface
+|   +-- include/AsyncRT/CompilerSupport/
+|   |   +-- Context.h                                                    # compiler/runtime context
+|   |   +-- LLVMThreadPool.h                                             # LLVM thread-pool bridge
+|   |   +-- MLIRLocationDecoder.h                                        # MLIR location decoding
+|   +-- lib/Runtime/Globals/
+|   |   +-- Globals.cpp                                                   # runtime global state
+|   |   +-- RuntimeGlobal.cpp                                             # runtime-global lifecycle
+|   |   +-- VirtualDeviceGlobals.cpp                                     # virtual-device globals
+|   +-- lib/Runtime/
+|       +-- MallocAllocator.cpp                                          # malloc allocator
+|       +-- TCMallocAllocator.cpp                                        # TCMalloc allocator
+|       +-- ThreadPoolWorkQueue.cpp                                      # thread-pool work queue
+|       +-- SingleThreadWorkQueue.cpp                                    # single-thread work queue
+|
++-- Cache/
+|   +-- include/Cache/Support/
+|   |   +-- Keys.h                                                        # key construction/helpers
+|   +-- lib/
+|   |   +-- BlobCache.cpp                                                 # blob cache storage behavior
+|   |   +-- CachedTransform.cpp                                           # transform result caching
+|   |   +-- CacheTelemetryContext.cpp                                     # cache metrics/context
+|   +-- test/cache-mgr/Inputs/
+|       +-- empty.txt                                                     # empty-input fixture
+|       +-- some_file.txt                                                 # normal-input fixture
+|       +-- some_file_windows.txt                                         # Windows-path fixture
+|
++-- Support/
+|   +-- include/Support/Threading/
+|   |   +-- Atomics.h                                                      # atomic helpers
+|   |   +-- HWInfo.h                                                       # hardware/threading information
+|   |   +-- Shared.h                                                       # shared threading utilities
+|   |   +-- SpinWaiter.h                                                   # spin-wait implementation API
+|   |   +-- ThreadLocalCache.h                                             # thread-local cache API
+|   +-- include/Support/ML/
+|   |   +-- DType.h                                                        # data-type definitions
+|   |   +-- TensorBase.h                                                    # tensor base abstraction
+|   |   +-- TensorShape.h                                                   # tensor shape
+|   |   +-- TensorSpec.h                                                    # tensor specification
+|   |   +-- RangeUtils.h                                                    # range utilities
+|   +-- include/Support/Diagnostics/
+|   |   +-- FormatScopedDiagnosticHandler.h                                # scoped diagnostic formatting
+|   +-- lib/Telemetry/
+|       +-- TelemetryContext.cpp                                           # telemetry state/context
+|       +-- FileLogExporter.cpp                                             # log-file exporter
+|       +-- FileMetricExporter.cpp                                          # metric-file exporter
+|
++-- Config/
+|   +-- include/Config/Version.h                                            # public version declaration
+|   +-- lib/Version.cpp                                                      # version implementation
+|   +-- BUILD.bazel                                                          # build target definition
+|
++-- Mojo/
+|   +-- stdlib/std/algorithm/
+|   |   +-- functional.mojo                                                  # functional algorithms
+|   |   +-- backend/
+|   |       +-- tile.mojo                                                     # tile backend
+|   |       +-- unswitch.mojo                                                 # unswitch backend
+|   |       +-- vectorize.mojo                                                 # vectorization backend
+|   +-- stdlib/std/collections/string/
+|   |   +-- string.mojo                                                       # string implementation
+|   |   +-- format.mojo                                                       # string formatting
+|   |   +-- _utf8.mojo                                                        # UTF-8 operations
+|   |   +-- codepoint.mojo                                                    # Unicode code points
+|   +-- stdlib/std/testing/
+|   |   +-- testing.mojo                                                      # testing primitives
+|   |   +-- suite.mojo                                                        # test-suite support
+|   |   +-- assert_aborts.mojo                                                # expected-abort assertions
+|   |   +-- prop/
+|   |       +-- random.mojo                                                    # property-test random values
+|   |       +-- runner.mojo                                                    # property-test runner
+|   +-- lib/MojoParser/
+|   |   +-- Lexer.cpp                                                          # lexical analysis
+|   |   +-- ParserBase.cpp                                                     # parser base implementation
+|   |   +-- ParserExprs.cpp                                                    # expression parsing
+|   |   +-- ParserStmts.cpp                                                    # statement parsing
+|   |   +-- IREmitter.cpp                                                      # parser-to-IR emission
+|   +-- lib/MojoTooling/
+|   |   +-- CodeComplete.cpp                                                    # completion support
+|   |   +-- DocGen.cpp                                                         # documentation generation
+|   |   +-- ParserDriver.cpp                                                    # parser driver API
+|   |   +-- TypeExtractionUtils.cpp                                            # type extraction helpers
+|   +-- lib/ToolCommon/
+|   |   +-- CLOptions.cpp                                                       # common command-line options
+|   |   +-- PassRegistry.cpp                                                    # pass registry
+|   |   +-- PipelineTiming.cpp                                                  # pipeline timing
+|   |   +-- InitAllDialects/                                                    # dialect initialization
+|   |   +-- TranslationRegistry/                                                # translation registration
+|   +-- tools/mojo/
+|       +-- Build/
+|       |   +-- mojo-build.cpp                                                  # build command
+|       +-- Run/
+|       |   +-- mojo-run.cpp                                                    # run command
+|       +-- REPL/
+|       |   +-- mojo-repl.cpp                                                    # REPL command
+|       +-- Format/
+|       |   +-- mojo-format.cpp                                                  # formatter command
+|       +-- Doc/
+|           +-- mojo-doc.cpp                                                     # documentation command
+```
+
 ```text
 Relationship to the MAX Serve path
 
