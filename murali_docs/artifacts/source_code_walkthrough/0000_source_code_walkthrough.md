@@ -5,6 +5,9 @@ the code by request lifecycle and ownership boundary, not by repository folder.
 
 ## 1. Start With The Big Folders
 
+For a detailed map of both the implementation tree and this documentation
+tree, read <strong><em><a href="0015_folder_structure.md"><span style="color:#0b63ce">See focused note: 0015_folder_structure.md</span></a></em></strong>.
+
 - [`max/python/max/serve/`](../../../max/python/max/serve/): HTTP server, request routing, workers, and scheduler.
 - [`max/python/max/pipelines/`](../../../max/python/max/pipelines/): tokenizer, contexts, model pipeline, and Llama architecture.
 - [`max/python/max/engine/`](../../../max/python/max/engine/): graph compile/init/load and MEF boundary.
