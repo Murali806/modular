@@ -8,7 +8,7 @@ MAX code; the documentation branch shows the notes that explain it.
 
 <details>
 <summary><strong>bazel/ and bazel*</strong> - build rules, toolchains, generated outputs, and test logs</summary>
-
+<!--
 ```text
 bazel/
 |
@@ -34,9 +34,9 @@ bazel/pip/pycross/
 bazel/lint/
   +-- buildifier_wrapper.py
   +-- ruff_wrapper.py
-  +-- rumdl_wrapper.py
++-- rumdl_wrapper.py
 ```
-
+-->
 ```text
 bazel/
 |
@@ -58,7 +58,7 @@ bazel/
 
 <details>
 <summary><strong>Init/</strong> - process initialization and development signal handling</summary>
-
+<!--
 ```text
 Init/
 |
@@ -78,6 +78,7 @@ Init/lib/
 Init/unittests/
   +-- DevelopmentSignalHandlerTests.cpp
 ```
+-->
 ```text
 Init/
 |
@@ -97,7 +98,7 @@ Init/
 
 <details>
 <summary><strong>AsyncRT/</strong> - asynchronous values, queues, timers, allocators, and runtime support</summary>
-
+<!--
 ```text
 AsyncRT/
 |
@@ -124,6 +125,7 @@ AsyncRT/unittests/
   +-- AsyncValueTest.cpp
   +-- WorkQueueTest.cpp
 ```
+-->
 ```text
 AsyncRT/
 |
@@ -148,7 +150,7 @@ AsyncRT/
 
 <details>
 <summary><strong>Cache/</strong> - blob caching, cached transforms, cache telemetry, and cache-manager tools</summary>
-
+<!--
 ```text
 Cache/
 |
@@ -171,6 +173,7 @@ Cache/test/cache-mgr/Inputs/
   +-- empty.txt
   +-- some_file.txt
 ```
+-->
 ```text
 Cache/
 |
@@ -192,7 +195,7 @@ Cache/
 
 <details>
 <summary><strong>Config/</strong> - shared configuration and version support</summary>
-
+<!--
 ```text
 Config/
 |
@@ -206,6 +209,7 @@ Config/include/Config/Version.h
 Config/include/GeneratedVersion.h.tmpl
 Config/lib/Version.cpp
 ```
+-->
 ```text
 Config/
 |
@@ -219,7 +223,7 @@ Config/
 
 <details>
 <summary><strong>Support/</strong> - shared C++ data structures, diagnostics, ML, telemetry, threading, and tools</summary>
-
+<!--
 ```text
 Support/
 |
@@ -246,6 +250,7 @@ Support/lib/
 Support/tools/system-info/system-info.cpp
 Support/unittests/Log/LogTest.cpp
 ```
+-->
 ```text
 Support/
 |
@@ -267,7 +272,7 @@ Support/
 
 <details>
 <summary><strong>Mojo/</strong> - Mojo language, standard library, compiler, tools, examples, and tests</summary>
-
+<!--
 ```text
 Mojo/
 |
@@ -297,6 +302,7 @@ Mojo/tools/mojo/
   +-- Doc/mojo-doc.cpp
   +-- Run/mojo-run.cpp
 ```
+-->
 ```text
 Mojo/
 |
@@ -317,7 +323,7 @@ Mojo/
 
 <details>
 <summary><strong>tools/</strong> - repository-level developer and build helpers</summary>
-
+<!--
 ```text
 tools/
 |
@@ -331,6 +337,7 @@ tools/build_defs/cc/
   +-- link_hack.bzl
 +-- bazel
 ```
+-->
 ```text
 tools/
 |
@@ -344,7 +351,7 @@ tools/
 
 <details>
 <summary><strong>utils/</strong> - local setup and operational scripts</summary>
-
+<!--
 ```text
 utils/
 |
@@ -359,6 +366,7 @@ utils/local_transformers_setup/
   +-- cleanup_local_transformers.sh
 +-- setup-gpu-clock.sh
 ```
+-->
 ```text
 utils/
 |
@@ -372,7 +380,7 @@ utils/
 
 <details>
 <summary><strong>docs/, Licenses/, and root configuration</strong> - repository guidance, legal files, and project configuration</summary>
-
+<!--
 ```text
 docs/                 # repository-wide documentation
 Licenses/             # third-party license materials
@@ -388,6 +396,7 @@ pyproject.toml        # Python project/tool configuration
 +-- CONTRIBUTING.md
 +-- pyproject.toml
 ```
+-->
 ```text
 root files/
 |
@@ -406,7 +415,7 @@ root files/
 
 <details>
 <summary><strong>murali_docs/</strong> - this source-code walkthrough and related study artifacts</summary>
-
+<!--
 ```text
 murali_docs/
 |
@@ -434,6 +443,7 @@ murali_docs/artifacts/source_code_walkthrough/
   +-- 0014_llama_model_execution.md
   +-- 0015_folder_structure.md
 ```
+-->
 ```text
 murali_docs/
 |
