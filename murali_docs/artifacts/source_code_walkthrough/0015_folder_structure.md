@@ -484,6 +484,173 @@ modular/
 +-- pyproject.toml                                                  # Python project/tool configuration
 ```
 
+## Deeper Root-Level View
+
+```text
+modular/
+|
++-- bazel/
+|   +-- internal/                                                  # implementation of repository build rules
+|   |   +-- modular_cc_library.bzl                                  # C/C++ library macro
+|   |   +-- modular_cc_binary.bzl                                   # C/C++ binary macro
+|   |   +-- modular_cc_test.bzl                                     # C/C++ test macro
+|   |   +-- modular_py_library.bzl                                  # Python library macro
+|   |   +-- modular_py_binary.bzl                                   # Python binary macro
+|   |   +-- modular_py_test.bzl                                     # Python test macro
+|   |   +-- mojo_library.bzl                                        # Mojo library macro
+|   |   +-- mojo_binary.bzl                                         # Mojo binary macro
+|   |   +-- mojo_test.bzl                                           # Mojo test macro
+|   |   +-- mojo_toolchain.bzl                                      # Mojo toolchain configuration
+|   |   +-- mef.bzl                                                  # compiled MEF integration
+|   |   +-- precompile_mefs_plugin.py                               # precompiled MEF support
+|   |   +-- pytest_runner.py                                        # Python test execution
+|   |   +-- llvm-lit/                                               # lit test integration
+|   |       +-- lit_shim.py                                         # lit entry shim
+|   |       +-- modular_test_format.py                              # Modular test format
+|   +-- pip/                                                         # Python dependency rules
+|   |   +-- pycross/                                                 # Python package/dependency generation
+|   |   |   +-- dependency.py                                        # dependency model
+|   |   |   +-- generate.py                                          # dependency generation
+|   |   |   +-- download.py                                          # package download support
+|   |   +-- pydeps/                                                  # Python dependency analysis
+|   |   +-- requirements/                                            # locked requirements and uv rules
+|   +-- lint/                                                        # repository lint wrappers
+|       +-- buildifier_wrapper.py                                   # Bazel formatting wrapper
+|       +-- ruff_wrapper.py                                         # Python lint wrapper
+|       +-- rumdl_wrapper.py                                        # Markdown lint wrapper
+|       +-- shellcheck_wrapper.py                                   # shell lint wrapper
+|
++-- Init/
+|   +-- include/Init/
+|   |   +-- Init.h                                                   # initialization API
+|   |   +-- DevelopmentSignalHandler.h                              # signal-handler API
+|   +-- lib/
+|   |   +-- Init.cpp                                                 # initialization implementation
+|   |   +-- DevelopmentSignalHandler.cpp                             # signal handling implementation
+|   +-- unittests/
+|       +-- DevelopmentSignalHandlerTests.cpp                       # signal-handler tests
+|
++-- AsyncRT/
+|   +-- include/AsyncRT/
+|   |   +-- Runtime/                                                  # public asynchronous runtime API
+|   |   |   +-- AsyncValue.h                                          # asynchronous value state
+|   |   |   +-- AsyncValueRef.h                                       # reference to async value
+|   |   |   +-- WorkQueue.h                                           # work queue API
+|   |   |   +-- TimerHeap.h                                           # timer scheduling API
+|   |   |   +-- CPUDevice.h                                           # CPU device abstraction
+|   |   |   +-- Allocator.h                                           # runtime allocation API
+|   |   +-- CompilerSupport/                                          # compiler-facing async support
+|   |   |   +-- Context.h                                             # compiler/runtime context
+|   |   |   +-- LLVMThreadPool.h                                      # LLVM thread-pool integration
+|   |   +-- Support/                                                  # queues, locks, diagnostics, and helpers
+|   |       +-- ConcurrentMPMCQueue.h                                 # concurrent queue
+|   |       +-- Semaphore.h                                           # semaphore API
+|   |       +-- Diagnostic.h                                          # async diagnostics
+|   +-- lib/
+|   |   +-- Runtime/                                                  # runtime implementation
+|   |   |   +-- AsyncValue.cpp                                        # async value implementation
+|   |   |   +-- WorkQueue implementations                             # worker queue implementations
+|   |   |   +-- TimerHeap.cpp                                         # timer implementation
+|   |   |   +-- CPUDevice.cpp                                         # CPU device implementation
+|   |   +-- CompilerSupport/                                          # compiler support implementation
+|   |   +-- JemallocPreload/                                          # allocator preload implementation
+|   |   +-- Support/                                                  # support implementation
+|   +-- tools/                                                        # crash/runtime diagnostic tools
+|   |   +-- crash-report-path-info/                                   # crash report path tool
+|   |   +-- crash-test-dummy/                                        # crash testing executable
+|   +-- unittests/                                                    # allocator, queue, timer, and device tests
+|
++-- Cache/
+|   +-- include/Cache/
+|   |   +-- BlobCache.h                                               # blob cache API
+|   |   +-- CachedTransform.h                                         # cached transform API
+|   |   +-- CacheTelemetryContext.h                                   # cache telemetry API
+|   |   +-- Support/Keys.h                                            # cache key helpers
+|   +-- lib/                                                          # cache implementations
+|   |   +-- BlobCache.cpp                                              # blob cache implementation
+|   |   +-- CachedTransform.cpp                                        # transform cache implementation
+|   |   +-- CacheTelemetryContext.cpp                                  # cache telemetry implementation
+|   +-- tools/cache-mgr/cache-mgr.cpp                                  # cache-manager command-line tool
+|   +-- unittests/                                                     # cache behavior tests
+|
++-- Config/
+|   +-- include/Config/Version.h                                      # public version API
+|   +-- include/GeneratedVersion.h.tmpl                                # generated version template
+|   +-- lib/Version.cpp                                                # version implementation
+|
++-- Support/
+|   +-- include/Support/                                               # public shared support APIs
+|   |   +-- ADT/                                                       # data structures and ownership helpers
+|   |   +-- Compiler/                                                  # compiler/MLIR support types
+|   |   +-- Diagnostics/                                               # diagnostic formatting/handling
+|   |   +-- Driver/                                                    # command-line driver support
+|   |   +-- Filesystem/                                                # filesystem paths and disk usage
+|   |   +-- ML/                                                        # machine-learning data types/utilities
+|   |   +-- Telemetry/                                                 # metrics and telemetry exporters
+|   |   +-- Threading/                                                 # threading and synchronization helpers
+|   |   +-- Error.h / ErrorOr.h                                        # error result types
+|   |   +-- Buffer.h / Context.h                                      # shared buffer/context APIs
+|   +-- lib/                                                           # implementations matching public headers
+|   |   +-- ADT/                                                       # ADT implementations
+|   |   +-- Compiler/                                                  # compiler support implementations
+|   |   +-- Diagnostics/                                               # diagnostic implementations
+|   |   +-- ML/                                                        # ML utility implementations
+|   |   +-- Telemetry/                                                 # telemetry exporters/context
+|   |   +-- Threading/                                                 # thread and signal helpers
+|   |   +-- Log.cpp / Metrics.cpp                                      # logging and metrics
+|   |   +-- Process.cpp / FileSystemExtras.cpp                         # process/filesystem support
+|   +-- tools/                                                         # support-specific executables
+|   |   +-- build-info/                                                # build information tool
+|   |   +-- compare-timings/                                           # timing comparison tool
+|   |   +-- driver-tblgen/                                             # driver table generator
+|   |   +-- system-info/                                               # system information tool
+|   +-- unittests/                                                     # unit tests grouped by support domain
+|
++-- Mojo/
+|   +-- stdlib/
+|   |   +-- std/                                                       # Mojo standard modules
+|   |   |   +-- algorithm/                                             # algorithms
+|   |   |   +-- collections/                                           # collections
+|   |   |   +-- math/                                                  # math APIs
+|   |   |   +-- memory/                                                # memory APIs
+|   |   |   +-- runtime/                                               # runtime APIs
+|   |   |   +-- testing/                                               # testing APIs
+|   |   |   +-- gpu/ and _gpu/                                         # GPU-facing standard modules
+|   |   +-- test/                                                      # standard-library tests
+|   |   +-- benchmarks/                                                # standard-library benchmarks
+|   |   +-- scripts/                                                   # table/data generation scripts
+|   +-- lib/                                                           # Mojo compiler and runtime libraries
+|   |   +-- Compiler/                                                  # compiler implementation
+|   |   +-- Elaborator/                                                # semantic elaboration
+|   |   +-- ExecutionEngine/                                           # execution engine
+|   |   +-- Interpreter/                                               # interpreter
+|   |   +-- MojoParser/                                                # parser
+|   |   +-- MojoTooling/                                               # tooling APIs
+|   |   +-- CompilerRT/                                                # compiler runtime bridge
+|   |   +-- *Dialect/                                                  # compiler dialect implementations
+|   +-- tools/                                                         # compiler and language tools
+|   |   +-- mojo/                                                       # Mojo driver/tool
+|   |   +-- kgen/                                                       # kernel generation tools
+|   |   +-- compilation-server/                                         # compilation server
+|   |   +-- mojo-lsp-server/                                            # language-server implementation
+|   |   +-- kgen-opt/ and kgen-translate/                               # KGEN tooling
+|   +-- python/mojo/                                                    # Python interoperability package
+|   +-- examples/                                                       # language/GPU/interop examples
+|   +-- docs/                                                           # language and standard-library docs
+|   +-- test/ and unittests/                                            # compiler and language tests
+|
++-- tools/                                                             # repository helper tools
+|   +-- build_defs/cc/link_hack.bzl                                     # C/C++ build helper
+|   +-- bazel                                                           # repository Bazel helper
+|
++-- utils/
+    +-- local_transformers_setup/                                      # local model environment scripts
+    |   +-- setup_local_transformers.sh                                 # setup
+    |   +-- cleanup_local_transformers.sh                               # cleanup
+    |   +-- README.md                                                    # instructions
+    +-- setup-gpu-clock.sh                                               # GPU clock utility
+```
+
 ```text
 Relationship to the MAX Serve path
 
