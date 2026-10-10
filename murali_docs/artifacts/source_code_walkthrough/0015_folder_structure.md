@@ -923,6 +923,129 @@ modular/
 |           +-- mojo-doc.cpp                                                     # documentation command
 ```
 
+## Three-To-Four-Level Examples
+
+```text
+modular/
+|
++-- bazel/
+|   +-- internal/cc-toolchain/
+|       +-- args/
+|       |   +-- interface-libraries/
+|       |   |   +-- BUILD.bazel                                      # interface-library target definitions
+|       |   +-- modular/
+|       |       +-- BUILD.bazel                                      # Modular compiler-argument targets
+|       +-- features/
+|       |   +-- features.bzl                                         # feature declarations and transitions
+|       +-- tools/
+|           +-- builtin_module_map.bzl                               # builtin module map generation
+|           +-- linker-driver.sh                                     # linker command adaptation
+|           +-- multi-platform-clang.sh                              # platform-specific compiler selection
+|
++-- AsyncRT/
+|   +-- include/AsyncRT/Runtime/Globals/
+|   |   +-- Globals.h                                                  # global declarations
+|   |   +-- RuntimeGlobal.h                                            # runtime-global API
+|   |   +-- VirtualDeviceGlobals.h                                     # virtual-device global API
+|   +-- lib/Runtime/Globals/
+|       +-- Globals.cpp                                                # global definitions
+|       +-- RuntimeGlobal.cpp                                          # runtime-global implementation
+|       +-- VirtualDeviceGlobals.cpp                                   # virtual-device implementation
+|
++-- Cache/
+|   +-- test/cache-mgr/
+|       +-- Inputs/
+|       |   +-- empty.txt                                               # empty input case
+|       |   +-- some_file.txt                                           # ordinary input case
+|       |   +-- some_file_windows.txt                                   # Windows-path input case
+|       +-- cache-mgr.test                                               # test command/expectation file
+|
++-- Support/
+|   +-- include/Support/DebugInfoDialect/
+|   |   +-- IR/
+|   |   |   +-- DebugInfoDialect.h                                      # debug-info dialect declaration
+|   |   |   +-- DebugInfoOps.h                                          # debug-info operations
+|   |   |   +-- DebugInfoTypes.h                                        # debug-info types
+|   |   |   +-- DIBuilder.h                                             # debug-info builder
+|   |   |   +-- DebugInfo.td                                             # tablegen definitions
+|   |   +-- DebugInfoToLLVM/
+|   |   |   +-- DebugInfoToLLVM.h                                       # conversion-to-LLVM API
+|   |   +-- Transforms/
+|   |       +-- Conversion.h                                            # conversion pass declarations
+|   |       +-- StripDebugInfo.h                                         # debug-info stripping pass
+|   +-- include/Support/Telemetry/Exporters/
+|   |   +-- FileLogExporter.h                                           # file log exporter API
+|   |   +-- FileMetricExporter.h                                        # file metric exporter API
+|   +-- lib/Telemetry/
+|       +-- TelemetryContext.cpp                                        # telemetry context implementation
+|       +-- FileLogExporter.cpp                                          # file log exporter implementation
+|       +-- FileMetricExporter.cpp                                       # file metric exporter implementation
+|
++-- Mojo/
+|   +-- stdlib/std/collections/string/
+|   |   +-- _parsing_numbers/
+|   |   |   +-- constants.mojo                                          # numeric parsing constants
+|   |   |   +-- parsing_floats.mojo                                     # floating-point parsing
+|   |   |   +-- parsing_integers.mojo                                   # integer parsing
+|   |   +-- string.mojo                                                  # string type and operations
+|   |   +-- string_span.mojo                                             # non-owning string span
+|   |   +-- format.mojo                                                  # formatting operations
+|   |   +-- iterators.mojo                                               # string iterators
+|   |   +-- codepoint.mojo                                               # Unicode code-point operations
+|   |   +-- _utf8.mojo                                                   # UTF-8 internals
+|   +-- stdlib/std/testing/prop/
+|   |   +-- strategy/
+|   |   |   +-- list_strategy.mojo                                       # list property strategy
+|   |   |   +-- simd_strategy.mojo                                       # SIMD property strategy
+|   |   |   +-- string_strategy.mojo                                     # string property strategy
+|   |   +-- random.mojo                                                  # property-test random generation
+|   |   +-- runner.mojo                                                  # property-test execution
+|   +-- stdlib/std/algorithm/backend/
+|   |   +-- cpu/
+|   |   |   +-- map.mojo                                                  # CPU map implementation
+|   |   +-- tile.mojo                                                     # tile backend
+|   |   +-- unswitch.mojo                                                 # unswitch backend
+|   |   +-- vectorize.mojo                                                # vectorization backend
+|   +-- lib/Compiler/ObjectCompiler/
+|   |   +-- LLVM/
+|   |   |   +-- Bitcode/                                                 # LLVM bitcode compatibility layers
+|   |   |   |   +-- 17/                                                    # LLVM 17 support
+|   |   |   |   +-- 19/                                                    # LLVM 19 support
+|   |   |   |   +-- 21/                                                    # LLVM 21 support
+|   |   |   +-- Transforms/
+|   |   |       +-- LLVMIRDowngradePass.cpp                               # LLVM IR downgrade pass
+|   |   |       +-- PointerRewriter.cpp                                   # pointer rewriting pass
+|   |   |       +-- SetFunctionAttributes.cpp                             # function attribute pass
+|   |   +-- Target/Host/
+|   |   |   +-- HostBackend.cpp                                            # host backend implementation
+|   |   |   +-- HostBackend.h                                              # host backend API
+|   |   +-- MCLinker.cpp                                                    # machine-code linker support
+|   +-- lib/ToolCommon/
+|       +-- InitAllDialects/
+|       |   +-- InitAllDialects.cpp                                        # dialect registration
+|       |   +-- IndexInterpreterInterface.cpp                             # interpreter interface registration
+|       +-- TranslationRegistry/
+|           +-- TranslationRegistry.cpp                                   # translation registration
+|
++-- Mojo/tools/mojo/
+    +-- Format/
+    |   +-- FormatDescription.td                                           # formatter command description
+    |   +-- FormatOptions.td                                                # formatter options
+    |   +-- mojo-format.cpp                                                  # formatter implementation
+    +-- Doc/
+    |   +-- DocDescription.td                                                # documentation command description
+    |   +-- DocOptions.td                                                     # documentation options
+    |   +-- mojo-doc.cpp                                                      # documentation implementation
+    +-- Build/
+    |   +-- BuildDescription.td                                              # build command description
+    |   +-- BuildOptions.td                                                   # build options
+    |   +-- mojo-build.cpp                                                     # build implementation
+    +-- Run/
+        +-- RunDescription.td                                                 # run command description
+        +-- RunOptions.td                                                      # run options
+        +-- mojo-run.cpp                                                       # run implementation
+```
+
 ```text
 Relationship to the MAX Serve path
 
