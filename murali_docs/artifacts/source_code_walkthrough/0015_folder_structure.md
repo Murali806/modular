@@ -4,6 +4,171 @@ The tree below is the primary explanation. Read the text after each `#` as
 the purpose of that folder or file. The implementation tree shows executable
 MAX code; the documentation branch shows the notes that explain it.
 
+## Expandable Root-Level Map
+
+<details>
+<summary><strong>max/</strong> - MAX platform implementation and the OpenAI-compatible serving path</summary>
+
+```text
+max/
+|
++-- python/max/       # serving, pipelines, engine, NN, graph, and device APIs
++-- kernels/src/       # lower-level Mojo kernels and graph-compiler support
++-- mojo/max/          # GPU, runtime, algorithm, and benchmark APIs
+```
+
+This is the main execution tree followed by the request walkthrough.
+</details>
+
+<details>
+<summary><strong>bazel/ and bazel*</strong> - build rules, toolchains, generated outputs, and test logs</summary>
+
+```text
+bazel/
+|
++-- internal/          # repository build macros and toolchain integration
++-- pip/               # Python dependency rules
++-- lint/              # build and source lint wrappers
++-- docs/              # Bazel usage documentation
+bazelw                 # Bazel wrapper command
+bazel-bin/             # generated binary-output view
+bazel-out/             # generated configured-output view
+bazel-testlogs/        # generated test-log view
+```
+</details>
+
+<details>
+<summary><strong>Init/</strong> - process initialization and development signal handling</summary>
+
+```text
+Init/
+|
++-- include/Init/      # public initialization headers
++-- lib/               # initialization implementation
++-- integration-test/  # integration tests
++-- unittests/         # unit tests
+```
+</details>
+
+<details>
+<summary><strong>AsyncRT/</strong> - asynchronous values, queues, timers, allocators, and runtime support</summary>
+
+```text
+AsyncRT/
+|
++-- include/AsyncRT/   # public runtime/compiler-support headers
++-- lib/               # runtime implementations
++-- docs/              # runtime documentation
++-- benchmarks/        # runtime benchmarks
++-- test/              # integration tests
++-- unittests/         # runtime unit tests
++-- tools/             # runtime diagnostic tools
+```
+</details>
+
+<details>
+<summary><strong>Cache/</strong> - blob caching, cached transforms, cache telemetry, and cache-manager tools</summary>
+
+```text
+Cache/
+|
++-- include/Cache/     # cache APIs and key helpers
++-- lib/               # cache implementations
++-- tools/cache-mgr/   # cache-manager executable
++-- test/cache-mgr/    # cache-manager fixtures/tests
++-- unittests/         # cache unit tests
+```
+</details>
+
+<details>
+<summary><strong>Config/</strong> - shared configuration and version support</summary>
+
+```text
+Config/
+|
++-- include/Config/    # public configuration/version headers
++-- lib/               # configuration implementation
++-- BUILD.bazel        # Config build target
+```
+</details>
+
+<details>
+<summary><strong>Support/</strong> - shared C++ data structures, diagnostics, ML, telemetry, threading, and tools</summary>
+
+```text
+Support/
+|
++-- include/Support/   # public shared APIs
++-- lib/               # implementations
++-- tools/             # support executables
++-- test/              # integration tests
++-- unittests/         # unit tests
++-- benchmarks/        # benchmarks
+```
+</details>
+
+<details>
+<summary><strong>Mojo/</strong> - Mojo language, standard library, compiler, tools, examples, and tests</summary>
+
+```text
+Mojo/
+|
++-- stdlib/            # Mojo standard library and tests
++-- lib/               # compiler, dialect, parser, runtime libraries
++-- tools/             # Mojo CLI, formatter, docs, REPL, and compiler tools
++-- python/            # Python interoperability package
++-- docs/              # language/API documentation
++-- examples/          # examples
++-- test/              # compiler/language tests
++-- unittests/         # tooling/compiler unit tests
+```
+</details>
+
+<details>
+<summary><strong>tools/</strong> - repository-level developer and build helpers</summary>
+
+```text
+tools/
+|
++-- build_defs/cc/     # C/C++ build definitions
++-- bazel              # repository Bazel helper
+```
+</details>
+
+<details>
+<summary><strong>utils/</strong> - local setup and operational scripts</summary>
+
+```text
+utils/
+|
++-- local_transformers_setup/  # local transformer setup/cleanup
++-- setup-gpu-clock.sh         # GPU clock utility
+```
+</details>
+
+<details>
+<summary><strong>docs/, Licenses/, and root configuration</strong> - repository guidance, legal files, and project configuration</summary>
+
+```text
+docs/                 # repository-wide documentation
+Licenses/             # third-party license materials
+README.md             # repository orientation
+CONTRIBUTING.md       # contribution workflow
+pyproject.toml        # Python project/tool configuration
+```
+</details>
+
+<details>
+<summary><strong>murali_docs/</strong> - this source-code walkthrough and related study artifacts</summary>
+
+```text
+murali_docs/
+|
++-- artifacts/
+    +-- source_code_walkthrough/  # numbered request-flow notes and this guide
+```
+</details>
+
 ```text
 modular/                                                        # repository root
 |
