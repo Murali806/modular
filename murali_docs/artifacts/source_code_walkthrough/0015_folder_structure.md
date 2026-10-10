@@ -651,6 +651,147 @@ modular/
     +-- setup-gpu-clock.sh                                               # GPU clock utility
 ```
 
+## Further Recursive Examples
+
+These branches show another level where a folder contains a subsystem, and
+that subsystem contains concrete headers, implementations, tests, or tools.
+
+```text
+modular/
+|
++-- bazel/
+|   +-- internal/
+|   |   +-- cc-toolchain/
+|   |   |   +-- args/                                               # compiler argument definitions
+|   |   |   |   +-- interface-libraries/                            # interface-library arguments
+|   |   |   |   +-- modular/                                        # Modular compiler arguments
+|   |   |   +-- features/features.bzl                               # toolchain feature declarations
+|   |   |   +-- tools/                                              # compiler/linker wrappers
+|   |   |       +-- builtin_module_map.bzl                          # builtin module map
+|   |   |       +-- linker-driver.sh                                # linker driver wrapper
+|   |   |       +-- multi-platform-clang.sh                         # platform clang wrapper
+|   |   +-- pip/pycross/
+|   |       +-- dependency.py                                       # Python dependency model
+|   |       +-- download.py                                         # package download logic
+|   |       +-- generate.py                                          # dependency generation
+|   |       +-- package.py                                           # Python package model
+|   |       +-- render.py                                            # BUILD/file rendering
+|   |       +-- test_*.py                                            # pycross unit tests
+|
++-- AsyncRT/
+|   +-- include/AsyncRT/Runtime/
+|   |   +-- AsyncValue.h                                             # async value declaration
+|   |   +-- AsyncValueRef.h                                          # async value reference
+|   |   +-- WorkQueue.h                                              # work queue interface
+|   |   +-- TimerHeap.h                                              # timer heap interface
+|   |   +-- Globals/
+|   |       +-- Globals.h                                            # global runtime declarations
+|   |       +-- RuntimeGlobal.h                                      # runtime-global state
+|   |       +-- VirtualDeviceGlobals.h                               # virtual-device state
+|   +-- lib/Runtime/
+|   |   +-- AsyncValue.cpp                                           # async value implementation
+|   |   +-- ThreadPoolWorkQueue.cpp                                  # thread-pool queue
+|   |   +-- SingleThreadWorkQueue.cpp                                # single-thread queue
+|   |   +-- DelegateThreadPoolWorkQueue.cpp                          # delegated queue
+|   |   +-- TimerHeap.cpp                                             # timer implementation
+|   |   +-- Globals/
+|   |       +-- Globals.cpp                                           # global runtime implementation
+|   |       +-- RuntimeGlobal.cpp                                     # runtime-global implementation
+|   +-- lib/Support/
+|   |   +-- Semaphore.cpp                                             # semaphore implementation
+|   |   +-- ThreadAffinity.cpp                                         # thread affinity support
+|   |   +-- Location.cpp                                               # source-location support
+|   +-- unittests/
+|       +-- AsyncValueTest.cpp                                        # async value tests
+|       +-- WorkQueueTest.cpp                                          # work queue tests
+|       +-- TimerHeapTest.cpp                                          # timer tests
+|
++-- Cache/
+|   +-- include/Cache/
+|   |   +-- Support/Keys.h                                             # cache-key implementation helpers
+|   |   +-- BlobCache.h                                                # blob cache contract
+|   +-- tools/cache-mgr/
+|   |   +-- cache-mgr.cpp                                               # cache manager executable
+|   |   +-- BUILD.bazel                                                 # cache manager target
+|   +-- test/cache-mgr/
+|   |   +-- Inputs/                                                      # test input fixtures
+|   |   |   +-- empty.txt
+|   |   |   +-- some_file.txt
+|   |   +-- cache-mgr.test                                                 # cache manager test definition
+|
++-- Config/
+|   +-- include/Config/Version.h                                       # version query API
+|   +-- lib/Version.cpp                                                 # version query implementation
+|   +-- BUILD.bazel                                                     # Config build target
+|
++-- Support/
+|   +-- include/Support/Telemetry/
+|   |   +-- Telemetry.h                                                  # telemetry API
+|   |   +-- Logs.h                                                       # telemetry logging API
+|   |   +-- Instruments.h                                                 # instrumentation API
+|   |   +-- Exporters/
+|   |       +-- FileLogExporter.h                                         # log exporter API
+|   |       +-- FileMetricExporter.h                                      # metric exporter API
+|   +-- lib/Telemetry/
+|   |   +-- TelemetryContext.cpp                                          # telemetry context implementation
+|   |   +-- FileLogExporter.cpp                                            # file log exporter
+|   |   +-- FileMetricExporter.cpp                                         # file metric exporter
+|   +-- include/Support/Compiler/
+|   |   +-- Bytecode.h                                                     # compiler bytecode API
+|   |   +-- DiagnosticHandler.h                                            # diagnostic handler API
+|   |   +-- ErrorTree.h                                                    # compiler error tree
+|   |   +-- MLIRToString.h                                                 # MLIR conversion helpers
+|   +-- lib/Compiler/
+|   |   +-- BytecodeReaderWriter.cpp                                       # bytecode serialization
+|   |   +-- DiagnosticHandler.cpp                                          # diagnostic implementation
+|   |   +-- ErrorTree.cpp                                                   # error tree implementation
+|   +-- unittests/Log/
+|       +-- LogTest.cpp                                                    # basic logging tests
+|       +-- LogJSONOutputTest.cpp                                          # JSON logging tests
+|       +-- RequestLogTest.cpp                                             # request-log tests
+|
++-- Mojo/
+|   +-- stdlib/std/collections/
+|   |   +-- array.mojo                                                    # array collection
+|   |   +-- dict.mojo                                                     # dictionary collection
+|   |   +-- list.mojo                                                     # list collection
+|   |   +-- set.mojo                                                      # set collection
+|   |   +-- string/
+|   |       +-- string.mojo                                                # string type
+|   |       +-- format.mojo                                                # string formatting
+|   |       +-- _utf8.mojo                                                 # UTF-8 support
+|   +-- std/runtime/
+|   |   +-- _asyncrt.mojo                                                  # AsyncRT standard-library bridge
+|   +-- lib/Compiler/
+|   |   +-- KGENCompiler.cpp                                                # KGEN compiler integration
+|   |   +-- ObjectCompiler/                                                 # object-code compiler layer
+|   |   |   +-- LLVMAccessorHelper.cpp                                     # LLVM accessor support
+|   |   |   +-- MCLinker.cpp                                                # machine-code linker support
+|   |   +-- Pipeline/
+|   |       +-- Pipeline.cpp                                                # compiler pipeline implementation
+|   |       +-- Pipeline.h                                                  # compiler pipeline API
+|   +-- lib/ExecutionEngine/
+|   |   +-- ExecutionEngine.cpp                                             # execution engine
+|   |   +-- JIT/
+|   |       +-- MaterializationLayer.cpp                                    # JIT materialization
+|   |       +-- StaticArchiveLayer.cpp                                       # static archive layer
+|   +-- python/mojo/
+|       +-- importer.py                                                      # Python-to-Mojo import support
+|       +-- run.py                                                           # Python-facing Mojo runner
+|       +-- notebook.py                                                       # notebook integration
+|
++-- Mojo/tools/mojo/
+    +-- mojo.cpp                                                             # Mojo tool entry point
+    +-- Build/mojo-build.cpp                                                  # build subcommand
+    +-- Debug/mojo-debug.cpp                                                  # debug subcommand
+    +-- Demangle/mojo-demangle.cpp                                            # demangle subcommand
+    +-- Doc/mojo-doc.cpp                                                      # documentation subcommand
+    +-- Format/mojo-format.cpp                                                # formatter subcommand
+    +-- Precompile/mojo-precompile.cpp                                        # precompile subcommand
+    +-- REPL/mojo-repl.cpp                                                    # REPL subcommand
+    +-- Run/mojo-run.cpp                                                      # run subcommand
+```
+
 ```text
 Relationship to the MAX Serve path
 
