@@ -137,6 +137,9 @@ modular/                                                        # repository roo
 |   |       |   +-- comm/                                       # communication components
 |   |       |       +-- allreduce.py                             # all-reduce operation
 |   |       |       +-- ep/                                      # expert-parallel communication
+|   |       |           +-- ep_config.py                          # expert-parallel configuration
+|   |       |           +-- ep_kernels.py                         # expert-parallel kernel interface
+|   |       |           +-- ep_manager.py                         # expert-parallel lifecycle/coordination
 |   |       |
 |   |       +-- kv_cache/                                       # shared KV-cache APIs and management
 |   |       |   +-- __init__.py                                 # package exports
@@ -156,7 +159,22 @@ modular/                                                        # repository roo
 |   |           +-- buffer_utils.py                             # graph buffer helpers
 |   |           +-- quantization.py                             # graph quantization helpers
 |   |           +-- ops/                                        # graph operation definitions
+|   |           |   +-- matmul.py                               # matrix multiplication graph op
+|   |           |   +-- reduction.py                             # reduction graph ops
+|   |           |   +-- reshape.py / transpose.py                # shape/layout graph ops
+|   |           |   +-- gather.py / scatter.py                   # indexed data movement ops
+|   |           |   +-- allreduce.py / allgather.py               # distributed graph ops
+|   |           |   +-- quantized.py                             # quantized graph ops
+|   |           |   +-- validation.py / support.py                # op validation/support checks
+|   |           |                                                # many additional operation modules
 |   |           +-- weights/                                    # graph weight utilities
+|   |               +-- load.py                                  # general weight loading
+|   |               +-- format.py                                # weight format handling
+|   |               +-- weights.py                               # weight representation/utilities
+|   |               +-- load_safetensors.py                      # Safetensors loading
+|   |               +-- load_gguf.py                             # GGUF loading
+|   |               +-- _gguf_reader.py                          # GGUF reader internals
+|   |               +-- loader_wrappers.py                       # loader adapters/wrappers
 |   |
 |   +-- kernels/                                                # lower-level performance implementation
 |   |   |
@@ -174,7 +192,21 @@ modular/                                                        # repository roo
 |   |       |
 |   |       +-- nn/                                             # neural-network kernels
 |   |       |   +-- attention/                                  # attention kernel family
+|   |       |   |   +-- cpu/                                   # CPU attention kernels
+|   |       |   |   |   +-- mha.mojo                            # CPU multi-head attention
+|   |       |   |   +-- gpu/                                   # GPU attention kernels
+|   |       |   |       +-- mha.mojo                            # GPU multi-head attention
+|   |       |   |       +-- mla.mojo                            # multi-latent attention
+|   |       |   |       +-- mha_cross.mojo                      # cross-attention
+|   |       |   |       +-- sparse_indexer_common.mojo           # sparse-index helpers
+|   |       |   |       +-- nvidia/                             # NVIDIA variants
+|   |       |   |       +-- amd_rdna/                           # AMD RDNA variants
+|   |       |   |       +-- apple/                              # Apple GPU variants
 |   |       |   +-- sampling/                                   # sampling kernel family
+|   |       |       +-- sampling.mojo                           # sampling implementation
+|   |       |       +-- coop_row.mojo                           # cooperative row processing
+|   |       |       +-- topk_fi.mojo                            # top-k selection
+|   |       |       +-- topk_fi_cluster.mojo                    # clustered top-k selection
 |   |       |   +-- activations.mojo                            # activation functions
 |   |       |   +-- softmax.mojo                                # softmax operation
 |   |       |   +-- rope.mojo                                   # rotary position embedding
@@ -184,8 +216,20 @@ modular/                                                        # repository roo
 |   |       |
 |   |       +-- graph_compiler/                                 # compiler primitives and registrations
 |   |       |   +-- builtin_kernels/                            # built-in kernel registrations
+|   |       |   |   +-- kernels.mojo                            # built-in kernel registry
+|   |       |   |   +-- attention.mojo                          # built-in attention kernels
+|   |       |   |   +-- linalg.mojo                             # built-in linear algebra kernels
+|   |       |   |   +-- kv_cache.mojo                           # built-in KV-cache kernels
+|   |       |   |   +-- quantization.mojo                       # built-in quantization kernels
+|   |       |   |   +-- logprobs.mojo                           # built-in log-probability kernels
 |   |       |   +-- builtin_primitives/                          # built-in compiler primitives
+|   |       |   |   +-- primitives.mojo                          # primitive definitions
+|   |       |   |   +-- buffer_plan.mojo                         # buffer planning primitives
 |   |       |   +-- extensibility/                               # compiler extension points
+|   |       |       +-- decorators.mojo                          # extension decorators
+|   |       |       +-- operation_traits.mojo                     # operation trait definitions
+|   |       |       +-- tensor_arg_traits.mojo                    # tensor argument traits
+|   |       |       +-- managed_tensor_slice.mojo                 # managed tensor slices
 |   |       |
 |   |       +-- quantization/                                   # quantized computation support
 |   |       |   +-- qmatmul.mojo                                # quantized matrix multiplication
@@ -201,7 +245,26 @@ modular/                                                        # repository roo
 |   |       |
 |   |       +-- linalg/                                         # linear algebra and matmul support
 |   |       |   +-- matmul/                                      # matrix multiplication family
+|   |       |   |   +-- cpu/                                    # CPU matmul implementations
+|   |       |   |   |   +-- default.mojo                         # default CPU matmul
+|   |       |   |   |   +-- neon.mojo                            # ARM NEON matmul
+|   |       |   |   |   +-- vnni.mojo                            # VNNI matmul
+|   |       |   |   +-- gpu/                                    # GPU matmul implementations
+|   |       |   |   |   +-- tile_scheduler.mojo                  # GPU tile scheduling
+|   |       |   |   |   +-- tile_scheduler_splitk.mojo            # split-K scheduling
+|   |       |   |   +-- vendor/                                 # vendor BLAS/matmul paths
+|   |       |   |       +-- blas.mojo                            # BLAS integration
+|   |       |   |       +-- matmul.mojo                          # vendor matmul integration
 |   |       |   +-- arch/                                        # architecture-specific implementations
+|   |       |       +-- cpu/                                    # CPU architecture paths
+|   |       |       |   +-- neon_intrinsics.mojo                 # NEON intrinsics
+|   |       |       |   +-- vnni_intrinsics.mojo                 # VNNI intrinsics
+|   |       |       +-- amd/                                    # AMD architecture paths
+|   |       |       |   +-- block_scaled_mma.mojo                # AMD block-scaled MMA
+|   |       |       +-- apple/                                  # Apple architecture paths
+|   |       |       |   +-- mma.mojo                             # Apple MMA
+|   |       |       +-- sm100/                                  # NVIDIA SM100 paths
+|   |       |           +-- mma.mojo                             # SM100 MMA
 |   |       |   +-- bmm.mojo                                    # batched matrix multiplication
 |   |       |   +-- gemv.mojo                                   # matrix-vector multiplication
 |   |       |   +-- grouped_matmul.mojo                          # grouped matrix multiplication
@@ -223,6 +286,12 @@ modular/                                                        # repository roo
 |           |   |   +-- tensor_ops.mojo                          # tensor operations
 |           |   |   +-- mma.mojo                                 # matrix multiply-accumulate
 |           |   |   +-- arch/                                    # architecture-specific GPU code
+|           |   |       +-- mma_nvidia.mojo                       # NVIDIA MMA
+|           |   |       +-- mma_nvidia_sm100.mojo                 # NVIDIA SM100 MMA
+|           |   |       +-- mma_amd.mojo                           # AMD MMA
+|           |   |       +-- mma_amd_rdna.mojo                      # AMD RDNA MMA
+|           |   |       +-- mma_apple.mojo                         # Apple MMA
+|           |   |       +-- tcgen05.mojo                           # tensor-core generation support
 |           |   |   +-- mma_util.mojo                            # MMA helpers
 |           |   |
 |           |   +-- host/                                       # host-side GPU integration
@@ -232,6 +301,7 @@ modular/                                                        # repository roo
 |           |   |   +-- device_attribute.mojo                     # device attributes
 |           |   |   +-- info.mojo                                 # device information
 |           |   |   +-- nvidia/                                  # NVIDIA-specific host code
+|           |   |       +-- tma.mojo                               # NVIDIA Tensor Memory Accelerator support
 |           |   |
 |           |   +-- memory/                                     # device memory operations
 |           |   |   +-- memory.mojo                               # memory APIs
@@ -258,6 +328,15 @@ modular/                                                        # repository roo
 |           |   +-- memory.mojo                                   # memory algorithms
 |           |   +-- reduction.mojo                                # reductions
 |           |   +-- backend/                                      # backend implementations
+|           |       +-- cpu/                                      # CPU algorithm implementations
+|           |       |   +-- elementwise.mojo                       # CPU elementwise algorithms
+|           |       |   +-- parallelize.mojo                       # CPU parallelization
+|           |       |   +-- reduction.mojo                         # CPU reductions
+|           |       |   +-- stencil.mojo                           # CPU stencil algorithms
+|           |       +-- gpu/                                      # GPU algorithm implementations
+|           |           +-- elementwise.mojo                       # GPU elementwise algorithms
+|           |           +-- reduction.mojo                         # GPU reductions
+|           |           +-- stencil.mojo                           # GPU stencil algorithms
 |           |
 |           +-- benchmark/                                      # benchmark support
 |               +-- bencher.mojo                                  # benchmark harness
