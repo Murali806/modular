@@ -7,20 +7,6 @@ MAX code; the documentation branch shows the notes that explain it.
 ## Expandable Root-Level Map
 
 <details>
-<summary><strong>max/</strong> - MAX platform implementation and the OpenAI-compatible serving path</summary>
-
-```text
-max/
-|
-+-- python/max/       # serving, pipelines, engine, NN, graph, and device APIs
-+-- kernels/src/       # lower-level Mojo kernels and graph-compiler support
-+-- mojo/max/          # GPU, runtime, algorithm, and benchmark APIs
-```
-
-This is the main execution tree followed by the request walkthrough.
-</details>
-
-<details>
 <summary><strong>bazel/ and bazel*</strong> - build rules, toolchains, generated outputs, and test logs</summary>
 
 ```text
@@ -168,6 +154,9 @@ murali_docs/
     +-- source_code_walkthrough/  # numbered request-flow notes and this guide
 ```
 </details>
+
+<details>
+<summary><strong>max/</strong> - expand to view the complete recursive MAX implementation tree</summary>
 
 ```text
 modular/                                                        # repository root
@@ -537,6 +526,9 @@ modular/                                                        # repository roo
 |                                                               # Python and compiled code eventually
 |                                                               # use these facilities for device work.
 |
+```
+</details>
+
 ## Other Root-Level Folders
 
 The `max/` tree above is the request-flow focus. The following branches are
