@@ -200,8 +200,37 @@ modular/                                                        # repository roo
 |   |       |   |       +-- mha_cross.mojo                      # cross-attention
 |   |       |   |       +-- sparse_indexer_common.mojo           # sparse-index helpers
 |   |       |   |       +-- nvidia/                             # NVIDIA variants
+|   |       |   |       |   +-- common.mojo                       # shared NVIDIA attention helpers
+|   |       |   |       |   +-- mha_tile_scheduler.mojo           # MHA tile scheduling
+|   |       |   |       |   +-- sm90/                             # NVIDIA SM90 implementation
+|   |       |   |       |   |   +-- attention.mojo                  # SM90 attention path
+|   |       |   |       |   |   +-- mha.mojo                        # SM90 multi-head attention
+|   |       |   |       |   +-- sm100/                            # NVIDIA SM100 implementation
+|   |       |   |       |       +-- attention.mojo                  # SM100 attention core
+|   |       |   |       |       +-- dispatch.mojo                   # SM100 dispatch selection
+|   |       |   |       |       +-- kernel.mojo                     # SM100 kernel entry points
+|   |       |   |       |       +-- attention_utils.mojo            # attention utilities
+|   |       |   |       |       +-- mla_prefill.mojo                 # MLA prefill path
+|   |       |   |       |       +-- mla_decode_dispatch.mojo         # MLA decode dispatch
+|   |       |   |       |       +-- mla_decode_combine.mojo          # MLA decode combination
+|   |       |   |       |       +-- softmax_warp.mojo                # warp-level softmax
+|   |       |   |       |       +-- sm100/mha_depth512/              # depth-512 MHA specialization
+|   |       |   |       |
 |   |       |   |       +-- amd_rdna/                           # AMD RDNA variants
+|   |       |   |       |   +-- attention.mojo                     # AMD attention entry point
+|   |       |   |       |   +-- buffers.mojo                       # AMD attention buffers
+|   |       |   |       |   +-- config.mojo                        # AMD attention configuration
+|   |       |   |       |   +-- mha_prefill.mojo                   # AMD MHA prefill
+|   |       |   |       |   +-- mha_decode.mojo                    # AMD MHA decode
+|   |       |   |       |   +-- mma.mojo                           # AMD matrix multiply-accumulate
+|   |       |   |       |   +-- softmax.mojo                        # AMD softmax
+|   |       |   |       |   +-- utils.mojo                          # AMD attention helpers
+|   |       |   |       |
 |   |       |   |       +-- apple/                              # Apple GPU variants
+|   |       |       |       +-- fa_prefill.mojo                    # Apple flash-attention prefill
+|   |       |       |       +-- naive_fa_decode.mojo                # Apple fallback decode
+|   |       |       |       +-- DESIGN.md                          # Apple attention design notes
+|   |       |       |       +-- MODEL_ENABLEMENT.md                 # model enablement notes
 |   |       |   +-- sampling/                                   # sampling kernel family
 |   |       |       +-- sampling.mojo                           # sampling implementation
 |   |       |       +-- coop_row.mojo                           # cooperative row processing
