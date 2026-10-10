@@ -72,10 +72,10 @@ when the repository does not contain them.
 
 When requested, create a separate complete-code walkthrough alongside the
 focused note. A complete-code walkthrough contains the actual source code in
-execution order, with additional concise comments that explain the data flow,
-branch decisions, and handoff between functions. Do not replace or rewrite
-the existing focused note; leave it as-is and add one extra link to the new
-complete-code walkthrough.
+execution order, with additional concise comments and visual diagrams that
+explain the data flow, branch decisions, variable transformations, and handoff
+between functions. Do not replace or rewrite the existing focused note; leave
+it as-is and add exactly one extra link to the new complete-code walkthrough.
 
 Use this naming pattern, where the letter identifies the walkthrough section
 and the number identifies its sequence within that section:
@@ -94,9 +94,37 @@ and the number identifies its sequence within that section:
   more sectionization is needed.
 - Keep the suffix specific enough to identify the covered source-code path or
   phase, for example `http_ingress` or `request_validation`.
-- Preserve source-code order and include only the relevant actual source code;
-  use comments around the code to explain what each block receives, does, and
-  returns.
+- Preserve source-code order and include only relevant, verbatim source code;
+  do not replace implementation blocks with pseudocode or simplified code.
+- Add concise walkthrough-only comments around or inside the copied source to
+  explain what each block receives, does, changes, returns, or hands off. Mark
+  inserted comments clearly when they are not present in the source file.
+- Add visual explanations wherever they make the execution easier to follow.
+  Prefer ASCII sequence diagrams, branch/decision flows, call flows, and
+  variable/data-flow diagrams that use the actual source-code names.
+- Show important variable evolution explicitly, for example:
+
+  ```text
+  request: Request
+      |
+      | await request.body()
+      v
+  raw: bytes
+      |
+      | json.loads(raw)
+      v
+  parsed: object
+      |
+      | model_cls.model_validate(parsed)
+      v
+  validated request: _TRequest
+  ```
+
+- Keep diagrams adjacent to the source block they explain. Diagrams supplement
+  the actual code; they do not replace it.
+- When the path spans multiple source files, use `000N_A_1`, `000N_A_2`, and
+  later sequence numbers in execution order. Use `B`, `C`, and later letters
+  only when a new logical section is needed.
 - Link every new complete-code walkthrough from its original focused note and
   keep the link in the established bold-italic focused-note style.
 - Keep complete-code walkthrough links relative to the documentation folder,
