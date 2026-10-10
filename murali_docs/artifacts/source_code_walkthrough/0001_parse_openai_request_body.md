@@ -6,6 +6,8 @@ path.
 Source:
 [`openai_routes.py`](../../../max/python/max/serve/router/openai_routes.py#L3070)
 
+<strong><em><a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md"><span style="color:#0b63ce">See complete code walkthrough: 0001_A_1_parse_openai_request_body_http_ingress_and_parser.md</span></a></em></strong>.
+
 ## Function Shape
 
 ```python
