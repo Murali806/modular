@@ -40,32 +40,34 @@ bazel/lint/
 ```text
 bazel/
 |
-+-- internal/
++-- internal/                                             # shared build macros/toolchain logic
 |   +-- cc-toolchain/
 |   |   +-- tools/
-|   |       +-- builtin_module_map.bzl
-|   |       +-- linker-driver.sh
+|   |       +-- builtin_module_map.bzl                         # builtin module mappings
+|   |       +-- linker-driver.sh                               # linker command wrapper
+|   |       +-- multi-platform-clang.sh                        # platform compiler wrapper
 |   +-- llvm-lit/
-|       +-- lit_shim.py
+|       +-- lit_shim.py                                    # lit entry point
+|       +-- modular_test_format.py                         # test format
 +-- pip/
 |   +-- pycross/
-|       +-- dependency.py
-|       +-- generate.py
+|       +-- dependency.py                                  # dependency model
+|       +-- generate.py                                     # dependency generation
+|       +-- download.py                                     # package download support
 +-- lint/
-    +-- ruff_wrapper.py
-    +-- buildifier_wrapper.py
-    +-- rumdl_wrapper.py
-    +-- shellcheck_wrapper.py
-+-- docs/usage.md
-+-- public-patches/
-|   +-- BUILD.bazel
-|   +-- llvm_project.bzl
-|   +-- protobuf-dev-dep.patch
-+-- BUILD.bazel
-+-- api.bzl
-+-- config.bzl
-+-- common.MODULE.bazel
-+-- mojo.MODULE.bazel
+    +-- ruff_wrapper.py                                    # Python lint
+    +-- buildifier_wrapper.py                              # Bazel formatting
+    +-- rumdl_wrapper.py                                   # Markdown lint
+    +-- shellcheck_wrapper.py                              # shell lint
++-- docs/usage.md                                           # Bazel usage guide
++-- public-patches/                                         # third-party build patches
+|   +-- llvm_project.bzl                                    # LLVM repository setup
+|   +-- protobuf-dev-dep.patch                              # protobuf build patch
++-- BUILD.bazel                                             # Bazel package definition
++-- api.bzl                                                 # shared Bazel API
++-- config.bzl                                              # build configuration
++-- common.MODULE.bazel                                     # common module settings
++-- mojo.MODULE.bazel                                       # Mojo module settings
 ```
 </details>
 
@@ -95,18 +97,17 @@ Init/unittests/
 ```text
 Init/
 |
-+-- include/
++-- include/                                               # public initialization headers
 |   +-- Init/
-|       +-- Init.h
-|       +-- DevelopmentSignalHandler.h
-+-- lib/
-|   +-- Init.cpp
-|   +-- DevelopmentSignalHandler.cpp
-+-- integration-test/
-|   +-- python/
-+-- unittests/
-    +-- DevelopmentSignalHandlerTests.cpp
-+-- BUILD.bazel
+|       +-- Init.h                                         # initialization API
+|       +-- DevelopmentSignalHandler.h                    # development signal API
++-- lib/                                                    # initialization implementation
+|   +-- Init.cpp                                            # initialization logic
+|   +-- DevelopmentSignalHandler.cpp                       # signal handling logic
++-- integration-test/python/                                # Python integration tests
++-- unittests/                                              # initialization tests
+    +-- DevelopmentSignalHandlerTests.cpp                   # signal-handler tests
++-- BUILD.bazel                                             # Init build targets
 ```
 </details>
 
@@ -143,37 +144,32 @@ AsyncRT/unittests/
 ```text
 AsyncRT/
 |
-+-- include/AsyncRT/
++-- include/AsyncRT/                                        # public AsyncRT APIs
 |   +-- Runtime/
-|   |   +-- AsyncValue.h
-|   |   +-- WorkQueue.h
-|   |   +-- Globals/
-|   |       +-- RuntimeGlobal.h
-|   +-- Support/
-|       +-- ConcurrentQueue.h
-+-- lib/
-|   +-- Runtime/
-|       +-- AsyncValue.cpp
-|       +-- Globals/RuntimeGlobal.cpp
-|   +-- Support/Semaphore.cpp
-+-- unittests/
-    +-- AsyncValueTest.cpp
-    +-- WorkQueueTest.cpp
-+-- docs/
-|   +-- README.md
-|   +-- AsyncValue.md
-|   +-- AsyncRTRuntime.md
-+-- benchmarks/
-|   +-- QueueBenchmark.cpp
-|   +-- bench_allocator.cpp
-+-- test/
-|   +-- BUILD.bazel
-|   +-- crash-reporting/
-|   +-- tcmalloc/
-+-- tools/
-|   +-- crash-report-path-info/crash-report-path-info.cpp
-|   +-- crash-test-dummy/crash-test-dummy.cpp
-    +-- BUILD.bazel
+|   |   +-- AsyncValue.h                                    # asynchronous value
+|   |   +-- WorkQueue.h                                     # work queue API
+|   |   +-- Globals/RuntimeGlobal.h                          # runtime-global state
+|   +-- Support/ConcurrentQueue.h                            # concurrent queue API
++-- lib/                                                    # AsyncRT implementations
+|   +-- Runtime/AsyncValue.cpp                              # async value implementation
+|   +-- Runtime/Globals/RuntimeGlobal.cpp                    # global runtime state
+|   +-- Support/Semaphore.cpp                                # semaphore implementation
++-- unittests/                                              # runtime unit tests
+|   +-- AsyncValueTest.cpp                                   # async value tests
+|   +-- WorkQueueTest.cpp                                     # queue tests
+|   +-- BUILD.bazel                                          # unit-test targets
++-- docs/                                                    # runtime documentation
+|   +-- AsyncValue.md                                        # async value guide
+|   +-- AsyncRTRuntime.md                                    # runtime guide
++-- benchmarks/                                              # performance tests
+|   +-- QueueBenchmark.cpp                                   # queue benchmark
+|   +-- bench_allocator.cpp                                  # allocator benchmark
++-- test/                                                    # integration tests
+|   +-- crash-reporting/                                     # crash-report tests
+|   +-- tcmalloc/                                            # allocator tests
++-- tools/                                                   # diagnostic tools
+    +-- crash-report-path-info/crash-report-path-info.cpp     # crash path tool
+    +-- crash-test-dummy/crash-test-dummy.cpp                 # crash test program
 ```
 </details>
 
@@ -206,23 +202,19 @@ Cache/test/cache-mgr/Inputs/
 ```text
 Cache/
 |
-+-- include/Cache/
-|   +-- BlobCache.h
-|   +-- Support/Keys.h
-+-- lib/
-|   +-- BlobCache.cpp
-|   +-- CachedTransform.cpp
-+-- tools/
-|   +-- cache-mgr/cache-mgr.cpp
-+-- test/
-|   +-- cache-mgr/
-|       +-- Inputs/some_file.txt
-+-- unittests/
-    +-- BlobCacheTest.cpp
-+-- docs/README.md
-+-- BUILD.bazel
-+-- test/BUILD.bazel
-+-- tools/BUILD.bazel
++-- include/Cache/                                         # public cache APIs
+|   +-- BlobCache.h                                        # blob cache contract
+|   +-- Support/Keys.h                                     # cache key helpers
++-- lib/                                                    # cache implementations
+|   +-- BlobCache.cpp                                      # blob cache logic
+|   +-- CachedTransform.cpp                                # cached transform logic
++-- tools/cache-mgr/cache-mgr.cpp                          # cache-manager executable
++-- test/cache-mgr/Inputs/some_file.txt                    # cache test fixture
++-- unittests/BlobCacheTest.cpp                             # blob cache tests
++-- docs/README.md                                         # cache documentation
++-- BUILD.bazel                                            # cache build targets
++-- test/BUILD.bazel                                       # test targets
++-- tools/BUILD.bazel                                      # tool targets
 ```
 </details>
 
@@ -246,12 +238,12 @@ Config/lib/Version.cpp
 ```text
 Config/
 |
-+-- include/
-|   +-- Config/Version.h
-|   +-- GeneratedVersion.h.tmpl
-+-- lib/
-    +-- Version.cpp
-+-- BUILD.bazel
++-- include/                                                # public configuration headers
+|   +-- Config/Version.h                                    # version API
+|   +-- GeneratedVersion.h.tmpl                              # generated version template
++-- lib/                                                     # configuration implementation
+    +-- Version.cpp                                         # version implementation
++-- BUILD.bazel                                              # Config build targets
 ```
 </details>
 
@@ -288,43 +280,37 @@ Support/unittests/Log/LogTest.cpp
 ```text
 Support/
 |
-+-- include/Support/
-|   +-- ADT/DenseStringMap.h
-|   +-- Compiler/Bytecode.h
-|   +-- CrashReporting/CrashReporting.h
-|   +-- Driver/DriverSupport.h
-|   +-- Filesystem/Paths.h
-|   +-- Globals/Globals.h
-|   +-- MArchTarget/MArchTarget.h
-|   +-- MDialect/MDialect.h
-|   +-- ML/TensorShape.h
-|   +-- Telemetry/Exporters/FileLogExporter.h
-|   +-- Threading/ThreadAffinity.h
-+-- lib/
-|   +-- Compiler/BytecodeReaderWriter.cpp
-|   +-- CrashReporting/CrashReporting.cpp
-|   +-- Driver/DriverSupport.cpp
-|   +-- Filesystem/Paths.cpp
-|   +-- Globals/Globals.cpp
-|   +-- MArchTarget/MArchTarget.cpp
-|   +-- MDialect/MDialect.cpp
-|   +-- ML/TensorShape.cpp
-|   +-- Telemetry/FileLogExporter.cpp
-+-- tools/
-|   +-- system-info/system-info.cpp
-+-- unittests/
-    +-- Log/LogTest.cpp
-+-- docs/
-|   +-- README.md
-|   +-- Compiler.md
-|   +-- Telemetry.md
-+-- examples/greeter-cli/
-+-- test/
-|   +-- BUILD.bazel
-|   +-- configuration/
-|   +-- system-info/
-+-- benchmarks/Log/
-+-- BUILD.bazel
++-- include/Support/                                       # public shared headers
+|   +-- ADT/DenseStringMap.h                                # data-structure helper
+|   +-- Compiler/Bytecode.h                                 # compiler bytecode API
+|   +-- CrashReporting/CrashReporting.h                      # crash reporting API
+|   +-- Driver/DriverSupport.h                                # driver support API
+|   +-- Filesystem/Paths.h                                    # filesystem paths API
+|   +-- Globals/Globals.h                                     # global state API
+|   +-- MArchTarget/MArchTarget.h                             # target architecture API
+|   +-- MDialect/MDialect.h                                   # dialect API
+|   +-- ML/TensorShape.h                                      # tensor shape API
+|   +-- Telemetry/Exporters/FileLogExporter.h                 # log exporter API
+|   +-- Threading/ThreadAffinity.h                            # thread affinity API
++-- lib/                                                     # support implementations
+|   +-- Compiler/BytecodeReaderWriter.cpp                      # bytecode I/O
+|   +-- CrashReporting/CrashReporting.cpp                      # crash reporting
+|   +-- Driver/DriverSupport.cpp                               # driver support
+|   +-- Filesystem/Paths.cpp                                   # path operations
+|   +-- Globals/Globals.cpp                                    # global state
+|   +-- MArchTarget/MArchTarget.cpp                            # target handling
+|   +-- MDialect/MDialect.cpp                                  # dialect implementation
+|   +-- ML/TensorShape.cpp                                     # tensor shapes
+|   +-- Telemetry/FileLogExporter.cpp                          # log export
++-- tools/system-info/system-info.cpp                          # system information tool
++-- unittests/Log/LogTest.cpp                                  # logging tests
++-- docs/Compiler.md                                           # compiler support docs
++-- docs/Telemetry.md                                          # telemetry docs
++-- examples/greeter-cli/                                      # support example
++-- test/configuration/                                        # configuration tests
++-- test/system-info/                                          # system-info tests
++-- benchmarks/Log/                                            # logging benchmarks
++-- BUILD.bazel                                                # support build targets
 ```
 </details>
 
@@ -364,58 +350,39 @@ Mojo/tools/mojo/
 ```text
 Mojo/
 |
-+-- stdlib/std/
-|   +-- collections/string/
-|   |   +-- string.mojo
-|   |   +-- _parsing_numbers/parsing_floats.mojo
-|   +-- testing/prop/strategy/string_strategy.mojo
-|   +-- algorithm/
-|   +-- atomic/
-|   +-- builtin/
-|   +-- ffi/
-|   +-- io/
-|   +-- math/
-|   +-- memory/
-|   +-- python/
-|   +-- runtime/
-|   +-- subprocess/
-|   +-- time/
-+-- lib/
-|   +-- MojoParser/ParserExprs.cpp
-|   +-- Compiler/ObjectCompiler/LLVM/Transforms/PointerRewriter.cpp
-|   +-- ExecutionEngine/JIT/MaterializationLayer.cpp
-|   +-- CODialect/
-|   +-- Elaborator/
-|   +-- Interpreter/
-|   +-- KGENDialect/
-|   +-- MojoJupyter/
-|   +-- MojoLLDB/
-|   +-- POPDialect/
-|   +-- Support/
-|   +-- Target/
-+-- tools/mojo/
-    +-- Format/mojo-format.cpp
-    +-- Doc/mojo-doc.cpp
-    +-- Build/mojo-build.cpp
-    +-- Run/mojo-run.cpp
-+-- examples/
-|   +-- gpu-intro/
-|   +-- python-interop/
-|   +-- testing/
-+-- docs/
-|   +-- compiler/
-|   +-- stdlib/
-|   +-- site/
-+-- proposals/
-|   +-- async-design.md
-|   +-- origin-design.md
-+-- test/
-|   +-- mojo-parser/
-|   +-- mojo-tool/
-|   +-- mojo-integration/
-+-- unittests/
-|   +-- mojo-debug/
-|   +-- mojo-lsp-server/
++-- stdlib/std/                                               # Mojo standard modules
+|   +-- collections/string/string.mojo                         # string type
+|   +-- collections/string/_parsing_numbers/parsing_floats.mojo # float parsing
+|   +-- testing/prop/strategy/string_strategy.mojo              # property strategy
+|   +-- algorithm/                                              # standard algorithms
+|   +-- atomic/                                                 # atomic operations
+|   +-- builtin/                                                # builtin APIs
+|   +-- ffi/                                                    # foreign-function interface
+|   +-- io/                                                     # I/O APIs
+|   +-- math/                                                   # math APIs
+|   +-- memory/                                                 # memory APIs
+|   +-- runtime/                                                # runtime bridge
++-- lib/                                                        # compiler/runtime libraries
+|   +-- MojoParser/ParserExprs.cpp                               # expression parser
+|   +-- Compiler/ObjectCompiler/LLVM/Transforms/PointerRewriter.cpp # LLVM transform
+|   +-- ExecutionEngine/JIT/MaterializationLayer.cpp             # JIT materialization
+|   +-- CODialect/                                               # compiler dialect
+|   +-- Elaborator/                                               # semantic elaboration
+|   +-- Interpreter/                                             # interpreter
+|   +-- MojoLLDB/                                                 # debugger integration
++-- tools/mojo/                                                  # Mojo CLI tools
+    +-- Format/mojo-format.cpp                                    # formatter
+    +-- Doc/mojo-doc.cpp                                          # documentation tool
+    +-- Build/mojo-build.cpp                                      # build tool
+    +-- Run/mojo-run.cpp                                          # run tool
++-- examples/gpu-intro/                                          # GPU examples
++-- examples/python-interop/                                     # Python interop examples
++-- docs/compiler/                                               # compiler docs
++-- docs/stdlib/                                                 # standard-library docs
++-- proposals/async-design.md                                    # async design proposal
++-- test/mojo-parser/                                             # parser tests
++-- test/mojo-tool/                                               # tool tests
++-- unittests/mojo-debug/                                        # debugger tests
 ```
 </details>
 
@@ -441,9 +408,9 @@ tools/
 |
 +-- build_defs/
 |   +-- cc/
-|       +-- BUILD.bazel
-|       +-- link_hack.bzl
-+-- bazel
+|       +-- BUILD.bazel                                  # C/C++ build target
+|       +-- link_hack.bzl                                # linker workaround
++-- bazel                                                 # repository helper script
 ```
 </details>
 
@@ -469,10 +436,10 @@ utils/local_transformers_setup/
 utils/
 |
 +-- local_transformers_setup/
-|   +-- README.md
-|   +-- setup_local_transformers.sh
-|   +-- cleanup_local_transformers.sh
-+-- setup-gpu-clock.sh
+|   +-- README.md                                         # setup instructions
+|   +-- setup_local_transformers.sh                       # setup script
+|   +-- cleanup_local_transformers.sh                     # cleanup script
++-- setup-gpu-clock.sh                                    # GPU clock utility
 ```
 </details>
 
@@ -499,27 +466,27 @@ pyproject.toml        # Python project/tool configuration
 root files/
 |
 +-- docs/
-|   +-- README.md
+|   +-- README.md                                         # documentation overview
 |   +-- max/
-|   |   +-- get-started.mdx
-|   |   +-- models.mdx
-|   |   +-- serve/
-|   +-- code/
-|   +-- releases/
+|   |   +-- get-started.mdx                              # MAX getting started
+|   |   +-- models.mdx                                    # model documentation
+|   |   +-- serve/                                        # serving documentation
+|   +-- code/                                             # code documentation
+|   +-- releases/                                         # release notes
 +-- Licenses/
-|   +-- LICENSE
-|   +-- README.md
-|   +-- Third-Party-Notices
-+-- README.md
-+-- CONTRIBUTING.md
-+-- CODE_OF_CONDUCT.md
-+-- pyproject.toml
-+-- BUILD.bazel
-+-- MODULE.bazel
-+-- MODULE.bazel.lock
-+-- REPO.bazel
-+-- .bazelrc
-+-- .bazelversion
+|   +-- LICENSE                                           # repository license
+|   +-- README.md                                         # license guide
+|   +-- Third-Party-Notices                               # third-party notices
++-- README.md                                             # repository orientation
++-- CONTRIBUTING.md                                       # contribution workflow
++-- CODE_OF_CONDUCT.md                                    # community rules
++-- pyproject.toml                                        # Python tool configuration
++-- BUILD.bazel                                           # root build target
++-- MODULE.bazel                                          # Bazel module definition
++-- MODULE.bazel.lock                                     # locked dependencies
++-- REPO.bazel                                             # repository configuration
++-- .bazelrc                                               # Bazel options
++-- .bazelversion                                          # Bazel version pin
 ```
 </details>
 
@@ -566,33 +533,33 @@ murali_docs/
 |
 +-- artifacts/
     +-- source_code_walkthrough/
-    |   +-- AGENTS.md
-    |   +-- 0000_source_code_walkthrough.md
-    |   +-- 0001_parse_openai_request_body.md
-    |   +-- 0002_get_pipeline.md
-    |   +-- 0003_openai_parse_chat_completion_request.md
-    |   +-- 0004_TextGenerationRequest.md
-    |   +-- 0005_streaming_vs_non_streaming.md
-    |   +-- 0006_tokenizer_new_context.md
-    |   +-- 0007_create_buffered_detokenizer.md
-    |   +-- 0008_note_awaiting_admission.md
-    |   +-- 0009_model_worker_stream.md
-    |   +-- 0010_scheduler_iteration.md
-    |   +-- 0011_text_batch_constructor.md
-    |   +-- 0012_pipeline_execution.md
-    |   +-- 0013_llama_input_staging.md
-    |   +-- 0014_llama_model_execution.md
-    |   +-- 0015_folder_structure.md
-    +-- 00_environment.md
-    +-- 03_request_object_trace.md
-    +-- 11_kv_cache.md
-|-- labs/
-|   +-- scheduler/
-|   +-- kv_cache/
-|   +-- performance/
-|   +-- tracing/
-+-- README.md
-+-- Plan_max_internals_learning.md
+    |   +-- AGENTS.md                                        # local documentation rules
+    |   +-- 0000_source_code_walkthrough.md                  # main index
+    |   +-- 0001_parse_openai_request_body.md                 # request parsing
+    |   +-- 0002_get_pipeline.md                              # pipeline lookup
+    |   +-- 0003_openai_parse_chat_completion_request.md      # chat normalization
+    |   +-- 0004_TextGenerationRequest.md                     # internal request
+    |   +-- 0005_streaming_vs_non_streaming.md                # response mode
+    |   +-- 0006_tokenizer_new_context.md                      # context creation
+    |   +-- 0007_create_buffered_detokenizer.md                # detokenization
+    |   +-- 0008_note_awaiting_admission.md                    # admission metric
+    |   +-- 0009_model_worker_stream.md                        # worker stream
+    |   +-- 0010_scheduler_iteration.md                        # scheduler iteration
+    |   +-- 0011_text_batch_constructor.md                     # batch construction
+    |   +-- 0012_pipeline_execution.md                         # pipeline execution
+    |   +-- 0013_llama_input_staging.md                        # input staging
+    |   +-- 0014_llama_model_execution.md                      # model execution
+    |   +-- 0015_folder_structure.md                           # folder guide
+    +-- 00_environment.md                                      # environment notes
+    +-- 03_request_object_trace.md                             # request trace
+    +-- 11_kv_cache.md                                          # KV-cache notes
+|-- labs/                                                      # hands-on labs
+|   +-- scheduler/                                              # scheduler lab
+|   +-- kv_cache/                                               # KV-cache lab
+|   +-- performance/                                            # performance lab
+|   +-- tracing/                                                # tracing lab
++-- README.md                                                   # docs overview
++-- Plan_max_internals_learning.md                              # learning plan
 ```
 </details>
 
