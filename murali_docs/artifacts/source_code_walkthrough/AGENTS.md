@@ -68,6 +68,40 @@ configuration, documentation, legal, and study-artifact folders. Keep each
 root-folder tree focused on ownership and purpose, and avoid inventing files
 when the repository does not contain them.
 
+## Complete Code Walkthroughs
+
+When requested, create a separate complete-code walkthrough alongside the
+focused note. A complete-code walkthrough contains the actual source code in
+execution order, with additional concise comments that explain the data flow,
+branch decisions, and handoff between functions. Do not replace or rewrite
+the existing focused note; leave it as-is and add one extra link to the new
+complete-code walkthrough.
+
+Use this naming pattern, where the letter identifies the walkthrough section
+and the number identifies its sequence within that section:
+
+```text
+0001_A_1_parse_openai_request_body_<appropriate_suffix>.md
+0001_A_2_parse_openai_request_body_<appropriate_suffix>.md
+0001_B_1_parse_openai_request_body_<appropriate_suffix>.md
+0001_B_2_parse_openai_request_body_<appropriate_suffix>.md
+0001_C_1_parse_openai_request_body_<appropriate_suffix>.md
+```
+
+- Use `000N_A_1`, `000N_A_2`, and so on for the first section of note `000N`.
+- Start the next section with `000N_B_1`, then continue with `000N_B_2`, etc.
+- Continue alphabetically with `000N_C_1`, `000N_C_2`, and later letters when
+  more sectionization is needed.
+- Keep the suffix specific enough to identify the covered source-code path or
+  phase, for example `http_ingress` or `request_validation`.
+- Preserve source-code order and include only the relevant actual source code;
+  use comments around the code to explain what each block receives, does, and
+  returns.
+- Link every new complete-code walkthrough from its original focused note and
+  keep the link in the established bold-italic focused-note style.
+- Keep complete-code walkthrough links relative to the documentation folder,
+  and verify that every referenced source path and line anchor is valid.
+
 ## Focused Notes
 
 For each important function or object, create a focused note file named with
