@@ -53,6 +53,19 @@ bazel/
 |       +-- generate.py
 +-- lint/
     +-- ruff_wrapper.py
+    +-- buildifier_wrapper.py
+    +-- rumdl_wrapper.py
+    +-- shellcheck_wrapper.py
++-- docs/usage.md
++-- public-patches/
+|   +-- BUILD.bazel
+|   +-- llvm_project.bzl
+|   +-- protobuf-dev-dep.patch
++-- BUILD.bazel
++-- api.bzl
++-- config.bzl
++-- common.MODULE.bazel
++-- mojo.MODULE.bazel
 ```
 </details>
 
@@ -93,6 +106,7 @@ Init/
 |   +-- python/
 +-- unittests/
     +-- DevelopmentSignalHandlerTests.cpp
++-- BUILD.bazel
 ```
 </details>
 
@@ -145,6 +159,21 @@ AsyncRT/
 +-- unittests/
     +-- AsyncValueTest.cpp
     +-- WorkQueueTest.cpp
++-- docs/
+|   +-- README.md
+|   +-- AsyncValue.md
+|   +-- AsyncRTRuntime.md
++-- benchmarks/
+|   +-- QueueBenchmark.cpp
+|   +-- bench_allocator.cpp
++-- test/
+|   +-- BUILD.bazel
+|   +-- crash-reporting/
+|   +-- tcmalloc/
++-- tools/
+|   +-- crash-report-path-info/crash-report-path-info.cpp
+|   +-- crash-test-dummy/crash-test-dummy.cpp
+    +-- BUILD.bazel
 ```
 </details>
 
@@ -190,6 +219,10 @@ Cache/
 |       +-- Inputs/some_file.txt
 +-- unittests/
     +-- BlobCacheTest.cpp
++-- docs/README.md
++-- BUILD.bazel
++-- test/BUILD.bazel
++-- tools/BUILD.bazel
 ```
 </details>
 
@@ -218,6 +251,7 @@ Config/
 |   +-- GeneratedVersion.h.tmpl
 +-- lib/
     +-- Version.cpp
++-- BUILD.bazel
 ```
 </details>
 
@@ -255,18 +289,42 @@ Support/unittests/Log/LogTest.cpp
 Support/
 |
 +-- include/Support/
+|   +-- ADT/DenseStringMap.h
 |   +-- Compiler/Bytecode.h
+|   +-- CrashReporting/CrashReporting.h
+|   +-- Driver/DriverSupport.h
+|   +-- Filesystem/Paths.h
+|   +-- Globals/Globals.h
+|   +-- MArchTarget/MArchTarget.h
+|   +-- MDialect/MDialect.h
 |   +-- ML/TensorShape.h
 |   +-- Telemetry/Exporters/FileLogExporter.h
 |   +-- Threading/ThreadAffinity.h
 +-- lib/
 |   +-- Compiler/BytecodeReaderWriter.cpp
+|   +-- CrashReporting/CrashReporting.cpp
+|   +-- Driver/DriverSupport.cpp
+|   +-- Filesystem/Paths.cpp
+|   +-- Globals/Globals.cpp
+|   +-- MArchTarget/MArchTarget.cpp
+|   +-- MDialect/MDialect.cpp
 |   +-- ML/TensorShape.cpp
 |   +-- Telemetry/FileLogExporter.cpp
 +-- tools/
 |   +-- system-info/system-info.cpp
 +-- unittests/
     +-- Log/LogTest.cpp
++-- docs/
+|   +-- README.md
+|   +-- Compiler.md
+|   +-- Telemetry.md
++-- examples/greeter-cli/
++-- test/
+|   +-- BUILD.bazel
+|   +-- configuration/
+|   +-- system-info/
++-- benchmarks/Log/
++-- BUILD.bazel
 ```
 </details>
 
@@ -311,13 +369,53 @@ Mojo/
 |   |   +-- string.mojo
 |   |   +-- _parsing_numbers/parsing_floats.mojo
 |   +-- testing/prop/strategy/string_strategy.mojo
+|   +-- algorithm/
+|   +-- atomic/
+|   +-- builtin/
+|   +-- ffi/
+|   +-- io/
+|   +-- math/
+|   +-- memory/
+|   +-- python/
+|   +-- runtime/
+|   +-- subprocess/
+|   +-- time/
 +-- lib/
 |   +-- MojoParser/ParserExprs.cpp
 |   +-- Compiler/ObjectCompiler/LLVM/Transforms/PointerRewriter.cpp
 |   +-- ExecutionEngine/JIT/MaterializationLayer.cpp
+|   +-- CODialect/
+|   +-- Elaborator/
+|   +-- Interpreter/
+|   +-- KGENDialect/
+|   +-- MojoJupyter/
+|   +-- MojoLLDB/
+|   +-- POPDialect/
+|   +-- Support/
+|   +-- Target/
 +-- tools/mojo/
     +-- Format/mojo-format.cpp
     +-- Doc/mojo-doc.cpp
+    +-- Build/mojo-build.cpp
+    +-- Run/mojo-run.cpp
++-- examples/
+|   +-- gpu-intro/
+|   +-- python-interop/
+|   +-- testing/
++-- docs/
+|   +-- compiler/
+|   +-- stdlib/
+|   +-- site/
++-- proposals/
+|   +-- async-design.md
+|   +-- origin-design.md
++-- test/
+|   +-- mojo-parser/
+|   +-- mojo-tool/
+|   +-- mojo-integration/
++-- unittests/
+|   +-- mojo-debug/
+|   +-- mojo-lsp-server/
 ```
 </details>
 
@@ -401,7 +499,17 @@ pyproject.toml        # Python project/tool configuration
 root files/
 |
 +-- docs/
+|   +-- README.md
+|   +-- max/
+|   |   +-- get-started.mdx
+|   |   +-- models.mdx
+|   |   +-- serve/
+|   +-- code/
+|   +-- releases/
 +-- Licenses/
+|   +-- LICENSE
+|   +-- README.md
+|   +-- Third-Party-Notices
 +-- README.md
 +-- CONTRIBUTING.md
 +-- CODE_OF_CONDUCT.md
@@ -410,6 +518,8 @@ root files/
 +-- MODULE.bazel
 +-- MODULE.bazel.lock
 +-- REPO.bazel
++-- .bazelrc
++-- .bazelversion
 ```
 </details>
 
@@ -441,7 +551,14 @@ murali_docs/artifacts/source_code_walkthrough/
   +-- 0012_pipeline_execution.md
   +-- 0013_llama_input_staging.md
   +-- 0014_llama_model_execution.md
-  +-- 0015_folder_structure.md
++-- 0015_folder_structure.md
++-- ../README.md
++-- ../Plan_max_internals_learning.md
++-- ../artifacts/00_environment.md
++-- ../artifacts/03_request_object_trace.md
++-- ../artifacts/11_kv_cache.md
++-- ../labs/scheduler/
++-- ../labs/kv_cache/
 ```
 -->
 ```text
@@ -449,23 +566,33 @@ murali_docs/
 |
 +-- artifacts/
     +-- source_code_walkthrough/
-        +-- AGENTS.md
-        +-- 0000_source_code_walkthrough.md
-        +-- 0001_parse_openai_request_body.md
-        +-- 0002_get_pipeline.md
-        +-- 0003_openai_parse_chat_completion_request.md
-        +-- 0004_TextGenerationRequest.md
-        +-- 0005_streaming_vs_non_streaming.md
-        +-- 0006_tokenizer_new_context.md
-        +-- 0007_create_buffered_detokenizer.md
-        +-- 0008_note_awaiting_admission.md
-        +-- 0009_model_worker_stream.md
-        +-- 0010_scheduler_iteration.md
-        +-- 0011_text_batch_constructor.md
-        +-- 0012_pipeline_execution.md
-        +-- 0013_llama_input_staging.md
-        +-- 0014_llama_model_execution.md
-        +-- 0015_folder_structure.md
+    |   +-- AGENTS.md
+    |   +-- 0000_source_code_walkthrough.md
+    |   +-- 0001_parse_openai_request_body.md
+    |   +-- 0002_get_pipeline.md
+    |   +-- 0003_openai_parse_chat_completion_request.md
+    |   +-- 0004_TextGenerationRequest.md
+    |   +-- 0005_streaming_vs_non_streaming.md
+    |   +-- 0006_tokenizer_new_context.md
+    |   +-- 0007_create_buffered_detokenizer.md
+    |   +-- 0008_note_awaiting_admission.md
+    |   +-- 0009_model_worker_stream.md
+    |   +-- 0010_scheduler_iteration.md
+    |   +-- 0011_text_batch_constructor.md
+    |   +-- 0012_pipeline_execution.md
+    |   +-- 0013_llama_input_staging.md
+    |   +-- 0014_llama_model_execution.md
+    |   +-- 0015_folder_structure.md
+    +-- 00_environment.md
+    +-- 03_request_object_trace.md
+    +-- 11_kv_cache.md
+|-- labs/
+|   +-- scheduler/
+|   +-- kv_cache/
+|   +-- performance/
+|   +-- tracing/
++-- README.md
++-- Plan_max_internals_learning.md
 ```
 </details>
 
