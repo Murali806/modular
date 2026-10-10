@@ -20,6 +20,54 @@ line of implementation first.
 - Avoid vague statements such as "does processing" or "handles logic"; name
   the input, action, and output.
 
+## Folder Structure Guide
+
+`0000_A_folder_structure.md` is the folder-structure guide for this workspace.
+It explains the repository through annotated ASCII trees rather than separate
+prose-only descriptions.
+
+- Keep the complete `max/` tree inside one expandable `<details>` section.
+- Give each other root-level folder its own expandable `<details>` section.
+- Put exactly one visible tree in each root-folder section. Do not split one
+  root folder into separate "more recursive levels" or example trees.
+- Continue each tree recursively through the actual leaf folders and files
+  that are being documented. Do not stop after one or two levels when deeper
+  structure is available.
+- Add a concise inline `#` comment for every documented folder and file. The
+  comment should explain its responsibility, not merely repeat its name.
+- Use ASCII tree characters and stable indentation so the parent-child
+  relationship remains readable when rendered as Markdown.
+- Preserve the existing `max/` tree when changing non-MAX root-folder trees;
+  edit it only when the request explicitly targets MAX.
+- Keep the folder guide linked from `0000_source_code_walkthrough.md` using
+  the current relative-link and bold-italic focused-note style.
+- When the guide is renamed, update every self-reference and walkthrough link;
+  do not leave stale references to the previous filename.
+
+Example shape:
+
+````html
+<details>
+<summary><strong>root-folder/</strong> - responsibility</summary>
+
+```text
+root-folder/                         # root responsibility
+|
++-- src/                             # implementation source
+|   +-- module.py                     # module responsibility
+|       +-- helper.py                 # helper responsibility
++-- tests/                            # validation code
+    +-- test_module.py                # module tests
+```
+
+</details>
+````
+
+The guide may cover build, runtime, language, support, tooling, cache,
+configuration, documentation, legal, and study-artifact folders. Keep each
+root-folder tree focused on ownership and purpose, and avoid inventing files
+when the repository does not contain them.
+
 ## Focused Notes
 
 For each important function or object, create a focused note file named with
