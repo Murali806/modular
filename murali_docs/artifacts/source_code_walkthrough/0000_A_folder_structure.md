@@ -518,7 +518,7 @@ murali_docs/artifacts/source_code_walkthrough/
   +-- 0012_pipeline_execution.md
   +-- 0013_llama_input_staging.md
   +-- 0014_llama_model_execution.md
-+-- 0015_folder_structure.md
++-- 0000_A_folder_structure.md
 +-- ../README.md
 +-- ../Plan_max_internals_learning.md
 +-- ../artifacts/00_environment.md
@@ -549,7 +549,7 @@ murali_docs/
     |   +-- 0012_pipeline_execution.md                         # pipeline execution
     |   +-- 0013_llama_input_staging.md                        # input staging
     |   +-- 0014_llama_model_execution.md                      # model execution
-    |   +-- 0015_folder_structure.md                           # folder guide
+    |   +-- 0000_A_folder_structure.md                           # folder guide
     +-- 00_environment.md                                      # environment notes
     +-- 03_request_object_trace.md                             # request trace
     +-- 11_kv_cache.md                                          # KV-cache notes
@@ -1611,7 +1611,7 @@ modular/
         +-- 0012_pipeline_execution.md                             # batch -> sampled tokens
         +-- 0013_llama_input_staging.md                            # contexts -> Llama3Inputs
         +-- 0014_llama_model_execution.md                          # inputs -> compiled model
-        +-- 0015_folder_structure.md                               # this folder guide
+        +-- 0000_A_folder_structure.md                               # this folder guide
 |
 |   # end of the single root-level folder tree
 ```
