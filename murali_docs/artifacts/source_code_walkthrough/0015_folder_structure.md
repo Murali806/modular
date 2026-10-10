@@ -36,6 +36,24 @@ bazel/lint/
   +-- ruff_wrapper.py
   +-- rumdl_wrapper.py
 ```
+
+```text
+bazel/
+|
++-- internal/
+|   +-- cc-toolchain/
+|   |   +-- tools/
+|   |       +-- builtin_module_map.bzl
+|   |       +-- linker-driver.sh
+|   +-- llvm-lit/
+|       +-- lit_shim.py
++-- pip/
+|   +-- pycross/
+|       +-- dependency.py
+|       +-- generate.py
++-- lint/
+    +-- ruff_wrapper.py
+```
 </details>
 
 <details>
@@ -59,6 +77,21 @@ Init/lib/
   +-- DevelopmentSignalHandler.cpp
 Init/unittests/
   +-- DevelopmentSignalHandlerTests.cpp
+```
+```text
+Init/
+|
++-- include/
+|   +-- Init/
+|       +-- Init.h
+|       +-- DevelopmentSignalHandler.h
++-- lib/
+|   +-- Init.cpp
+|   +-- DevelopmentSignalHandler.cpp
++-- integration-test/
+|   +-- python/
++-- unittests/
+    +-- DevelopmentSignalHandlerTests.cpp
 ```
 </details>
 
@@ -91,6 +124,26 @@ AsyncRT/unittests/
   +-- AsyncValueTest.cpp
   +-- WorkQueueTest.cpp
 ```
+```text
+AsyncRT/
+|
++-- include/AsyncRT/
+|   +-- Runtime/
+|   |   +-- AsyncValue.h
+|   |   +-- WorkQueue.h
+|   |   +-- Globals/
+|   |       +-- RuntimeGlobal.h
+|   +-- Support/
+|       +-- ConcurrentQueue.h
++-- lib/
+|   +-- Runtime/
+|       +-- AsyncValue.cpp
+|       +-- Globals/RuntimeGlobal.cpp
+|   +-- Support/Semaphore.cpp
++-- unittests/
+    +-- AsyncValueTest.cpp
+    +-- WorkQueueTest.cpp
+```
 </details>
 
 <details>
@@ -118,6 +171,23 @@ Cache/test/cache-mgr/Inputs/
   +-- empty.txt
   +-- some_file.txt
 ```
+```text
+Cache/
+|
++-- include/Cache/
+|   +-- BlobCache.h
+|   +-- Support/Keys.h
++-- lib/
+|   +-- BlobCache.cpp
+|   +-- CachedTransform.cpp
++-- tools/
+|   +-- cache-mgr/cache-mgr.cpp
++-- test/
+|   +-- cache-mgr/
+|       +-- Inputs/some_file.txt
++-- unittests/
+    +-- BlobCacheTest.cpp
+```
 </details>
 
 <details>
@@ -135,6 +205,15 @@ Config/
 Config/include/Config/Version.h
 Config/include/GeneratedVersion.h.tmpl
 Config/lib/Version.cpp
+```
+```text
+Config/
+|
++-- include/
+|   +-- Config/Version.h
+|   +-- GeneratedVersion.h.tmpl
++-- lib/
+    +-- Version.cpp
 ```
 </details>
 
@@ -166,6 +245,23 @@ Support/lib/
   +-- Telemetry/TelemetryContext.cpp
 Support/tools/system-info/system-info.cpp
 Support/unittests/Log/LogTest.cpp
+```
+```text
+Support/
+|
++-- include/Support/
+|   +-- Compiler/Bytecode.h
+|   +-- ML/TensorShape.h
+|   +-- Telemetry/Exporters/FileLogExporter.h
+|   +-- Threading/ThreadAffinity.h
++-- lib/
+|   +-- Compiler/BytecodeReaderWriter.cpp
+|   +-- ML/TensorShape.cpp
+|   +-- Telemetry/FileLogExporter.cpp
++-- tools/
+|   +-- system-info/system-info.cpp
++-- unittests/
+    +-- Log/LogTest.cpp
 ```
 </details>
 
@@ -201,6 +297,22 @@ Mojo/tools/mojo/
   +-- Doc/mojo-doc.cpp
   +-- Run/mojo-run.cpp
 ```
+```text
+Mojo/
+|
++-- stdlib/std/
+|   +-- collections/string/
+|   |   +-- string.mojo
+|   |   +-- _parsing_numbers/parsing_floats.mojo
+|   +-- testing/prop/strategy/string_strategy.mojo
++-- lib/
+|   +-- MojoParser/ParserExprs.cpp
+|   +-- Compiler/ObjectCompiler/LLVM/Transforms/PointerRewriter.cpp
+|   +-- ExecutionEngine/JIT/MaterializationLayer.cpp
++-- tools/mojo/
+    +-- Format/mojo-format.cpp
+    +-- Doc/mojo-doc.cpp
+```
 </details>
 
 <details>
@@ -217,6 +329,15 @@ tools/
 tools/build_defs/cc/
   +-- BUILD.bazel
   +-- link_hack.bzl
++-- bazel
+```
+```text
+tools/
+|
++-- build_defs/
+|   +-- cc/
+|       +-- BUILD.bazel
+|       +-- link_hack.bzl
 +-- bazel
 ```
 </details>
@@ -238,6 +359,15 @@ utils/local_transformers_setup/
   +-- cleanup_local_transformers.sh
 +-- setup-gpu-clock.sh
 ```
+```text
+utils/
+|
++-- local_transformers_setup/
+|   +-- README.md
+|   +-- setup_local_transformers.sh
+|   +-- cleanup_local_transformers.sh
++-- setup-gpu-clock.sh
+```
 </details>
 
 <details>
@@ -257,6 +387,20 @@ pyproject.toml        # Python project/tool configuration
 +-- README.md
 +-- CONTRIBUTING.md
 +-- pyproject.toml
+```
+```text
+root files/
+|
++-- docs/
++-- Licenses/
++-- README.md
++-- CONTRIBUTING.md
++-- CODE_OF_CONDUCT.md
++-- pyproject.toml
++-- BUILD.bazel
++-- MODULE.bazel
++-- MODULE.bazel.lock
++-- REPO.bazel
 ```
 </details>
 
@@ -289,6 +433,29 @@ murali_docs/artifacts/source_code_walkthrough/
   +-- 0013_llama_input_staging.md
   +-- 0014_llama_model_execution.md
   +-- 0015_folder_structure.md
+```
+```text
+murali_docs/
+|
++-- artifacts/
+    +-- source_code_walkthrough/
+        +-- AGENTS.md
+        +-- 0000_source_code_walkthrough.md
+        +-- 0001_parse_openai_request_body.md
+        +-- 0002_get_pipeline.md
+        +-- 0003_openai_parse_chat_completion_request.md
+        +-- 0004_TextGenerationRequest.md
+        +-- 0005_streaming_vs_non_streaming.md
+        +-- 0006_tokenizer_new_context.md
+        +-- 0007_create_buffered_detokenizer.md
+        +-- 0008_note_awaiting_admission.md
+        +-- 0009_model_worker_stream.md
+        +-- 0010_scheduler_iteration.md
+        +-- 0011_text_batch_constructor.md
+        +-- 0012_pipeline_execution.md
+        +-- 0013_llama_input_staging.md
+        +-- 0014_llama_model_execution.md
+        +-- 0015_folder_structure.md
 ```
 </details>
 
