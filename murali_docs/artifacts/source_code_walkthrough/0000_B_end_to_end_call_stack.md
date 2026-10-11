@@ -42,6 +42,9 @@ they were ordinary Python calls in this repository.
 [BRANCH]     only one runtime branch is selected
 ```
 
+Inline links use the form `[Name:Lnn]`: `Name` is a shortened walkthrough
+name, and `Lnn` is the exact line where that function is explained.
+
 ## 1. One-Time Startup Wiring
 
 The request path depends on objects and background loops created before the
@@ -86,7 +89,7 @@ fastapi_app(settings, serving_settings)  <a href="0000_A_folder_structure.md#exp
             |               +-- create ZmqModelWorkerProxy
             |               |
             |               +-- [BACKGROUND] asyncio.create_task(
-            |               |     proxy.response_worker()
+            |               |     proxy.response_worker()  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L100">[Route:L100]</a>
             |               |   )
             |               |     zmq_interface.py:247
             |               |
@@ -116,7 +119,7 @@ scheduler forever:
 <summary><strong>Expand: Model-worker startup and scheduler loop</strong></summary>
 
 <pre>
-[BACKGROUND] uvloop executes ModelWorker.run(...)  <a href="0010_scheduler_iteration.md#runtime-flow">[Sched]</a>
+[BACKGROUND] uvloop executes ModelWorker.run(...)
   model_worker.py:232
     |
     +-- [CALL] model_factory()
@@ -131,7 +134,7 @@ scheduler forever:
     |     +-- response_queue: worker-side ZMQ PUSH
     |     +-- cancel_queue: worker-side ZMQ PULL
     |
-    +-- [CALL] load_scheduler(...)  <a href="0010_scheduler_iteration.md#runtime-flow">[Sched]</a>
+    +-- [CALL] load_scheduler(...)
     |     scheduler/__init__.py
     |       |
     |       +-- pipeline_role == "prefill_and_decode"
@@ -142,7 +145,7 @@ scheduler forever:
     |
     +-- [BACKGROUND] while True
           |
-          +-- scheduler.run_iteration()
+          +-- scheduler.run_iteration()  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L64">[Iter:L64]</a>
           +-- sleep_with_backoff(...) when no progress
 </pre>
 
@@ -181,12 +184,12 @@ POST /v1/chat/completions
     |
     +-- [FRAMEWORK] FastAPI/Starlette route dispatch
           |
-          +-- [AWAIT] openai_create_chat_completion(request)  <a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#1-route-entry-and-call">[Ingress]</a>
+          +-- [AWAIT] openai_create_chat_completion(request)  <a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#L20">[Ingress:L20]</a>
                 openai_routes.py:2218
                   |
                   +-- request_id = request.state.request_id
                   |
-                  +-- [AWAIT] _parse_openai_request_body(  <a href="0001_parse_openai_request_body.md#function-shape">[Parse]</a>
+                  +-- [AWAIT] _parse_openai_request_body(  <a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#L99">[Parse:L99]</a>
                   |             request,
                   |             request_id,
                   |             CreateChatCompletionRequest,
@@ -201,7 +204,7 @@ POST /v1/chat/completions
                   |       |
                   |       +-- [BRANCH] parsed is not dict
                   |       |     |
-                  |       |     +-- model_cls.model_validate(parsed)
+                  |       |     +-- model_cls.model_validate(parsed)  <a href="0001_B_1_parse_openai_request_body_pydantic_schema_validation.md#L9">[Validate:L9]</a>
                   |       |           |
                   |       |           +-- usually ValidationError for chat schema
                   |       |
@@ -211,14 +214,14 @@ POST /v1/chat/completions
                   |             |
                   |             +-- [BRANCH] tools is list
                   |             |     |
-                  |             |     +-- [CALL] _normalize_tools_parameters(tools)
+                  |             |     +-- [CALL] _normalize_tools_parameters(tools)  <a href="0001_A_2_parse_openai_request_body_tool_parameter_normalization.md#L43">[Tools:L43]</a>
                   |             |           tool_call_normalization.py:62
                   |             |             |
                   |             |             +-- copy each tool dict
                   |             |             +-- copy function dict
                   |             |             +-- parameters None/missing -> {}
                   |             |
-                  |             +-- [CALL] get_app_pipeline_config(request.app)
+                  |             +-- [CALL] get_app_pipeline_config(request.app)  <a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#L63">[Config:L63]</a>
                   |             |
                   |             +-- [BRANCH] allow_extra_request_fields
                   |             |     |
@@ -226,7 +229,7 @@ POST /v1/chat/completions
                   |             |     +-- calculate unknown keys
                   |             |     +-- rebuild parsed without unknown keys
                   |             |
-                  |             +-- [CALL] model_cls.model_validate(parsed)
+                  |             +-- [CALL] model_cls.model_validate(parsed)  <a href="0001_B_1_parse_openai_request_body_pydantic_schema_validation.md#L9">[Validate:L9]</a>
                   |                   inherited BaseModel.model_validate
                   |                     |
                   |                     +-- CreateChatCompletionRequest
@@ -234,7 +237,7 @@ POST /v1/chat/completions
                   |                     |
                   |                     +-- [CALL] before model validators
                   |                     |     |
-                  |                     |     +-- _translate_thinking_to_standard(...)
+                  |                     |     +-- _translate_thinking_to_standard(...)  <a href="0001_B_1_parse_openai_request_body_pydantic_schema_validation.md#L346">[Before:L346]</a>
                   |                     |
                   |                     +-- validate inherited OpenAI fields
                   |                     +-- validate MAX extension fields
@@ -243,12 +246,12 @@ POST /v1/chat/completions
                   |                     |
                   |                     +-- [CALL] after model validators
                   |                           |
-                  |                           +-- _reconcile_max_completion_tokens(...)
+                  |                           +-- _reconcile_max_completion_tokens(...)  <a href="0001_B_1_parse_openai_request_body_pydantic_schema_validation.md#L376">[After:L376]</a>
                   |                           |
                   |                           +-- completion_request:
                   |                               CreateChatCompletionRequest
                   |
-                  +-- [CALL] get_pipeline(  <a href="0002_get_pipeline.md#inputs-and-output">[Select]</a>
+                  +-- [CALL] get_pipeline(  <a href="0002_A_1_get_pipeline_model_selection.md#L33">[Select:L33]</a>
                   |             request,
                   |             completion_request.model,
                   |           )
@@ -258,17 +261,17 @@ POST /v1/chat/completions
                   |       +-- pipeline = app_state.pipeline
                   |       +-- models = base model + LoRA names
                   |       +-- validate requested model name
-                  |       +-- isinstance(pipeline.tokenizer, PipelineTokenizer)
+                  |       +-- isinstance(pipeline.tokenizer, PipelineTokenizer)  <a href="0002_B_1_get_pipeline_pipeline_tokenizer_protocol.md#L16">[Protocol:L16]</a>
                   |       +-- return existing TokenGeneratorPipeline
                   |
                   +-- [CALL] get_tool_parser(request.app)
                   |
                   +-- tokenizer = pipeline.tokenizer
                   |
-                  +-- [AWAIT] openai_parse_chat_completion_request(...)  <a href="0003_openai_parse_chat_completion_request.md#sequence-view">[Chat]</a>
+                  +-- [AWAIT] openai_parse_chat_completion_request(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L122">[Chat:L122]</a>
                   |     openai_routes.py:1719
                   |       |
-                  |       +-- [CALL] _validate_tool_message_consistency(...)
+                  |       +-- [CALL] _validate_tool_message_consistency(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L136">[MsgCheck:L136]</a>
                   |       |
                   |       +-- validate every message role
                   |       |
@@ -277,39 +280,39 @@ POST /v1/chat/completions
                   |       |     +-- content = message.get("content")
                   |       |     +-- raw_tool_calls = message.get("tool_calls")
                   |       |     |
-                  |       |     +-- [CALL] normalize_tool_call_arguments(...)
+                  |       |     +-- [CALL] normalize_tool_call_arguments(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L189">[ToolArgs:L189]</a>
                   |       |     |     when tool calls are present
                   |       |     |
                   |       |     +-- [BRANCH] content is list
                   |       |     |     |
                   |       |     |     +-- for each content_part
                   |       |     |           |
-                  |       |     |           +-- text -> TextContentPart
+                  |       |     |           +-- text -> TextContentPart  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L263">[Text:L263]</a>
                   |       |     |           |
                   |       |     |           +-- image_url
-                  |       |     |           |     +-- make_media_ref(...)
-                  |       |     |           |     +-- ImageContentPart(...)
+                  |       |     |           |     +-- make_media_ref(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L217">[MediaRef:L217]</a>
+                  |       |     |           |     +-- ImageContentPart(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L220">[Image:L220]</a>
                   |       |     |           |
                   |       |     |           +-- video_url
-                  |       |     |                 +-- make_media_ref(...)
-                  |       |     |                 +-- VideoContentPart(...)
+                  |       |     |                 +-- make_media_ref(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L234">[MediaRef:L234]</a>
+                  |       |     |                 +-- VideoContentPart(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L237">[Video:L237]</a>
                   |       |     |
                   |       |     +-- [BRANCH] content is scalar/None
                   |       |     |     |
                   |       |     |     +-- use content or ""
                   |       |     |
-                  |       |     +-- [CALL] _normalize_openai_role(...)
-                  |       |     +-- [CALL] TextGenerationRequestMessage(...)
+                  |       |     +-- [CALL] _normalize_openai_role(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L269">[Role:L269]</a>
+                  |       |     +-- [CALL] TextGenerationRequestMessage(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L268">[Message:L268]</a>
                   |       |
                   |       +-- record image/video count metrics
                   |       +-- enforce model-specific media count limits
                   |       |
-                  |       +-- [CALL] _request_media_budget(settings)
+                  |       +-- [CALL] _request_media_budget(settings)  <a href="0003_A_2_openai_parse_chat_completion_request_media.md#L59">[Media:L59]</a>
                   |       |     _image_resolution.py:582
                   |       |
                   |       +-- [OPTIONAL MEDIA BRANCH]
                   |       |     |
-                  |       |     +-- create resolve_image_from_url(...) tasks
+                  |       |     +-- create resolve_image_from_url(...) tasks  <a href="0003_A_2_openai_parse_chat_completion_request_media.md#L61">[Resolve:L61]</a>
                   |       |     |     _image_resolution.py:839
                   |       |     |       |
                   |       |     |       +-- http/https -> _fetch_url_bytes(...)
@@ -319,7 +322,7 @@ POST /v1/chat/completions
                   |       |     +-- [AWAIT] asyncio.gather(image tasks)
                   |       |     |
                   |       |     +-- [AWAIT] asyncio.to_thread(
-                  |       |     |             _resolve_and_decode_images,
+                  |       |     |             _resolve_and_decode_images,  <a href="0003_A_2_openai_parse_chat_completion_request_media.md#L74">[Decode:L74]</a>
                   |       |     |           )
                   |       |     |
                   |       |     +-- create/await video resolution tasks
@@ -331,7 +334,7 @@ POST /v1/chat/completions
                   |             decoded_images,
                   |           )
                   |
-                  +-- [CALL] get_app_pipeline_config(request.app)
+                  +-- [CALL] get_app_pipeline_config(request.app)  <a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#L63">[Config:L63]</a>
                   |
                   +-- [CALL]
                   |     _convert_chat_completion_tools_to_token_generator_tools(...)
@@ -348,10 +351,10 @@ POST /v1/chat/completions
                   |
                   +-- [CALL] SamplingParams.from_input_and_generation_config(...)
                   |
-                  +-- [CALL] TextGenerationRequest(...)  <a href="0004_TextGenerationRequest.md#field-mapping-in-the-route">[Request]</a>
+                  +-- [CALL] TextGenerationRequest(...)  <a href="0004_A_1_TextGenerationRequest_construction_and_validation.md#L15">[Request:L15]</a>
                   |     text_generation.py:336
                   |       |
-                  |       +-- [CALL] TextGenerationRequest.__post_init__()
+                  |       +-- [CALL] TextGenerationRequest.__post_init__()  <a href="0004_A_1_TextGenerationRequest_construction_and_validation.md#L99">[Validate:L99]</a>
                   |             text_generation.py:479
                   |               |
                   |               +-- convert dict messages to typed messages
@@ -378,50 +381,50 @@ generation failures to become a real non-200 HTTP response.
 <summary><strong>Expand: Streaming admission and first SSE chunk</strong></summary>
 
 <pre>
-openai_create_chat_completion(...)  <a href="0005_streaming_vs_non_streaming.md#streaming-path">[Stream]</a>
+openai_create_chat_completion(...)  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L12">[Dispatch:L12]</a>
     |
-    +-- [AWAIT] response_generator.stream(token_request)  <a href="0005_streaming_vs_non_streaming.md#streaming-path">[Stream]</a>
+    +-- [AWAIT] response_generator.stream(token_request)  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L57">[Stream:L57]</a>
     |     OpenAIChatResponseGenerator.stream
     |     openai_routes.py:687
     |       |
-    |       +-- [AWAIT] pipeline.next_token_chunk(token_request)  <a href="0006_tokenizer_new_context.md#sequence-view">[Context]</a>
+    |       +-- [AWAIT] pipeline.next_token_chunk(token_request)  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L65">[Next:L65]</a>
     |       |     llm.py:294
     |       |       |
     |       |       +-- initialize TTFT/ITL/decode timers
     |       |       +-- optionally create/reset reasoning parser
     |       |       |
-    |       |       +-- model_worker.note_awaiting_admission(+1)  <a href="0008_note_awaiting_admission.md#lifecycle-view">[Await]</a>
+    |       |       +-- model_worker.note_awaiting_admission(+1)  <a href="0008_A_1_note_awaiting_admission_counter_lifecycle.md#L64">[Await:L64]</a>
     |       |       |
-    |       |       +-- [AWAIT] tokenizer.new_context(request)  <a href="0006_tokenizer_new_context.md#sequence-view">[Context]</a>
+    |       |       +-- [AWAIT] tokenizer.new_context(request)  <a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md#L189">[Context:L189]</a>
     |       |       |     tokenizer.py:819
     |       |       |       |
-    |       |       |       +-- [AWAIT] _generate_prompt_and_token_ids(...)
+    |       |       |       +-- [AWAIT] _generate_prompt_and_token_ids(...)  <a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md#L95">[Prompt:L95]</a>
     |       |       |       |     tokenizer.py:718
     |       |       |       |       |
     |       |       |       |       +-- [BRANCH] prompt str/list exists
-    |       |       |       |       |     +-- [AWAIT] encode(prompt, ...)
+    |       |       |       |       |     +-- [AWAIT] encode(prompt, ...)  <a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md#L103">[Encode:L103]</a>
     |       |       |       |       |
     |       |       |       |       +-- [BRANCH] use messages
-    |       |       |       |             +-- apply_chat_template(...)
-    |       |       |       |             +-- [AWAIT] _encode_chat_prompt(...)
+    |       |       |       |             +-- apply_chat_template(...)  <a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md#L105">[Template:L105]</a>
+    |       |       |       |             +-- [AWAIT] _encode_chat_prompt(...)  <a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md#L139">[Encode:L139]</a>
     |       |       |       |                   +-- custom encoder or encode(...)
     |       |       |       |
     |       |       |       +-- derive json_schema and grammar
-    |       |       |       +-- GrammarEnforcementState.from_response_format(...)
-    |       |       |       +-- max_tokens_to_generate(...)
-    |       |       |       +-- TokenBuffer(token_ids)
-    |       |       |       +-- [AWAIT] create_eos_tracker(request)
-    |       |       |       +-- TextContext(...)
+    |       |       |       +-- GrammarEnforcementState.from_response_format(...)  <a href="0006_A_2_tokenizer_new_context_metadata_and_state.md#L55">[Grammar:L55]</a>
+    |       |       |       +-- max_tokens_to_generate(...)  <a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md#L219">[MaxTokens:L219]</a>
+    |       |       |       +-- TokenBuffer(token_ids)  <a href="0006_A_2_tokenizer_new_context_metadata_and_state.md#L126">[Buffer:L126]</a>
+    |       |       |       +-- [AWAIT] create_eos_tracker(request)  <a href="0006_A_2_tokenizer_new_context_metadata_and_state.md#L86">[EOS:L86]</a>
+    |       |       |       +-- TextContext(...)  <a href="0006_A_2_tokenizer_new_context_metadata_and_state.md#L84">[TextCtx:L84]</a>
     |       |       |       +-- return context
     |       |       |
     |       |       +-- inject_trace_carrier(context)
     |       |       |
-    |       |       +-- [CALL] create_buffered_detokenizer(...)  <a href="0007_create_buffered_detokenizer.md#factory-decision-tree">[Detok]</a>
+    |       |       +-- [CALL] create_buffered_detokenizer(...)  <a href="0007_A_1_create_buffered_detokenizer_factory_and_decode.md#L47">[Detok:L47]</a>
     |       |       |     incremental_detokenizer.py:343
     |       |       |       +-- content detokenizer
     |       |       |       +-- reasoning detokenizer
     |       |       |
-    |       |       +-- [AWAIT] model_worker.stream(  <a href="0009_model_worker_stream.md#lifecycle-view">[IPC]</a>
+    |       |       +-- [AWAIT] model_worker.stream(  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L34">[IPC:L34]</a>
     |       |       |             context.request_id,
     |       |       |             context,
     |       |       |           )
@@ -447,19 +450,19 @@ openai_create_chat_completion(...)  <a href="0005_streaming_vs_non_streaming.md#
     |       |       |       |           +-- send best-effort cancellation
     |       |       |       |           +-- re-raise
     |       |       |       |
-    |       |       |       +-- return _drain_responses(request_id, out_queue)
+    |       |       |       +-- return _drain_responses(request_id, out_queue)  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L126">[Drain:L126]</a>
     |       |       |
     |       |       +-- [BRANCH] tokenization or worker handoff raises
-    |       |       |     +-- model_worker.note_awaiting_admission(-1)
+    |       |       |     +-- model_worker.note_awaiting_admission(-1)  <a href="0008_A_1_note_awaiting_admission_counter_lifecycle.md#L64">[Await:L64]</a>
     |       |       |     +-- re-raise
     |       |       |
     |       |       +-- successful worker handoff
-    |       |             +-- model_worker.note_awaiting_admission(-1)
+    |       |             +-- model_worker.note_awaiting_admission(-1)  <a href="0008_A_1_note_awaiting_admission_counter_lifecycle.md#L64">[Await:L64]</a>
     |       |             +-- return TokenGeneratorPipeline._generate async generator
     |       |
     |       +-- return OpenAIChatResponseGenerator._stream async generator
     |
-    +-- [AWAIT] _start_stream(stream)  <a href="0005_streaming_vs_non_streaming.md#streaming-path">[Stream]</a>
+    +-- [AWAIT] _start_stream(stream)  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L87">[Gate:L87]</a>
     |     openai_routes.py:185
     |       |
     |       +-- [AWAIT] stream.__anext__()
@@ -470,7 +473,7 @@ openai_create_chat_completion(...)  <a href="0005_streaming_vs_non_streaming.md#
     |                   +-- starts TokenGeneratorPipeline._generate(...)
     |                   +-- [ITERATE] response_stream
     |                         |
-    |                         +-- starts ZmqModelWorkerProxy._drain_responses(...)
+    |                         +-- starts ZmqModelWorkerProxy._drain_responses(...)  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L126">[Drain:L126]</a>
     |                         +-- [AWAIT] per-request out_queue.get()
     |                               |
     |                               +-- waits for worker path in section 5
@@ -499,16 +502,16 @@ the complete token generator before constructing one JSON response.
 <summary><strong>Expand: Non-streaming aggregation path</strong></summary>
 
 <pre>
-openai_create_chat_completion(...)  <a href="0005_streaming_vs_non_streaming.md#non-streaming-path">[Complete]</a>
+openai_create_chat_completion(...)  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L24">[Dispatch:L24]</a>
     |
-    +-- [AWAIT] response_generator.complete([token_request])  <a href="0005_streaming_vs_non_streaming.md#non-streaming-path">[Complete]</a>
+    +-- [AWAIT] response_generator.complete([token_request])  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L130">[Complete:L130]</a>
           OpenAIChatResponseGenerator.complete
           openai_routes.py:1159
             |
-            +-- [AWAIT] pipeline.all_tokens(token_request)
+            +-- [AWAIT] pipeline.all_tokens(token_request)  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L156">[All:L156]</a>
             |     llm.py:678
             |       |
-            |       +-- [AWAIT] pipeline.next_token_chunk(token_request)
+            |       +-- [AWAIT] pipeline.next_token_chunk(token_request)  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L65">[Next:L65]</a>
             |       |     +-- same admission path as section 3
             |       |
             |       +-- [ITERATE] generator until request completes
@@ -540,27 +543,27 @@ activated by the `TextContext` arriving on the worker's ZMQ request queue.
     +-- [BACKGROUND] ModelWorker.run(...) loop
           model_worker.py:232
             |
-            +-- [CALL] scheduler.run_iteration()  <a href="0010_scheduler_iteration.md#runtime-flow">[Sched]</a>
+            +-- [CALL] scheduler.run_iteration()  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L64">[Iter:L64]</a>
                   TokenGenerationScheduler.run_iteration
                   text_generation_scheduler.py:205
                     |
-                    +-- [CALL] _retrieve_pending_requests()
+                    +-- [CALL] _retrieve_pending_requests()  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L10">[Retrieve:L10]</a>
                     |     text_generation_scheduler.py:161
                     |       |
-                    |       +-- drain_queue(request_queue, max_items)
+                    |       +-- drain_queue(request_queue, max_items)  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L24">[Drain:L24]</a>
                     |       |
                     |       +-- for each TextContext
                     |             |
-                    |             +-- batch_constructor.enqueue_new_request(ctx)  <a href="0011_text_batch_constructor.md#admission-flow">[Admit]</a>
+                    |             +-- batch_constructor.enqueue_new_request(ctx)  <a href="0011_A_1_text_batch_constructor_request_admission.md#L113">[Enqueue:L113]</a>
                     |                   text_batch_constructor.py:677
                     |                     |
                     |                     +-- optional grammar gate submit/install
                     |                     |
-                    |                     +-- _admit_request(ctx, replica_idx)
+                    |                     +-- _admit_request(ctx, replica_idx)  <a href="0011_A_1_text_batch_constructor_request_admission.md#L158">[Admit:L158]</a>
                     |                           |
                     |                           +-- optional DP CE pending pool
                     |                           |
-                    |                           +-- _bind_request(...)
+                    |                           +-- _bind_request(...)  <a href="0011_A_1_text_batch_constructor_request_admission.md#L195">[Bind:L195]</a>
                     |                                 |
                     |                                 +-- generated_length == 0
                     |                                 |     -> replica.ce_reqs
@@ -568,30 +571,30 @@ activated by the `TextContext` arriving on the worker's ZMQ request queue.
                     |                                 +-- generated_length > 0
                     |                                       -> replica.tg_reqs
                     |
-                    +-- [CALL] batch_constructor.construct_batch()  <a href="0011_text_batch_constructor.md#construct-batch-flow">[Batch]</a>
+                    +-- [CALL] batch_constructor.construct_batch()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L84">[Batch:L84]</a>
                     |     text_batch_constructor.py:1845
                     |       |
-                    |       +-- kv_cache.poll_transfers()
-                    |       +-- _readmit_completed_onloads()
-                    |       +-- _promote_grammar_ready_requests()
-                    |       +-- _plan_ce_step()
-                    |       +-- _should_backfill_ce()
-                    |       +-- determine CE/TG priority
+                    |       +-- kv_cache.poll_transfers()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L87">[KV:L87]</a>
+                    |       +-- _readmit_completed_onloads()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L89">[Onload:L89]</a>
+                    |       +-- _promote_grammar_ready_requests()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L90">[Grammar:L90]</a>
+                    |       +-- _plan_ce_step()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L97">[CEPlan:L97]</a>
+                    |       +-- _should_backfill_ce()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L98">[Backfill:L98]</a>
+                    |       +-- _identify_priority(...) for CE/TG priority  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L105">[Priority:L105]</a>
                     |       |
                     |       +-- for each replica
                     |       |     |
-                    |       |     +-- _construct_replica_batch(...)
+                    |       |     +-- _construct_replica_batch(...)  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L11">[Replica:L11]</a>
                     |       |           text_batch_constructor.py:1534
                     |       |             |
-                    |       |             +-- create ReplicaBatch + token budget
-                    |       |             +-- _add_ce_requests(...), or
-                    |       |             +-- _add_tg_requests(...)
+                    |       |             +-- create ReplicaBatch + _create_new_token_budget(...)  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L25">[Budget:L25]</a>
+                    |       |             +-- _add_ce_requests(...), or  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L36">[CE:L36]</a>
+                    |       |             +-- _add_tg_requests(...)  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L39">[TG:L39]</a>
                     |       |
                     |       +-- TextGenerationInputs(batches=...)
-                    |       +-- optional data-parallel padding
+                    |       +-- optional _dp_padder.pad_batch(inputs)  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L144">[DPPad:L144]</a>
                     |       +-- return inputs
                     |
-                    +-- [CALL] batch_constructor.take_grammar_failed()
+                    +-- [CALL] batch_constructor.take_grammar_failed()  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L74">[Failed:L74]</a>
                     |     |
                     |     +-- failed grammar requests
                     |           -> SchedulerResult.failed(error)
@@ -602,82 +605,82 @@ activated by the `TextContext` arriving on the worker's ZMQ request queue.
                     |     |
                     |     +-- return SchedulerProgress.NO_PROGRESS
                     |
-                    +-- [CALL] _schedule(inputs)
+                    +-- [CALL] _schedule(inputs)  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L163">[Schedule:L163]</a>
                           text_generation_scheduler.py
                             |
                             +-- batch_id = monotonic scheduler counter
                             |
-                            +-- [CALL] pipeline.execute(inputs)  <a href="0012_pipeline_execution.md#execution-flow">[Pipe]</a>
+                            +-- [CALL] pipeline.execute(inputs)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L76">[Execute:L76]</a>
                             |     TextGenerationPipeline.execute
                             |     text_generation.py:515
                             |       |
                             |       +-- request validator context
-                            |       +-- [CALL] _execute(inputs)
+                            |       +-- [CALL] _execute(inputs)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L88">[Step:L88]</a>
                             |             text_generation.py:527
                             |               |
-                            |               +-- [CALL] prepare_batch(inputs.batches)
+                            |               +-- [CALL] prepare_batch(inputs.batches)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L10">[Prepare:L10]</a>
                             |               |     text_generation.py:399
                             |               |       |
-                            |               |       +-- sort LoRA batches if needed
-                            |               |       +-- flatten replica batches
-                            |               |       +-- initialize structured-output bitmask
-                            |               |       +-- update structured-output state
-                            |               |       +-- kv_manager.runtime_inputs(...)
+                            |               |       +-- _maybe_sort_loras(...) if needed  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L19">[LoRA:L19]</a>
+                            |               |       +-- flatten2d(replica batches)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L21">[Flatten:L21]</a>
+                            |               |       +-- initialize_bitmask(flat_batch)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L24">[Bitmask:L24]</a>
+                            |               |       +-- update_for_structured_output(...)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L28">[Grammar:L28]</a>
+                            |               |       +-- kv_manager.runtime_inputs(...)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L31">[KVInputs:L31]</a>
                             |               |       |
                             |               |       +-- [CALL]
-                            |               |           _pipeline_model.prepare_initial_token_inputs(...)  <a href="0013_llama_input_staging.md#staging-flow">[Stage]</a>
+                            |               |           _pipeline_model.prepare_initial_token_inputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L53">[Stage:L53]</a>
                             |               |             |
-                            |               |             +-- LlamaModelBase.prepare_initial_token_inputs(...)
+                            |               |             +-- LlamaModelBase.prepare_initial_token_inputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L53">[Stage:L53]</a>
                             |               |             |     llama3/model.py:168
                             |               |             |       |
-                            |               |             |       +-- super().prepare_initial_token_inputs(...)
+                            |               |             |       +-- super().prepare_initial_token_inputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L53">[Stage:L53]</a>
                             |               |             |             pipeline_model.py:623
                             |               |             |               |
-                            |               |             |               +-- batch_processor.prepare_initial_token_inputs(...)
+                            |               |             |               +-- batch_processor.prepare_initial_token_inputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L53">[Stage:L53]</a>
                             |               |             |                     llama3/batch_processor.py:99
                             |               |             |                       |
                             |               |             |                       +-- flatten contexts
-                            |               |             |                       +-- _stage_ragged_token_inputs(...)
+                            |               |             |                       +-- _stage_ragged_token_inputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L9">[Ragged:L9]</a>
                             |               |             |                       |     +-- pack active token IDs
                             |               |             |                       |     +-- build row offsets
                             |               |             |                       +-- build return_n_logits buffer
                             |               |             |                       +-- optional DP splits
-                            |               |             |                       +-- _make_inputs(...)
+                            |               |             |                       +-- _make_inputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L115">[Inputs:L115]</a>
                             |               |             |                             llama3/batch_processor.py:166
                             |               |             |                               |
                             |               |             |                               +-- Llama3Inputs(...)
                             |               |             |
                             |               |             +-- return model_inputs
                             |               |
-                            |               +-- FusedSamplingProcessor(...)
+                            |               +-- FusedSamplingProcessor(...)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L107">[Sampler:L107]</a>
                             |               |     sampling_logits_processor.py:97
                             |               |
-                            |               +-- [CALL] _launch_forward_pass(...)
+                            |               +-- [CALL] _launch_forward_pass(...)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L245">[Forward:L245]</a>
                             |               |     text_generation.py:655
                             |               |       |
-                            |               |       +-- _pipeline_model.execute(model_inputs)
+                            |               |       +-- _pipeline_model.execute(model_inputs)  <a href="0014_A_1_llama_model_execution_runtime_and_graph.md#L80">[Model:L80]</a>
                             |               |             |
-                            |               |             +-- LlamaModelBase.execute(...)  <a href="0014_llama_model_execution.md#runtime-execute-flow">[Model]</a>
+                            |               |             +-- LlamaModelBase.execute(...)  <a href="0014_A_1_llama_model_execution_runtime_and_graph.md#L80">[Model:L80]</a>
                             |               |                   llama3/model.py:183
                             |               |                     |
                             |               |                     +-- model_inputs.buffers
                             |               |                     |
                             |               |                     +-- [COMPILED]
-                            |               |                     |     self.model.execute(*buffers)
+                            |               |                     |     self.model.execute(*buffers)  <a href="0014_A_1_llama_model_execution_runtime_and_graph.md#L83">[Graph:L83]</a>
                             |               |                     |       |
                             |               |                     |       +-- compiled Llama graph
                             |               |                     |       +-- attention/KV/linear/norm ops
                             |               |                     |       +-- MAX runtime + device kernels
                             |               |                     |
-                            |               |                     +-- batch_processor.process_outputs(...)
+                            |               |                     +-- batch_processor.process_outputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L151">[Outputs:L151]</a>
                             |               |                           llama3/batch_processor.py:153
                             |               |                             |
-                            |               |                             +-- process_ragged_kv_outputs(...)
+                            |               |                             +-- process_ragged_kv_outputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L154">[RaggedOut:L154]</a>
                             |               |                             +-- ModelOutputs
                             |               |
-                            |               +-- sampling_processor.logits_for_sampling(...)
+                            |               +-- sampling_processor.logits_for_sampling(...)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L138">[Logits:L138]</a>
                             |               |
-                            |               +-- apply_logits_processors(...)
+                            |               +-- apply_logits_processors(...)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L144">[LogitOps:L144]</a>
                             |               |     sampling/logits_processor.py:27
                             |               |       |
                             |               |       +-- request-specific processors
@@ -690,7 +693,7 @@ activated by the `TextContext` arriving on the worker's ZMQ request queue.
                             |               |
                             |               +-- copy generated tokens device -> host
                             |               |
-                            |               +-- update_context_and_prepare_responses(...)
+                            |               +-- update_context_and_prepare_responses(...)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L211">[Update:L211]</a>
                             |               |     pipeline_variants/utils.py:157
                             |               |       |
                             |               |       +-- context.advance_token_buffer(...)
@@ -698,28 +701,28 @@ activated by the `TextContext` arriving on the worker's ZMQ request queue.
                             |               |       +-- context.to_generation_output()
                             |               |       +-- dict[request_id, TextGenerationOutput]
                             |               |
-                            |               +-- kv_manager.step(ctx)
+                            |               +-- kv_manager.step(ctx)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L219">[KVStep:L219]</a>
                             |               +-- return responses
                             |
                             +-- filter responses for released requests
                             |
-                            +-- batch_constructor.advance_requests(inputs)
+                            +-- batch_constructor.advance_requests(inputs)  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L212">[Advance:L212]</a>
                             |     text_batch_constructor.py:808
                             |       |
                             |       +-- completed prefill: CE -> TG queue
                             |       +-- incomplete chunked prefill: back to CE queue
                             |
-                            +-- release requests whose response.is_done
+                            +-- release_request(...) when response.is_done  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L217">[Release:L217]</a>
                             |
-                            +-- response_queue.put_nowait(
+                            +-- response_queue.put_nowait(  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L223">[Publish:L223]</a>
                                   request_id -> SchedulerResult(response, batch_id)
                                 )
                                   |
                                   +-- [IPC] worker process -> API process
                     |
-                    +-- scheduler_logger.log_metrics(...)
+                    +-- scheduler_logger.log_metrics(...)  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L106">[Metrics:L106]</a>
                     |
-                    +-- [CALL] get_cancelled_reqs(cancel_queue)
+                    +-- [CALL] get_cancelled_reqs(cancel_queue)  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L128">[Cancel:L128]</a>
                     |     |
                     |     +-- release matching request
                     |     +-- SchedulerResult.cancelled()
@@ -741,14 +744,14 @@ generators.
 <pre>
 [IPC] SchedulerResult arrives on API response_queue
     |
-    +-- [BACKGROUND] ZmqModelWorkerProxy.response_worker()  <a href="0009_model_worker_stream.md#response-routing">[IPC]</a>
+    +-- [BACKGROUND] ZmqModelWorkerProxy.response_worker()  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L100">[Route:L100]</a>
     |     zmq_interface.py:247
     |       |
     |       +-- [AWAIT] response_queue.get()
     |       +-- locate pending_out_queues[request_id]
     |       +-- [AWAIT] per-request out_queue.put(response)
     |
-    +-- ZmqModelWorkerProxy._drain_responses(...) resumes  <a href="0009_model_worker_stream.md#response-routing">[IPC]</a>
+    +-- ZmqModelWorkerProxy._drain_responses(...) resumes  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L126">[Drain:L126]</a>
     |     zmq_interface.py:167
     |       |
     |       +-- [AWAIT] out_queue.get()
@@ -760,14 +763,14 @@ generators.
     |       |     +-- re-raise
     |       +-- finally remove pending_out_queues[request_id]
     |
-    +-- TokenGeneratorPipeline._generate(...) resumes  <a href="0007_create_buffered_detokenizer.md#where-it-is-used">[Detok]</a>
+    +-- TokenGeneratorPipeline._generate(...) resumes  <a href="0007_A_1_create_buffered_detokenizer_factory_and_decode.md#L288">[Detok:L288]</a>
     |     llm.py, nested in next_token_chunk
     |       |
     |       +-- TextGenerationOutput.merge(responses)
     |       +-- optional reasoning_parser.stream(...)
     |       |
-    |       +-- [AWAIT] content_detokenizer.decode(tokens)
-    |       +-- [AWAIT] reasoning_detokenizer.decode(tokens)
+    |       +-- [AWAIT] content_detokenizer.decode(tokens)  <a href="0007_A_1_create_buffered_detokenizer_factory_and_decode.md#L17">[Decode:L17]</a>
+    |       +-- [AWAIT] reasoning_detokenizer.decode(tokens)  <a href="0007_A_1_create_buffered_detokenizer_factory_and_decode.md#L17">[Decode:L17]</a>
     |       |
     |       +-- eos_tracker.is_eos_from_string(...)
     |       +-- optional logprob decoding
@@ -814,14 +817,14 @@ model, sampler, and response queue multiple times.
 <details>
 <summary><strong>Expand: Prefill and decode repeat loop</strong></summary>
 
-```text
+<pre>
 new TextContext
     |
     +-- CE/prefill queue
           |
-          +-- construct_batch()
-          +-- pipeline.execute()
-          +-- model forward pass
+          +-- construct_batch()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L84">[Batch:L84]</a>
+          +-- pipeline.execute()  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L76">[Execute:L76]</a>
+          +-- model forward pass  <a href="0014_A_1_llama_model_execution_runtime_and_graph.md#L80">[Model:L80]</a>
           |
           +-- [BRANCH] prompt not fully processed
           |     |
@@ -831,10 +834,10 @@ new TextContext
                 |
                 +-- context moves to TG/decode queue
                       |
-                      +-- construct_batch()
-                      +-- pipeline.execute()
+                      +-- construct_batch()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L84">[Batch:L84]</a>
+                      +-- pipeline.execute()  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L76">[Execute:L76]</a>
                       +-- sample next token
-                      +-- update TextContext
+                      +-- update TextContext  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L211">[Update:L211]</a>
                       +-- send TextGenerationOutput
                       |
                       +-- [BRANCH] status ACTIVE
@@ -846,7 +849,7 @@ new TextContext
                             |
                             +-- release request state and KV cache
                             +-- send terminal SchedulerResult
-```
+</pre>
 
 </details>
 
@@ -857,16 +860,16 @@ new TextContext
 <details>
 <summary><strong>Expand: SageMaker ingress path</strong></summary>
 
-```text
+<pre>
 POST /invocations
     |
     +-- [FRAMEWORK] sagemaker_routes.invocations(request)
           sagemaker_routes.py
             |
-            +-- [AWAIT] openai_create_chat_completion(request)
+            +-- [AWAIT] openai_create_chat_completion(request)  <a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#L20">[Ingress:L20]</a>
                   |
                   +-- same request path from section 2 onward
-```
+</pre>
 
 </details>
 
@@ -875,19 +878,19 @@ POST /invocations
 <details>
 <summary><strong>Expand: Pre-tokenized prompt branch</strong></summary>
 
-```text
+<pre>
 completion_request.prompt_tokens is non-empty
     |
-    +-- TextGenerationRequest.prompt = prompt token IDs
+    +-- TextGenerationRequest.prompt = prompt token IDs  <a href="0004_A_1_TextGenerationRequest_construction_and_validation.md#L15">[Request:L15]</a>
     +-- TextGenerationRequest.messages = []
     |
-    +-- tokenizer._generate_prompt_and_token_ids(...)
+    +-- tokenizer._generate_prompt_and_token_ids(...)  <a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md#L95">[Prompt:L95]</a>
           |
           +-- encode(sequence[int])
                 |
                 +-- np.array(existing IDs)
                 +-- no chat-template rendering
-```
+</pre>
 
 </details>
 
@@ -920,7 +923,7 @@ runtime call stack because they decide whether the client receives JSON, HTTP
 <details>
 <summary><strong>Expand: Error exit tree</strong></summary>
 
-```text
+<pre>
 request body / route preparation
     |
     +-- JSONDecodeError
@@ -939,19 +942,19 @@ request body / route preparation
     |     -> route catches it
     |     -> HTTP 400
     |
-    +-- RequestQueueFull from ZmqModelWorkerProxy.stream(...)
+    +-- RequestQueueFull from ZmqModelWorkerProxy.stream(...)  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L34">[IPC:L34]</a>
     |     -> not consumed by the route's validation catches
     |     -> app-level _request_queue_full_exception_handler(...)
     |     -> HTTP 429 + Retry-After: 1
     |
     +-- streaming error before the first visible SSE payload
     |     -> OpenAIChatResponseGenerator._stream yields JSONResponse
-    |     -> _start_stream(...) returns that real HTTP error response
+    |     -> _start_stream(...) returns that real HTTP error response  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L87">[Gate:L87]</a>
     |
     +-- streaming error after SSE output has started
           -> HTTP 200 is already committed
           -> stream yields an OpenAI error JSON frame
-```
+</pre>
 
 </details>
 
@@ -963,19 +966,19 @@ calls:
 <details>
 <summary><strong>Expand: IPC and compiled-runtime boundaries</strong></summary>
 
-```text
+<pre>
 API process                    Model worker process
 -----------                    --------------------
-request_queue.put(context) --> scheduler drains request_queue
-                               not a direct call to run_iteration()
+request_queue.put(context)  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L61">[Push:L61]</a> --> scheduler drains request_queue
+                               not a direct call to run_iteration()  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L64">[Iter:L64]</a>
 
-scheduler response_queue   --> proxy.response_worker()
-                               not a direct call to _drain_responses()
+scheduler response_queue   --> proxy.response_worker()  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L100">[Route:L100]</a>
+                               not a direct call to _drain_responses()  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L126">[Drain:L126]</a>
 
-LlamaModelBase.execute()
-  -> self.model.execute(...)   crosses into compiled MAX runtime
+LlamaModelBase.execute()  <a href="0014_A_1_llama_model_execution_runtime_and_graph.md#L80">[Model:L80]</a>
+  -> self.model.execute(...)   crosses into compiled MAX runtime  <a href="0014_A_1_llama_model_execution_runtime_and_graph.md#L83">[Graph:L83]</a>
                                Python does not recursively call Mojo kernel files
-```
+</pre>
 
 </details>
 
