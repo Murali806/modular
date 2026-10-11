@@ -47,6 +47,9 @@ they were ordinary Python calls in this repository.
 The request path depends on objects and background loops created before the
 first HTTP request arrives.
 
+<details>
+<summary><strong>Expand: API server startup and API-worker wiring</strong></summary>
+
 ```text
 fastapi_app(settings, serving_settings)
   api_server.py:330
@@ -104,8 +107,13 @@ fastapi_app(settings, serving_settings)
           +-- installs request_session HTTP middleware
 ```
 
+</details>
+
 The spawned model-worker process builds the model pipeline and then runs the
 scheduler forever:
+
+<details>
+<summary><strong>Expand: Model-worker startup and scheduler loop</strong></summary>
 
 ```text
 [BACKGROUND] uvloop executes ModelWorker.run(...)
@@ -138,12 +146,17 @@ scheduler forever:
           +-- sleep_with_backoff(...) when no progress
 ```
 
+</details>
+
 ## 2. Complete Request Call Tree
 
 This is the continuous source-level tree for the normal OpenAI ingress path.
 
 Immediately before route dispatch, MAX Serve's HTTP middleware creates the
 request ID and timer consumed by the route:
+
+<details>
+<summary><strong>Expand: Request middleware prelude</strong></summary>
 
 ```text
 [FRAMEWORK] request_session(request, call_next)
@@ -157,6 +170,11 @@ request ID and timer consumed by the route:
           |
           +-- enters the route tree below
 ```
+
+</details>
+
+<details>
+<summary><strong>Expand: Complete HTTP route call tree</strong></summary>
 
 ```text
 POST /v1/chat/completions
@@ -348,11 +366,16 @@ POST /v1/chat/completions
                         +-- False -> non-streaming path in section 4
 ```
 
+</details>
+
 ## 3. Streaming Path: Admission, First Token, And SSE
 
 The streaming branch deliberately submits the request and resolves the first
 item before returning the SSE response. This allows admission and early
 generation failures to become a real non-200 HTTP response.
+
+<details>
+<summary><strong>Expand: Streaming admission and first SSE chunk</strong></summary>
 
 ```text
 openai_create_chat_completion(...)
@@ -464,11 +487,16 @@ openai_create_chat_completion(...)
                   +-- EventSourceResponse iterates token_stream
 ```
 
+</details>
+
 ## 4. Non-Streaming Path
 
 The non-streaming path uses the same admission, tokenization, worker,
 scheduler, model, and detokenization path. The difference is that it consumes
 the complete token generator before constructing one JSON response.
+
+<details>
+<summary><strong>Expand: Non-streaming aggregation path</strong></summary>
 
 ```text
 openai_create_chat_completion(...)
@@ -496,10 +524,15 @@ openai_create_chat_completion(...)
             +-- return response to FastAPI
 ```
 
+</details>
+
 ## 5. Worker-Side Recursive Execution
 
 The worker-side path is not called directly by the API coroutine. It is
 activated by the `TextContext` arriving on the worker's ZMQ request queue.
+
+<details>
+<summary><strong>Expand: Worker scheduler through Llama execution</strong></summary>
 
 ```text
 [IPC] TextContext arrives on worker request_queue
@@ -695,10 +728,15 @@ activated by the `TextContext` arriving on the worker's ZMQ request queue.
                     +-- return SchedulerProgress.MADE_PROGRESS
 ```
 
+</details>
+
 ## 6. Response Path Back To The Client
 
 The response follows the reverse queue path and resumes the suspended API-side
 generators.
+
+<details>
+<summary><strong>Expand: Worker response back to the HTTP client</strong></summary>
 
 ```text
 [IPC] SchedulerResult arrives on API response_queue
@@ -765,11 +803,16 @@ generators.
                 +-- ASGI sends JSON -> client
 ```
 
+</details>
+
 ## 7. Prefill And Decode Repeat Loop
 
 One call to `scheduler.run_iteration()` normally performs one model step for a
 selected batch. Generation therefore loops through the scheduler, pipeline,
 model, sampler, and response queue multiple times.
+
+<details>
+<summary><strong>Expand: Prefill and decode repeat loop</strong></summary>
 
 ```text
 new TextContext
@@ -805,9 +848,14 @@ new TextContext
                             +-- send terminal SchedulerResult
 ```
 
+</details>
+
 ## 8. Alternate Ingress And Configuration Branches
 
 ### SageMaker Ingress
+
+<details>
+<summary><strong>Expand: SageMaker ingress path</strong></summary>
 
 ```text
 POST /invocations
@@ -820,7 +868,12 @@ POST /invocations
                   +-- same request path from section 2 onward
 ```
 
+</details>
+
 ### Prompt Tokens Already Supplied
+
+<details>
+<summary><strong>Expand: Pre-tokenized prompt branch</strong></summary>
 
 ```text
 completion_request.prompt_tokens is non-empty
@@ -836,7 +889,12 @@ completion_request.prompt_tokens is non-empty
                 +-- no chat-template rendering
 ```
 
+</details>
+
 ### Scheduler/Pipeline Variants
+
+<details>
+<summary><strong>Expand: Scheduler and pipeline variants</strong></summary>
 
 ```text
 pipeline_role == "prefill_and_decode" -> TokenGenerationScheduler
@@ -848,6 +906,8 @@ speculative decoding enabled          -> speculative pipeline/context update
 non-Llama architecture                -> architecture-specific batch processor/model
 ```
 
+</details>
+
 These alternatives share the API request parsing and worker IPC boundaries but
 replace part of the worker-side execution tree.
 
@@ -856,6 +916,9 @@ replace part of the worker-side execution tree.
 The successful path above has several deliberate exits. These are part of the
 runtime call stack because they decide whether the client receives JSON, HTTP
 429, or an in-stream error.
+
+<details>
+<summary><strong>Expand: Error exit tree</strong></summary>
 
 ```text
 request body / route preparation
@@ -890,10 +953,15 @@ request body / route preparation
           -> stream yields an OpenAI error JSON frame
 ```
 
+</details>
+
 ## 10. Boundaries That Are Not Direct Calls
 
 These distinctions prevent a call-stack diagram from implying false Python
 calls:
+
+<details>
+<summary><strong>Expand: IPC and compiled-runtime boundaries</strong></summary>
 
 ```text
 API process                    Model worker process
@@ -908,6 +976,8 @@ LlamaModelBase.execute()
   -> self.model.execute(...)   crosses into compiled MAX runtime
                                Python does not recursively call Mojo kernel files
 ```
+
+</details>
 
 The compiled Llama graph was built during worker startup. At request time,
 `self.model.execute(*model_inputs.buffers)` invokes that already-compiled graph.
