@@ -164,7 +164,7 @@ batches_per_replica: list[ReplicaBatch]
               |
               | extract ordered context values
               v
-TextGenerationInputs(batches=[...])
+TextGenerationInputs(batches=batches_per_replica)
               |
               | optional DP padding for graph capture
               v
@@ -176,9 +176,94 @@ pipeline-ready TextGenerationInputs
 ```text
 TextGenerationInputs
 |
-+-- batches[0] -> [ctx_A, ctx_B, ...]  replica 0
-+-- batches[1] -> [ctx_C, ...]         replica 1
-+-- ...
++-- batches[0] -> []                    replica 0
++-- batches[1] -> [ctx_decode]          replica 1
 |
-+-- flat_batch -> concatenated view consumed by pipeline execution
++-- flat_batch -> [ctx_decode]
++-- batch_size -> 1
+```
+
+## Complete Batch Packing Values
+
+```python
+prompt_token_ids = [
+    128000,
+    128006,
+    9125,
+    128007,
+    271,
+    2675,
+    527,
+    264,
+    64694,
+    18328,
+    13,
+    128009,
+    128006,
+    882,
+    128007,
+    271,
+    849,
+    21435,
+    14736,
+    304,
+    832,
+    11914,
+    13,
+    128009,
+    128006,
+    78191,
+    128007,
+    271,
+]
+
+ctx_prefill = {
+    "request_id": "req-chat-001",
+    "tokens.active": prompt_token_ids,
+    "tokens.active_length": 28,
+    "tokens.generated": [],
+    "tokens.generated_length": 0,
+}
+
+ctx_decode = {
+    "request_id": "req-chat-002",
+    "tokens.active": [304],
+    "tokens.active_length": 1,
+    "tokens.generated": [48870, 6636],
+    "tokens.generated_length": 2,
+}
+
+packing_input = {
+    "num_replicas": 2,
+    "batch_scheduling_strategy": "BALANCED",
+    "enable_in_flight_batching": True,
+    "replica_0.ce_reqs": {"req-chat-001": ctx_prefill},
+    "replica_0.tg_reqs": {},
+    "replica_1.ce_reqs": {},
+    "replica_1.tg_reqs": {"req-chat-002": ctx_decode},
+    "identified_priorities": ["CE", "TG"],
+    "priority_override": "TG",
+    "ce_backfill_open": True,
+}
+
+batches_per_replica = [
+    {
+        "replica_idx": 0,
+        "priority": "TG",
+        "batch": {},
+        "token_budget_used": 0,
+    },
+    {
+        "replica_idx": 1,
+        "priority": "TG",
+        "batch": {"req-chat-002": ctx_decode},
+        "token_budget_used": 1,
+    },
+]
+
+text_generation_inputs = {
+    "batches": [[], [ctx_decode]],
+    "flat_batch": [ctx_decode],
+    "batch_size": 1,
+}
 ```

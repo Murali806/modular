@@ -138,3 +138,45 @@ ValueError  get_pipeline may return pipeline
 This checks object shape at runtime. It does not call encode, decode, or
 new_context, and it does not prove their internal behavior is correct.
 ```
+
+## Complete Protocol Input And Output Values
+
+```python
+tokenizer_values = {
+    "type": "TextTokenizer",
+    "eos_token_ids": {128001, 128009},
+    "expects_content_wrapping": False,
+    "new_context": "bound async method TextTokenizer.new_context",
+    "encode": "bound async method TextTokenizer.encode",
+    "decode": "bound async method TextTokenizer.decode",
+}
+
+isinstance_result = True
+
+encode_input = {
+    "prompt": "Hello",
+    "add_special_tokens": True,
+}
+encode_output_illustrative = [128000, 9906]
+
+decode_input_illustrative = [9906]
+decode_kwargs = {"skip_special_tokens": True}
+decode_output = "Hello"
+
+new_context_input = {
+    "request_id": "req-chat-001",
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "prompt": "Hello",
+    "messages": [],
+}
+new_context_output_snapshot = {
+    "request_id": "req-chat-001",
+    "tokens.prompt": [128000, 9906],
+    "tokens.generated": [],
+    "vocab_size": 128256,
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+}
+```
+
+Tokenizer IDs above are illustrative and model-specific; each list is the
+complete value used by this worked example.

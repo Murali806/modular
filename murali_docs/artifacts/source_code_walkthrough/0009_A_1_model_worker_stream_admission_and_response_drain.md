@@ -214,3 +214,144 @@ cancel_queue.put_nowait([req_id])
                     v
 scheduler releases request state
 ```
+
+## Complete Admission And Response Values
+
+```python
+req_id = RequestID("req-chat-001")
+
+prompt_token_ids = [
+    128000,
+    128006,
+    9125,
+    128007,
+    271,
+    2675,
+    527,
+    264,
+    64694,
+    18328,
+    13,
+    128009,
+    128006,
+    882,
+    128007,
+    271,
+    849,
+    21435,
+    14736,
+    304,
+    832,
+    11914,
+    13,
+    128009,
+    128006,
+    78191,
+    128007,
+    271,
+]
+
+data_snapshot = {
+    "request_id": "req-chat-001",
+    "tokens.prompt": prompt_token_ids,
+    "tokens.generated": [],
+    "tokens.active": prompt_token_ids,
+    "max_length": 60,
+    "vocab_size": 128256,
+    "status": "ACTIVE",
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+}
+
+state_before_admission = {
+    "pending_out_queues": {},
+    "request_queue.writable()": True,
+}
+
+state_after_registration = {
+    "pending_out_queues": {"req-chat-001": []},
+    "request_queue": [data_snapshot],
+}
+
+worker_response_dicts = [
+    {
+        "req-chat-001": {
+            "result": {
+                "tokens": [48870, 6636],
+                "decoded_tokens": "KV cache",
+                "status": "ACTIVE",
+                "is_done": False,
+            },
+            "batch_id": 41,
+            "is_done": False,
+            "error": None,
+        }
+    },
+    {
+        "req-chat-001": {
+            "result": {
+                "tokens": [304, 13],
+                "decoded_tokens": " stores.",
+                "status": "ACTIVE",
+                "is_done": False,
+            },
+            "batch_id": 42,
+            "is_done": False,
+            "error": None,
+        }
+    },
+    {
+        "req-chat-001": {
+            "result": {
+                "tokens": [128009],
+                "decoded_tokens": "",
+                "status": "END_OF_SEQUENCE",
+                "is_done": True,
+            },
+            "batch_id": 43,
+            "is_done": True,
+            "error": None,
+        }
+    },
+]
+
+drain_yields = [
+    {
+        "outputs": [
+            {
+                "tokens": [48870, 6636],
+                "decoded_tokens": "KV cache",
+                "status": "ACTIVE",
+                "is_done": False,
+            }
+        ],
+        "batch_id": 41,
+    },
+    {
+        "outputs": [
+            {
+                "tokens": [304, 13],
+                "decoded_tokens": " stores.",
+                "status": "ACTIVE",
+                "is_done": False,
+            }
+        ],
+        "batch_id": 42,
+    },
+    {
+        "outputs": [
+            {
+                "tokens": [128009],
+                "decoded_tokens": "",
+                "status": "END_OF_SEQUENCE",
+                "is_done": True,
+            }
+        ],
+        "batch_id": 43,
+    },
+]
+
+state_after_finally = {
+    "pending_out_queues": {},
+    "cancel_queue": [],
+}
+```

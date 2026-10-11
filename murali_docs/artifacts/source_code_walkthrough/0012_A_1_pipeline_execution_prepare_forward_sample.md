@@ -268,3 +268,97 @@ def _launch_forward_pass(
             )
             raise
 ```
+
+## Complete Pipeline Variable Values
+
+```python
+# Reduced illustrative vocabulary keeps every logit visible. Production Llama
+# uses a much larger vocabulary, but the code path and array relationships are
+# identical.
+illustrative_vocab = {
+    0: "<bos>",
+    1: "KV",
+    2: " cache",
+    3: " stores",
+    4: " keys",
+    5: " values",
+    6: ".",
+    7: "<eos>",
+}
+
+context = {
+    "request_id": "req-chat-001",
+    "tokens.prompt": [0, 1, 2],
+    "tokens.generated": [],
+    "tokens.active": [0, 1, 2],
+    "tokens.processed_length": 0,
+    "tokens.active_length": 3,
+    "json_schema": None,
+    "grammar": None,
+    "sampling_params": {
+        "temperature": 0.2,
+        "top_p": 0.9,
+    },
+}
+
+inputs = {
+    "batches": [[context]],
+    "flat_batch": [context],
+    "enable_log_probs": False,
+    "batch_top_log_probs": [0],
+    "batch_echo": [False],
+}
+
+prepare_batch_output = {
+    "model_inputs": {
+        "tokens": [0, 1, 2],
+        "input_row_offsets": [0, 3],
+        "return_n_logits": [1],
+        "kv_cache_inputs": {
+            "blocks": [0],
+            "cache_lengths": [0],
+        },
+    },
+    "bitmask": None,
+    "flat_batch": [context],
+}
+
+model_outputs = {
+    "logits": [
+        [-8.0, -4.0, 1.5, 3.2, 0.7, 0.5, -1.0, -3.0]
+    ],
+    "next_token_logits": [
+        [-8.0, -4.0, 1.5, 3.2, 0.7, 0.5, -1.0, -3.0]
+    ],
+    "logit_offsets": None,
+}
+
+sampling_values = {
+    "sample_logits": [
+        [-8.0, -4.0, 1.5, 3.2, 0.7, 0.5, -1.0, -3.0]
+    ],
+    "sample_offsets": None,
+    "generated_tokens_device": [3],
+    "generated_tokens_host": [3],
+    "decoded_generated_token": " stores",
+}
+
+response_output = {
+    "req-chat-001": {
+        "tokens": [3],
+        "decoded_tokens": " stores",
+        "status": "ACTIVE",
+        "is_done": False,
+        "log_probabilities": None,
+    }
+}
+
+context_after_update = {
+    "request_id": "req-chat-001",
+    "tokens.prompt": [0, 1, 2],
+    "tokens.generated": [3],
+    "tokens.processed_length": 3,
+    "tokens.active": [3],
+    "status": "ACTIVE",
+}
+```

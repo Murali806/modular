@@ -198,3 +198,84 @@ await first event/error                           await every generated output
 commit SSE HTTP response                          build one response object
 yield chunks over time                            return once at the end
 ```
+
+## Complete Branch Input And Output Values
+
+```python
+token_request_snapshot = {
+    "request_id": "req-chat-001",
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "prompt": None,
+    "messages": [
+        {"role": "system", "content": "You are a concise assistant."},
+        {"role": "user", "content": "Explain KV cache in one sentence."},
+    ],
+    "sampling_params": {
+        "temperature": 0.2,
+        "top_p": 0.9,
+        "max_new_tokens": 32,
+        "stop": ["\nUser:"],
+    },
+}
+
+streaming_values = {
+    "completion_request.stream": True,
+    "first_generator_item": (
+        'data: {"id":"chatcmpl-req-chat-001",'
+        '"object":"chat.completion.chunk",'
+        '"model":"meta-llama/Llama-3.1-8B-Instruct",'
+        '"choices":[{"index":0,"delta":{"role":"assistant",'
+        '"content":"KV cache"},"finish_reason":null}]}\n\n'
+    ),
+    "_start_stream.error": None,
+    "EventSourceResponse.ping": 100000,
+    "EventSourceResponse.sep": "\n",
+}
+
+remaining_stream_items = [
+    'data: {"id":"chatcmpl-req-chat-001","object":"chat.completion.chunk","model":"meta-llama/Llama-3.1-8B-Instruct","choices":[{"index":0,"delta":{"content":" stores."},"finish_reason":null}]}\n\n',
+    'data: {"id":"chatcmpl-req-chat-001","object":"chat.completion.chunk","model":"meta-llama/Llama-3.1-8B-Instruct","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n',
+    "data: [DONE]\n\n",
+]
+
+non_streaming_values = {
+    "completion_request.stream": False,
+    "completed_outputs": [
+        {
+            "decoded_tokens": "KV cache",
+            "token_count": 2,
+            "prompt_token_count": 28,
+            "cached_token_count": 0,
+            "status": "ACTIVE",
+        },
+        {
+            "decoded_tokens": " stores.",
+            "token_count": 3,
+            "prompt_token_count": None,
+            "cached_token_count": None,
+            "status": "END_OF_SEQUENCE",
+        },
+    ],
+    "response_message": "KV cache stores.",
+    "response": {
+        "id": "chatcmpl-req-chat-001",
+        "object": "chat.completion",
+        "model": "meta-llama/Llama-3.1-8B-Instruct",
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "KV cache stores.",
+                },
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {
+            "prompt_tokens": 28,
+            "completion_tokens": 5,
+            "total_tokens": 33,
+        },
+    },
+}
+```

@@ -155,3 +155,101 @@ sampling/stop controls           --->  EOSTracker + SamplingParams
 structured-output request        --->  grammar/json_schema/state
 routing/cache objects            --->  worker-transferable metadata
 ```
+
+## Complete `TextContext` Input And Output Values
+
+```python
+token_ids = [
+    128000,
+    128006,
+    9125,
+    128007,
+    271,
+    2675,
+    527,
+    264,
+    64694,
+    18328,
+    13,
+    128009,
+    128006,
+    882,
+    128007,
+    271,
+    849,
+    21435,
+    14736,
+    304,
+    832,
+    11914,
+    13,
+    128009,
+    128006,
+    78191,
+    128007,
+    271,
+]
+
+request_values = {
+    "request_id": "req-chat-001",
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "logprobs": 0,
+    "echo": False,
+    "response_format": {"type": "text"},
+    "sampling_params": {
+        "temperature": 0.2,
+        "top_p": 0.9,
+        "max_new_tokens": 32,
+        "stop": ["\nUser:"],
+        "stop_token_ids": None,
+        "ignore_eos": False,
+    },
+    "target_endpoint": None,
+    "dkv_cache_hint": None,
+    "cache_salt": None,
+}
+
+eos_tracker_values = {
+    "eos_token_ids": {128001, 128009},
+    "eos_sequences": [[198, 1502, 25]],
+    "eos_stop_strings": ["\nUser:"],
+}
+
+grammar_state_values = {
+    "grammar_enforced": False,
+    "tools_forced": False,
+    "requires_structured_output_flag": False,
+    "has_json_schema": False,
+}
+
+token_buffer_values = {
+    "prompt": token_ids,
+    "generated": [],
+    "prompt_length": 28,
+    "generated_length": 0,
+    "processed_length": 0,
+    "active": token_ids,
+    "active_length": 28,
+}
+
+context_values = {
+    "request_id": "req-chat-001",
+    "max_length": 60,
+    "tokens": token_buffer_values,
+    "eos_tracker": eos_tracker_values,
+    "vocab_size": 128256,
+    "log_probabilities": 0,
+    "log_probabilities_echo": False,
+    "json_schema": None,
+    "grammar": None,
+    "grammar_state": grammar_state_values,
+    "sampling_params": request_values["sampling_params"],
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "target_endpoint": None,
+    "dkv_cache_hint": None,
+    "cache_salt": None,
+}
+```
+
+The stop-string token sequence is illustrative and tokenizer-dependent; the
+three-token list shown is the complete value for this example.

@@ -378,4 +378,79 @@ CreateChatCompletionRequest.model_validate(parsed)
                        route returns HTTP 400
 ```
 
+## 7. Complete Validation Input And Output Values
+
+```python
+parsed = {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+        {"role": "system", "content": "You are a concise assistant."},
+        {"role": "user", "content": "Explain KV cache in one sentence."},
+    ],
+    "temperature": 0.2,
+    "top_p": 0.9,
+    "max_tokens": 32,
+    "stream": True,
+    "stop": ["\nUser:"],
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "lookup_doc",
+                "description": "Look up a document.",
+                "parameters": {},
+            },
+        }
+    ],
+    "tool_choice": "auto",
+    "response_format": {"type": "text"},
+}
+
+before_validator_output = parsed
+
+field_validation_results = {
+    "model": "valid str",
+    "messages": "valid list with 2 valid ChatCompletionMessageParam values",
+    "temperature": "valid float 0.2",
+    "top_p": "valid float 0.9",
+    "max_tokens": "valid int 32",
+    "stream": "valid bool True",
+    "stop": "valid list[str] containing one string",
+    "tools": "valid one-item tool list with parameters dict",
+    "tool_choice": "valid literal 'auto'",
+    "response_format": "valid {'type': 'text'} value",
+    "unknown_top_level_fields": [],
+}
+
+after_validator_values = {
+    "max_tokens": 32,
+    "max_completion_tokens": None,
+}
+
+validated_model_dump_exclude_none_and_defaults = {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+        {"role": "system", "content": "You are a concise assistant."},
+        {"role": "user", "content": "Explain KV cache in one sentence."},
+    ],
+    "temperature": 0.2,
+    "top_p": 0.9,
+    "max_tokens": 32,
+    "stream": True,
+    "stop": ["\nUser:"],
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "lookup_doc",
+                "description": "Look up a document.",
+                "parameters": {},
+            },
+        }
+    ],
+    "tool_choice": "auto",
+    "response_format": {"type": "text"},
+}
+```
+
 <strong><em><a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md"><span style="color:#0b63ce">Return to the entry code walk: 0001_A_1_parse_openai_request_body_http_ingress_and_parser.md</span></a></em></strong>.

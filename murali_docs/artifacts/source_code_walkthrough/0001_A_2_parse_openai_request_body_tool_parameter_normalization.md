@@ -169,4 +169,71 @@ normalized output
 ]
 ```
 
+## 5. Complete Loop Variable Values
+
+```python
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "lookup_doc",
+            "description": "Look up a document.",
+            "parameters": None,
+        },
+    }
+]
+
+tool = {
+    "type": "function",
+    "function": {
+        "name": "lookup_doc",
+        "description": "Look up a document.",
+        "parameters": None,
+    },
+}
+
+out_after_dict_tool = {
+    "type": "function",
+    "function": {
+        "name": "lookup_doc",
+        "description": "Look up a document.",
+        "parameters": None,
+    },
+}
+
+fn_after_dict_fn = {
+    "name": "lookup_doc",
+    "description": "Look up a document.",
+    "parameters": None,
+}
+
+params = None
+
+fn_after_normalization = {
+    "name": "lookup_doc",
+    "description": "Look up a document.",
+    "parameters": {},
+}
+
+out_after_function_assignment = {
+    "type": "function",
+    "function": {
+        "name": "lookup_doc",
+        "description": "Look up a document.",
+        "parameters": {},
+    },
+}
+
+normalized = [
+    {
+        "type": "function",
+        "function": {
+            "name": "lookup_doc",
+            "description": "Look up a document.",
+            "parameters": {},
+        },
+    }
+]
+```
+
 <strong><em><a href="0001_B_1_parse_openai_request_body_pydantic_schema_validation.md"><span style="color:#0b63ce">Continue to schema validation: 0001_B_1_parse_openai_request_body_pydantic_schema_validation.md</span></a></em></strong>.

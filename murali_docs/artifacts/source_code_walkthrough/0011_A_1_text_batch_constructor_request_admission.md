@@ -5,6 +5,93 @@ Source:
 
 <strong><em><a href="0011_A_2_text_batch_constructor_batch_packing.md"><span style="color:#0b63ce">Continue to batch packing: 0011_A_2_text_batch_constructor_batch_packing.md</span></a></em></strong>.
 
+## Complete Admission Input And Output Values
+
+```python
+prompt_token_ids = [
+    128000,
+    128006,
+    9125,
+    128007,
+    271,
+    2675,
+    527,
+    264,
+    64694,
+    18328,
+    13,
+    128009,
+    128006,
+    882,
+    128007,
+    271,
+    849,
+    21435,
+    14736,
+    304,
+    832,
+    11914,
+    13,
+    128009,
+    128006,
+    78191,
+    128007,
+    271,
+]
+
+ctx = {
+    "request_id": "req-chat-001",
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "tokens.prompt": prompt_token_ids,
+    "tokens.generated": [],
+    "tokens.generated_length": 0,
+    "tokens.active_length": 28,
+    "grammar": None,
+    "json_schema": None,
+}
+
+admission_configuration = {
+    "replica_idx_argument": None,
+    "grammar_gate_present": True,
+    "grammar_gate.is_ready(ctx)": True,
+    "grammar_gate.install_ready(ctx)": None,
+    "dp_ce_balance_enabled": True,
+    "post_cache_weights": [28, 28],
+}
+
+after_enqueue_new_request = {
+    "grammar_pending": {},
+    "ce_pending": {
+        "req-chat-001": {
+            "ctx": ctx,
+            "weights": [28, 28],
+        }
+    },
+    "ce_arrival": {"req-chat-001": 1250.25},
+    "replica_0.ce_reqs": {},
+    "replica_1.ce_reqs": {},
+}
+
+planner_binding_input = {
+    "request_id": "req-chat-001",
+    "selected_replica_idx": 0,
+    "ce_weight": 28,
+}
+
+after_bind_request = {
+    "replica_0.ce_reqs": {"req-chat-001": ctx},
+    "replica_0.tg_reqs": {},
+    "bound_requests": {
+        "req-chat-001": {
+            "ctx": ctx,
+            "replica_idx": 0,
+            "ce_weight": 28,
+        }
+    },
+    "request_id_to_lora_name": {"req-chat-001": None},
+}
+```
+
 ## Grammar Gate
 
 ```python

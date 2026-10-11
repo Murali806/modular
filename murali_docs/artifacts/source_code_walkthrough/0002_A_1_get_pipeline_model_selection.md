@@ -107,11 +107,75 @@ model_name --------------------------------------------+
 ## Variable Flow
 
 ```text
-VARIABLE        CREATED FROM                         EXAMPLE VALUE
+VARIABLE        CREATED FROM                         COMPLETE LOGICAL VALUE
 --------------  -----------------------------------  ------------------------------------------
-app_state       request.app.state                    State(...)
-pipeline        app_state.pipeline                   TokenGeneratorPipeline(...)
-models          pipeline.model_name + LoRA names     ["base-llama", "finance-adapter"]
+app_state       request.app.state                    {"pipeline": pipeline_values}
+pipeline        app_state["pipeline"]                pipeline_values, fully defined below
+models          pipeline model + LoRA names          ["meta-llama/Llama-3.1-8B-Instruct",
+                                                     "finance-adapter", "support-adapter"]
 model_name      validated request field/default      "finance-adapter"
-return value    existing pipeline object             same object as app_state.pipeline
+return value    existing pipeline object             return_value, fully defined below
+```
+
+## Complete Input And Output Values
+
+```python
+pipeline_values = {
+    "object_identity": "request.app.state.pipeline",
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "lora_queue.list_loras()": ["finance-adapter", "support-adapter"],
+    "tokenizer_protocol_members": {
+        "eos_token_ids": {128001, 128009},
+        "expects_content_wrapping": False,
+        "new_context": "bound async method TextTokenizer.new_context",
+        "encode": "bound async method TextTokenizer.encode",
+        "decode": "bound async method TextTokenizer.decode",
+    },
+}
+
+app_state_values = {
+    "pipeline": pipeline_values,
+}
+
+request_values = {
+    "method": "POST",
+    "url.path": "/v1/chat/completions",
+    "app.state": app_state_values,
+}
+
+model_name_input = "finance-adapter"
+
+models = [
+    "meta-llama/Llama-3.1-8B-Instruct",
+    "finance-adapter",
+    "support-adapter",
+]
+
+model_name_after_defaulting = "finance-adapter"
+model_name_is_valid = True
+tokenizer_implements_pipeline_tokenizer = True
+
+return_value = {
+    "object_identity": "request.app.state.pipeline",
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "lora_queue.list_loras()": ["finance-adapter", "support-adapter"],
+    "tokenizer_protocol_members": {
+        "eos_token_ids": {128001, 128009},
+        "expects_content_wrapping": False,
+        "new_context": "bound async method TextTokenizer.new_context",
+        "encode": "bound async method TextTokenizer.encode",
+        "decode": "bound async method TextTokenizer.decode",
+    },
+}
+return_value_is_request_app_state_pipeline = True
+requested_adapter_name = "finance-adapter"
+```
+
+```text
+model_name_input = "finance-adapter"
+models = ["meta-llama/Llama-3.1-8B-Instruct", "finance-adapter", "support-adapter"]
+                         |
+                         | membership=True, protocol check=True
+                         v
+return request.app.state.pipeline
 ```

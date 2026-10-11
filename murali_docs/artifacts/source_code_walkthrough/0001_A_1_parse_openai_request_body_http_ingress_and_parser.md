@@ -214,21 +214,173 @@ parsed: JSON value
                  validated _TRequest
 ```
 
-## 4. Variable Flow For A Chat Request
+## 4. Complete Input And Output Variable Values For A Chat Request
+
+```python
+# Complete logical snapshot of the Request fields used by this function.
+request_values = {
+    "method": "POST",
+    "url.path": "/v1/chat/completions",
+    "headers.content-type": "application/json",
+    "state.request_id": "req-chat-001",
+    "app.state.pipeline_config.runtime.allow_extra_request_fields": True,
+}
+
+raw = b'{"model":"meta-llama/Llama-3.1-8B-Instruct","messages":[{"role":"system","content":"You are a concise assistant."},{"role":"user","content":"Explain KV cache in one sentence."}],"temperature":0.2,"top_p":0.9,"max_tokens":32,"stream":true,"stop":["\\nUser:"],"tools":[{"type":"function","function":{"name":"lookup_doc","description":"Look up a document.","parameters":null}}],"tool_choice":"auto","response_format":{"type":"text"},"client_trace":"trace-77"}'
+
+parsed_after_json_loads = {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+        {"role": "system", "content": "You are a concise assistant."},
+        {"role": "user", "content": "Explain KV cache in one sentence."},
+    ],
+    "temperature": 0.2,
+    "top_p": 0.9,
+    "max_tokens": 32,
+    "stream": True,
+    "stop": ["\nUser:"],
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "lookup_doc",
+                "description": "Look up a document.",
+                "parameters": None,
+            },
+        }
+    ],
+    "tool_choice": "auto",
+    "response_format": {"type": "text"},
+    "client_trace": "trace-77",
+}
+
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "lookup_doc",
+            "description": "Look up a document.",
+            "parameters": None,
+        },
+    }
+]
+
+parsed_after_tool_normalization = {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+        {"role": "system", "content": "You are a concise assistant."},
+        {"role": "user", "content": "Explain KV cache in one sentence."},
+    ],
+    "temperature": 0.2,
+    "top_p": 0.9,
+    "max_tokens": 32,
+    "stream": True,
+    "stop": ["\nUser:"],
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "lookup_doc",
+                "description": "Look up a document.",
+                "parameters": {},
+            },
+        }
+    ],
+    "tool_choice": "auto",
+    "response_format": {"type": "text"},
+    "client_trace": "trace-77",
+}
+
+# Complete membership result for every top-level key in this example.
+known_membership_for_parsed_keys = {
+    "model": True,
+    "messages": True,
+    "temperature": True,
+    "top_p": True,
+    "max_tokens": True,
+    "stream": True,
+    "stop": True,
+    "tools": True,
+    "tool_choice": True,
+    "response_format": True,
+    "client_trace": False,
+}
+extras = ["client_trace"]
+
+parsed_after_extra_field_filter = {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+        {"role": "system", "content": "You are a concise assistant."},
+        {"role": "user", "content": "Explain KV cache in one sentence."},
+    ],
+    "temperature": 0.2,
+    "top_p": 0.9,
+    "max_tokens": 32,
+    "stream": True,
+    "stop": ["\nUser:"],
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "lookup_doc",
+                "description": "Look up a document.",
+                "parameters": {},
+            },
+        }
+    ],
+    "tool_choice": "auto",
+    "response_format": {"type": "text"},
+}
+
+# Complete non-default/non-None view of the validated object for this input.
+completion_request_model_dump = {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+        {"role": "system", "content": "You are a concise assistant."},
+        {"role": "user", "content": "Explain KV cache in one sentence."},
+    ],
+    "temperature": 0.2,
+    "top_p": 0.9,
+    "max_tokens": 32,
+    "stream": True,
+    "stop": ["\nUser:"],
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "lookup_doc",
+                "description": "Look up a document.",
+                "parameters": {},
+            },
+        }
+    ],
+    "tool_choice": "auto",
+    "response_format": {"type": "text"},
+}
+```
 
 ```text
-VARIABLE             VALUE BEFORE STEP                         ACTION                              VALUE AFTER STEP
-------------------   ---------------------------------------   --------------------------------   ----------------------------------------
-request              Request(...)                            await request.body()                 unchanged
-raw                  not assigned                            receive body bytes                   b'{"model":"llama",...}'
-parsed               not assigned                            json.loads(raw)                      {"model": "llama", ...}
-tools                not assigned                            parsed.get("tools")                 list[...] or None
-parsed               original JSON dict                     normalize tools                     new dict when tools is a list
-pipeline_config      not assigned                            read request.app.state              PipelineConfig(...)
-known                not assigned                            set(model_cls.model_fields)          declared top-level field-name set
-extras               not assigned                            compare parsed keys with known       unknown top-level field-name list
-parsed               may contain unknown fields             filter when runtime flag is True    known fields only
-completion_request   not assigned                            model_cls.model_validate(parsed)     CreateChatCompletionRequest(...)
+request_values
+    |
+    | await request.body()
+    v
+raw (full bytes value above)
+    |
+    | json.loads(raw)
+    v
+parsed_after_json_loads
+    |
+    | _normalize_tools_parameters(tools)
+    v
+parsed_after_tool_normalization
+    |
+    | extras == ["client_trace"]
+    v
+parsed_after_extra_field_filter
+    |
+    | CreateChatCompletionRequest.model_validate(...)
+    v
+completion_request_model_dump
 ```
 
 ## 5. Parser Errors Become HTTP 400 Responses

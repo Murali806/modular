@@ -5,6 +5,117 @@ Source:
 
 <strong><em><a href="0003_A_2_openai_parse_chat_completion_request_media.md"><span style="color:#0b63ce">Continue to media admission: 0003_A_2_openai_parse_chat_completion_request_media.md</span></a></em></strong>.
 
+## Complete Message Input And Output Values
+
+```python
+completion_request_messages = [
+    {
+        "role": "system",
+        "content": "You are a concise assistant.",
+    },
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "text",
+                "text": "Describe the attached one-pixel image.",
+            },
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+                    "detail": "low",
+                    "max_long_side_pixel": 768,
+                },
+            },
+        ],
+    },
+    {
+        "role": "assistant",
+        "content": "I will inspect it.",
+        "tool_calls": [
+            {
+                "id": "call_lookup_001",
+                "type": "function",
+                "function": {
+                    "name": "lookup_doc",
+                    "arguments": "{\"query\":\"one-pixel image\"}",
+                },
+            }
+        ],
+        "reasoning_content": "The image is intentionally minimal.",
+    },
+    {
+        "role": "tool",
+        "tool_call_id": "call_lookup_001",
+        "content": "A one-pixel image contains exactly one pixel.",
+    },
+]
+
+wrap_content = True
+allowed_roles = frozenset(
+    {"developer", "system", "user", "assistant", "tool", "function"}
+)
+
+messages_output = [
+    {
+        "role": "system",
+        "content": "You are a concise assistant.",
+        "tool_calls": None,
+        "tool_call_id": None,
+        "reasoning_content": None,
+    },
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "text",
+                "text": "Describe the attached one-pixel image.",
+            },
+            {
+                "type": "image",
+                "detail": "low",
+                "max_long_side_pixel": 768,
+            },
+        ],
+        "tool_calls": None,
+        "tool_call_id": None,
+        "reasoning_content": None,
+    },
+    {
+        "role": "assistant",
+        "content": "I will inspect it.",
+        "tool_calls": [
+            {
+                "id": "call_lookup_001",
+                "type": "function",
+                "function": {
+                    "name": "lookup_doc",
+                    "arguments": {"query": "one-pixel image"},
+                },
+            }
+        ],
+        "tool_call_id": None,
+        "reasoning_content": "The image is intentionally minimal.",
+    },
+    {
+        "role": "tool",
+        "content": "A one-pixel image contains exactly one pixel.",
+        "tool_calls": None,
+        "tool_call_id": "call_lookup_001",
+        "reasoning_content": None,
+    },
+]
+
+image_refs = [
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+]
+video_refs = []
+```
+
+The `messages_output` dictionaries are complete logical snapshots of the
+fields passed into each `TextGenerationRequestMessage` constructor.
+
 ## Function Contract And Validation
 
 ```python

@@ -120,6 +120,23 @@ and the number identifies its sequence within that section:
   validated request: _TRequest
   ```
 
+- Every complete-code walkthrough must also include a concrete input/output
+  example with fully spelled-out variable values at each important step.
+- Do not use opaque values such as `Request(...)`, `Context(...)`, `list[...]`,
+  `{...}`, or truncated JSON in a concrete variable-flow example.
+- For large framework objects, define a complete logical snapshot containing
+  every field used by the code being explained. For Pydantic objects, a full
+  `model_dump(exclude_none=True)` value is preferred over an abbreviated repr.
+- Keep one consistent example request across related files so a reader can
+  follow the same request ID, model, messages, sampling settings, token IDs,
+  context, batch, and output through the full lifecycle.
+- Label tokenizer IDs, logits, device buffers, and generated tokens as
+  illustrative when their exact values are model- or runtime-dependent, but
+  still provide the complete illustrative list or array without ellipses.
+- Show both the input and output values for branches. If a branch does not
+  change a value, repeat the full value or explicitly state `unchanged` after
+  the full input value has been defined.
+
 - Keep diagrams adjacent to the source block they explain. Diagrams supplement
   the actual code; they do not replace it.
 - When the path spans multiple source files, use `000N_A_1`, `000N_A_2`, and

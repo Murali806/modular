@@ -178,3 +178,88 @@ messages=[] messages=request_messages
         v
 exactly one prompt source reaches tokenizer.new_context(request)
 ```
+
+## Complete Construction Input And Output Values
+
+```python
+route_values = {
+    "request_id": "req-chat-001",
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "prompt_tokens": None,
+    "request_messages": [
+        {
+            "role": "system",
+            "content": "You are a concise assistant.",
+        },
+        {
+            "role": "user",
+            "content": "Explain KV cache in one sentence.",
+        },
+    ],
+    "request_images": [],
+    "request_decoded_images": [],
+    "request_videos": [],
+    "tools": None,
+    "response_format": {"type": "text"},
+    "sampling_params": {
+        "temperature": 0.2,
+        "top_p": 0.9,
+        "max_new_tokens": 32,
+        "stop": ["\nUser:"],
+    },
+    "logprobs_count": 0,
+    "timestamp_ns": 1760000000000000000,
+    "request_path": "/v1/chat/completions",
+    "target_endpoint": None,
+    "dkv_cache_hint": None,
+    "cache_salt": None,
+    "chat_template_options": None,
+}
+
+token_request = TextGenerationRequest(
+    request_id=RequestID("req-chat-001"),
+    model_name="meta-llama/Llama-3.1-8B-Instruct",
+    prompt=None,
+    messages=[
+        TextGenerationRequestMessage(
+            role="system",
+            content="You are a concise assistant.",
+        ),
+        TextGenerationRequestMessage(
+            role="user",
+            content="Explain KV cache in one sentence.",
+        ),
+    ],
+    images=[],
+    videos=[],
+    decoded_images=[],
+    tools=None,
+    response_format=TextGenerationResponseFormat(type="text"),
+    timestamp_ns=1760000000000000000,
+    request_path="/v1/chat/completions",
+    logprobs=0,
+    echo=False,
+    chat_template_options=None,
+    sampling_params=SamplingParams(
+        temperature=0.2,
+        top_p=0.9,
+        max_new_tokens=32,
+        stop=["\nUser:"],
+    ),
+    target_endpoint=None,
+    dkv_cache_hint=None,
+    cache_salt=None,
+)
+
+post_init_values = {
+    "messages_converted_count": 2,
+    "prompt_and_messages_conflict": False,
+    "string_prompt_with_images": False,
+    "string_prompt_with_videos": False,
+    "number_of_images": 0,
+    "len(images)": 0,
+    "number_of_videos": 0,
+    "len(videos)": 0,
+    "validation_result": "success",
+}
+```

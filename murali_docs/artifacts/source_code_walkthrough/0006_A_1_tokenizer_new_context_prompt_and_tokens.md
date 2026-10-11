@@ -7,6 +7,73 @@ Sources:
 
 <strong><em><a href="0006_A_2_tokenizer_new_context_metadata_and_state.md"><span style="color:#0b63ce">Continue to context state: 0006_A_2_tokenizer_new_context_metadata_and_state.md</span></a></em></strong>.
 
+## Complete Prompt And Token Values
+
+```python
+request_prompt = None
+request_messages = [
+    TextGenerationRequestMessage(
+        role="system",
+        content="You are a concise assistant.",
+    ),
+    TextGenerationRequestMessage(
+        role="user",
+        content="Explain KV cache in one sentence.",
+    ),
+]
+request_tools = None
+chat_template_options = {}
+
+rendered_prompt = (
+    "<|begin_of_text|>"
+    "<|start_header_id|>system<|end_header_id|>\n\n"
+    "You are a concise assistant.<|eot_id|>"
+    "<|start_header_id|>user<|end_header_id|>\n\n"
+    "Explain KV cache in one sentence.<|eot_id|>"
+    "<|start_header_id|>assistant<|end_header_id|>\n\n"
+)
+
+# Illustrative Llama tokenizer output for the complete rendered prompt above.
+token_ids = [
+    128000,
+    128006,
+    9125,
+    128007,
+    271,
+    2675,
+    527,
+    264,
+    64694,
+    18328,
+    13,
+    128009,
+    128006,
+    882,
+    128007,
+    271,
+    849,
+    21435,
+    14736,
+    304,
+    832,
+    11914,
+    13,
+    128009,
+    128006,
+    78191,
+    128007,
+    271,
+]
+
+generate_prompt_and_token_ids_output = {
+    "prompt": rendered_prompt,
+    "token_ids": token_ids,
+}
+```
+
+The token IDs are illustrative and model-version dependent, but the list is
+the complete value used throughout the remaining worked examples.
+
 ## Call Site
 
 ```python

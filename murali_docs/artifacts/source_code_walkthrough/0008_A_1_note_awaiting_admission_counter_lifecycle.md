@@ -128,3 +128,94 @@ requests_awaiting_admission_dist(value)
 Live counter: records each +1/-1 transition.
 Histogram: records periodic snapshots of backlog depth.
 ```
+
+## Complete Counter Values Across Three Requests
+
+```python
+events = [
+    {
+        "time_ms": 0,
+        "event": "req-chat-001 accepted",
+        "delta": 1,
+        "count_before": 0,
+        "count_after": 1,
+        "live_measurement": {
+            "name": "maxserve.num_requests_awaiting_admission",
+            "value": 1,
+        },
+    },
+    {
+        "time_ms": 2,
+        "event": "req-chat-002 accepted",
+        "delta": 1,
+        "count_before": 1,
+        "count_after": 2,
+        "live_measurement": {
+            "name": "maxserve.num_requests_awaiting_admission",
+            "value": 1,
+        },
+    },
+    {
+        "time_ms": 5,
+        "event": "req-chat-003 accepted",
+        "delta": 1,
+        "count_before": 2,
+        "count_after": 3,
+        "live_measurement": {
+            "name": "maxserve.num_requests_awaiting_admission",
+            "value": 1,
+        },
+    },
+    {
+        "time_ms": 9,
+        "event": "req-chat-001 handed to worker",
+        "delta": -1,
+        "count_before": 3,
+        "count_after": 2,
+        "live_measurement": {
+            "name": "maxserve.num_requests_awaiting_admission",
+            "value": -1,
+        },
+    },
+    {
+        "time_ms": 11,
+        "event": "req-chat-002 tokenization failed",
+        "delta": -1,
+        "count_before": 2,
+        "count_after": 1,
+        "live_measurement": {
+            "name": "maxserve.num_requests_awaiting_admission",
+            "value": -1,
+        },
+    },
+    {
+        "time_ms": 14,
+        "event": "req-chat-003 handed to worker",
+        "delta": -1,
+        "count_before": 1,
+        "count_after": 0,
+        "live_measurement": {
+            "name": "maxserve.num_requests_awaiting_admission",
+            "value": -1,
+        },
+    },
+]
+
+periodic_histogram_samples = [
+    {
+        "time_ms": 6,
+        "name": "maxserve.requests_awaiting_admission",
+        "value": 3,
+    },
+    {
+        "time_ms": 12,
+        "name": "maxserve.requests_awaiting_admission",
+        "value": 1,
+    },
+    {
+        "time_ms": 18,
+        "name": "maxserve.requests_awaiting_admission",
+        "value": 0,
+    },
+]
+```

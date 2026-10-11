@@ -272,3 +272,86 @@ GraphPipelineModelWithKVCache initialization
         v
 runtime-ready compiled model wrapper
 ```
+
+## Complete Runtime Buffer And Output Values
+
+```python
+model_inputs = {
+    "tokens": {
+        "shape": [5],
+        "dtype": "int64",
+        "device": "gpu:0",
+        "values": [101, 102, 103, 201, 202],
+    },
+    "input_row_offsets": {
+        "shape": [3],
+        "dtype": "uint32",
+        "device": "gpu:0",
+        "values": [0, 3, 5],
+    },
+    "return_n_logits": {
+        "shape": [1],
+        "dtype": "int64",
+        "device": "cpu",
+        "values": [1],
+    },
+    "data_parallel_splits": {
+        "shape": [3],
+        "dtype": "int64",
+        "device": "gpu:0",
+        "values": [0, 1, 2],
+    },
+    "kv_cache_inputs": {
+        "block_ids": {
+            "shape": [2, 1],
+            "dtype": "int32",
+            "device": "gpu:0",
+            "values": [[7], [11]],
+        },
+        "cache_lengths": {
+            "shape": [2, 1],
+            "dtype": "uint32",
+            "device": "gpu:0",
+            "values": [[0], [4]],
+        },
+    },
+}
+
+model_inputs_buffers = (
+    [101, 102, 103, 201, 202],
+    [0, 3, 5],
+    [1],
+    [0, 1, 2],
+    [[7], [11]],
+    [[0], [4]],
+)
+
+compiled_model_execute_output = (
+    [
+        [-2.0, 0.5, 3.0, 1.0],
+        [-1.5, 2.5, 0.25, -0.5],
+    ],
+    [0, 1, 2],
+)
+
+processed_model_outputs = {
+    "logits": [
+        [-2.0, 0.5, 3.0, 1.0],
+        [-1.5, 2.5, 0.25, -0.5],
+    ],
+    "next_token_logits": None,
+    "logit_offsets": [0, 1, 2],
+    "hidden_states": None,
+}
+
+graph_build_values = {
+    "data_parallel_degree": 2,
+    "len(devices)": 2,
+    "selected_branch": "create_data_parallel_graph",
+    "graph_name": "llama3",
+    "return_logits": "LAST_TOKEN",
+    "return_hidden_states": "NONE",
+    "norm_method": "rms_norm",
+    "attention_bias": False,
+}
+```

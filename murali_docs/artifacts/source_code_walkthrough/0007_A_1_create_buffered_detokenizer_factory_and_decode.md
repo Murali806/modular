@@ -304,3 +304,112 @@ same prompt token IDs
         |
         +--> reasoning_detokenizer keeps independent reasoning decode state
 ```
+
+## Complete Factory And Decode Values
+
+```python
+prompt_token_ids = [
+    128000,
+    128006,
+    9125,
+    128007,
+    271,
+    2675,
+    527,
+    264,
+    64694,
+    18328,
+    13,
+    128009,
+    128006,
+    882,
+    128007,
+    271,
+    849,
+    21435,
+    14736,
+    304,
+    832,
+    11914,
+    13,
+    128009,
+    128006,
+    78191,
+    128007,
+    271,
+]
+
+fast_tokenizer_input = {
+    "tokenizer.type": "TextTokenizer",
+    "tokenizer.delegate.type": "PreTrainedTokenizerFast",
+    "tokenizer.delegate._tokenizer.type": "tokenizers.Tokenizer",
+    "tokenizer.skipped_special_token_ids": {128001, 128009},
+    "prompt_token_ids": prompt_token_ids,
+    "skip_special_tokens": True,
+}
+
+fast_factory_intermediate_values = {
+    "hf_tokenizer_is_none": False,
+    "_is_fast_tokenizer": True,
+    "stream_skip_special": False,
+}
+
+fast_factory_output = {
+    "type": "DecodeStreamDetokenizer",
+    "prompt_ids_used_to_prime_stream": prompt_token_ids,
+    "explicitly_skipped_ids": {128001, 128009},
+}
+
+# Illustrative tokenizer-specific generated token chunks.
+decode_calls = [
+    {
+        "input_token_ids": [48870, 6636],
+        "buffer_before": [],
+        "output_text": "KV cache",
+        "buffer_after": [],
+    },
+    {
+        "input_token_ids": [304, 13],
+        "buffer_before": [],
+        "output_text": " stores.",
+        "buffer_after": [],
+    },
+    {
+        "input_token_ids": [128009],
+        "buffer_before": [],
+        "output_text": "",
+        "buffer_after": [],
+    },
+]
+
+generic_tokenizer_input = {
+    "tokenizer.type": "SlowTokenizerAdapter",
+    "tokenizer.delegate.type": "PreTrainedTokenizer",
+    "tokenizer.delegate_has_fast_tokenizer": False,
+    "tokenizer_has_decode": True,
+    "prompt_token_ids": [1, 2],
+    "skip_special_tokens": True,
+}
+
+generic_factory_output = {
+    "type": "Utf8BufferingDetokenizer",
+    "buffered_tokens_initial": [],
+}
+
+utf8_decode_calls_illustrative = [
+    {
+        "input_token_ids": [41001],
+        "combined_tokens": [41001],
+        "raw_decoded": "\ufffd",
+        "returned_text": "",
+        "buffered_tokens_after": [41001],
+    },
+    {
+        "input_token_ids": [41002],
+        "combined_tokens": [41001, 41002],
+        "raw_decoded": "😊",
+        "returned_text": "😊",
+        "buffered_tokens_after": [],
+    },
+]
+```

@@ -168,3 +168,88 @@ ModelOutputs
     +-- optional logit offsets
     +-- optional hidden states
 ```
+
+## Complete Ragged Buffer Values
+
+```python
+replica_batches = [
+    [
+        {
+            "request_id": "req-chat-001",
+            "tokens.active": [101, 102, 103],
+            "tokens.active_length": 3,
+        }
+    ],
+    [
+        {
+            "request_id": "req-chat-002",
+            "tokens.active": [201, 202],
+            "tokens.active_length": 2,
+        }
+    ],
+]
+
+dp = 2
+context_batch = [
+    {
+        "request_id": "req-chat-001",
+        "tokens.active": [101, 102, 103],
+        "tokens.active_length": 3,
+    },
+    {
+        "request_id": "req-chat-002",
+        "tokens.active": [201, 202],
+        "tokens.active_length": 2,
+    },
+]
+
+staging_values = {
+    "batch_size": 2,
+    "total_seq_len": 5,
+    "host_tokens": [101, 102, 103, 201, 202],
+    "device_tokens": [101, 102, 103, 201, 202],
+    "host_row_offsets": [0, 3, 5],
+    "device_row_offsets": [0, 3, 5],
+}
+
+return_n_logits = 1
+return_n_logits_tensor = [1]
+data_parallel_splits = [0, 1, 2]
+
+kv_cache_inputs = {
+    "block_ids": [[7], [11]],
+    "cache_lengths": [[0], [4]],
+}
+
+signal_buffers = [
+    {"name": "signal_device_0", "values": [0]},
+    {"name": "signal_device_1", "values": [0]},
+]
+
+llama3_inputs = {
+    "tokens": [101, 102, 103, 201, 202],
+    "input_row_offsets": [0, 3, 5],
+    "return_n_logits": [1],
+    "signal_buffers": signal_buffers,
+    "kv_cache_inputs": kv_cache_inputs,
+    "data_parallel_splits": [0, 1, 2],
+}
+
+raw_graph_outputs = {
+    "logits": [
+        [-2.0, 0.5, 3.0, 1.0],
+        [-1.5, 2.5, 0.25, -0.5],
+    ],
+    "logit_offsets": [0, 1, 2],
+}
+
+model_outputs = {
+    "logits": [
+        [-2.0, 0.5, 3.0, 1.0],
+        [-1.5, 2.5, 0.25, -0.5],
+    ],
+    "next_token_logits": None,
+    "logit_offsets": [0, 1, 2],
+    "hidden_states": None,
+}
+```

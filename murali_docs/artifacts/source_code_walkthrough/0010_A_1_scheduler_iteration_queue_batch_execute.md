@@ -250,3 +250,114 @@ responses by request_id
        v
 response_queue -> API process
 ```
+
+## Complete Iteration Input And Output Values
+
+```python
+prompt_token_ids = [
+    128000,
+    128006,
+    9125,
+    128007,
+    271,
+    2675,
+    527,
+    264,
+    64694,
+    18328,
+    13,
+    128009,
+    128006,
+    882,
+    128007,
+    271,
+    849,
+    21435,
+    14736,
+    304,
+    832,
+    11914,
+    13,
+    128009,
+    128006,
+    78191,
+    128007,
+    271,
+]
+
+context_req_chat_001 = {
+    "request_id": "req-chat-001",
+    "tokens.prompt": prompt_token_ids,
+    "tokens.generated": [],
+    "tokens.active": prompt_token_ids,
+    "tokens.processed_length": 0,
+    "tokens.active_length": 28,
+    "status": "ACTIVE",
+}
+
+iteration_input = {
+    "request_queue": [context_req_chat_001],
+    "cancel_queue": [],
+    "batch_constructor.all_ce_reqs": {},
+    "batch_constructor.all_tg_reqs": {},
+    "max_pending_requests": 64,
+    "support_empty_batches": False,
+    "pipeline.has_pending_outputs()": False,
+    "batch_counter_before": 41,
+}
+
+after_retrieve_pending_requests = {
+    "request_queue": [],
+    "batch_constructor.all_ce_reqs": {
+        "req-chat-001": context_req_chat_001,
+    },
+}
+
+constructed_inputs = {
+    "batches": [[context_req_chat_001]],
+    "flat_batch": [context_req_chat_001],
+    "batch_size": 1,
+}
+
+pipeline_execute_output = {
+    "req-chat-001": {
+        "tokens": [48870],
+        "decoded_tokens": "KV",
+        "status": "ACTIVE",
+        "is_done": False,
+    }
+}
+
+after_advance_requests = {
+    "batch_constructor.all_ce_reqs": {},
+    "batch_constructor.all_tg_reqs": {
+        "req-chat-001": {
+            "request_id": "req-chat-001",
+            "tokens.prompt": prompt_token_ids,
+            "tokens.generated": [48870],
+            "tokens.processed_length": 28,
+            "tokens.active": [48870],
+            "status": "ACTIVE",
+        }
+    },
+}
+
+response_queue_output = [
+    {
+        "req-chat-001": {
+            "result": {
+                "tokens": [48870],
+                "decoded_tokens": "KV",
+                "status": "ACTIVE",
+                "is_done": False,
+            },
+            "batch_id": 41,
+            "is_done": False,
+            "error": None,
+        }
+    }
+]
+
+iteration_return = "SchedulerProgress.MADE_PROGRESS"
+batch_counter_after = 42
+```
