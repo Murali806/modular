@@ -50,8 +50,8 @@ first HTTP request arrives.
 <details>
 <summary><strong>Expand: API server startup and API-worker wiring</strong></summary>
 
-```text
-fastapi_app(settings, serving_settings)
+<pre>
+fastapi_app(settings, serving_settings)  <a href="0000_A_folder_structure.md#expandable-root-level-map">[Map]</a>
   api_server.py:330
     |
     +-- [CALL] FastAPI(title="MAX Serve", ...)
@@ -105,7 +105,7 @@ fastapi_app(settings, serving_settings)
     +-- [CALL] register_request(app, ...)
           |
           +-- installs request_session HTTP middleware
-```
+</pre>
 
 </details>
 
@@ -115,8 +115,8 @@ scheduler forever:
 <details>
 <summary><strong>Expand: Model-worker startup and scheduler loop</strong></summary>
 
-```text
-[BACKGROUND] uvloop executes ModelWorker.run(...)
+<pre>
+[BACKGROUND] uvloop executes ModelWorker.run(...)  <a href="0010_scheduler_iteration.md#runtime-flow">[Sched]</a>
   model_worker.py:232
     |
     +-- [CALL] model_factory()
@@ -131,7 +131,7 @@ scheduler forever:
     |     +-- response_queue: worker-side ZMQ PUSH
     |     +-- cancel_queue: worker-side ZMQ PULL
     |
-    +-- [CALL] load_scheduler(...)
+    +-- [CALL] load_scheduler(...)  <a href="0010_scheduler_iteration.md#runtime-flow">[Sched]</a>
     |     scheduler/__init__.py
     |       |
     |       +-- pipeline_role == "prefill_and_decode"
@@ -144,7 +144,7 @@ scheduler forever:
           |
           +-- scheduler.run_iteration()
           +-- sleep_with_backoff(...) when no progress
-```
+</pre>
 
 </details>
 
@@ -176,17 +176,17 @@ request ID and timer consumed by the route:
 <details>
 <summary><strong>Expand: Complete HTTP route call tree</strong></summary>
 
-```text
+<pre>
 POST /v1/chat/completions
     |
     +-- [FRAMEWORK] FastAPI/Starlette route dispatch
           |
-          +-- [AWAIT] openai_create_chat_completion(request)
+          +-- [AWAIT] openai_create_chat_completion(request)  <a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#1-route-entry-and-call">[Ingress]</a>
                 openai_routes.py:2218
                   |
                   +-- request_id = request.state.request_id
                   |
-                  +-- [AWAIT] _parse_openai_request_body(
+                  +-- [AWAIT] _parse_openai_request_body(  <a href="0001_parse_openai_request_body.md#function-shape">[Parse]</a>
                   |             request,
                   |             request_id,
                   |             CreateChatCompletionRequest,
@@ -248,7 +248,7 @@ POST /v1/chat/completions
                   |                           +-- completion_request:
                   |                               CreateChatCompletionRequest
                   |
-                  +-- [CALL] get_pipeline(
+                  +-- [CALL] get_pipeline(  <a href="0002_get_pipeline.md#inputs-and-output">[Select]</a>
                   |             request,
                   |             completion_request.model,
                   |           )
@@ -265,7 +265,7 @@ POST /v1/chat/completions
                   |
                   +-- tokenizer = pipeline.tokenizer
                   |
-                  +-- [AWAIT] openai_parse_chat_completion_request(...)
+                  +-- [AWAIT] openai_parse_chat_completion_request(...)  <a href="0003_openai_parse_chat_completion_request.md#sequence-view">[Chat]</a>
                   |     openai_routes.py:1719
                   |       |
                   |       +-- [CALL] _validate_tool_message_consistency(...)
@@ -348,7 +348,7 @@ POST /v1/chat/completions
                   |
                   +-- [CALL] SamplingParams.from_input_and_generation_config(...)
                   |
-                  +-- [CALL] TextGenerationRequest(...)
+                  +-- [CALL] TextGenerationRequest(...)  <a href="0004_TextGenerationRequest.md#field-mapping-in-the-route">[Request]</a>
                   |     text_generation.py:336
                   |       |
                   |       +-- [CALL] TextGenerationRequest.__post_init__()
@@ -364,7 +364,7 @@ POST /v1/chat/completions
                         +-- True  -> streaming path in section 3
                         |
                         +-- False -> non-streaming path in section 4
-```
+</pre>
 
 </details>
 
@@ -377,22 +377,22 @@ generation failures to become a real non-200 HTTP response.
 <details>
 <summary><strong>Expand: Streaming admission and first SSE chunk</strong></summary>
 
-```text
-openai_create_chat_completion(...)
+<pre>
+openai_create_chat_completion(...)  <a href="0005_streaming_vs_non_streaming.md#streaming-path">[Stream]</a>
     |
-    +-- [AWAIT] response_generator.stream(token_request)
+    +-- [AWAIT] response_generator.stream(token_request)  <a href="0005_streaming_vs_non_streaming.md#streaming-path">[Stream]</a>
     |     OpenAIChatResponseGenerator.stream
     |     openai_routes.py:687
     |       |
-    |       +-- [AWAIT] pipeline.next_token_chunk(token_request)
+    |       +-- [AWAIT] pipeline.next_token_chunk(token_request)  <a href="0006_tokenizer_new_context.md#sequence-view">[Context]</a>
     |       |     llm.py:294
     |       |       |
     |       |       +-- initialize TTFT/ITL/decode timers
     |       |       +-- optionally create/reset reasoning parser
     |       |       |
-    |       |       +-- model_worker.note_awaiting_admission(+1)
+    |       |       +-- model_worker.note_awaiting_admission(+1)  <a href="0008_note_awaiting_admission.md#lifecycle-view">[Await]</a>
     |       |       |
-    |       |       +-- [AWAIT] tokenizer.new_context(request)
+    |       |       +-- [AWAIT] tokenizer.new_context(request)  <a href="0006_tokenizer_new_context.md#sequence-view">[Context]</a>
     |       |       |     tokenizer.py:819
     |       |       |       |
     |       |       |       +-- [AWAIT] _generate_prompt_and_token_ids(...)
@@ -416,12 +416,12 @@ openai_create_chat_completion(...)
     |       |       |
     |       |       +-- inject_trace_carrier(context)
     |       |       |
-    |       |       +-- [CALL] create_buffered_detokenizer(...)
+    |       |       +-- [CALL] create_buffered_detokenizer(...)  <a href="0007_create_buffered_detokenizer.md#factory-decision-tree">[Detok]</a>
     |       |       |     incremental_detokenizer.py:343
     |       |       |       +-- content detokenizer
     |       |       |       +-- reasoning detokenizer
     |       |       |
-    |       |       +-- [AWAIT] model_worker.stream(
+    |       |       +-- [AWAIT] model_worker.stream(  <a href="0009_model_worker_stream.md#lifecycle-view">[IPC]</a>
     |       |       |             context.request_id,
     |       |       |             context,
     |       |       |           )
@@ -459,7 +459,7 @@ openai_create_chat_completion(...)
     |       |
     |       +-- return OpenAIChatResponseGenerator._stream async generator
     |
-    +-- [AWAIT] _start_stream(stream)
+    +-- [AWAIT] _start_stream(stream)  <a href="0005_streaming_vs_non_streaming.md#streaming-path">[Stream]</a>
     |     openai_routes.py:185
     |       |
     |       +-- [AWAIT] stream.__anext__()
@@ -485,7 +485,7 @@ openai_create_chat_completion(...)
             +-- [FRAMEWORK] ASGI starts the HTTP response
                   |
                   +-- EventSourceResponse iterates token_stream
-```
+</pre>
 
 </details>
 
@@ -498,10 +498,10 @@ the complete token generator before constructing one JSON response.
 <details>
 <summary><strong>Expand: Non-streaming aggregation path</strong></summary>
 
-```text
-openai_create_chat_completion(...)
+<pre>
+openai_create_chat_completion(...)  <a href="0005_streaming_vs_non_streaming.md#non-streaming-path">[Complete]</a>
     |
-    +-- [AWAIT] response_generator.complete([token_request])
+    +-- [AWAIT] response_generator.complete([token_request])  <a href="0005_streaming_vs_non_streaming.md#non-streaming-path">[Complete]</a>
           OpenAIChatResponseGenerator.complete
           openai_routes.py:1159
             |
@@ -522,7 +522,7 @@ openai_create_chat_completion(...)
             +-- build CompletionUsage
             +-- CreateChatCompletionResponse(...)
             +-- return response to FastAPI
-```
+</pre>
 
 </details>
 
@@ -534,13 +534,13 @@ activated by the `TextContext` arriving on the worker's ZMQ request queue.
 <details>
 <summary><strong>Expand: Worker scheduler through Llama execution</strong></summary>
 
-```text
+<pre>
 [IPC] TextContext arrives on worker request_queue
     |
     +-- [BACKGROUND] ModelWorker.run(...) loop
           model_worker.py:232
             |
-            +-- [CALL] scheduler.run_iteration()
+            +-- [CALL] scheduler.run_iteration()  <a href="0010_scheduler_iteration.md#runtime-flow">[Sched]</a>
                   TokenGenerationScheduler.run_iteration
                   text_generation_scheduler.py:205
                     |
@@ -551,7 +551,7 @@ activated by the `TextContext` arriving on the worker's ZMQ request queue.
                     |       |
                     |       +-- for each TextContext
                     |             |
-                    |             +-- batch_constructor.enqueue_new_request(ctx)
+                    |             +-- batch_constructor.enqueue_new_request(ctx)  <a href="0011_text_batch_constructor.md#admission-flow">[Admit]</a>
                     |                   text_batch_constructor.py:677
                     |                     |
                     |                     +-- optional grammar gate submit/install
@@ -568,7 +568,7 @@ activated by the `TextContext` arriving on the worker's ZMQ request queue.
                     |                                 +-- generated_length > 0
                     |                                       -> replica.tg_reqs
                     |
-                    +-- [CALL] batch_constructor.construct_batch()
+                    +-- [CALL] batch_constructor.construct_batch()  <a href="0011_text_batch_constructor.md#construct-batch-flow">[Batch]</a>
                     |     text_batch_constructor.py:1845
                     |       |
                     |       +-- kv_cache.poll_transfers()
@@ -607,7 +607,7 @@ activated by the `TextContext` arriving on the worker's ZMQ request queue.
                             |
                             +-- batch_id = monotonic scheduler counter
                             |
-                            +-- [CALL] pipeline.execute(inputs)
+                            +-- [CALL] pipeline.execute(inputs)  <a href="0012_pipeline_execution.md#execution-flow">[Pipe]</a>
                             |     TextGenerationPipeline.execute
                             |     text_generation.py:515
                             |       |
@@ -625,7 +625,7 @@ activated by the `TextContext` arriving on the worker's ZMQ request queue.
                             |               |       +-- kv_manager.runtime_inputs(...)
                             |               |       |
                             |               |       +-- [CALL]
-                            |               |           _pipeline_model.prepare_initial_token_inputs(...)
+                            |               |           _pipeline_model.prepare_initial_token_inputs(...)  <a href="0013_llama_input_staging.md#staging-flow">[Stage]</a>
                             |               |             |
                             |               |             +-- LlamaModelBase.prepare_initial_token_inputs(...)
                             |               |             |     llama3/model.py:168
@@ -657,7 +657,7 @@ activated by the `TextContext` arriving on the worker's ZMQ request queue.
                             |               |       |
                             |               |       +-- _pipeline_model.execute(model_inputs)
                             |               |             |
-                            |               |             +-- LlamaModelBase.execute(...)
+                            |               |             +-- LlamaModelBase.execute(...)  <a href="0014_llama_model_execution.md#runtime-execute-flow">[Model]</a>
                             |               |                   llama3/model.py:183
                             |               |                     |
                             |               |                     +-- model_inputs.buffers
@@ -726,7 +726,7 @@ activated by the `TextContext` arriving on the worker's ZMQ request queue.
                     |     +-- response_queue.put_nowait(...)
                     |
                     +-- return SchedulerProgress.MADE_PROGRESS
-```
+</pre>
 
 </details>
 
@@ -738,17 +738,17 @@ generators.
 <details>
 <summary><strong>Expand: Worker response back to the HTTP client</strong></summary>
 
-```text
+<pre>
 [IPC] SchedulerResult arrives on API response_queue
     |
-    +-- [BACKGROUND] ZmqModelWorkerProxy.response_worker()
+    +-- [BACKGROUND] ZmqModelWorkerProxy.response_worker()  <a href="0009_model_worker_stream.md#response-routing">[IPC]</a>
     |     zmq_interface.py:247
     |       |
     |       +-- [AWAIT] response_queue.get()
     |       +-- locate pending_out_queues[request_id]
     |       +-- [AWAIT] per-request out_queue.put(response)
     |
-    +-- ZmqModelWorkerProxy._drain_responses(...) resumes
+    +-- ZmqModelWorkerProxy._drain_responses(...) resumes  <a href="0009_model_worker_stream.md#response-routing">[IPC]</a>
     |     zmq_interface.py:167
     |       |
     |       +-- [AWAIT] out_queue.get()
@@ -760,7 +760,7 @@ generators.
     |       |     +-- re-raise
     |       +-- finally remove pending_out_queues[request_id]
     |
-    +-- TokenGeneratorPipeline._generate(...) resumes
+    +-- TokenGeneratorPipeline._generate(...) resumes  <a href="0007_create_buffered_detokenizer.md#where-it-is-used">[Detok]</a>
     |     llm.py, nested in next_token_chunk
     |       |
     |       +-- TextGenerationOutput.merge(responses)
@@ -801,7 +801,7 @@ generators.
                 |
                 +-- request_session adds X-Request-ID
                 +-- ASGI sends JSON -> client
-```
+</pre>
 
 </details>
 
