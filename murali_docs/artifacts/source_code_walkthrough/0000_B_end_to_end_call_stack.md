@@ -50,6 +50,9 @@ first HTTP request arrives.
 <details>
 <summary><strong>Expand: API server startup and API-worker wiring</strong></summary>
 
+**Jump links:** [Map](0000_A_folder_structure.md#expandable-root-level-map) |
+[Ingress](0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#1-route-entry-and-call)
+
 ```text
 fastapi_app(settings, serving_settings)
   api_server.py:330
@@ -115,6 +118,10 @@ scheduler forever:
 <details>
 <summary><strong>Expand: Model-worker startup and scheduler loop</strong></summary>
 
+**Jump links:** [Sched](0010_scheduler_iteration.md#runtime-flow) |
+[Pipe](0012_pipeline_execution.md#execution-flow) |
+[Model](0014_llama_model_execution.md#compile-time-graph-choice)
+
 ```text
 [BACKGROUND] uvloop executes ModelWorker.run(...)
   model_worker.py:232
@@ -158,6 +165,9 @@ request ID and timer consumed by the route:
 <details>
 <summary><strong>Expand: Request middleware prelude</strong></summary>
 
+**Jump link:**
+[Ingress](0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#1-route-entry-and-call)
+
 ```text
 [FRAMEWORK] request_session(request, call_next)
   request.py:52
@@ -175,6 +185,12 @@ request ID and timer consumed by the route:
 
 <details>
 <summary><strong>Expand: Complete HTTP route call tree</strong></summary>
+
+**Jump links:** [Parse](0001_parse_openai_request_body.md#function-shape) |
+[Select](0002_get_pipeline.md#inputs-and-output) |
+[Chat](0003_openai_parse_chat_completion_request.md#sequence-view) |
+[Request](0004_TextGenerationRequest.md#field-mapping-in-the-route) |
+[Mode](0005_streaming_vs_non_streaming.md#route-branch)
 
 ```text
 POST /v1/chat/completions
@@ -377,6 +393,12 @@ generation failures to become a real non-200 HTTP response.
 <details>
 <summary><strong>Expand: Streaming admission and first SSE chunk</strong></summary>
 
+**Jump links:** [Mode](0005_streaming_vs_non_streaming.md#streaming-path) |
+[Context](0006_tokenizer_new_context.md#sequence-view) |
+[Detok](0007_create_buffered_detokenizer.md#factory-decision-tree) |
+[Await](0008_note_awaiting_admission.md#lifecycle-view) |
+[IPC](0009_model_worker_stream.md#lifecycle-view)
+
 ```text
 openai_create_chat_completion(...)
     |
@@ -498,6 +520,10 @@ the complete token generator before constructing one JSON response.
 <details>
 <summary><strong>Expand: Non-streaming aggregation path</strong></summary>
 
+**Jump links:** [Mode](0005_streaming_vs_non_streaming.md#non-streaming-path) |
+[Context](0006_tokenizer_new_context.md#sequence-view) |
+[IPC](0009_model_worker_stream.md#lifecycle-view)
+
 ```text
 openai_create_chat_completion(...)
     |
@@ -533,6 +559,13 @@ activated by the `TextContext` arriving on the worker's ZMQ request queue.
 
 <details>
 <summary><strong>Expand: Worker scheduler through Llama execution</strong></summary>
+
+**Jump links:** [IPC](0009_model_worker_stream.md#response-routing) |
+[Sched](0010_scheduler_iteration.md#runtime-flow) |
+[Batch](0011_text_batch_constructor.md#construct-batch-flow) |
+[Pipe](0012_pipeline_execution.md#execution-flow) |
+[Stage](0013_llama_input_staging.md#staging-flow) |
+[Model](0014_llama_model_execution.md#runtime-execute-flow)
 
 ```text
 [IPC] TextContext arrives on worker request_queue
@@ -738,6 +771,11 @@ generators.
 <details>
 <summary><strong>Expand: Worker response back to the HTTP client</strong></summary>
 
+**Jump links:** [IPC](0009_model_worker_stream.md#response-routing) |
+[Detok](0007_create_buffered_detokenizer.md#where-it-is-used) |
+[Stream](0005_streaming_vs_non_streaming.md#streaming-path) |
+[Complete](0005_streaming_vs_non_streaming.md#non-streaming-path)
+
 ```text
 [IPC] SchedulerResult arrives on API response_queue
     |
@@ -814,6 +852,10 @@ model, sampler, and response queue multiple times.
 <details>
 <summary><strong>Expand: Prefill and decode repeat loop</strong></summary>
 
+**Jump links:** [Sched](0010_scheduler_iteration.md#runtime-flow) |
+[Batch](0011_text_batch_constructor.md#construct-batch-flow) |
+[Pipe](0012_pipeline_execution.md#execution-flow)
+
 ```text
 new TextContext
     |
@@ -857,6 +899,10 @@ new TextContext
 <details>
 <summary><strong>Expand: SageMaker ingress path</strong></summary>
 
+**Jump links:**
+[Ingress](0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#1-route-entry-and-call) |
+[Mode](0005_streaming_vs_non_streaming.md#route-branch)
+
 ```text
 POST /invocations
     |
@@ -874,6 +920,9 @@ POST /invocations
 
 <details>
 <summary><strong>Expand: Pre-tokenized prompt branch</strong></summary>
+
+**Jump links:** [Prompt](0004_TextGenerationRequest.md#prompt-tokens-versus-messages) |
+[Tokenize](0006_tokenizer_new_context.md#prompt-or-messages)
 
 ```text
 completion_request.prompt_tokens is non-empty
@@ -895,6 +944,10 @@ completion_request.prompt_tokens is non-empty
 
 <details>
 <summary><strong>Expand: Scheduler and pipeline variants</strong></summary>
+
+**Jump links:** [Sched](0010_scheduler_iteration.md#big-picture) |
+[Pipe](0012_pipeline_execution.md#big-picture) |
+[Model](0014_llama_model_execution.md#compile-time-graph-choice)
 
 ```text
 pipeline_role == "prefill_and_decode" -> TokenGenerationScheduler
@@ -919,6 +972,11 @@ runtime call stack because they decide whether the client receives JSON, HTTP
 
 <details>
 <summary><strong>Expand: Error exit tree</strong></summary>
+
+**Jump links:**
+[Parse](0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#5-parser-errors-become-http-400-responses) |
+[Stream](0005_streaming_vs_non_streaming.md#failure-shape) |
+[IPC](0009_model_worker_stream.md#request-queue-full-path)
 
 ```text
 request body / route preparation
@@ -962,6 +1020,9 @@ calls:
 
 <details>
 <summary><strong>Expand: IPC and compiled-runtime boundaries</strong></summary>
+
+**Jump links:** [IPC](0009_model_worker_stream.md#lifecycle-view) |
+[Model](0014_llama_model_execution.md#runtime-execute-flow)
 
 ```text
 API process                    Model worker process
