@@ -577,6 +577,11 @@ modular/                                                        # repository roo
 |   |       |
 |   |       +-- serve/                                           # HTTP serving and request lifecycle
 |   |       |   |
+|   |       |   +-- api_server.py                                # constructs the FastAPI application
+|   |       |   |                                              # starts the model-worker lifespan,
+|   |       |   |                                              # stores pipeline state, registers routes,
+|   |       |   |                                              # middleware, and exception handlers
+|   |       |   |
 |   |       |   +-- router/                                     # OpenAI-compatible HTTP boundary
 |   |       |   |   +-- openai_routes.py                        # receives JSON; validates; routes model
 |   |       |   |                                              # creates TextGenerationRequest and
