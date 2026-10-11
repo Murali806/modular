@@ -5,6 +5,64 @@ Source:
 
 <strong><em><a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md"><span style="color:#0b63ce">Return to parser: 0001_A_1_parse_openai_request_body_http_ingress_and_parser.md</span></a></em></strong>.
 
+<details>
+<summary><strong>Q: Why is <code>model_validate(...)</code> not defined inside <code>CreateChatCompletionRequest</code>?</strong></summary>
+
+`model_validate(...)` is inherited from Pydantic's `BaseModel`. It does not
+need to be redefined in the `CreateChatCompletionRequest` class body.
+
+```text
+pydantic.BaseModel
+|
++-- model_validate(...)
+      ^
+      |
+_MaxRequestExtensions(BaseModel)
+
+_ChatCompletionParamsBase
+  created by create_model(...)
+  also extends BaseModel
+      ^
+      |
+CreateChatCompletionRequest
+```
+
+Both parent classes are Pydantic models:
+
+- `_MaxRequestExtensions` explicitly extends `BaseModel`.
+- `_ChatCompletionParamsBase` is built by `_model_from_typeddict(...)` using
+  `create_model(...)`, which returns a dynamically created `BaseModel`
+  subclass.
+
+Therefore Python can resolve this inherited class method:
+
+```python
+validated_request = CreateChatCompletionRequest.model_validate(parsed)
+```
+
+```text
+parsed: dict
+    |
+    | inherited BaseModel.model_validate(parsed)
+    v
+validate fields inherited from _ChatCompletionParamsBase
+    |
+    +-- validate MAX fields inherited from _MaxRequestExtensions
+    +-- validate model and messages declared on CreateChatCompletionRequest
+    +-- run before/after model validators
+    |
+    +-- invalid input --> ValidationError
+    |
+    +-- valid input ----> CreateChatCompletionRequest instance
+```
+
+Python searches the class inheritance hierarchy when a method is not found
+directly on the class. The implementation being called here is
+`pydantic.BaseModel.model_validate` with
+`cls=CreateChatCompletionRequest`.
+
+</details>
+
 ## 1. Strict Top-Level Field Policy
 
 ```python
