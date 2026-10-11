@@ -383,6 +383,148 @@ parsed_after_extra_field_filter
 completion_request_model_dump
 ```
 
+<details>
+<summary><strong>Q: What does <code>parsed: JSON value</code> look like for a dict versus a non-dict?</strong></summary>
+
+`json.loads(raw)` accepts any valid JSON value. The first JSON character often
+makes the resulting Python type clear:
+
+```text
+RAW JSON STARTS WITH        PYTHON VALUE RETURNED BY json.loads(raw)
+------------------------    -----------------------------------------
+{ ... }                     dict
+[ ... ]                     list
+"..."                       str
+42                          int
+2.5                         float
+true / false                bool
+null                        None
+```
+
+### Case 1: `parsed` Is A Dict
+
+```python
+raw_dict = b'{"model":"meta-llama/Llama-3.1-8B-Instruct","messages":[{"role":"user","content":"Hello"}]}'
+
+parsed_dict = {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+        {
+            "role": "user",
+            "content": "Hello",
+        }
+    ],
+}
+
+parsed_dict_is_dict = isinstance(parsed_dict, dict)  # True
+```
+
+```text
+parsed_dict
+    |
+    | isinstance(parsed_dict, dict) == True
+    v
+read and normalize parsed_dict["tools"], when present
+    |
+    | optionally remove unknown top-level keys
+    v
+CreateChatCompletionRequest.model_validate(parsed_dict)
+    |
+    v
+validated CreateChatCompletionRequest
+```
+
+For this input, a concise non-default/non-`None` view of the validated output
+is:
+
+```python
+validated_dict_output = {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+        {
+            "role": "user",
+            "content": "Hello",
+        }
+    ],
+}
+```
+
+Being a `dict` only means the value has the required top-level JSON shape. Its
+required fields and nested values must still pass Pydantic validation.
+
+### Case 2: `parsed` Is Not A Dict
+
+This example is valid JSON, but its top-level value is an array rather than an
+object:
+
+```python
+raw_list = b'[{"role":"user","content":"Hello"}]'
+
+parsed_list = [
+    {
+        "role": "user",
+        "content": "Hello",
+    }
+]
+
+parsed_list_is_dict = isinstance(parsed_list, dict)  # False
+```
+
+```text
+parsed_list
+    |
+    | isinstance(parsed_list, dict) == False
+    v
+skip tools normalization
+    |
+    | skip unknown-field filtering
+    v
+CreateChatCompletionRequest.model_validate(parsed_list)
+    |
+    v
+ValidationError
+    reason: CreateChatCompletionRequest expects a top-level object/dict,
+            but received a list
+```
+
+The same direct-validation path applies to every other non-dict JSON value:
+
+```python
+non_dict_examples = [
+    {
+        "raw": b'"hello"',
+        "parsed": "hello",
+        "python_type": "str",
+        "validation_result": "ValidationError",
+    },
+    {
+        "raw": b'42',
+        "parsed": 42,
+        "python_type": "int",
+        "validation_result": "ValidationError",
+    },
+    {
+        "raw": b'true',
+        "parsed": True,
+        "python_type": "bool",
+        "validation_result": "ValidationError",
+    },
+    {
+        "raw": b'null',
+        "parsed": None,
+        "python_type": "NoneType",
+        "validation_result": "ValidationError",
+    },
+]
+```
+
+These values are valid JSON, so `json.loads(...)` succeeds. They fail later
+because this request schema requires a JSON object. The surrounding route
+converts that Pydantic `ValidationError` into the HTTP 400 response explained
+in the next section.
+
+</details>
+
 ## 5. Parser Errors Become HTTP 400 Responses
 
 ```python
