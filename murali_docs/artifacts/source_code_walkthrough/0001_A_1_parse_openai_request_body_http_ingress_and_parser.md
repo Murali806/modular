@@ -525,6 +525,189 @@ in the next section.
 
 </details>
 
+<details>
+<summary><strong>Q: What happens when <code>tools</code> is a list versus a non-list value?</strong></summary>
+
+`tools = parsed.get("tools")` reads the top-level `tools` value from the parsed
+request dictionary. Only a Python `list` enters
+`_normalize_tools_parameters(tools)`.
+
+```text
+parsed: dict
+    |
+    | parsed.get("tools")
+    v
+tools
+    |
+    +-- isinstance(tools, list) == True
+    |       |
+    |       | normalize each tool's function.parameters
+    |       | None or missing -> {}
+    |       v
+    |     parsed = new dict containing normalized tools
+    |       |
+    |       v
+    |     model_cls.model_validate(parsed)
+    |
+    +-- isinstance(tools, list) == False
+            |
+            | parsed remains unchanged
+            v
+          model_cls.model_validate(parsed)
+            |
+            +-- tools missing or None -> valid optional value
+            |
+            +-- tools has wrong type -> ValidationError
+```
+
+### Case 1: `tools` Is A List
+
+```python
+parsed_before_tool_normalization = {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+        {
+            "role": "user",
+            "content": "Use lookup_doc to find the KV cache note.",
+        }
+    ],
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "lookup_doc",
+                "description": "Look up a document.",
+                "parameters": None,
+            },
+        }
+    ],
+}
+
+tools = parsed_before_tool_normalization.get("tools")
+
+tools_value = [
+    {
+        "type": "function",
+        "function": {
+            "name": "lookup_doc",
+            "description": "Look up a document.",
+            "parameters": None,
+        },
+    }
+]
+
+tools_is_list = isinstance(tools, list)  # True
+```
+
+The helper copies the list entries and changes `parameters=None` to
+`parameters={}`:
+
+```python
+normalized_tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "lookup_doc",
+            "description": "Look up a document.",
+            "parameters": {},
+        },
+    }
+]
+
+parsed_after_tool_normalization = {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+        {
+            "role": "user",
+            "content": "Use lookup_doc to find the KV cache note.",
+        }
+    ],
+    "tools": normalized_tools,
+}
+
+validated_tools_output = {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+        {
+            "role": "user",
+            "content": "Use lookup_doc to find the KV cache note.",
+        }
+    ],
+    "tools": normalized_tools,
+}
+```
+
+The original `parsed_before_tool_normalization` value is not mutated. A new
+top-level dictionary and new nested tool/function dictionaries are produced.
+
+### Case 2: `tools` Is Missing Or `None`
+
+Both a missing key and an explicit JSON `null` produce a non-list value for
+this branch:
+
+```python
+parsed_without_tools = {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+        {
+            "role": "user",
+            "content": "Explain KV cache.",
+        }
+    ],
+}
+
+tools_when_missing = parsed_without_tools.get("tools")  # None
+missing_tools_is_list = isinstance(tools_when_missing, list)  # False
+
+parsed_with_null_tools = {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+        {
+            "role": "user",
+            "content": "Explain KV cache.",
+        }
+    ],
+    "tools": None,
+}
+
+tools_when_null = parsed_with_null_tools.get("tools")  # None
+null_tools_is_list = isinstance(tools_when_null, list)  # False
+```
+
+No normalization occurs. `tools` is optional, so both requests can pass tool
+field validation; the remaining request fields are still validated normally.
+
+### Case 3: `tools` Has An Incorrect Non-List Type
+
+```python
+parsed_with_invalid_tools = {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+        {
+            "role": "user",
+            "content": "Explain KV cache.",
+        }
+    ],
+    "tools": 7,
+}
+
+invalid_tools = parsed_with_invalid_tools.get("tools")  # 7
+invalid_tools_is_list = isinstance(invalid_tools, list)  # False
+parsed_after_tools_branch = parsed_with_invalid_tools  # unchanged
+
+validation_output = {
+    "exception_type": "ValidationError",
+    "field": "tools",
+    "reason": "7 is not a valid tools collection",
+}
+```
+
+The `isinstance(tools, list)` condition controls only preprocessing. It does
+not declare every non-list value valid; Pydantic still enforces the request
+schema afterward.
+
+</details>
+
 ## 5. Parser Errors Become HTTP 400 Responses
 
 ```python
