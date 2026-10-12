@@ -12,7 +12,7 @@ Sources:
 
 <strong><em><a href="0003_A_2_openai_parse_chat_completion_request_media.md"><span style="color:#0b63ce">Previous code walk: 0003_A_2_openai_parse_chat_completion_request_media.md</span></a></em></strong>.
 
-<strong><em><a href="0004_TextGenerationRequest.md"><span style="color:#0b63ce">Next focused note: 0004_TextGenerationRequest.md</span></a></em></strong>.
+<strong><em><a href="0004_B_1_TextGenerationRequest_sampling_params_resolution.md"><span style="color:#0b63ce">Next code walk: 0004_B_1_TextGenerationRequest_sampling_params_resolution.md</span></a></em></strong>.
 
 ## One-Line Purpose
 

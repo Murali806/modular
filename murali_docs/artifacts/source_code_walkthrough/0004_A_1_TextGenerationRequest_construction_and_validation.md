@@ -4,6 +4,8 @@ Sources:
 [`openai_routes.py` - construction](../../../max/python/max/serve/router/openai_routes.py#L2482),
 [`text_generation.py` - dataclass](../../../max/python/max/pipelines/modeling/types/pipeline_variants/text_generation.py#L336)
 
+<strong><em><a href="0004_B_1_TextGenerationRequest_sampling_params_resolution.md"><span style="color:#0b63ce">SamplingParams input: 0004_B_1_TextGenerationRequest_sampling_params_resolution.md</span></a></em></strong>.
+
 ## Route Construction
 
 ```python

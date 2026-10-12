@@ -9,6 +9,8 @@ Sources:
 
 <strong><em><a href="0004_A_1_TextGenerationRequest_construction_and_validation.md"><span style="color:#0b63ce">See complete code walkthrough: 0004_A_1_TextGenerationRequest_construction_and_validation.md</span></a></em></strong>.
 
+<strong><em><a href="0004_B_1_TextGenerationRequest_sampling_params_resolution.md"><span style="color:#0b63ce">See sampling-parameter resolution: 0004_B_1_TextGenerationRequest_sampling_params_resolution.md</span></a></em></strong>.
+
 ## One-Line Purpose
 
 `TextGenerationRequest(...)` is MAX's internal request object for text

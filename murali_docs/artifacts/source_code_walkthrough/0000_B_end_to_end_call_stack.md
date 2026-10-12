@@ -349,12 +349,12 @@ POST /v1/chat/completions
                   |
                   +-- [CALL] OpenAIChatResponseGenerator(...)
                   |
-                  +-- [CALL] SamplingParams.from_input_and_generation_config(...)
+                  +-- [CALL] SamplingParams.from_input_and_generation_config(...)  <a href="0004_B_1_TextGenerationRequest_sampling_params_resolution.md#L287">[Sampling:L287]</a>
                   |
-                  +-- [CALL] TextGenerationRequest(...)  <a href="0004_A_1_TextGenerationRequest_construction_and_validation.md#L15">[Request:L15]</a>
+                  +-- [CALL] TextGenerationRequest(...)  <a href="0004_A_1_TextGenerationRequest_construction_and_validation.md#L17">[Request:L17]</a>
                   |     text_generation.py:336
                   |       |
-                  |       +-- [CALL] TextGenerationRequest.__post_init__()  <a href="0004_A_1_TextGenerationRequest_construction_and_validation.md#L99">[Validate:L99]</a>
+                  |       +-- [CALL] TextGenerationRequest.__post_init__()  <a href="0004_A_1_TextGenerationRequest_construction_and_validation.md#L101">[Validate:L101]</a>
                   |             text_generation.py:479
                   |               |
                   |               +-- convert dict messages to typed messages
@@ -881,7 +881,7 @@ POST /invocations
 <pre>
 completion_request.prompt_tokens is non-empty
     |
-    +-- TextGenerationRequest.prompt = prompt token IDs  <a href="0004_A_1_TextGenerationRequest_construction_and_validation.md#L15">[Request:L15]</a>
+    +-- TextGenerationRequest.prompt = prompt token IDs  <a href="0004_A_1_TextGenerationRequest_construction_and_validation.md#L17">[Request:L17]</a>
     +-- TextGenerationRequest.messages = []
     |
     +-- tokenizer._generate_prompt_and_token_ids(...)  <a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md#L95">[Prompt:L95]</a>
@@ -1059,6 +1059,7 @@ explanations for nodes in the call tree:
 - Internal request and HTTP response branches:
   [0004_TextGenerationRequest.md](0004_TextGenerationRequest.md),
   [0004_A_1_TextGenerationRequest_construction_and_validation.md](0004_A_1_TextGenerationRequest_construction_and_validation.md),
+  [0004_B_1_TextGenerationRequest_sampling_params_resolution.md](0004_B_1_TextGenerationRequest_sampling_params_resolution.md),
   [0005_streaming_vs_non_streaming.md](0005_streaming_vs_non_streaming.md),
   [0005_A_1_streaming_vs_non_streaming_response_dispatch.md](0005_A_1_streaming_vs_non_streaming_response_dispatch.md)
 - Context creation and output decoding:
