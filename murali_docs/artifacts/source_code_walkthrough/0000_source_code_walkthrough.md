@@ -46,6 +46,8 @@ pipeline layer.
   the requested model name. <strong><em><a href="0002_get_pipeline.md"><span style="color:#0b63ce">See focused note: 0002_get_pipeline.md</span></a></em></strong>.
 - `openai_parse_chat_completion_request(...)`: normalizes messages, images,
   videos, roles, and content wrapping. <strong><em><a href="0003_openai_parse_chat_completion_request.md"><span style="color:#0b63ce">See focused note: 0003_openai_parse_chat_completion_request.md</span></a></em></strong>.
+- `_convert_chat_completion_tools_to_token_generator_tools(...)`: converts
+  OpenAI tool definitions into validated internal tool dictionaries. <strong><em><a href="0003_B_1_openai_parse_chat_completion_request_tool_conversion.md"><span style="color:#0b63ce">See complete code walkthrough: 0003_B_1_openai_parse_chat_completion_request_tool_conversion.md</span></a></em></strong>.
 - `TextGenerationRequest(...)`: converts the OpenAI request into MAX's internal
   request object. <strong><em><a href="0004_TextGenerationRequest.md"><span style="color:#0b63ce">See focused note: 0004_TextGenerationRequest.md</span></a></em></strong>.
 - Streaming versus non-streaming response branches: chooses the HTTP response

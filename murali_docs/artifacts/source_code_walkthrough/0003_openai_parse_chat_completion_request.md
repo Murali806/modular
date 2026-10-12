@@ -5,6 +5,8 @@ Source:
 
 <strong><em><a href="0003_A_1_openai_parse_chat_completion_request_messages.md"><span style="color:#0b63ce">See complete code walkthrough: 0003_A_1_openai_parse_chat_completion_request_messages.md</span></a></em></strong>.
 
+<strong><em><a href="0003_B_1_openai_parse_chat_completion_request_tool_conversion.md"><span style="color:#0b63ce">See tool-conversion code walkthrough: 0003_B_1_openai_parse_chat_completion_request_tool_conversion.md</span></a></em></strong>.
+
 ## One-Line Purpose
 
 `openai_parse_chat_completion_request(...)` converts a validated OpenAI chat

@@ -232,3 +232,5 @@ parsed_chat_request_output = {
 
 `resolved_image_bytes_hex` contains all 68 resolved image bytes; no binary
 bytes are omitted from this example.
+
+<strong><em><a href="0003_B_1_openai_parse_chat_completion_request_tool_conversion.md"><span style="color:#0b63ce">Continue to tool conversion: 0003_B_1_openai_parse_chat_completion_request_tool_conversion.md</span></a></em></strong>.

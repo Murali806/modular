@@ -337,7 +337,7 @@ POST /v1/chat/completions
                   +-- [CALL] get_app_pipeline_config(request.app)  <a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#L63">[Config:L63]</a>
                   |
                   +-- [CALL]
-                  |     _convert_chat_completion_tools_to_token_generator_tools(...)
+                  |     _convert_chat_completion_tools_to_token_generator_tools(...)  <a href="0003_B_1_openai_parse_chat_completion_request_tool_conversion.md#L85">[Tools:L85]</a>
                   |
                   +-- [CALL] _create_response_format(...)
                   |
@@ -1054,7 +1054,8 @@ explanations for nodes in the call tree:
 - Chat parsing and media:
   [0003_openai_parse_chat_completion_request.md](0003_openai_parse_chat_completion_request.md),
   [0003_A_1_openai_parse_chat_completion_request_messages.md](0003_A_1_openai_parse_chat_completion_request_messages.md),
-  [0003_A_2_openai_parse_chat_completion_request_media.md](0003_A_2_openai_parse_chat_completion_request_media.md)
+  [0003_A_2_openai_parse_chat_completion_request_media.md](0003_A_2_openai_parse_chat_completion_request_media.md),
+  [0003_B_1_openai_parse_chat_completion_request_tool_conversion.md](0003_B_1_openai_parse_chat_completion_request_tool_conversion.md)
 - Internal request and HTTP response branches:
   [0004_TextGenerationRequest.md](0004_TextGenerationRequest.md),
   [0004_A_1_TextGenerationRequest_construction_and_validation.md](0004_A_1_TextGenerationRequest_construction_and_validation.md),
