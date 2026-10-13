@@ -15,6 +15,16 @@ call_or_step
   +-- OUT
 ```
 
+```text
+[CONCRETE]     complete value fixed by this request/config fixture
+[ILLUSTRATIVE] complete example value whose contents depend on the loaded model/runtime
+[RUNTIME]      exact structure shown; storage or large tensor contents exist only at runtime
+
+Tokenizer IDs marked concrete below were generated from:
+max/tests/integration/architectures/llama3/testdata/tokenizer.json
+EOS IDs use the companion testdata/config.json.
+```
+
 ## 0. Concrete Request And Data-Structure Spine
 
 <details>
@@ -31,14 +41,16 @@ HTTP request
   |       "model": "meta-llama/Llama-3.1-8B-Instruct",
   |       "messages": [
   |         {"role": "system", "content": "You are a concise assistant."},
-  |         {"role": "user", "content": "Explain KV cache in one paragraph."}
+  |         {"role": "user", "content": "Explain KV cache in one sentence."}
   |       ],
   |       "temperature": 0.2,
   |       "top_k": 50,
   |       "top_p": 0.9,
   |       "max_completion_tokens": 32,
   |       "seed": 42,
-  |       "stream": true
+  |       "stop": "\nUser:",
+  |       "stream": true,
+  |       "stream_options": {"include_usage": true}
   |     }
   |
   +-- STRUCTURES
@@ -63,7 +75,9 @@ CreateChatCompletionRequest
   |     top_p = 0.9
   |     max_completion_tokens = 32
   |     seed = 42
+  |     stop = "\nUser:"
   |     stream = True
+  |     stream_options = {"include_usage": True}
   |     tools = None
   |     response_format = None
   |     prompt_tokens = None
@@ -82,7 +96,7 @@ _ParsedChatRequest
   |         role="system", content="You are a concise assistant."
   |       ),
   |       TextGenerationRequestMessage(
-  |         role="user", content="Explain KV cache in one paragraph."
+  |         role="user", content="Explain KV cache in one sentence."
   |       )
   |     ]
   |     request_images = []
@@ -96,19 +110,26 @@ _ParsedChatRequest
 SamplingParams
   |
   +-- IN
-  |     temperature=0.2, top_p=0.9, max_new_tokens=32
+  |     temperature=0.2, top_k=50, top_p=0.9,
+  |     max_new_tokens=32, stop=["\nUser:"], seed=42
   +-- STRUCTURES
   |     SamplingParams(
   |       top_k=50,
   |       top_p=0.9,
   |       min_p=0.0,
   |       temperature=0.2,
+  |       thinking_temperature=None,
+  |       frequency_penalty=0.0,
+  |       presence_penalty=0.0,
+  |       repetition_penalty=1.0,
   |       max_new_tokens=32,
   |       min_new_tokens=0,
   |       ignore_eos=False,
-  |       stop=None,
+  |       stop=["\nUser:"],
   |       stop_token_ids=None,
-  |       seed=42
+  |       detokenize=True,
+  |       seed=42,
+  |       logits_processors=None
   |     )
   +-- LOGIC
   |     request values override server/model defaults
@@ -137,15 +158,52 @@ TextContext
   +-- STRUCTURES
   |     request_id=RequestID("req-chat-001")
   |     tokens=TokenBuffer(
-  |       prompt=[128000,128006,9125,128007,271,2675,527,264,6461,
-  |               18328,13,128009,128006,882,128007,271,849,21435,
-  |               55504,304,832,14646,13,128009,128006,78191,128007,271],
+  |       prompt=[128000,128006,9125,128007,271,38766,1303,33025,2696,25,
+  |               6790,220,2366,18,198,15724,2696,25,220,1627,10263,220,
+  |               2366,19,271,2675,527,264,64694,18328,13,128009,128006,
+  |               882,128007,271,849,21435,85748,6636,304,832,11914,13,
+  |               128009,128006,78191,128007,271],
   |       generated=[]
   |     )
-  |     sampling_params=&lt;SamplingParams above&gt;
-  |     max_length=60
+  |     eos_tracker=EOSTracker(
+  |       eos_token_ids={128001,128008,128009},
+  |       eos_sequences=[[198,1502,25]],
+  |       eos_stop_strings=["\nUser:"]
+  |     )
+  |     max_length=81
+  |     vocab_size=128256
+  |     log_probabilities=0
+  |     log_probabilities_echo=False
+  |     json_schema=None
   |     grammar=None
-  |     eos_tracker=&lt;model-specific EOS tracker&gt;
+  |     grammar_state=GrammarEnforcementState(
+  |       grammar_enforced=False,
+  |       tools_forced=False,
+  |       requires_structured_output_flag=False,
+  |       has_json_schema=False
+  |     )
+  |     sampling_params=SamplingParams(
+  |       top_k=50,
+  |       top_p=0.9,
+  |       min_p=0.0,
+  |       temperature=0.2,
+  |       thinking_temperature=None,
+  |       frequency_penalty=0.0,
+  |       presence_penalty=0.0,
+  |       repetition_penalty=1.0,
+  |       max_new_tokens=32,
+  |       min_new_tokens=0,
+  |       ignore_eos=False,
+  |       stop=["\nUser:"],
+  |       stop_token_ids=None,
+  |       detokenize=True,
+  |       seed=42,
+  |       logits_processors=None
+  |     )
+  |     model_name="meta-llama/Llama-3.1-8B-Instruct"
+  |     target_endpoint=None
+  |     dkv_cache_hint=None
+  |     cache_salt=None
   +-- LOGIC
   |     token IDs are illustrative and tokenizer-specific
   +-- OUT
@@ -158,18 +216,25 @@ Worker/model structures
   +-- STRUCTURES
   |     TextGenerationInputs(
   |       batches=[[context]],
-  |       input_tokens=28,
+  |       input_tokens=49,
   |       batch_type=BatchType.CE,
-  |       per_replica_input_tokens=[28],
+  |       per_replica_input_tokens=[49],
   |       per_replica_context_tokens=[0]
   |     )
   |     Llama3Inputs(
-  |       tokens=Buffer(shape=(28,), dtype=uint32),
-  |       input_row_offsets=Buffer([0,28]),
+  |       tokens=Buffer(shape=(49,), dtype=int64),
+  |       input_row_offsets=Buffer([0,49]),
   |       signal_buffers=[],
   |       return_n_logits=Buffer([1]),
   |       data_parallel_splits=None,
-  |       kv_cache_inputs=&lt;allocated KV buffers&gt;
+  |       kv_cache_inputs=KVCacheInputsPerDevice(
+  |         kv_blocks=Buffer(device="gpu:0", values=[RUNTIME]),
+  |         cache_lengths=Buffer([0]),
+  |         lookup_table=Buffer([[7]]),
+  |         max_prompt_length=Buffer([49]),
+  |         max_cache_length=Buffer([49]),
+  |         page_stride=Buffer([RUNTIME])
+  |       )
   |     )
   |     ModelOutputs(
   |       logits=Buffer(shape=(1,128256), dtype=float32),
@@ -179,19 +244,25 @@ Worker/model structures
   |     )
   |     TextGenerationOutput(
   |       request_id=RequestID("req-chat-001"),
-  |       tokens=[41320],
+  |       tokens=[83807],
   |       final_status=ACTIVE,
   |       log_probabilities=None,
   |       num_cached_tokens=0
   |     )
   |     SchedulerResult(
   |       is_done=False,
-  |       result=&lt;TextGenerationOutput above&gt;,
+  |       result=TextGenerationOutput(
+  |         request_id=RequestID("req-chat-001"),
+  |         tokens=[83807],
+  |         final_status=ACTIVE,
+  |         log_probabilities=None,
+  |         num_cached_tokens=0
+  |       ),
   |       error=None,
   |       batch_id=1
   |     )
   +-- LOGIC
-  |     illustrative generated token 41320 -> decoded text fragment "KV"
+  |     illustrative generated token 83807 -> decoded text fragment "KV"
   |     illustrative request assumes no prefix-cache hit
   +-- OUT
         TokenGeneratorOutput(
@@ -202,16 +273,1669 @@ Worker/model structures
           token_log_probabilities=None,
           top_log_probabilities=None,
           sampled_tokens=None,
-          prompt_token_count=28,
+          prompt_token_count=49,
           cached_token_count=0,
           reasoning_token_count=0,
           stop_sequence=None,
           batch_id=1,
-          token_ids=[41320],
-          prompt_token_ids=[128000,128006,9125,128007,271,2675,527,264,6461,
+          token_ids=[83807],
+          prompt_token_ids=[128000,128006,9125,128007,271,38766,1303,33025,
+                            2696,25,6790,220,2366,18,198,15724,2696,25,220,
+                            1627,10263,220,2366,19,271,2675,527,264,64694,
                             18328,13,128009,128006,882,128007,271,849,21435,
-                            55504,304,832,14646,13,128009,128006,78191,128007,271]
+                            85748,6636,304,832,11914,13,128009,128006,78191,
+                            128007,271]
         )
+</pre>
+
+</details>
+
+## 0.1 Actual HTTP, JSON, Pydantic, And MAX Request Values
+
+<details>
+<summary><strong>Expand: Complete normal-text request transformations</strong></summary>
+
+<pre>
+[CONCRETE] HTTP wire request
+  |
+  +-- IN
+  |     POST /v1/chat/completions HTTP/1.1
+  |     Host: localhost:8000
+  |     Content-Type: application/json
+  |
+  |     {
+  |       "model": "meta-llama/Llama-3.1-8B-Instruct",
+  |       "messages": [
+  |         {
+  |           "role": "system",
+  |           "content": "You are a concise assistant."
+  |         },
+  |         {
+  |           "role": "user",
+  |           "content": "Explain KV cache in one sentence."
+  |         }
+  |       ],
+  |       "temperature": 0.2,
+  |       "top_k": 50,
+  |       "top_p": 0.9,
+  |       "max_completion_tokens": 32,
+  |       "seed": 42,
+  |       "stop": "\nUser:",
+  |       "stream": true,
+  |       "stream_options": {
+  |         "include_usage": true
+  |       }
+  |     }
+  |
+  +-- STRUCTURES
+  |     HTTP method/path/headers + UTF-8 JSON body
+  +-- LOGIC
+  |     Starlette stores the body until request.body() is awaited
+  +-- OUT
+        request: Request
+
+request.body()
+  |
+  +-- IN
+  |     request receive channel
+  +-- STRUCTURES
+  |     raw: bytes
+  +-- LOGIC
+  |     concatenate HTTP body chunks and cache the result
+  +-- OUT
+        raw = b'{"model":"meta-llama/Llama-3.1-8B-Instruct","messages":[{"role":"system","content":"You are a concise assistant."},{"role":"user","content":"Explain KV cache in one sentence."}],"temperature":0.2,"top_k":50,"top_p":0.9,"max_completion_tokens":32,"seed":42,"stop":"\\nUser:","stream":true,"stream_options":{"include_usage":true}}'
+
+json.loads(raw)
+  |
+  +-- IN
+  |     raw bytes above
+  +-- STRUCTURES
+  |     parsed: dict[str, object]
+  +-- LOGIC
+  |     decode UTF-8 JSON into Python values
+  +-- OUT
+        parsed = {
+          "model": "meta-llama/Llama-3.1-8B-Instruct",
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are a concise assistant.",
+            },
+            {
+              "role": "user",
+              "content": "Explain KV cache in one sentence.",
+            },
+          ],
+          "temperature": 0.2,
+          "top_k": 50,
+          "top_p": 0.9,
+          "max_completion_tokens": 32,
+          "seed": 42,
+          "stop": "\nUser:",
+          "stream": True,
+          "stream_options": {"include_usage": True},
+        }
+
+CreateChatCompletionRequest.model_validate(parsed)
+  |
+  +-- IN
+  |     parsed dict above
+  +-- STRUCTURES
+  |     CreateChatCompletionRequest: Pydantic model
+  +-- LOGIC
+  |     validate OpenAI fields + MAX extensions + model validators
+  +-- OUT
+        completion_request.model_dump(
+          exclude_none=True,
+          exclude_defaults=True,
+        ) = {
+          "model": "meta-llama/Llama-3.1-8B-Instruct",
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are a concise assistant.",
+            },
+            {
+              "role": "user",
+              "content": "Explain KV cache in one sentence.",
+            },
+          ],
+          "temperature": 0.2,
+          "top_k": 50,
+          "top_p": 0.9,
+          "max_completion_tokens": 32,
+          "seed": 42,
+          "stop": "\nUser:",
+          "stream": True,
+          "stream_options": {"include_usage": True},
+        }
+
+openai_parse_chat_completion_request(completion_request, ...)
+  |
+  +-- IN
+  |     completion_request.messages shown above
+  +-- STRUCTURES
+  |     _ParsedChatRequest: NamedTuple
+  +-- LOGIC
+  |     validate roles/tool history; create internal message models
+  +-- OUT
+        _ParsedChatRequest(
+          messages=[
+            TextGenerationRequestMessage(
+              role="system",
+              content="You are a concise assistant.",
+              tool_calls=None,
+              tool_call_id=None,
+              reasoning_content=None,
+            ),
+            TextGenerationRequestMessage(
+              role="user",
+              content="Explain KV cache in one sentence.",
+              tool_calls=None,
+              tool_call_id=None,
+              reasoning_content=None,
+            ),
+          ],
+          request_images=[],
+          request_videos=[],
+          decoded_images=[],
+        )
+
+SamplingParamsInput(...)
+  |
+  +-- IN
+  |     request fields + server defaults
+  +-- STRUCTURES
+  |     partial sampling input dataclass
+  +-- LOGIC
+  |     route maps max_completion_tokens -> max_new_tokens
+  |     route maps stop string -> one-item stop list
+  +-- OUT
+        SamplingParamsInput(
+          top_k=50,
+          top_p=0.9,
+          min_p=None,
+          temperature=0.2,
+          thinking_temperature=None,
+          frequency_penalty=None,
+          presence_penalty=None,
+          repetition_penalty=None,
+          max_new_tokens=32,
+          min_new_tokens=None,
+          ignore_eos=None,
+          stop=["\nUser:"],
+          stop_token_ids=None,
+          detokenize=None,
+          seed=42,
+          logits_processors=None,
+        )
+
+SamplingParams.from_input_and_generation_config(...)
+  |
+  +-- IN
+  |     SamplingParamsInput above
+  |     SamplingParamsGenerationConfigDefaults(
+  |       temperature=None,
+  |       top_p=None,
+  |       top_k=None,
+  |       repetition_penalty=None,
+  |       max_new_tokens=None,
+  |       min_new_tokens=None,
+  |       do_sample=None,
+  |       eos_token_id=None,
+  |     )
+  +-- STRUCTURES
+  |     final runtime SamplingParams dataclass
+  +-- LOGIC
+  |     request non-None values -> model explicit defaults -> class defaults
+  +-- OUT
+        SamplingParams(
+          top_k=50,
+          top_p=0.9,
+          min_p=0.0,
+          temperature=0.2,
+          thinking_temperature=None,
+          frequency_penalty=0.0,
+          presence_penalty=0.0,
+          repetition_penalty=1.0,
+          max_new_tokens=32,
+          min_new_tokens=0,
+          ignore_eos=False,
+          stop=["\nUser:"],
+          stop_token_ids=None,
+          detokenize=True,
+          seed=42,
+          logits_processors=None,
+        )
+
+TextGenerationRequest(...)
+  |
+  +-- IN
+  |     route/parser/sampling outputs above
+  +-- STRUCTURES
+  |     immutable MAX request dataclass
+  +-- LOGIC
+  |     remove HTTP-only response mode; preserve model-generation inputs
+  +-- OUT
+        TextGenerationRequest(
+          request_id=RequestID("req-chat-001"),
+          model_name="meta-llama/Llama-3.1-8B-Instruct",
+          prompt=None,
+          messages=[
+            TextGenerationRequestMessage(
+              role="system",
+              content="You are a concise assistant.",
+              tool_calls=None,
+              tool_call_id=None,
+              reasoning_content=None,
+            ),
+            TextGenerationRequestMessage(
+              role="user",
+              content="Explain KV cache in one sentence.",
+              tool_calls=None,
+              tool_call_id=None,
+              reasoning_content=None,
+            ),
+          ],
+          images=[],
+          videos=[],
+          decoded_images=[],
+          tools=None,
+          response_format=None,
+          timestamp_ns=1730000000000000000,
+          request_path="/v1/chat/completions",
+          logprobs=0,
+          echo=False,
+          chat_template_options=None,
+          sampling_params=SamplingParams(
+            top_k=50,
+            top_p=0.9,
+            min_p=0.0,
+            temperature=0.2,
+            thinking_temperature=None,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+            repetition_penalty=1.0,
+            max_new_tokens=32,
+            min_new_tokens=0,
+            ignore_eos=False,
+            stop=["\nUser:"],
+            stop_token_ids=None,
+            detokenize=True,
+            seed=42,
+            logits_processors=None,
+          ),
+          target_endpoint=None,
+          dkv_cache_hint=None,
+          cache_salt=None,
+        )
+</pre>
+
+</details>
+
+## 0.2 Actual Prompt Inputs, Rendered Prompt, And Token Buffer
+
+<details>
+<summary><strong>Expand: Message, string-prompt, and token-ID prompt forms</strong></summary>
+
+<pre>
+[CONCRETE] CHAT MESSAGES BRANCH
+  |
+  +-- IN
+  |     request.prompt = None
+  |     request.messages = [
+  |       TextGenerationRequestMessage(
+  |         role="system",
+  |         content="You are a concise assistant.",
+  |         tool_calls=None,
+  |         tool_call_id=None,
+  |         reasoning_content=None,
+  |       ),
+  |       TextGenerationRequestMessage(
+  |         role="user",
+  |         content="Explain KV cache in one sentence.",
+  |         tool_calls=None,
+  |         tool_call_id=None,
+  |         reasoning_content=None,
+  |       ),
+  |     ]
+  |     request.tools = None
+  |     request.chat_template_options = None
+  +-- STRUCTURES
+  |     list[TextGenerationRequestMessage]
+  +-- LOGIC
+  |     flatten messages -> apply model chat template -> tokenize
+  +-- OUT
+        flattened_messages = [
+          {
+            "role": "system",
+            "content": "You are a concise assistant.",
+          },
+          {
+            "role": "user",
+            "content": "Explain KV cache in one sentence.",
+          },
+        ]
+        |
+        v
+        [CONCRETE model-specific Llama prompt]
+        rendered_prompt =
+          "&lt;|begin_of_text|&gt;"
+          "&lt;|start_header_id|&gt;system&lt;|end_header_id|&gt;\n\n"
+          "Cutting Knowledge Date: December 2023\n"
+          "Today Date: 26 Jul 2024\n\n"
+          "You are a concise assistant.&lt;|eot_id|&gt;"
+          "&lt;|start_header_id|&gt;user&lt;|end_header_id|&gt;\n\n"
+          "Explain KV cache in one sentence.&lt;|eot_id|&gt;"
+          "&lt;|start_header_id|&gt;assistant&lt;|end_header_id|&gt;\n\n"
+        |
+        v
+        [CONCRETE repository Llama 3 tokenizer-fixture output]
+        token_ids = np.array([
+          128000,128006,9125,128007,271,38766,1303,33025,2696,25,6790,
+          220,2366,18,198,15724,2696,25,220,1627,10263,220,2366,19,271,
+          2675,527,264,64694,18328,13,128009,128006,882,128007,271,849,
+          21435,85748,6636,304,832,11914,13,128009,128006,78191,128007,271
+        ], dtype=np.int64)
+
+        token_pieces = [
+          "<|begin_of_text|>", "<|start_header_id|>", "system",
+          "<|end_header_id|>", "\n\n", "Cut", "ting", " Knowledge", " Date",
+          ":", " December", " ", "202", "3", "\n", "Today", " Date", ":",
+          " ", "26", " Jul", " ", "202", "4", "\n\n", "You", " are", " a",
+          " concise", " assistant", ".", "<|eot_id|>",
+          "<|start_header_id|>", "user", "<|end_header_id|>", "\n\n", "Ex",
+          "plain", " KV", " cache", " in", " one", " sentence", ".", "<|eot_id|>",
+          "<|start_header_id|>", "assistant", "<|end_header_id|>", "\n\n",
+        ]
+
+_generate_prompt_and_token_ids(...)
+  |
+  +-- IN
+  |     prompt=None + messages/tools/options above
+  +-- STRUCTURES
+  |     tuple[str, np.ndarray[int64]]
+  +-- LOGIC
+  |     choose messages branch; render then encode
+  +-- OUT
+        (
+          rendered_prompt,
+          np.array([
+            128000,128006,9125,128007,271,38766,1303,33025,2696,25,6790,
+            220,2366,18,198,15724,2696,25,220,1627,10263,220,2366,19,271,
+            2675,527,264,64694,18328,13,128009,128006,882,128007,271,849,
+            21435,85748,6636,304,832,11914,13,128009,128006,78191,128007,271
+          ], dtype=np.int64),
+        )
+
+TokenBuffer(token_ids)
+  |
+  +-- IN
+  |     token_ids: np.ndarray(shape=(49,), dtype=int64)
+  +-- STRUCTURES
+  |     one backing array + processing/completion ranges
+  +-- LOGIC
+  |     prompt is initially active; no generated token is ready to stream
+  +-- OUT
+        TokenBuffer(
+          array=np.array([
+            128000,128006,9125,128007,271,38766,1303,33025,2696,25,6790,
+            220,2366,18,198,15724,2696,25,220,1627,10263,220,2366,19,271,
+            2675,527,264,64694,18328,13,128009,128006,882,128007,271,849,
+            21435,85748,6636,304,832,11914,13,128009,128006,78191,128007,271
+          ], dtype=np.int64),
+          _processing_range=Range(start=0,end=49),
+          _processing_offset=0,
+          _completion_range=Range(start=49,end=49),
+          _prompt_length=49,
+          _current_length=49,
+          _actively_chunked=False,
+        )
+
+[CONCRETE] LEGACY COMPLETION STRING-PROMPT BRANCH
+  |
+  +-- IN
+  |     POST /v1/completions
+  |     {
+  |       "model": "meta-llama/Llama-3.1-8B-Instruct",
+  |       "prompt": "Explain KV cache directly.",
+  |       "temperature": 0.2,
+  |       "top_k": 50,
+  |       "top_p": 0.9,
+  |       "max_tokens": 32,
+  |       "seed": 42,
+  |       "stream": false
+  |     }
+  |     get_prompts_from_openai_request(...) = ["Explain KV cache directly."]
+  |     request.prompt = "Explain KV cache directly."
+  |     request.messages = []
+  +-- STRUCTURES
+  |     str prompt
+  +-- LOGIC
+  |     skip chat-template rendering; call encode(prompt, add_special_tokens=True)
+  +-- OUT
+        token_request.request_id = RequestID("req-completion-001_0")
+        token_request.prompt = "Explain KV cache directly."
+        token_request.messages = []
+        selected_prompt = "Explain KV cache directly."
+        [CONCRETE repository Llama 3 tokenizer-fixture output]
+        token_pieces = [
+          "<|begin_of_text|>", "Ex", "plain", " KV", " cache", " directly", "."
+        ]
+        token_ids = np.array(
+          [128000,849,21435,85748,6636,6089,13],
+          dtype=np.int64,
+        )
+
+[CONCRETE] LEGACY COMPLETION PRE-TOKENIZED PROMPT BRANCH
+  |
+  +-- IN
+  |     POST /v1/completions
+  |     {
+  |       "model": "meta-llama/Llama-3.1-8B-Instruct",
+  |       "prompt": [128000,128006,882,128007,271],
+  |       "temperature": 0.2,
+  |       "max_tokens": 32,
+  |       "seed": 42,
+  |       "stream": false
+  |     }
+  |     get_prompts_from_openai_request(...) = [
+  |       [128000,128006,882,128007,271]
+  |     ]
+  |     request.prompt = [128000,128006,882,128007,271]
+  |     request.messages = []
+  +-- STRUCTURES
+  |     Sequence[int]
+  +-- LOGIC
+  |     preserve supplied IDs; skip text tokenization and chat template
+  +-- OUT
+        token_request.request_id = RequestID("req-completion-002_0")
+        token_request.prompt = [128000,128006,882,128007,271]
+        token_request.messages = []
+        selected_prompt = [128000,128006,882,128007,271]
+        token_ids = np.array(
+          [128000,128006,882,128007,271],
+          dtype=np.int64,
+        )
+</pre>
+
+</details>
+
+## 0.3 Actual Tool Declaration, Tool Call, And Tool Result Values
+
+<details>
+<summary><strong>Expand: Complete tool-call request and response formats</strong></summary>
+
+<pre>
+[CONCRETE] TOOL-CALL HTTP REQUEST BODY
+  |
+  +-- IN
+  |     {
+  |       "model": "meta-llama/Llama-3.1-8B-Instruct",
+  |       "messages": [
+  |         {
+  |           "role": "user",
+  |           "content": "What is the weather in Colombo?"
+  |         }
+  |       ],
+  |       "tools": [
+  |         {
+  |           "type": "function",
+  |           "function": {
+  |             "name": "get_weather",
+  |             "description": "Return the current weather for a city.",
+  |             "parameters": {
+  |               "type": "object",
+  |               "properties": {
+  |                 "city": {
+  |                   "type": "string",
+  |                   "description": "City name, for example Colombo."
+  |                 },
+  |                 "unit": {
+  |                   "type": "string",
+  |                   "enum": ["celsius", "fahrenheit"]
+  |                 }
+  |               },
+  |               "required": ["city"],
+  |               "additionalProperties": false
+  |             },
+  |             "strict": true
+  |           }
+  |         }
+  |       ],
+  |       "tool_choice": "auto",
+  |       "temperature": 0,
+  |       "top_k": 1,
+  |       "top_p": 1.0,
+  |       "max_completion_tokens": 64,
+  |       "seed": 7,
+  |       "stream": false
+  |     }
+  +-- STRUCTURES
+  |     OpenAI ChatCompletionFunctionToolParam list
+  +-- LOGIC
+  |     parse tools -> normalize parameters -> convert to MAX tool dictionaries
+  +-- OUT
+        completion_request.tools = [
+          {
+            "type": "function",
+            "function": {
+              "name": "get_weather",
+              "description": "Return the current weather for a city.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string",
+                    "description": "City name, for example Colombo.",
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": ["celsius", "fahrenheit"],
+                  },
+                },
+                "required": ["city"],
+                "additionalProperties": False,
+              },
+              "strict": True,
+            },
+          },
+        ]
+
+_normalize_tools_parameters(completion_request.tools)
+  |
+  +-- IN
+  |     complete tool dictionary above
+  +-- STRUCTURES
+  |     copied outer tool + function + parameters dictionaries
+  +-- LOGIC
+  |     parameters is already a dict; copy it unchanged
+  +-- OUT
+        normalized_tools = [
+          {
+            "type": "function",
+            "function": {
+              "name": "get_weather",
+              "description": "Return the current weather for a city.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string",
+                    "description": "City name, for example Colombo.",
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": ["celsius", "fahrenheit"],
+                  },
+                },
+                "required": ["city"],
+                "additionalProperties": False,
+              },
+              "strict": True,
+            },
+          },
+        ]
+
+_convert_chat_completion_tools_to_token_generator_tools(...)
+  |
+  +-- IN
+  |     chat_tools = normalized_tools above
+  |     valid_tool_name_re = re.compile(r"^[a-zA-Z0-9_-]+$")
+  |     policy = DEFAULT_STRICT_FALSE_AND_BEST_EFFORT
+  +-- STRUCTURES
+  |     TextGenerationRequestTool + TextGenerationRequestFunction TypedDicts
+  +-- LOGIC
+  |     validate name; copy schema; resolve requested strict=True -> True
+  +-- OUT
+        token_generator_tools = [
+          {
+            "type": "function",
+            "function": {
+              "description": "Return the current weather for a city.",
+              "name": "get_weather",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string",
+                    "description": "City name, for example Colombo.",
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": ["celsius", "fahrenheit"],
+                  },
+                },
+                "required": ["city"],
+                "additionalProperties": False,
+              },
+              "strict": True,
+            },
+          },
+        ]
+
+TextGenerationRequest for tool use
+  |
+  +-- IN
+  |     request_messages = [
+  |       TextGenerationRequestMessage(
+  |         role="user",
+  |         content="What is the weather in Colombo?",
+  |         tool_calls=None,
+  |         tool_call_id=None,
+  |         reasoning_content=None,
+  |       )
+  |     ]
+  |     tools = token_generator_tools above
+  +-- STRUCTURES
+  |     TextGenerationRequest
+  +-- LOGIC
+  |     preserve tool menu for chat-template rendering and output parsing
+  +-- OUT
+        TextGenerationRequest(
+          request_id=RequestID("req-tools-001"),
+          model_name="meta-llama/Llama-3.1-8B-Instruct",
+          prompt=None,
+          messages=[
+            TextGenerationRequestMessage(
+              role="user",
+              content="What is the weather in Colombo?",
+              tool_calls=None,
+              tool_call_id=None,
+              reasoning_content=None,
+            )
+          ],
+          images=[],
+          videos=[],
+          decoded_images=[],
+          tools=token_generator_tools,
+          response_format=None,
+          timestamp_ns=1730000001000000000,
+          request_path="/v1/chat/completions",
+          logprobs=0,
+          echo=False,
+          chat_template_options=None,
+          sampling_params=SamplingParams(
+            top_k=1,
+            top_p=1.0,
+            min_p=0.0,
+            temperature=0.0,
+            thinking_temperature=None,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+            repetition_penalty=1.0,
+            max_new_tokens=64,
+            min_new_tokens=0,
+            ignore_eos=False,
+            stop=None,
+            stop_token_ids=None,
+            detokenize=True,
+            seed=7,
+            logits_processors=None,
+          ),
+          target_endpoint=None,
+          dkv_cache_hint=None,
+          cache_salt=None,
+        )
+
+tool-aware chat-template input
+  |
+  +-- IN
+  |     messages = [
+  |       {"role":"user","content":"What is the weather in Colombo?"}
+  |     ]
+  |     tools = token_generator_tools above
+  +-- STRUCTURES
+  |     tokenizer chat_template(messages, tools)
+  +-- LOGIC
+  |     exact placement/text is owned by the loaded model's chat template
+  +-- OUT
+        [CONCRETE repository Llama 3 tokenizer-fixture template output]
+        &lt;|begin_of_text|&gt;
+        &lt;|start_header_id|&gt;system&lt;|end_header_id|&gt;
+
+        Environment: ipython
+        Cutting Knowledge Date: December 2023
+        Today Date: 26 Jul 2024
+
+        &lt;|eot_id|&gt;&lt;|start_header_id|&gt;user&lt;|end_header_id|&gt;
+
+        Given the following functions, please respond with a JSON for a function call with its proper arguments that best answers the given prompt.
+
+        Respond in the format {"name": function name, "parameters": dictionary of argument name and its value}.Do not use variables.
+
+        {
+            "function": {
+                "description": "Return the current weather for a city.",
+                "name": "get_weather",
+                "parameters": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "city": {
+                            "description": "City name, for example Colombo.",
+                            "type": "string"
+                        },
+                        "unit": {
+                            "enum": [
+                                "celsius",
+                                "fahrenheit"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "city"
+                    ],
+                    "type": "object"
+                },
+                "strict": true
+            },
+            "type": "function"
+        }
+
+        What is the weather in Colombo?&lt;|eot_id|&gt;&lt;|start_header_id|&gt;assistant&lt;|end_header_id|&gt;
+
+        prompt_token_count = 239
+
+_resolve_grammar_constraints(...)
+  |
+  +-- IN
+  |     tools = token_generator_tools
+  |     tool_choice = "auto"
+  |     response_format = None
+  +-- STRUCTURES
+  |     tuple[tools | None, schema | None, bool, bool]
+  +-- LOGIC
+  |     auto tools without response format -> conditional grammar enforcement
+  +-- OUT
+        (
+          grammar_tools=token_generator_tools,
+          response_format_schema=None,
+          tools_forced=False,
+          enforce_from_start=False,
+        )
+        |
+        +-- configured parser implements generate_tool_call_grammar?
+              |
+              +-- no
+              |     +-- response_format remains None
+              |     +-- tool menu is still rendered into the prompt
+              |
+              +-- yes
+                    +-- TextGenerationResponseFormat(
+                          type="grammar",
+                          grammar=complete parser-generated grammar string,
+                          json_schema=None,
+                          grammar_enforced=False,
+                          tools_forced=False,
+                          requires_structured_output_flag=False,
+                          has_json_schema=False,
+                        )
+
+        [CONCRETE LlamaToolParser branch]
+        LlamaToolParser has no generate_tool_call_grammar method
+          -> response_format remains None
+          -> tool menu is rendered into the prompt
+
+[ILLUSTRATIVE MODEL OUTPUT, CONCRETE PARSER INPUT SHAPE]
+  |
+  +-- IN
+  |     response_message =
+  |       '{"name":"get_weather","parameters":{"city":"Colombo","unit":"celsius"}}'
+  +-- STRUCTURES
+  |     model-generated JSON text using Llama's name + parameters envelope
+  +-- LOGIC
+  |     LlamaToolParser.parse_complete uses parse_json_from_text(response_message)
+  +-- OUT
+        parsed_json_objects = [
+          {
+            "name": "get_weather",
+            "parameters": {
+              "city": "Colombo",
+              "unit": "celsius",
+            },
+          }
+        ]
+        completion_token_ids_with_eos = [
+          5018,609,3332,456,70464,2247,14105,23118,9103,
+          3332,6255,81487,2247,3928,3332,66,41347,32075,128009
+        ]
+
+LlamaToolParser.parse_complete(response_message)
+  |
+  +-- IN
+  |     parsed_json_objects above
+  +-- STRUCTURES
+  |     ParsedToolResponse + ParsedToolCall
+  +-- LOGIC
+  |     generate call ID; serialize parameters dict into arguments JSON string
+  +-- OUT
+        [ILLUSTRATIVE runtime UUID value]
+        ParsedToolResponse(
+          content=None,
+          tool_calls=[
+            ParsedToolCall(
+              id="call_7d8e9f0011223344",
+              name="get_weather",
+              arguments='{"city": "Colombo", "unit": "celsius"}',
+            )
+          ],
+        )
+
+OpenAIChatResponseGenerator._tool_response_to_choices(parsed)
+  |
+  +-- IN
+  |     ParsedToolResponse above
+  +-- STRUCTURES
+  |     ChatCompletionMessageToolCall inside ChatCompletionResponseChoice
+  +-- LOGIC
+  |     map ParsedToolCall fields to the OpenAI response schema
+  +-- OUT
+        ChatCompletionMessageToolCall(
+          id="call_7d8e9f0011223344",
+          type="function",
+          function={
+            "name": "get_weather",
+            "arguments": "{\"city\": \"Colombo\", \"unit\": \"celsius\"}",
+          },
+        )
+
+[ILLUSTRATIVE RUNTIME ID/TIME/TOKEN COUNTS; CONCRETE HTTP JSON SHAPE]
+  |
+  +-- IN
+  |     parsed tool call above + completed TokenGeneratorOutput chunks
+  +-- STRUCTURES
+  |     CreateChatCompletionResponse
+  +-- LOGIC
+  |     complete() emits finish_reason="tool_calls" and assistant content=""
+  +-- OUT
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {
+          "id": "req-tools-001",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "id": "call_7d8e9f0011223344",
+                    "type": "function",
+                    "function": {
+                      "name": "get_weather",
+                      "arguments": "{\"city\": \"Colombo\", \"unit\": \"celsius\"}"
+                    }
+                  }
+                ],
+                "function_call": null,
+                "refusal": ""
+              },
+              "finish_reason": "tool_calls",
+              "logprobs": {
+                "content": [],
+                "refusal": []
+              }
+            }
+          ],
+          "created": 1730000002,
+          "model": "meta-llama/Llama-3.1-8B-Instruct",
+          "object": "chat.completion",
+          "usage": {
+            "prompt_tokens": 239,
+            "completion_tokens": 19,
+            "total_tokens": 258,
+            "prompt_tokens_details": {"cached_tokens": 0},
+            "completion_tokens_details": {"reasoning_tokens": 0}
+          }
+        }
+
+[CONCRETE STREAMING LIMITATION FOR DEFAULT LLAMA PARSER]
+  |
+  +-- IN
+  |     stream=True + LlamaToolParser + generated tool JSON text
+  +-- STRUCTURES
+  |     LlamaToolParser._buffer: str
+  +-- LOGIC
+  |     parse_delta(delta) appends to _buffer and returns None
+  +-- OUT
+        no ChoiceDeltaToolCall objects are produced by this parser
+        generated JSON currently follows the normal delta.content path
+
+[CONCRETE] PARSED TOOL CALL FIELD MAPPING
+  |
+  +-- IN
+  |     parser output = {
+  |       "name": "get_weather",
+  |       "arguments": "{\"city\": \"Colombo\", \"unit\": \"celsius\"}"
+  |     }
+  +-- STRUCTURES
+  |     ChatCompletionMessageToolCall
+  +-- LOGIC
+  |     parser converts model-specific tool syntax to OpenAI tool-call fields
+  +-- OUT
+        ChatCompletionMessageToolCall(
+          id="call_7d8e9f0011223344",
+          type="function",
+          function={
+            "name": "get_weather",
+            "arguments": "{\"city\": \"Colombo\", \"unit\": \"celsius\"}",
+          },
+        )
+
+[CONCRETE] FOLLOW-UP REQUEST WITH TOOL RESULT
+  |
+  +-- IN
+  |     {
+  |       "model": "meta-llama/Llama-3.1-8B-Instruct",
+  |       "messages": [
+  |         {
+  |           "role": "user",
+  |           "content": "What is the weather in Colombo?"
+  |         },
+  |         {
+  |           "role": "assistant",
+  |           "content": null,
+  |           "tool_calls": [
+  |             {
+  |               "id": "call_7d8e9f0011223344",
+  |               "type": "function",
+  |               "function": {
+  |                 "name": "get_weather",
+  |                 "arguments": "{\"city\":\"Colombo\",\"unit\":\"celsius\"}"
+  |               }
+  |             }
+  |           ]
+  |         },
+  |         {
+  |           "role": "tool",
+  |           "tool_call_id": "call_7d8e9f0011223344",
+  |           "content": "{\"temperature\":29,\"unit\":\"celsius\",\"condition\":\"partly cloudy\"}"
+  |         }
+  |       ],
+  |       "tools": [
+  |         {
+  |           "type": "function",
+  |           "function": {
+  |             "name": "get_weather",
+  |             "description": "Return the current weather for a city.",
+  |             "parameters": {
+  |               "type": "object",
+  |               "properties": {
+  |                 "city": {"type": "string"},
+  |                 "unit": {
+  |                   "type": "string",
+  |                   "enum": ["celsius", "fahrenheit"]
+  |                 }
+  |               },
+  |               "required": ["city"],
+  |               "additionalProperties": false
+  |             },
+  |             "strict": true
+  |           }
+  |         }
+  |       ],
+  |       "tool_choice": "auto",
+  |       "stream": false
+  |     }
+  +-- STRUCTURES
+  |     assistant tool_calls history + matching tool response
+  +-- LOGIC
+  |     _validate_tool_message_consistency matches call_7d8e9f0011223344 to reply
+  +-- OUT
+        TextGenerationRequestMessage(
+          role="assistant",
+          content="",
+          tool_calls=[
+            {
+              "id": "call_7d8e9f0011223344",
+              "type": "function",
+              "function": {
+                "name": "get_weather",
+                "arguments": "{\"city\":\"Colombo\",\"unit\":\"celsius\"}",
+              },
+            }
+          ],
+          tool_call_id=None,
+          reasoning_content=None,
+        )
+        +
+        TextGenerationRequestMessage(
+          role="tool",
+          content="{\"temperature\":29,\"unit\":\"celsius\",\"condition\":\"partly cloudy\"}",
+          tool_calls=None,
+          tool_call_id="call_7d8e9f0011223344",
+          reasoning_content=None,
+        )
+</pre>
+
+</details>
+
+## 0.4 Actual JSON-Schema And Grammar Values
+
+<details>
+<summary><strong>Expand: Complete structured-output request and response formats</strong></summary>
+
+<pre>
+[CONCRETE] JSON-SCHEMA HTTP REQUEST BODY
+  |
+  +-- IN
+  |     {
+  |       "model": "meta-llama/Llama-3.1-8B-Instruct",
+  |       "messages": [
+  |         {
+  |           "role": "user",
+  |           "content": "Describe KV cache as JSON."
+  |         }
+  |       ],
+  |       "response_format": {
+  |         "type": "json_schema",
+  |         "json_schema": {
+  |           "name": "kv_cache_answer",
+  |           "strict": true,
+  |           "schema": {
+  |             "type": "object",
+  |             "properties": {
+  |               "answer": {"type": "string"},
+  |               "benefit": {"type": "string"}
+  |             },
+  |             "required": ["answer", "benefit"],
+  |             "additionalProperties": false
+  |           }
+  |         }
+  |       },
+  |       "temperature": 0,
+  |       "max_completion_tokens": 96,
+  |       "seed": 9,
+  |       "stream": false
+  |     }
+  +-- STRUCTURES
+  |     OpenAI ResponseFormatJSONSchema request dictionary
+  +-- LOGIC
+  |     require server enable_structured_output=True; extract nested schema
+  +-- OUT
+        completion_request.response_format = {
+          "type": "json_schema",
+          "json_schema": {
+            "name": "kv_cache_answer",
+            "strict": True,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "answer": {"type": "string"},
+                "benefit": {"type": "string"},
+              },
+              "required": ["answer", "benefit"],
+              "additionalProperties": False,
+            },
+          },
+        }
+
+_create_response_format(completion_request.response_format, True)
+  |
+  +-- IN
+  |     OpenAI response_format dictionary above
+  +-- STRUCTURES
+  |     TextGenerationResponseFormat
+  +-- LOGIC
+  |     discard OpenAI name/strict wrapper after extracting schema
+  |     mark schema enforcement active from first generated token
+  +-- OUT
+        TextGenerationResponseFormat(
+          type="json_schema",
+          json_schema={
+            "type": "object",
+            "properties": {
+              "answer": {"type": "string"},
+              "benefit": {"type": "string"},
+            },
+            "required": ["answer", "benefit"],
+            "additionalProperties": False,
+          },
+          grammar=None,
+          grammar_enforced=True,
+          tools_forced=False,
+          requires_structured_output_flag=True,
+          has_json_schema=True,
+        )
+
+tokenizer.new_context(request)
+  |
+  +-- IN
+  |     request.response_format = TextGenerationResponseFormat above
+  +-- STRUCTURES
+  |     serialized json_schema string + GrammarEnforcementState
+  +-- LOGIC
+  |     json.dumps(schema); initialize enforcement state
+  +-- OUT
+        json_schema = "{\"type\": \"object\", \"properties\": {\"answer\": {\"type\": \"string\"}, \"benefit\": {\"type\": \"string\"}}, \"required\": [\"answer\", \"benefit\"], \"additionalProperties\": false}"
+
+        grammar = None
+
+        grammar_state = GrammarEnforcementState(
+          grammar_enforced=True,
+          tools_forced=False,
+          requires_structured_output_flag=True,
+          has_json_schema=True,
+          dead_matcher_reported=False,
+          tool_region=None,
+          thinking_region_delimiters=None,
+          _in_thinking_region=False,
+          _tool_calling_match_buffer=[],
+          _thinking_match_buffer=[],
+        )
+
+structured-output matcher
+  |
+  +-- IN
+  |     schema above + tokenizer vocabulary
+  +-- STRUCTURES
+  |     grammar matcher + per-step token bitmask
+  +-- LOGIC
+  |     at each decode step, mask tokens that cannot continue valid schema JSON
+  +-- OUT
+        [ILLUSTRATIVE next-token decision]
+        generated_prefix = "{\"answer\":"
+        allowed_next_shapes = [JSON string opening quote]
+        masked_examples = ["]", "true", "123", "unexpected_property"]
+        selected_next_text = "\""
+
+[ILLUSTRATIVE] VALID MODEL CONTENT
+  |
+  +-- IN
+  |     constrained generated text
+  +-- STRUCTURES
+  |     one JSON object serialized as assistant content
+  +-- LOGIC
+  |     grammar prevents missing required keys and additional properties
+  +-- OUT
+        response_message = "{\"answer\":\"KV cache stores attention keys and values from earlier tokens.\",\"benefit\":\"It avoids recomputing prior attention states during decoding.\"}"
+        completion_token_ids_with_eos = [
+          5018,9399,3332,83807,6636,10756,6666,7039,323,2819,505,6931,
+          11460,48991,68244,275,3332,2181,55952,38301,631,287,4972,6666,
+          5415,2391,48216,1210,92,128009
+        ]
+
+OpenAIChatResponseGenerator.complete(...)
+  |
+  +-- IN
+  |     response_message above
+  +-- STRUCTURES
+  |     CreateChatCompletionResponse
+  +-- LOGIC
+  |     keep structured JSON as the assistant message content string
+  +-- OUT
+        [ILLUSTRATIVE runtime ID/time/token counts; concrete HTTP JSON shape]
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {
+          "id": "req-json-001",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\"answer\":\"KV cache stores attention keys and values from earlier tokens.\",\"benefit\":\"It avoids recomputing prior attention states during decoding.\"}",
+                "refusal": ""
+              },
+              "finish_reason": "stop",
+              "logprobs": {
+                "content": [],
+                "refusal": []
+              }
+            }
+          ],
+          "created": 1730000003,
+          "model": "meta-llama/Llama-3.1-8B-Instruct",
+          "object": "chat.completion",
+          "usage": {
+            "prompt_tokens": 41,
+            "completion_tokens": 30,
+            "total_tokens": 71,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0
+            }
+          }
+        }
+</pre>
+
+</details>
+
+## 0.5 Actual MAX Worker, Model, And HTTP Response Values
+
+<details>
+<summary><strong>Expand: Complete worker request, batch, output, and response formats</strong></summary>
+
+<pre>
+[CONCRETE] TextContext BEFORE WORKER HANDOFF
+  |
+  +-- IN
+  |     TextGenerationRequest + rendered prompt/token IDs from sections 0.1/0.2
+  +-- STRUCTURES
+  |     scheduler/model-oriented TextContext
+  +-- LOGIC
+  |     replace prompt/message representation with token/state representation
+  +-- OUT
+        TextContext(
+          request_id=RequestID("req-chat-001"),
+          max_length=81,
+          tokens=TokenBuffer(
+            array=np.array([
+              128000,128006,9125,128007,271,38766,1303,33025,2696,25,6790,
+              220,2366,18,198,15724,2696,25,220,1627,10263,220,2366,19,271,
+              2675,527,264,64694,18328,13,128009,128006,882,128007,271,849,
+              21435,85748,6636,304,832,11914,13,128009,128006,78191,128007,271
+            ], dtype=np.int64),
+            _processing_range=Range(start=0,end=49),
+            _processing_offset=0,
+            _completion_range=Range(start=49,end=49),
+            _prompt_length=49,
+            _current_length=49,
+            _actively_chunked=False,
+          ),
+          eos_tracker=EOSTracker(
+            eos_token_ids={128001,128008,128009},
+            eos_sequences=[[198,1502,25]],
+            eos_stop_strings=["\nUser:"],
+          ),
+          vocab_size=128256,
+          log_probabilities=0,
+          log_probabilities_echo=False,
+          ignore_eos=False,
+          json_schema=None,
+          grammar=None,
+          grammar_state=GrammarEnforcementState(
+            grammar_enforced=False,
+            tools_forced=False,
+            requires_structured_output_flag=False,
+            has_json_schema=False,
+            dead_matcher_reported=False,
+            tool_region=None,
+            thinking_region_delimiters=None,
+            _in_thinking_region=False,
+            _tool_calling_match_buffer=[],
+            _thinking_match_buffer=[],
+          ),
+          sampling_params=SamplingParams(
+            top_k=50,
+            top_p=0.9,
+            min_p=0.0,
+            temperature=0.2,
+            thinking_temperature=None,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+            repetition_penalty=1.0,
+            max_new_tokens=32,
+            min_new_tokens=0,
+            ignore_eos=False,
+            stop=["\nUser:"],
+            stop_token_ids=None,
+            detokenize=True,
+            seed=42,
+            logits_processors=None,
+          ),
+          model_name="meta-llama/Llama-3.1-8B-Instruct",
+          status=GenerationStatus.ACTIVE,
+          target_endpoint=None,
+          dkv_cache_hint=None,
+          cache_salt=None,
+          cached_prefix_length=None,
+        )
+
+request_queue.put(context)
+  |
+  +-- IN
+  |     TextContext above
+  +-- STRUCTURES
+  |     MAX queue payload typed as TextContext; not HTTP JSON
+  +-- LOGIC
+  |     queue serializer transfers the typed context API process -> worker process
+  +-- OUT
+        logical worker queue item = {
+          RequestID("req-chat-001"): TextContext above
+        }
+        raw ZeroMQ frames = [RUNTIME serializer/transport bytes]
+
+batch_constructor.construct_batch()
+  |
+  +-- IN
+  |     replica_0.ce_reqs = {
+  |       RequestID("req-chat-001"): TextContext above
+  |     }
+  |     replica_0.tg_reqs = {}
+  +-- STRUCTURES
+  |     ReplicaBatch -> TextGenerationInputs
+  +-- LOGIC
+  |     fresh generated_length=0 request is CE/prefill work
+  +-- OUT
+        TextGenerationInputs(
+          batches=[[TextContext(req-chat-001)]],
+          input_tokens=49,
+          context_tokens=0,
+          batch_type=BatchType.CE,
+          per_replica_input_tokens=[49],
+          per_replica_context_tokens=[0],
+        )
+
+Llama3BatchProcessor.prepare_initial_token_inputs(...)
+  |
+  +-- IN
+  |     replica_batches = [[TextContext(req-chat-001)]]
+  |     return_n_logits = 1
+  |     kv allocation = first request, no cached prefix
+  +-- STRUCTURES
+  |     packed device buffers + KVCacheInputsPerDevice
+  +-- LOGIC
+  |     flatten active tokens; build cumulative row offsets; attach KV metadata
+  +-- OUT
+        [CONCRETE request-derived buffers]
+        tokens = Buffer(
+          shape=[49],
+          dtype="int64",
+          device="gpu:0",
+          values=[
+            128000,128006,9125,128007,271,38766,1303,33025,2696,25,6790,
+            220,2366,18,198,15724,2696,25,220,1627,10263,220,2366,19,271,
+            2675,527,264,64694,18328,13,128009,128006,882,128007,271,849,
+            21435,85748,6636,304,832,11914,13,128009,128006,78191,128007,271
+          ],
+        )
+
+        input_row_offsets = Buffer(
+          shape=[2],
+          dtype="uint32",
+          device="gpu:0",
+          values=[0,49],
+        )
+
+        return_n_logits = Buffer(
+          shape=[1],
+          dtype="int64",
+          device="cpu",
+          values=[1],
+        )
+
+        [ILLUSTRATIVE allocator-selected block ID]
+        kv_cache_inputs = KVCacheInputsPerDevice(
+          kv_blocks=Buffer(
+            device="gpu:0",
+            shape=[RUNTIME model/cache configuration],
+            dtype=[RUNTIME KV dtype],
+            values=[RUNTIME model state],
+          ),
+          cache_lengths=Buffer(
+            shape=[1], dtype="uint32", device="gpu:0", values=[0]
+          ),
+          lookup_table=Buffer(
+            shape=[1,1], dtype="int32", device="gpu:0", values=[[7]]
+          ),
+          max_prompt_length=Buffer(
+            shape=[1], dtype="uint32", device="gpu:0", values=[49]
+          ),
+          max_cache_length=Buffer(
+            shape=[1], dtype="uint32", device="gpu:0", values=[49]
+          ),
+          page_stride=Buffer(
+            shape=[1], dtype="int64", device="gpu:0", values=[RUNTIME]
+          ),
+          kv_scales=None,
+          scales_page_stride=None,
+          scales_lookup_table=None,
+          attention_dispatch_metadata=None,
+          draft_attention_dispatch_metadata=None,
+          mla_num_partitions=None,
+          draft_mla_num_partitions=None,
+          kv_blocks_per_layer=None,
+          kv_scales_per_layer=None,
+        )
+
+        llama3_inputs = Llama3Inputs(
+          tokens=tokens,
+          input_row_offsets=input_row_offsets,
+          signal_buffers=[],
+          return_n_logits=return_n_logits,
+          data_parallel_splits=None,
+          kv_cache_inputs=kv_cache_inputs,
+        )
+
+self.model.execute(*llama3_inputs.buffers)
+  |
+  +-- IN
+  |     ordered buffers = (
+  |       tokens,
+  |       input_row_offsets,
+  |       return_n_logits,
+  |       *signal_buffers,
+  |       *tree.leaves(kv_cache_inputs),
+  |     )
+  +-- STRUCTURES
+  |     compiled Llama graph input ABI
+  +-- LOGIC
+  |     execute transformer graph; produce last-token vocabulary logits
+  +-- OUT
+        [RUNTIME full output]
+        raw_logits = Buffer(
+          shape=[1,128256],
+          dtype="float32",
+          device="gpu:0",
+          values=[128256 runtime-computed floats],
+        )
+
+        [ILLUSTRATIVE top-candidate view of that full buffer]
+        top_candidates = [
+          {"token_id":83807,"decoded":"KV","logit":8.40},
+          {"token_id":791,"decoded":"The","logit":7.95},
+          {"token_id":32,"decoded":"A","logit":7.31},
+          {"token_id":2675,"decoded":"You","logit":6.88}
+        ]
+
+process_ragged_kv_outputs(raw_graph_outputs)
+  |
+  +-- IN
+  |     raw logits Buffer above
+  +-- STRUCTURES
+  |     ModelOutputs
+  +-- LOGIC
+  |     map compiled output positions to named Python fields
+  +-- OUT
+        ModelOutputs(
+          logits=raw_logits,
+          next_token_logits=None,
+          logit_offsets=None,
+          hidden_states=None,
+        )
+
+FusedSamplingProcessor / compiled sampler
+  |
+  +-- IN
+  |     logits shape=[1,128256]
+  |     temperature=[0.2]
+  |     top_k=[50]
+  |     top_p=[0.9]
+  |     min_p=[0.0]
+  |     seed=[42]
+  +-- STRUCTURES
+  |     sampling parameter buffers + RNG state + token output Buffer
+  +-- LOGIC
+  |     filter candidate distribution and sample one token
+  +-- OUT
+        [ILLUSTRATIVE model-dependent]
+        generated_tokens_device = Buffer(
+          shape=[1], dtype="int64", device="gpu:0", values=[83807]
+        )
+        generated_tokens_host = np.array([83807], dtype=np.int64)
+
+update_context_and_prepare_responses(...)
+  |
+  +-- IN
+  |     context=req-chat-001
+  |     generated_tokens_host=[83807]
+  +-- STRUCTURES
+  |     updated TokenBuffer + TextGenerationOutput
+  +-- LOGIC
+  |     append token; advance status/grammar; expose unstreamed token delta
+  +-- OUT
+        context.tokens.generated = [83807]
+        context.status = GenerationStatus.ACTIVE
+
+        TextGenerationOutput(
+          request_id=RequestID("req-chat-001"),
+          tokens=[83807],
+          final_status=GenerationStatus.ACTIVE,
+          log_probabilities=None,
+          num_cached_tokens=0,
+        )
+
+SchedulerResult.create(output, batch_id=1)
+  |
+  +-- IN
+  |     TextGenerationOutput above
+  +-- STRUCTURES
+  |     msgspec SchedulerResult
+  +-- LOGIC
+  |     copy output completion state and stamp scheduler batch ID
+  +-- OUT
+        SchedulerResult(
+          is_done=False,
+          result=TextGenerationOutput(
+            request_id=RequestID("req-chat-001"),
+            tokens=[83807],
+            final_status=GenerationStatus.ACTIVE,
+            log_probabilities=None,
+            num_cached_tokens=0,
+          ),
+          error=None,
+          batch_id=1,
+        )
+
+response_queue.put_nowait(response_dict)
+  |
+  +-- IN
+  |     response_dict = {
+  |       RequestID("req-chat-001"): SchedulerResult above
+  |     }
+  +-- STRUCTURES
+  |     MAX worker -> API response queue payload; not OpenAI JSON
+  +-- LOGIC
+  |     serialize typed result map across process boundary
+  +-- OUT
+        API response_worker receives {
+          RequestID("req-chat-001"): SchedulerResult above
+        }
+
+TokenGeneratorPipeline._generate(...)
+  |
+  +-- IN
+  |     TextGenerationOutput(tokens=[83807], final_status=ACTIVE)
+  +-- STRUCTURES
+  |     buffered detokenizer + TokenGeneratorOutput
+  +-- LOGIC
+  |     decode token ID; attach request/batch/token-count metadata
+  +-- OUT
+        [ILLUSTRATIVE tokenizer-dependent decoding]
+        TokenGeneratorOutput(
+          status=GenerationStatus.ACTIVE,
+          decoded_tokens="KV",
+          decoded_reasoning_tokens=None,
+          token_count=1,
+          token_log_probabilities=None,
+          top_log_probabilities=None,
+          sampled_tokens=None,
+          prompt_token_count=49,
+          cached_token_count=0,
+          reasoning_token_count=0,
+          stop_sequence=None,
+          batch_id=1,
+          token_ids=[83807],
+          prompt_token_ids=np.array([
+            128000,128006,9125,128007,271,38766,1303,33025,2696,25,6790,
+            220,2366,18,198,15724,2696,25,220,1627,10263,220,2366,19,271,
+            2675,527,264,64694,18328,13,128009,128006,882,128007,271,849,
+            21435,85748,6636,304,832,11914,13,128009,128006,78191,128007,271
+          ], dtype=np.int64),
+        )
+
+[ILLUSTRATIVE] COMPLETE NORMAL-TEXT STREAM
+  |
+  +-- IN
+  |     decoded chunks = [
+  |       "KV cache",
+  |       " stores reusable attention keys and values from earlier tokens.",
+  |     ]
+  |     terminal status = END_OF_SEQUENCE
+  |     completion_token_ids =
+  |       [83807,6636,10756,62671,6666,7039,323,2819,505,6931,11460,13,128009]
+  |     prompt_tokens=49; completion_tokens=13; cached_tokens=0
+  +-- STRUCTURES
+  |     EventSourceResponse over OpenAI stream-response JSON strings
+  +-- LOGIC
+  |     one JSON object per SSE data frame; usage chunk; [DONE]
+  +-- OUT
+        HTTP/1.1 200 OK
+        Content-Type: text/event-stream; charset=utf-8
+
+        data: {"id":"req-chat-001","choices":[{"index":0,"delta":{"content":"KV cache","role":"assistant"}}],"created":1730000004,"model":"meta-llama/Llama-3.1-8B-Instruct","object":"chat.completion.chunk"}
+
+        data: {"id":"req-chat-001","choices":[{"index":0,"delta":{"content":" stores reusable attention keys and values from earlier tokens.","role":"assistant"}}],"created":1730000004,"model":"meta-llama/Llama-3.1-8B-Instruct","object":"chat.completion.chunk"}
+
+        data: {"id":"req-chat-001","choices":[{"index":0,"delta":{"content":""},"finish_reason":"stop"}],"created":1730000004,"model":"meta-llama/Llama-3.1-8B-Instruct","object":"chat.completion.chunk"}
+
+        data: {"id":"req-chat-001","choices":[],"created":1730000004,"model":"meta-llama/Llama-3.1-8B-Instruct","object":"chat.completion.chunk","usage":{"completion_tokens":13,"prompt_tokens":49,"total_tokens":62,"completion_tokens_details":{"reasoning_tokens":0},"prompt_tokens_details":{"cached_tokens":0}}}
+
+        data: [DONE]
+
+[ILLUSTRATIVE] COMPLETE NON-STREAMING RESPONSE FOR THE SAME TEXT
+  |
+  +-- IN
+  |     all TokenGeneratorOutput chunks collected by pipeline.all_tokens(...)
+  +-- STRUCTURES
+  |     CreateChatCompletionResponse
+  +-- LOGIC
+  |     concatenate decoded content; derive finish_reason; calculate usage
+  +-- OUT
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {
+          "id": "req-chat-001",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "KV cache stores reusable attention keys and values from earlier tokens.",
+                "tool_calls": null,
+                "function_call": null,
+                "refusal": ""
+              },
+              "finish_reason": "stop",
+              "logprobs": {
+                "content": [],
+                "refusal": []
+              }
+            }
+          ],
+          "created": 1730000004,
+          "model": "meta-llama/Llama-3.1-8B-Instruct",
+          "object": "chat.completion",
+          "usage": {
+            "prompt_tokens": 49,
+            "completion_tokens": 13,
+            "total_tokens": 62,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0
+            }
+          }
+        }
 </pre>
 
 </details>
@@ -907,7 +2631,7 @@ openai_create_chat_completion(...)
     |       |       |       |       +-- IN: prompt=None; two typed messages
     |       |       |       |       +-- STRUCTURES: rendered prompt string + np.ndarray token IDs
     |       |       |       |       +-- LOGIC: choose prompt branch or messages/chat-template branch
-    |       |       |       |       +-- OUT: prompt text + illustrative 28 token IDs
+    |       |       |       |       +-- OUT: prompt text + concrete 49 token IDs
     |       |       |       |       |
     |       |       |       |       +-- [BRANCH] prompt exists
     |       |       |       |       |     +-- IN: str or Sequence[int]
@@ -950,13 +2674,13 @@ openai_create_chat_completion(...)
     |       |       |       +-- max_tokens_to_generate(prompt_size, sampling_params, max_length)
     |       |       |       |     tokenizer.py:347
     |       |       |       |       |
-    |       |       |       |       +-- IN: prompt_size=28; requested=32; model limit
+    |       |       |       |       +-- IN: prompt_size=49; requested=32; model limit
     |       |       |       |       +-- STRUCTURES: integer length limits
     |       |       |       |       +-- LOGIC: clamp requested generation to remaining context window
     |       |       |       |       +-- OUT: 32
     |       |       |       |
     |       |       |       +-- TokenBuffer(token_ids)
-    |       |       |       |     +-- IN: illustrative 28 prompt IDs
+    |       |       |       |     +-- IN: concrete 49 prompt IDs
     |       |       |       |     +-- STRUCTURES: prompt/active/generated token windows
     |       |       |       |     +-- LOGIC: initialize mutable token lifecycle state
     |       |       |       |     +-- OUT: TokenBuffer(prompt=[...], generated=[])
@@ -1450,10 +3174,10 @@ openai_create_chat_completion(...)
                           |               |                     +-- _stage_ragged_token_inputs(context_batch)
                           |               |                     |     llama3/batch_processor.py:56
                           |               |                     |       |
-                          |               |                     |       +-- IN: [context] with active_length=28
+                          |               |                     |       +-- IN: [context] with active_length=49
                           |               |                     |       +-- STRUCTURES: pinned host/device token and offset buffers
                           |               |                     |       +-- LOGIC: concatenate active tokens; cumulative row offsets
-                          |               |                     |       +-- OUT: tokens Buffer(28); offsets Buffer([0,28]); host offsets
+                          |               |                     |       +-- OUT: tokens Buffer(49); offsets Buffer([0,49]); host offsets
                           |               |                     |
                           |               |                     +-- Buffer.from_numpy([return_n_logits])
                           |               |                     |     +-- IN: 1
@@ -1553,19 +3277,19 @@ openai_create_chat_completion(...)
                           |               |                   +-- IN: processed logits + graph inputs
                           |               |                   +-- STRUCTURES: compiled sampler
                           |               |                   +-- LOGIC: select one token under sampling policy
-                          |               |                   +-- OUT: illustrative token ID [41320]
+                          |               |                   +-- OUT: illustrative token ID [83807]
                           |               |                   |
                           |               |                   +-- [COMPILED] sampler(*graph_inputs)
                           |               |                         +-- IN: logits + sampling parameter buffers + RNG state
                           |               |                         +-- STRUCTURES: compiled sampling graph
                           |               |                         +-- LOGIC: normalize/filter/sample
-                          |               |                         +-- OUT: generated token device Buffer([41320])
+                          |               |                         +-- OUT: generated token device Buffer([83807])
                           |               |
                           |               +-- copy generated tokens device -> host
                           |               |     +-- IN: generated token device buffer
                           |               |     +-- STRUCTURES: host numpy/int array
                           |               |     +-- LOGIC: make token IDs available to Python context update
-                          |               |     +-- OUT: next_tokens=[41320]
+                          |               |     +-- OUT: next_tokens=[83807]
                           |               |
                           |               +-- update_context_and_prepare_responses(...)
                           |               |     pipeline_variants/utils.py:157
@@ -1573,13 +3297,13 @@ openai_create_chat_completion(...)
                           |               |       +-- IN: [context] + next_tokens + optional logprobs/steps
                           |               |       +-- STRUCTURES: mutable TextContext + TextGenerationOutput map
                           |               |       +-- LOGIC: append tokens -> advance grammar/status -> build outputs
-                          |               |       +-- OUT: {req-chat-001: TextGenerationOutput(tokens=[41320],final_status=ACTIVE)}
+                          |               |       +-- OUT: {req-chat-001: TextGenerationOutput(tokens=[83807],final_status=ACTIVE)}
                           |               |       |
                           |               |       +-- context.advance_token_buffer(...)
-                          |               |       |     +-- IN: token 41320 + generated steps
+                          |               |       |     +-- IN: token 83807 + generated steps
                           |               |       |     +-- STRUCTURES: TokenBuffer
                           |               |       |     +-- LOGIC: append generated token and advance processed windows
-                          |               |       |     +-- OUT: context.tokens.generated=[41320]
+                          |               |       |     +-- OUT: context.tokens.generated=[83807]
                           |               |       |
                           |               |       +-- context.advance_fsm(...)
                           |               |       |     +-- IN: generated token + grammar state
@@ -1591,7 +3315,7 @@ openai_create_chat_completion(...)
                           |               |             +-- IN: updated context delta/status/logprobs
                           |               |             +-- STRUCTURES: TextGenerationOutput
                           |               |             +-- LOGIC: expose only response-ready generation delta
-                          |               |             +-- OUT: TextGenerationOutput(tokens=[41320],final_status=ACTIVE)
+                          |               |             +-- OUT: TextGenerationOutput(tokens=[83807],final_status=ACTIVE)
                           |               |
                           |               +-- kv_manager.step(ctx)
                           |                     +-- IN: updated context and cache allocation
@@ -1706,7 +3430,7 @@ openai_create_chat_completion(...)
     |       |
     |       +-- [AWAIT] out_queue.get()
     |       |     +-- IN: routed queue
-    |       |     +-- OUT: SchedulerResult(is_done=False,result=&lt;token 41320 output&gt;,batch_id=1)
+    |       |     +-- OUT: SchedulerResult(is_done=False,result=&lt;token 83807 output&gt;,batch_id=1)
     |       |
     |       +-- coalesce already-buffered results
     |       |     +-- IN: first result + immediately available queue items
@@ -1745,7 +3469,7 @@ openai_create_chat_completion(...)
     |       |     +-- IN: one or more output deltas
     |       |     +-- STRUCTURES: merged token/status/logprob output
     |       |     +-- LOGIC: preserve ordered deltas from coalesced scheduler results
-    |       |     +-- OUT: merged output tokens=[41320]
+    |       |     +-- OUT: merged output tokens=[83807]
     |       |
     |       +-- optional reasoning_parser.stream(...)
     |       |     +-- IN: generated token/text stream
@@ -1753,8 +3477,8 @@ openai_create_chat_completion(...)
     |       |     +-- LOGIC: split model-specific thinking markers
     |       |     +-- OUT: content/reasoning tokens; skipped here
     |       |
-    |       +-- [AWAIT] content_detokenizer.decode([41320])
-    |       |     +-- IN: illustrative token IDs [41320]
+    |       +-- [AWAIT] content_detokenizer.decode([83807])
+    |       |     +-- IN: illustrative token IDs [83807]
     |       |     +-- STRUCTURES: incremental tokenizer byte/text buffer
     |       |     +-- LOGIC: decode only safe complete text suffix
     |       |     +-- OUT: illustrative "KV"
@@ -1862,7 +3586,7 @@ openai_create_chat_completion(...)
 <pre>
 new TextContext
     |
-    +-- IN: TokenBuffer(prompt=28 IDs, generated=[])
+    +-- IN: TokenBuffer(prompt=49 IDs, generated=[])
     +-- STRUCTURES: replica.ce_reqs
     +-- LOGIC: fresh requests begin as context-encoding/prefill work
     +-- OUT: CE queue entry
