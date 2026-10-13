@@ -22,6 +22,9 @@ Use this path as the main traversal for a single OpenAI-compatible text request:
 For the precise deep-recursive runtime call tree, including startup wiring,
 IPC boundaries, model execution, and the response path, read
 <strong><em><a href="0000_B_end_to_end_call_stack.md"><span style="color:#0b63ce">See end-to-end call stack: 0000_B_end_to_end_call_stack.md</span></a></em></strong>.
+For the same tree annotated with each function or step's inputs, outputs, data
+structures, and compact visual logic, read
+<strong><em><a href="0000_C_end_to_end_function_io_tree.md"><span style="color:#0b63ce">See end-to-end function I/O tree: 0000_C_end_to_end_function_io_tree.md</span></a></em></strong>.
 
 <details>
 <summary><strong>1. HTTP/OpenAI Ingress</strong> - <a href="../../../max/python/max/serve/router/openai_routes.py#L2217"><code>openai_routes.py</code></a></summary>

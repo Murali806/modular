@@ -6,6 +6,10 @@ Serve, from HTTP ingress to Llama model execution and back to the HTTP client.
 The tree is based on the current repository source and reconciles the focused
 notes and complete-code walkthroughs in this folder.
 
+For this same execution-order tree with compact `IN`, `STRUCTURES`, `LOGIC`,
+and `OUT` branches under each function or runtime step, read
+<strong><em><a href="0000_C_end_to_end_function_io_tree.md"><span style="color:#0b63ce">See end-to-end function I/O tree: 0000_C_end_to_end_function_io_tree.md</span></a></em></strong>.
+
 ## Scope
 
 The primary runtime path assumes:
@@ -1041,6 +1045,8 @@ explanations for nodes in the call tree:
 
 - Folder map:
   [0000_A_folder_structure.md](0000_A_folder_structure.md)
+- Function/step inputs, structures, logic, and outputs:
+  [0000_C_end_to_end_function_io_tree.md](0000_C_end_to_end_function_io_tree.md)
 - HTTP parsing:
   [0001_parse_openai_request_body.md](0001_parse_openai_request_body.md),
   [0001_A_1_parse_openai_request_body_http_ingress_and_parser.md](0001_A_1_parse_openai_request_body_http_ingress_and_parser.md),
