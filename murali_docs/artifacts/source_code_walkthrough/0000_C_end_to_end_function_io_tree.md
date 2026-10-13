@@ -1,1954 +1,461 @@
-# End-to-End Function I/O Tree: OpenAI Chat Request To Llama And Back
+# End-to-End Call Stack: OpenAI Chat Request To Llama And Back
 
-Companion to
-[0000_B_end_to_end_call_stack.md](0000_B_end_to_end_call_stack.md).
+This document traces one OpenAI-compatible chat-completion request through MAX
+Serve, from HTTP ingress to Llama model execution and back to the HTTP client.
 
-Every callable or meaningful runtime step keeps the same execution-order tree
-shape and adds four compact branches:
+The tree is based on the current repository source and reconciles the focused
+notes and complete-code walkthroughs in this folder.
+
+For this same execution-order tree with compact `IN`, `STRUCTURES`, `LOGIC`,
+and `OUT` branches under each function or runtime step, read
+<strong><em><a href="0000_C_end_to_end_function_io_tree.md"><span style="color:#0b63ce">See end-to-end function I/O tree: 0000_C_end_to_end_function_io_tree.md</span></a></em></strong>.
+
+## Scope
+
+The primary runtime path assumes:
+
+- `POST /v1/chat/completions`
+- `PipelineTask.TEXT_GENERATION`
+- the normal combined `prefill_and_decode` scheduler
+- `TextTokenizer`
+- `ZmqModelWorkerProxy`
+- `TextGenerationPipeline`
+- the Llama 3 graph model and `Llama3BatchProcessor`
+- one successfully admitted request
+
+Configuration-dependent alternatives are called out separately. In
+particular, disaggregated prefill/decode, speculative decoding, overlap
+scheduling, multimodal architectures, and non-Llama models replace parts of
+the worker-side tree.
+
+The recursion expands repository-owned code on this path. FastAPI, Starlette,
+asyncio, Pydantic internals, ZeroMQ transport internals, and compiled graph or
+device-kernel internals are named at their boundary but are not expanded as if
+they were ordinary Python calls in this repository.
+
+## Legend
 
 ```text
-call_or_step
-  |
-  +-- IN
-  +-- STRUCTURES
-  +-- LOGIC
-  +-- OUT
+[CALL]       ordinary Python call
+[AWAIT]      coroutine call suspended until its awaited work completes
+[ITERATE]    async generator is being consumed
+[FRAMEWORK]  FastAPI, Starlette, SSE, or asyncio invokes user code
+[IPC]        process/queue handoff; not a nested Python call
+[BACKGROUND] independently running task or worker loop
+[COMPILED]   execution crosses into a compiled MAX graph/runtime
+[BRANCH]     only one runtime branch is selected
 ```
 
-```text
-[CONCRETE]     complete value fixed by this request/config fixture
-[ILLUSTRATIVE] complete example value whose contents depend on the loaded model/runtime
-[RUNTIME]      exact structure shown; storage or large tensor contents exist only at runtime
+Inline links use the form `[Name:Lnn]`: `Name` is a shortened walkthrough
+name, and `Lnn` is the exact line where that function is explained.
 
-Tokenizer IDs marked concrete below were generated from:
-max/tests/integration/architectures/llama3/testdata/tokenizer.json
-EOS IDs use the companion testdata/config.json.
-```
+## Concrete Example Fixture Added To The Copied Call Stack
 
-## 0. Concrete Request And Data-Structure Spine
-
-<details>
-<summary><strong>Expand: Concrete request values used throughout the trees</strong></summary>
-
-<pre>
-HTTP request
-  |
-  +-- IN
-  |     method = "POST"
-  |     path = "/v1/chat/completions"
-  |     content-type = "application/json"
-  |     body = {
-  |       "model": "meta-llama/Llama-3.1-8B-Instruct",
-  |       "messages": [
-  |         {"role": "system", "content": "You are a concise assistant."},
-  |         {"role": "user", "content": "Explain KV cache in one sentence."}
-  |       ],
-  |       "temperature": 0.2,
-  |       "top_k": 50,
-  |       "top_p": 0.9,
-  |       "max_completion_tokens": 32,
-  |       "seed": 42,
-  |       "stop": "\nUser:",
-  |       "stream": true,
-  |       "stream_options": {"include_usage": true}
-  |     }
-  |
-  +-- STRUCTURES
-  |     Request.state.request_id = "req-chat-001"
-  |     Request.state.request_timer = StopWatch(start_ns=1730000000000000000)
-  |
-  +-- LOGIC
-  |     HTTP JSON -> typed OpenAI request -> internal generation request
-  |
-  +-- OUT
-        one streamed chat-completion response
-
-CreateChatCompletionRequest
-  |
-  +-- IN
-  |     parsed JSON dict above
-  +-- STRUCTURES
-  |     model = "meta-llama/Llama-3.1-8B-Instruct"
-  |     messages = [system message, user message]
-  |     temperature = 0.2
-  |     top_k = 50
-  |     top_p = 0.9
-  |     max_completion_tokens = 32
-  |     seed = 42
-  |     stop = "\nUser:"
-  |     stream = True
-  |     stream_options = {"include_usage": True}
-  |     tools = None
-  |     response_format = None
-  |     prompt_tokens = None
-  +-- LOGIC
-  |     Pydantic validates OpenAI fields and MAX extensions
-  +-- OUT
-        completion_request: CreateChatCompletionRequest
-
-_ParsedChatRequest
-  |
-  +-- IN
-  |     completion_request.messages
-  +-- STRUCTURES
-  |     messages = [
-  |       TextGenerationRequestMessage(
-  |         role="system", content="You are a concise assistant."
-  |       ),
-  |       TextGenerationRequestMessage(
-  |         role="user", content="Explain KV cache in one sentence."
-  |       )
-  |     ]
-  |     request_images = []
-  |     request_videos = []
-  |     decoded_images = []
-  +-- LOGIC
-  |     normalize roles/content; resolve no media
-  +-- OUT
-        request_messages + empty media lists
-
-SamplingParams
-  |
-  +-- IN
-  |     temperature=0.2, top_k=50, top_p=0.9,
-  |     max_new_tokens=32, stop=["\nUser:"], seed=42
-  +-- STRUCTURES
-  |     SamplingParams(
-  |       top_k=50,
-  |       top_p=0.9,
-  |       min_p=0.0,
-  |       temperature=0.2,
-  |       thinking_temperature=None,
-  |       frequency_penalty=0.0,
-  |       presence_penalty=0.0,
-  |       repetition_penalty=1.0,
-  |       max_new_tokens=32,
-  |       min_new_tokens=0,
-  |       ignore_eos=False,
-  |       stop=["\nUser:"],
-  |       stop_token_ids=None,
-  |       detokenize=True,
-  |       seed=42,
-  |       logits_processors=None
-  |     )
-  +-- LOGIC
-  |     request values override server/model defaults
-  +-- OUT
-        validated sampling_params
-
-TextGenerationRequest
-  |
-  +-- IN
-  |     request_id="req-chat-001"
-  |     model/messages/sampling values above
-  +-- STRUCTURES
-  |     prompt=None
-  |     messages=[typed system message, typed user message]
-  |     images=[]; videos=[]; tools=None; response_format=None
-  |     logprobs=0; request_path="/v1/chat/completions"
-  +-- LOGIC
-  |     reject prompt+messages conflict; verify media placeholders
-  +-- OUT
-        token_request: TextGenerationRequest
-
-TextContext
-  |
-  +-- IN
-  |     token_request + rendered/tokenized prompt
-  +-- STRUCTURES
-  |     request_id=RequestID("req-chat-001")
-  |     tokens=TokenBuffer(
-  |       prompt=[128000,128006,9125,128007,271,38766,1303,33025,2696,25,
-  |               6790,220,2366,18,198,15724,2696,25,220,1627,10263,220,
-  |               2366,19,271,2675,527,264,64694,18328,13,128009,128006,
-  |               882,128007,271,849,21435,85748,6636,304,832,11914,13,
-  |               128009,128006,78191,128007,271],
-  |       generated=[]
-  |     )
-  |     eos_tracker=EOSTracker(
-  |       eos_token_ids={128001,128008,128009},
-  |       eos_sequences=[[198,1502,25]],
-  |       eos_stop_strings=["\nUser:"]
-  |     )
-  |     max_length=81
-  |     vocab_size=128256
-  |     log_probabilities=0
-  |     log_probabilities_echo=False
-  |     json_schema=None
-  |     grammar=None
-  |     grammar_state=GrammarEnforcementState(
-  |       grammar_enforced=False,
-  |       tools_forced=False,
-  |       requires_structured_output_flag=False,
-  |       has_json_schema=False
-  |     )
-  |     sampling_params=SamplingParams(
-  |       top_k=50,
-  |       top_p=0.9,
-  |       min_p=0.0,
-  |       temperature=0.2,
-  |       thinking_temperature=None,
-  |       frequency_penalty=0.0,
-  |       presence_penalty=0.0,
-  |       repetition_penalty=1.0,
-  |       max_new_tokens=32,
-  |       min_new_tokens=0,
-  |       ignore_eos=False,
-  |       stop=["\nUser:"],
-  |       stop_token_ids=None,
-  |       detokenize=True,
-  |       seed=42,
-  |       logits_processors=None
-  |     )
-  |     model_name="meta-llama/Llama-3.1-8B-Instruct"
-  |     target_endpoint=None
-  |     dkv_cache_hint=None
-  |     cache_salt=None
-  +-- LOGIC
-  |     token IDs are illustrative and tokenizer-specific
-  +-- OUT
-        context ready for worker admission
-
-Worker/model structures
-  |
-  +-- IN
-  |     context
-  +-- STRUCTURES
-  |     TextGenerationInputs(
-  |       batches=[[context]],
-  |       input_tokens=49,
-  |       batch_type=BatchType.CE,
-  |       per_replica_input_tokens=[49],
-  |       per_replica_context_tokens=[0]
-  |     )
-  |     Llama3Inputs(
-  |       tokens=Buffer(shape=(49,), dtype=int64),
-  |       input_row_offsets=Buffer([0,49]),
-  |       signal_buffers=[],
-  |       return_n_logits=Buffer([1]),
-  |       data_parallel_splits=None,
-  |       kv_cache_inputs=KVCacheInputsPerDevice(
-  |         kv_blocks=Buffer(device="gpu:0", values=[RUNTIME]),
-  |         cache_lengths=Buffer([0]),
-  |         lookup_table=Buffer([[7]]),
-  |         max_prompt_length=Buffer([49]),
-  |         max_cache_length=Buffer([49]),
-  |         page_stride=Buffer([RUNTIME])
-  |       )
-  |     )
-  |     ModelOutputs(
-  |       logits=Buffer(shape=(1,128256), dtype=float32),
-  |       next_token_logits=None,
-  |       logit_offsets=None,
-  |       hidden_states=None
-  |     )
-  |     TextGenerationOutput(
-  |       request_id=RequestID("req-chat-001"),
-  |       tokens=[83807],
-  |       final_status=ACTIVE,
-  |       log_probabilities=None,
-  |       num_cached_tokens=0
-  |     )
-  |     SchedulerResult(
-  |       is_done=False,
-  |       result=TextGenerationOutput(
-  |         request_id=RequestID("req-chat-001"),
-  |         tokens=[83807],
-  |         final_status=ACTIVE,
-  |         log_probabilities=None,
-  |         num_cached_tokens=0
-  |       ),
-  |       error=None,
-  |       batch_id=1
-  |     )
-  +-- LOGIC
-  |     illustrative generated token 83807 -> decoded text fragment "KV"
-  |     illustrative request assumes no prefix-cache hit
-  +-- OUT
-        TokenGeneratorOutput(
-          status=ACTIVE,
-          decoded_tokens="KV",
-          decoded_reasoning_tokens=None,
-          token_count=1,
-          token_log_probabilities=None,
-          top_log_probabilities=None,
-          sampled_tokens=None,
-          prompt_token_count=49,
-          cached_token_count=0,
-          reasoning_token_count=0,
-          stop_sequence=None,
-          batch_id=1,
-          token_ids=[83807],
-          prompt_token_ids=[128000,128006,9125,128007,271,38766,1303,33025,
-                            2696,25,6790,220,2366,18,198,15724,2696,25,220,
-                            1627,10263,220,2366,19,271,2675,527,264,64694,
-                            18328,13,128009,128006,882,128007,271,849,21435,
-                            85748,6636,304,832,11914,13,128009,128006,78191,
-                            128007,271]
-        )
-</pre>
-
-</details>
-
-## 0.1 Actual HTTP, JSON, Pydantic, And MAX Request Values
+Every original line from `0000_B_end_to_end_call_stack.md` remains in this
+file. The function-details block beneath each unchanged tree uses these exact
+values. Token IDs and decoded token boundaries are complete illustrative
+values for the named Llama tokenizer because those values are model-version
+specific.
 
 <details>
-<summary><strong>Expand: Complete normal-text request transformations</strong></summary>
+<summary><strong>Expand: Concrete values referenced by every function example</strong></summary>
 
 <pre>
-[CONCRETE] HTTP wire request
-  |
-  +-- IN
-  |     POST /v1/chat/completions HTTP/1.1
-  |     Host: localhost:8000
-  |     Content-Type: application/json
-  |
-  |     {
-  |       "model": "meta-llama/Llama-3.1-8B-Instruct",
-  |       "messages": [
-  |         {
-  |           "role": "system",
-  |           "content": "You are a concise assistant."
-  |         },
-  |         {
-  |           "role": "user",
-  |           "content": "Explain KV cache in one sentence."
-  |         }
-  |       ],
-  |       "temperature": 0.2,
-  |       "top_k": 50,
-  |       "top_p": 0.9,
-  |       "max_completion_tokens": 32,
-  |       "seed": 42,
-  |       "stop": "\nUser:",
-  |       "stream": true,
-  |       "stream_options": {
-  |         "include_usage": true
-  |       }
-  |     }
-  |
-  +-- STRUCTURES
-  |     HTTP method/path/headers + UTF-8 JSON body
-  +-- LOGIC
-  |     Starlette stores the body until request.body() is awaited
-  +-- OUT
-        request: Request
-
-request.body()
-  |
-  +-- IN
-  |     request receive channel
-  +-- STRUCTURES
-  |     raw: bytes
-  +-- LOGIC
-  |     concatenate HTTP body chunks and cache the result
-  +-- OUT
-        raw = b'{"model":"meta-llama/Llama-3.1-8B-Instruct","messages":[{"role":"system","content":"You are a concise assistant."},{"role":"user","content":"Explain KV cache in one sentence."}],"temperature":0.2,"top_k":50,"top_p":0.9,"max_completion_tokens":32,"seed":42,"stop":"\\nUser:","stream":true,"stream_options":{"include_usage":true}}'
-
-json.loads(raw)
-  |
-  +-- IN
-  |     raw bytes above
-  +-- STRUCTURES
-  |     parsed: dict[str, object]
-  +-- LOGIC
-  |     decode UTF-8 JSON into Python values
-  +-- OUT
-        parsed = {
-          "model": "meta-llama/Llama-3.1-8B-Instruct",
-          "messages": [
-            {
-              "role": "system",
-              "content": "You are a concise assistant.",
-            },
-            {
-              "role": "user",
-              "content": "Explain KV cache in one sentence.",
-            },
-          ],
-          "temperature": 0.2,
-          "top_k": 50,
-          "top_p": 0.9,
-          "max_completion_tokens": 32,
-          "seed": 42,
-          "stop": "\nUser:",
-          "stream": True,
-          "stream_options": {"include_usage": True},
-        }
-
-CreateChatCompletionRequest.model_validate(parsed)
-  |
-  +-- IN
-  |     parsed dict above
-  +-- STRUCTURES
-  |     CreateChatCompletionRequest: Pydantic model
-  +-- LOGIC
-  |     validate OpenAI fields + MAX extensions + model validators
-  +-- OUT
-        completion_request.model_dump(
-          exclude_none=True,
-          exclude_defaults=True,
-        ) = {
-          "model": "meta-llama/Llama-3.1-8B-Instruct",
-          "messages": [
-            {
-              "role": "system",
-              "content": "You are a concise assistant.",
-            },
-            {
-              "role": "user",
-              "content": "Explain KV cache in one sentence.",
-            },
-          ],
-          "temperature": 0.2,
-          "top_k": 50,
-          "top_p": 0.9,
-          "max_completion_tokens": 32,
-          "seed": 42,
-          "stop": "\nUser:",
-          "stream": True,
-          "stream_options": {"include_usage": True},
-        }
-
-openai_parse_chat_completion_request(completion_request, ...)
-  |
-  +-- IN
-  |     completion_request.messages shown above
-  +-- STRUCTURES
-  |     _ParsedChatRequest: NamedTuple
-  +-- LOGIC
-  |     validate roles/tool history; create internal message models
-  +-- OUT
-        _ParsedChatRequest(
-          messages=[
-            TextGenerationRequestMessage(
-              role="system",
-              content="You are a concise assistant.",
-              tool_calls=None,
-              tool_call_id=None,
-              reasoning_content=None,
-            ),
-            TextGenerationRequestMessage(
-              role="user",
-              content="Explain KV cache in one sentence.",
-              tool_calls=None,
-              tool_call_id=None,
-              reasoning_content=None,
-            ),
-          ],
-          request_images=[],
-          request_videos=[],
-          decoded_images=[],
-        )
-
-SamplingParamsInput(...)
-  |
-  +-- IN
-  |     request fields + server defaults
-  +-- STRUCTURES
-  |     partial sampling input dataclass
-  +-- LOGIC
-  |     route maps max_completion_tokens -> max_new_tokens
-  |     route maps stop string -> one-item stop list
-  +-- OUT
-        SamplingParamsInput(
-          top_k=50,
-          top_p=0.9,
-          min_p=None,
-          temperature=0.2,
-          thinking_temperature=None,
-          frequency_penalty=None,
-          presence_penalty=None,
-          repetition_penalty=None,
-          max_new_tokens=32,
-          min_new_tokens=None,
-          ignore_eos=None,
-          stop=["\nUser:"],
-          stop_token_ids=None,
-          detokenize=None,
-          seed=42,
-          logits_processors=None,
-        )
-
-SamplingParams.from_input_and_generation_config(...)
-  |
-  +-- IN
-  |     SamplingParamsInput above
-  |     SamplingParamsGenerationConfigDefaults(
-  |       temperature=None,
-  |       top_p=None,
-  |       top_k=None,
-  |       repetition_penalty=None,
-  |       max_new_tokens=None,
-  |       min_new_tokens=None,
-  |       do_sample=None,
-  |       eos_token_id=None,
-  |     )
-  +-- STRUCTURES
-  |     final runtime SamplingParams dataclass
-  +-- LOGIC
-  |     request non-None values -> model explicit defaults -> class defaults
-  +-- OUT
-        SamplingParams(
-          top_k=50,
-          top_p=0.9,
-          min_p=0.0,
-          temperature=0.2,
-          thinking_temperature=None,
-          frequency_penalty=0.0,
-          presence_penalty=0.0,
-          repetition_penalty=1.0,
-          max_new_tokens=32,
-          min_new_tokens=0,
-          ignore_eos=False,
-          stop=["\nUser:"],
-          stop_token_ids=None,
-          detokenize=True,
-          seed=42,
-          logits_processors=None,
-        )
-
-TextGenerationRequest(...)
-  |
-  +-- IN
-  |     route/parser/sampling outputs above
-  +-- STRUCTURES
-  |     immutable MAX request dataclass
-  +-- LOGIC
-  |     remove HTTP-only response mode; preserve model-generation inputs
-  +-- OUT
-        TextGenerationRequest(
-          request_id=RequestID("req-chat-001"),
-          model_name="meta-llama/Llama-3.1-8B-Instruct",
-          prompt=None,
-          messages=[
-            TextGenerationRequestMessage(
-              role="system",
-              content="You are a concise assistant.",
-              tool_calls=None,
-              tool_call_id=None,
-              reasoning_content=None,
-            ),
-            TextGenerationRequestMessage(
-              role="user",
-              content="Explain KV cache in one sentence.",
-              tool_calls=None,
-              tool_call_id=None,
-              reasoning_content=None,
-            ),
-          ],
-          images=[],
-          videos=[],
-          decoded_images=[],
-          tools=None,
-          response_format=None,
-          timestamp_ns=1730000000000000000,
-          request_path="/v1/chat/completions",
-          logprobs=0,
-          echo=False,
-          chat_template_options=None,
-          sampling_params=SamplingParams(
-            top_k=50,
-            top_p=0.9,
-            min_p=0.0,
-            temperature=0.2,
-            thinking_temperature=None,
-            frequency_penalty=0.0,
-            presence_penalty=0.0,
-            repetition_penalty=1.0,
-            max_new_tokens=32,
-            min_new_tokens=0,
-            ignore_eos=False,
-            stop=["\nUser:"],
-            stop_token_ids=None,
-            detokenize=True,
-            seed=42,
-            logits_processors=None,
-          ),
-          target_endpoint=None,
-          dkv_cache_hint=None,
-          cache_salt=None,
-        )
-</pre>
-
-</details>
-
-## 0.2 Actual Prompt Inputs, Rendered Prompt, And Token Buffer
-
-<details>
-<summary><strong>Expand: Message, string-prompt, and token-ID prompt forms</strong></summary>
-
-<pre>
-[CONCRETE] CHAT MESSAGES BRANCH
-  |
-  +-- IN
-  |     request.prompt = None
-  |     request.messages = [
-  |       TextGenerationRequestMessage(
-  |         role="system",
-  |         content="You are a concise assistant.",
-  |         tool_calls=None,
-  |         tool_call_id=None,
-  |         reasoning_content=None,
-  |       ),
-  |       TextGenerationRequestMessage(
-  |         role="user",
-  |         content="Explain KV cache in one sentence.",
-  |         tool_calls=None,
-  |         tool_call_id=None,
-  |         reasoning_content=None,
-  |       ),
-  |     ]
-  |     request.tools = None
-  |     request.chat_template_options = None
-  +-- STRUCTURES
-  |     list[TextGenerationRequestMessage]
-  +-- LOGIC
-  |     flatten messages -> apply model chat template -> tokenize
-  +-- OUT
-        flattened_messages = [
-          {
-            "role": "system",
-            "content": "You are a concise assistant.",
-          },
-          {
-            "role": "user",
-            "content": "Explain KV cache in one sentence.",
-          },
-        ]
-        |
-        v
-        [CONCRETE model-specific Llama prompt]
-        rendered_prompt =
-          "&lt;|begin_of_text|&gt;"
-          "&lt;|start_header_id|&gt;system&lt;|end_header_id|&gt;\n\n"
-          "Cutting Knowledge Date: December 2023\n"
-          "Today Date: 26 Jul 2024\n\n"
-          "You are a concise assistant.&lt;|eot_id|&gt;"
-          "&lt;|start_header_id|&gt;user&lt;|end_header_id|&gt;\n\n"
-          "Explain KV cache in one sentence.&lt;|eot_id|&gt;"
-          "&lt;|start_header_id|&gt;assistant&lt;|end_header_id|&gt;\n\n"
-        |
-        v
-        [CONCRETE repository Llama 3 tokenizer-fixture output]
-        token_ids = np.array([
-          128000,128006,9125,128007,271,38766,1303,33025,2696,25,6790,
-          220,2366,18,198,15724,2696,25,220,1627,10263,220,2366,19,271,
-          2675,527,264,64694,18328,13,128009,128006,882,128007,271,849,
-          21435,85748,6636,304,832,11914,13,128009,128006,78191,128007,271
-        ], dtype=np.int64)
-
-        token_pieces = [
-          "<|begin_of_text|>", "<|start_header_id|>", "system",
-          "<|end_header_id|>", "\n\n", "Cut", "ting", " Knowledge", " Date",
-          ":", " December", " ", "202", "3", "\n", "Today", " Date", ":",
-          " ", "26", " Jul", " ", "202", "4", "\n\n", "You", " are", " a",
-          " concise", " assistant", ".", "<|eot_id|>",
-          "<|start_header_id|>", "user", "<|end_header_id|>", "\n\n", "Ex",
-          "plain", " KV", " cache", " in", " one", " sentence", ".", "<|eot_id|>",
-          "<|start_header_id|>", "assistant", "<|end_header_id|>", "\n\n",
-        ]
-
-_generate_prompt_and_token_ids(...)
-  |
-  +-- IN
-  |     prompt=None + messages/tools/options above
-  +-- STRUCTURES
-  |     tuple[str, np.ndarray[int64]]
-  +-- LOGIC
-  |     choose messages branch; render then encode
-  +-- OUT
-        (
-          rendered_prompt,
-          np.array([
-            128000,128006,9125,128007,271,38766,1303,33025,2696,25,6790,
-            220,2366,18,198,15724,2696,25,220,1627,10263,220,2366,19,271,
-            2675,527,264,64694,18328,13,128009,128006,882,128007,271,849,
-            21435,85748,6636,304,832,11914,13,128009,128006,78191,128007,271
-          ], dtype=np.int64),
-        )
-
-TokenBuffer(token_ids)
-  |
-  +-- IN
-  |     token_ids: np.ndarray(shape=(49,), dtype=int64)
-  +-- STRUCTURES
-  |     one backing array + processing/completion ranges
-  +-- LOGIC
-  |     prompt is initially active; no generated token is ready to stream
-  +-- OUT
-        TokenBuffer(
-          array=np.array([
-            128000,128006,9125,128007,271,38766,1303,33025,2696,25,6790,
-            220,2366,18,198,15724,2696,25,220,1627,10263,220,2366,19,271,
-            2675,527,264,64694,18328,13,128009,128006,882,128007,271,849,
-            21435,85748,6636,304,832,11914,13,128009,128006,78191,128007,271
-          ], dtype=np.int64),
-          _processing_range=Range(start=0,end=49),
-          _processing_offset=0,
-          _completion_range=Range(start=49,end=49),
-          _prompt_length=49,
-          _current_length=49,
-          _actively_chunked=False,
-        )
-
-[CONCRETE] LEGACY COMPLETION STRING-PROMPT BRANCH
-  |
-  +-- IN
-  |     POST /v1/completions
-  |     {
-  |       "model": "meta-llama/Llama-3.1-8B-Instruct",
-  |       "prompt": "Explain KV cache directly.",
-  |       "temperature": 0.2,
-  |       "top_k": 50,
-  |       "top_p": 0.9,
-  |       "max_tokens": 32,
-  |       "seed": 42,
-  |       "stream": false
-  |     }
-  |     get_prompts_from_openai_request(...) = ["Explain KV cache directly."]
-  |     request.prompt = "Explain KV cache directly."
-  |     request.messages = []
-  +-- STRUCTURES
-  |     str prompt
-  +-- LOGIC
-  |     skip chat-template rendering; call encode(prompt, add_special_tokens=True)
-  +-- OUT
-        token_request.request_id = RequestID("req-completion-001_0")
-        token_request.prompt = "Explain KV cache directly."
-        token_request.messages = []
-        selected_prompt = "Explain KV cache directly."
-        [CONCRETE repository Llama 3 tokenizer-fixture output]
-        token_pieces = [
-          "<|begin_of_text|>", "Ex", "plain", " KV", " cache", " directly", "."
-        ]
-        token_ids = np.array(
-          [128000,849,21435,85748,6636,6089,13],
-          dtype=np.int64,
-        )
-
-[CONCRETE] LEGACY COMPLETION PRE-TOKENIZED PROMPT BRANCH
-  |
-  +-- IN
-  |     POST /v1/completions
-  |     {
-  |       "model": "meta-llama/Llama-3.1-8B-Instruct",
-  |       "prompt": [128000,128006,882,128007,271],
-  |       "temperature": 0.2,
-  |       "max_tokens": 32,
-  |       "seed": 42,
-  |       "stream": false
-  |     }
-  |     get_prompts_from_openai_request(...) = [
-  |       [128000,128006,882,128007,271]
-  |     ]
-  |     request.prompt = [128000,128006,882,128007,271]
-  |     request.messages = []
-  +-- STRUCTURES
-  |     Sequence[int]
-  +-- LOGIC
-  |     preserve supplied IDs; skip text tokenization and chat template
-  +-- OUT
-        token_request.request_id = RequestID("req-completion-002_0")
-        token_request.prompt = [128000,128006,882,128007,271]
-        token_request.messages = []
-        selected_prompt = [128000,128006,882,128007,271]
-        token_ids = np.array(
-          [128000,128006,882,128007,271],
-          dtype=np.int64,
-        )
-</pre>
-
-</details>
-
-## 0.3 Actual Tool Declaration, Tool Call, And Tool Result Values
-
-<details>
-<summary><strong>Expand: Complete tool-call request and response formats</strong></summary>
-
-<pre>
-[CONCRETE] TOOL-CALL HTTP REQUEST BODY
-  |
-  +-- IN
-  |     {
-  |       "model": "meta-llama/Llama-3.1-8B-Instruct",
-  |       "messages": [
-  |         {
-  |           "role": "user",
-  |           "content": "What is the weather in Colombo?"
-  |         }
-  |       ],
-  |       "tools": [
-  |         {
-  |           "type": "function",
-  |           "function": {
-  |             "name": "get_weather",
-  |             "description": "Return the current weather for a city.",
-  |             "parameters": {
-  |               "type": "object",
-  |               "properties": {
-  |                 "city": {
-  |                   "type": "string",
-  |                   "description": "City name, for example Colombo."
-  |                 },
-  |                 "unit": {
-  |                   "type": "string",
-  |                   "enum": ["celsius", "fahrenheit"]
-  |                 }
-  |               },
-  |               "required": ["city"],
-  |               "additionalProperties": false
-  |             },
-  |             "strict": true
-  |           }
-  |         }
-  |       ],
-  |       "tool_choice": "auto",
-  |       "temperature": 0,
-  |       "top_k": 1,
-  |       "top_p": 1.0,
-  |       "max_completion_tokens": 64,
-  |       "seed": 7,
-  |       "stream": false
-  |     }
-  +-- STRUCTURES
-  |     OpenAI ChatCompletionFunctionToolParam list
-  +-- LOGIC
-  |     parse tools -> normalize parameters -> convert to MAX tool dictionaries
-  +-- OUT
-        completion_request.tools = [
-          {
-            "type": "function",
-            "function": {
-              "name": "get_weather",
-              "description": "Return the current weather for a city.",
-              "parameters": {
-                "type": "object",
-                "properties": {
-                  "city": {
-                    "type": "string",
-                    "description": "City name, for example Colombo.",
-                  },
-                  "unit": {
-                    "type": "string",
-                    "enum": ["celsius", "fahrenheit"],
-                  },
-                },
-                "required": ["city"],
-                "additionalProperties": False,
-              },
-              "strict": True,
-            },
-          },
-        ]
-
-_normalize_tools_parameters(completion_request.tools)
-  |
-  +-- IN
-  |     complete tool dictionary above
-  +-- STRUCTURES
-  |     copied outer tool + function + parameters dictionaries
-  +-- LOGIC
-  |     parameters is already a dict; copy it unchanged
-  +-- OUT
-        normalized_tools = [
-          {
-            "type": "function",
-            "function": {
-              "name": "get_weather",
-              "description": "Return the current weather for a city.",
-              "parameters": {
-                "type": "object",
-                "properties": {
-                  "city": {
-                    "type": "string",
-                    "description": "City name, for example Colombo.",
-                  },
-                  "unit": {
-                    "type": "string",
-                    "enum": ["celsius", "fahrenheit"],
-                  },
-                },
-                "required": ["city"],
-                "additionalProperties": False,
-              },
-              "strict": True,
-            },
-          },
-        ]
-
-_convert_chat_completion_tools_to_token_generator_tools(...)
-  |
-  +-- IN
-  |     chat_tools = normalized_tools above
-  |     valid_tool_name_re = re.compile(r"^[a-zA-Z0-9_-]+$")
-  |     policy = DEFAULT_STRICT_FALSE_AND_BEST_EFFORT
-  +-- STRUCTURES
-  |     TextGenerationRequestTool + TextGenerationRequestFunction TypedDicts
-  +-- LOGIC
-  |     validate name; copy schema; resolve requested strict=True -> True
-  +-- OUT
-        token_generator_tools = [
-          {
-            "type": "function",
-            "function": {
-              "description": "Return the current weather for a city.",
-              "name": "get_weather",
-              "parameters": {
-                "type": "object",
-                "properties": {
-                  "city": {
-                    "type": "string",
-                    "description": "City name, for example Colombo.",
-                  },
-                  "unit": {
-                    "type": "string",
-                    "enum": ["celsius", "fahrenheit"],
-                  },
-                },
-                "required": ["city"],
-                "additionalProperties": False,
-              },
-              "strict": True,
-            },
-          },
-        ]
-
-TextGenerationRequest for tool use
-  |
-  +-- IN
-  |     request_messages = [
-  |       TextGenerationRequestMessage(
-  |         role="user",
-  |         content="What is the weather in Colombo?",
-  |         tool_calls=None,
-  |         tool_call_id=None,
-  |         reasoning_content=None,
-  |       )
-  |     ]
-  |     tools = token_generator_tools above
-  +-- STRUCTURES
-  |     TextGenerationRequest
-  +-- LOGIC
-  |     preserve tool menu for chat-template rendering and output parsing
-  +-- OUT
-        TextGenerationRequest(
-          request_id=RequestID("req-tools-001"),
-          model_name="meta-llama/Llama-3.1-8B-Instruct",
-          prompt=None,
-          messages=[
-            TextGenerationRequestMessage(
-              role="user",
-              content="What is the weather in Colombo?",
-              tool_calls=None,
-              tool_call_id=None,
-              reasoning_content=None,
-            )
-          ],
-          images=[],
-          videos=[],
-          decoded_images=[],
-          tools=token_generator_tools,
-          response_format=None,
-          timestamp_ns=1730000001000000000,
-          request_path="/v1/chat/completions",
-          logprobs=0,
-          echo=False,
-          chat_template_options=None,
-          sampling_params=SamplingParams(
-            top_k=1,
-            top_p=1.0,
-            min_p=0.0,
-            temperature=0.0,
-            thinking_temperature=None,
-            frequency_penalty=0.0,
-            presence_penalty=0.0,
-            repetition_penalty=1.0,
-            max_new_tokens=64,
-            min_new_tokens=0,
-            ignore_eos=False,
-            stop=None,
-            stop_token_ids=None,
-            detokenize=True,
-            seed=7,
-            logits_processors=None,
-          ),
-          target_endpoint=None,
-          dkv_cache_hint=None,
-          cache_salt=None,
-        )
-
-tool-aware chat-template input
-  |
-  +-- IN
-  |     messages = [
-  |       {"role":"user","content":"What is the weather in Colombo?"}
-  |     ]
-  |     tools = token_generator_tools above
-  +-- STRUCTURES
-  |     tokenizer chat_template(messages, tools)
-  +-- LOGIC
-  |     exact placement/text is owned by the loaded model's chat template
-  +-- OUT
-        [CONCRETE repository Llama 3 tokenizer-fixture template output]
-        &lt;|begin_of_text|&gt;
-        &lt;|start_header_id|&gt;system&lt;|end_header_id|&gt;
-
-        Environment: ipython
-        Cutting Knowledge Date: December 2023
-        Today Date: 26 Jul 2024
-
-        &lt;|eot_id|&gt;&lt;|start_header_id|&gt;user&lt;|end_header_id|&gt;
-
-        Given the following functions, please respond with a JSON for a function call with its proper arguments that best answers the given prompt.
-
-        Respond in the format {"name": function name, "parameters": dictionary of argument name and its value}.Do not use variables.
-
-        {
-            "function": {
-                "description": "Return the current weather for a city.",
-                "name": "get_weather",
-                "parameters": {
-                    "additionalProperties": false,
-                    "properties": {
-                        "city": {
-                            "description": "City name, for example Colombo.",
-                            "type": "string"
-                        },
-                        "unit": {
-                            "enum": [
-                                "celsius",
-                                "fahrenheit"
-                            ],
-                            "type": "string"
-                        }
-                    },
-                    "required": [
-                        "city"
-                    ],
-                    "type": "object"
-                },
-                "strict": true
-            },
-            "type": "function"
-        }
-
-        What is the weather in Colombo?&lt;|eot_id|&gt;&lt;|start_header_id|&gt;assistant&lt;|end_header_id|&gt;
-
-        prompt_token_count = 239
-
-_resolve_grammar_constraints(...)
-  |
-  +-- IN
-  |     tools = token_generator_tools
-  |     tool_choice = "auto"
-  |     response_format = None
-  +-- STRUCTURES
-  |     tuple[tools | None, schema | None, bool, bool]
-  +-- LOGIC
-  |     auto tools without response format -> conditional grammar enforcement
-  +-- OUT
-        (
-          grammar_tools=token_generator_tools,
-          response_format_schema=None,
-          tools_forced=False,
-          enforce_from_start=False,
-        )
-        |
-        +-- configured parser implements generate_tool_call_grammar?
-              |
-              +-- no
-              |     +-- response_format remains None
-              |     +-- tool menu is still rendered into the prompt
-              |
-              +-- yes
-                    +-- TextGenerationResponseFormat(
-                          type="grammar",
-                          grammar=complete parser-generated grammar string,
-                          json_schema=None,
-                          grammar_enforced=False,
-                          tools_forced=False,
-                          requires_structured_output_flag=False,
-                          has_json_schema=False,
-                        )
-
-        [CONCRETE LlamaToolParser branch]
-        LlamaToolParser has no generate_tool_call_grammar method
-          -> response_format remains None
-          -> tool menu is rendered into the prompt
-
-[ILLUSTRATIVE MODEL OUTPUT, CONCRETE PARSER INPUT SHAPE]
-  |
-  +-- IN
-  |     response_message =
-  |       '{"name":"get_weather","parameters":{"city":"Colombo","unit":"celsius"}}'
-  +-- STRUCTURES
-  |     model-generated JSON text using Llama's name + parameters envelope
-  +-- LOGIC
-  |     LlamaToolParser.parse_complete uses parse_json_from_text(response_message)
-  +-- OUT
-        parsed_json_objects = [
-          {
-            "name": "get_weather",
-            "parameters": {
-              "city": "Colombo",
-              "unit": "celsius",
-            },
-          }
-        ]
-        completion_token_ids_with_eos = [
-          5018,609,3332,456,70464,2247,14105,23118,9103,
-          3332,6255,81487,2247,3928,3332,66,41347,32075,128009
-        ]
-
-LlamaToolParser.parse_complete(response_message)
-  |
-  +-- IN
-  |     parsed_json_objects above
-  +-- STRUCTURES
-  |     ParsedToolResponse + ParsedToolCall
-  +-- LOGIC
-  |     generate call ID; serialize parameters dict into arguments JSON string
-  +-- OUT
-        [ILLUSTRATIVE runtime UUID value]
-        ParsedToolResponse(
-          content=None,
-          tool_calls=[
-            ParsedToolCall(
-              id="call_7d8e9f0011223344",
-              name="get_weather",
-              arguments='{"city": "Colombo", "unit": "celsius"}',
-            )
-          ],
-        )
-
-OpenAIChatResponseGenerator._tool_response_to_choices(parsed)
-  |
-  +-- IN
-  |     ParsedToolResponse above
-  +-- STRUCTURES
-  |     ChatCompletionMessageToolCall inside ChatCompletionResponseChoice
-  +-- LOGIC
-  |     map ParsedToolCall fields to the OpenAI response schema
-  +-- OUT
-        ChatCompletionMessageToolCall(
-          id="call_7d8e9f0011223344",
-          type="function",
-          function={
-            "name": "get_weather",
-            "arguments": "{\"city\": \"Colombo\", \"unit\": \"celsius\"}",
-          },
-        )
-
-[ILLUSTRATIVE RUNTIME ID/TIME/TOKEN COUNTS; CONCRETE HTTP JSON SHAPE]
-  |
-  +-- IN
-  |     parsed tool call above + completed TokenGeneratorOutput chunks
-  +-- STRUCTURES
-  |     CreateChatCompletionResponse
-  +-- LOGIC
-  |     complete() emits finish_reason="tool_calls" and assistant content=""
-  +-- OUT
-        HTTP/1.1 200 OK
-        Content-Type: application/json
-
-        {
-          "id": "req-tools-001",
-          "choices": [
-            {
-              "index": 0,
-              "message": {
-                "role": "assistant",
-                "content": "",
-                "tool_calls": [
-                  {
-                    "id": "call_7d8e9f0011223344",
-                    "type": "function",
-                    "function": {
-                      "name": "get_weather",
-                      "arguments": "{\"city\": \"Colombo\", \"unit\": \"celsius\"}"
-                    }
-                  }
-                ],
-                "function_call": null,
-                "refusal": ""
-              },
-              "finish_reason": "tool_calls",
-              "logprobs": {
-                "content": [],
-                "refusal": []
-              }
-            }
-          ],
-          "created": 1730000002,
-          "model": "meta-llama/Llama-3.1-8B-Instruct",
-          "object": "chat.completion",
-          "usage": {
-            "prompt_tokens": 239,
-            "completion_tokens": 19,
-            "total_tokens": 258,
-            "prompt_tokens_details": {"cached_tokens": 0},
-            "completion_tokens_details": {"reasoning_tokens": 0}
-          }
-        }
-
-[CONCRETE STREAMING LIMITATION FOR DEFAULT LLAMA PARSER]
-  |
-  +-- IN
-  |     stream=True + LlamaToolParser + generated tool JSON text
-  +-- STRUCTURES
-  |     LlamaToolParser._buffer: str
-  +-- LOGIC
-  |     parse_delta(delta) appends to _buffer and returns None
-  +-- OUT
-        no ChoiceDeltaToolCall objects are produced by this parser
-        generated JSON currently follows the normal delta.content path
-
-[CONCRETE] PARSED TOOL CALL FIELD MAPPING
-  |
-  +-- IN
-  |     parser output = {
-  |       "name": "get_weather",
-  |       "arguments": "{\"city\": \"Colombo\", \"unit\": \"celsius\"}"
-  |     }
-  +-- STRUCTURES
-  |     ChatCompletionMessageToolCall
-  +-- LOGIC
-  |     parser converts model-specific tool syntax to OpenAI tool-call fields
-  +-- OUT
-        ChatCompletionMessageToolCall(
-          id="call_7d8e9f0011223344",
-          type="function",
-          function={
-            "name": "get_weather",
-            "arguments": "{\"city\": \"Colombo\", \"unit\": \"celsius\"}",
-          },
-        )
-
-[CONCRETE] FOLLOW-UP REQUEST WITH TOOL RESULT
-  |
-  +-- IN
-  |     {
-  |       "model": "meta-llama/Llama-3.1-8B-Instruct",
-  |       "messages": [
-  |         {
-  |           "role": "user",
-  |           "content": "What is the weather in Colombo?"
-  |         },
-  |         {
-  |           "role": "assistant",
-  |           "content": null,
-  |           "tool_calls": [
-  |             {
-  |               "id": "call_7d8e9f0011223344",
-  |               "type": "function",
-  |               "function": {
-  |                 "name": "get_weather",
-  |                 "arguments": "{\"city\":\"Colombo\",\"unit\":\"celsius\"}"
-  |               }
-  |             }
-  |           ]
-  |         },
-  |         {
-  |           "role": "tool",
-  |           "tool_call_id": "call_7d8e9f0011223344",
-  |           "content": "{\"temperature\":29,\"unit\":\"celsius\",\"condition\":\"partly cloudy\"}"
-  |         }
-  |       ],
-  |       "tools": [
-  |         {
-  |           "type": "function",
-  |           "function": {
-  |             "name": "get_weather",
-  |             "description": "Return the current weather for a city.",
-  |             "parameters": {
-  |               "type": "object",
-  |               "properties": {
-  |                 "city": {"type": "string"},
-  |                 "unit": {
-  |                   "type": "string",
-  |                   "enum": ["celsius", "fahrenheit"]
-  |                 }
-  |               },
-  |               "required": ["city"],
-  |               "additionalProperties": false
-  |             },
-  |             "strict": true
-  |           }
-  |         }
-  |       ],
-  |       "tool_choice": "auto",
-  |       "stream": false
-  |     }
-  +-- STRUCTURES
-  |     assistant tool_calls history + matching tool response
-  +-- LOGIC
-  |     _validate_tool_message_consistency matches call_7d8e9f0011223344 to reply
-  +-- OUT
-        TextGenerationRequestMessage(
-          role="assistant",
-          content="",
-          tool_calls=[
-            {
-              "id": "call_7d8e9f0011223344",
-              "type": "function",
-              "function": {
-                "name": "get_weather",
-                "arguments": "{\"city\":\"Colombo\",\"unit\":\"celsius\"}",
-              },
-            }
-          ],
-          tool_call_id=None,
-          reasoning_content=None,
-        )
-        +
-        TextGenerationRequestMessage(
-          role="tool",
-          content="{\"temperature\":29,\"unit\":\"celsius\",\"condition\":\"partly cloudy\"}",
-          tool_calls=None,
-          tool_call_id="call_7d8e9f0011223344",
-          reasoning_content=None,
-        )
-</pre>
-
-</details>
-
-## 0.4 Actual JSON-Schema And Grammar Values
-
-<details>
-<summary><strong>Expand: Complete structured-output request and response formats</strong></summary>
-
-<pre>
-[CONCRETE] JSON-SCHEMA HTTP REQUEST BODY
-  |
-  +-- IN
-  |     {
-  |       "model": "meta-llama/Llama-3.1-8B-Instruct",
-  |       "messages": [
-  |         {
-  |           "role": "user",
-  |           "content": "Describe KV cache as JSON."
-  |         }
-  |       ],
-  |       "response_format": {
-  |         "type": "json_schema",
-  |         "json_schema": {
-  |           "name": "kv_cache_answer",
-  |           "strict": true,
-  |           "schema": {
-  |             "type": "object",
-  |             "properties": {
-  |               "answer": {"type": "string"},
-  |               "benefit": {"type": "string"}
-  |             },
-  |             "required": ["answer", "benefit"],
-  |             "additionalProperties": false
-  |           }
-  |         }
-  |       },
-  |       "temperature": 0,
-  |       "max_completion_tokens": 96,
-  |       "seed": 9,
-  |       "stream": false
-  |     }
-  +-- STRUCTURES
-  |     OpenAI ResponseFormatJSONSchema request dictionary
-  +-- LOGIC
-  |     require server enable_structured_output=True; extract nested schema
-  +-- OUT
-        completion_request.response_format = {
-          "type": "json_schema",
-          "json_schema": {
-            "name": "kv_cache_answer",
-            "strict": True,
-            "schema": {
-              "type": "object",
-              "properties": {
-                "answer": {"type": "string"},
-                "benefit": {"type": "string"},
-              },
-              "required": ["answer", "benefit"],
-              "additionalProperties": False,
-            },
-          },
-        }
-
-_create_response_format(completion_request.response_format, True)
-  |
-  +-- IN
-  |     OpenAI response_format dictionary above
-  +-- STRUCTURES
-  |     TextGenerationResponseFormat
-  +-- LOGIC
-  |     discard OpenAI name/strict wrapper after extracting schema
-  |     mark schema enforcement active from first generated token
-  +-- OUT
-        TextGenerationResponseFormat(
-          type="json_schema",
-          json_schema={
-            "type": "object",
-            "properties": {
-              "answer": {"type": "string"},
-              "benefit": {"type": "string"},
-            },
-            "required": ["answer", "benefit"],
-            "additionalProperties": False,
-          },
-          grammar=None,
-          grammar_enforced=True,
-          tools_forced=False,
-          requires_structured_output_flag=True,
-          has_json_schema=True,
-        )
-
-tokenizer.new_context(request)
-  |
-  +-- IN
-  |     request.response_format = TextGenerationResponseFormat above
-  +-- STRUCTURES
-  |     serialized json_schema string + GrammarEnforcementState
-  +-- LOGIC
-  |     json.dumps(schema); initialize enforcement state
-  +-- OUT
-        json_schema = "{\"type\": \"object\", \"properties\": {\"answer\": {\"type\": \"string\"}, \"benefit\": {\"type\": \"string\"}}, \"required\": [\"answer\", \"benefit\"], \"additionalProperties\": false}"
-
-        grammar = None
-
-        grammar_state = GrammarEnforcementState(
-          grammar_enforced=True,
-          tools_forced=False,
-          requires_structured_output_flag=True,
-          has_json_schema=True,
-          dead_matcher_reported=False,
-          tool_region=None,
-          thinking_region_delimiters=None,
-          _in_thinking_region=False,
-          _tool_calling_match_buffer=[],
-          _thinking_match_buffer=[],
-        )
-
-structured-output matcher
-  |
-  +-- IN
-  |     schema above + tokenizer vocabulary
-  +-- STRUCTURES
-  |     grammar matcher + per-step token bitmask
-  +-- LOGIC
-  |     at each decode step, mask tokens that cannot continue valid schema JSON
-  +-- OUT
-        [ILLUSTRATIVE next-token decision]
-        generated_prefix = "{\"answer\":"
-        allowed_next_shapes = [JSON string opening quote]
-        masked_examples = ["]", "true", "123", "unexpected_property"]
-        selected_next_text = "\""
-
-[ILLUSTRATIVE] VALID MODEL CONTENT
-  |
-  +-- IN
-  |     constrained generated text
-  +-- STRUCTURES
-  |     one JSON object serialized as assistant content
-  +-- LOGIC
-  |     grammar prevents missing required keys and additional properties
-  +-- OUT
-        response_message = "{\"answer\":\"KV cache stores attention keys and values from earlier tokens.\",\"benefit\":\"It avoids recomputing prior attention states during decoding.\"}"
-        completion_token_ids_with_eos = [
-          5018,9399,3332,83807,6636,10756,6666,7039,323,2819,505,6931,
-          11460,48991,68244,275,3332,2181,55952,38301,631,287,4972,6666,
-          5415,2391,48216,1210,92,128009
-        ]
-
-OpenAIChatResponseGenerator.complete(...)
-  |
-  +-- IN
-  |     response_message above
-  +-- STRUCTURES
-  |     CreateChatCompletionResponse
-  +-- LOGIC
-  |     keep structured JSON as the assistant message content string
-  +-- OUT
-        [ILLUSTRATIVE runtime ID/time/token counts; concrete HTTP JSON shape]
-        HTTP/1.1 200 OK
-        Content-Type: application/json
-
-        {
-          "id": "req-json-001",
-          "choices": [
-            {
-              "index": 0,
-              "message": {
-                "role": "assistant",
-                "content": "{\"answer\":\"KV cache stores attention keys and values from earlier tokens.\",\"benefit\":\"It avoids recomputing prior attention states during decoding.\"}",
-                "refusal": ""
-              },
-              "finish_reason": "stop",
-              "logprobs": {
-                "content": [],
-                "refusal": []
-              }
-            }
-          ],
-          "created": 1730000003,
-          "model": "meta-llama/Llama-3.1-8B-Instruct",
-          "object": "chat.completion",
-          "usage": {
-            "prompt_tokens": 41,
-            "completion_tokens": 30,
-            "total_tokens": 71,
-            "prompt_tokens_details": {
-              "cached_tokens": 0
-            },
-            "completion_tokens_details": {
-              "reasoning_tokens": 0
-            }
-          }
-        }
-</pre>
-
-</details>
-
-## 0.5 Actual MAX Worker, Model, And HTTP Response Values
-
-<details>
-<summary><strong>Expand: Complete worker request, batch, output, and response formats</strong></summary>
-
-<pre>
-[CONCRETE] TextContext BEFORE WORKER HANDOFF
-  |
-  +-- IN
-  |     TextGenerationRequest + rendered prompt/token IDs from sections 0.1/0.2
-  +-- STRUCTURES
-  |     scheduler/model-oriented TextContext
-  +-- LOGIC
-  |     replace prompt/message representation with token/state representation
-  +-- OUT
-        TextContext(
-          request_id=RequestID("req-chat-001"),
-          max_length=81,
-          tokens=TokenBuffer(
-            array=np.array([
-              128000,128006,9125,128007,271,38766,1303,33025,2696,25,6790,
-              220,2366,18,198,15724,2696,25,220,1627,10263,220,2366,19,271,
-              2675,527,264,64694,18328,13,128009,128006,882,128007,271,849,
-              21435,85748,6636,304,832,11914,13,128009,128006,78191,128007,271
-            ], dtype=np.int64),
-            _processing_range=Range(start=0,end=49),
-            _processing_offset=0,
-            _completion_range=Range(start=49,end=49),
-            _prompt_length=49,
-            _current_length=49,
-            _actively_chunked=False,
-          ),
-          eos_tracker=EOSTracker(
-            eos_token_ids={128001,128008,128009},
-            eos_sequences=[[198,1502,25]],
-            eos_stop_strings=["\nUser:"],
-          ),
-          vocab_size=128256,
-          log_probabilities=0,
-          log_probabilities_echo=False,
-          ignore_eos=False,
-          json_schema=None,
-          grammar=None,
-          grammar_state=GrammarEnforcementState(
-            grammar_enforced=False,
-            tools_forced=False,
-            requires_structured_output_flag=False,
-            has_json_schema=False,
-            dead_matcher_reported=False,
-            tool_region=None,
-            thinking_region_delimiters=None,
-            _in_thinking_region=False,
-            _tool_calling_match_buffer=[],
-            _thinking_match_buffer=[],
-          ),
-          sampling_params=SamplingParams(
-            top_k=50,
-            top_p=0.9,
-            min_p=0.0,
-            temperature=0.2,
-            thinking_temperature=None,
-            frequency_penalty=0.0,
-            presence_penalty=0.0,
-            repetition_penalty=1.0,
-            max_new_tokens=32,
-            min_new_tokens=0,
-            ignore_eos=False,
-            stop=["\nUser:"],
-            stop_token_ids=None,
-            detokenize=True,
-            seed=42,
-            logits_processors=None,
-          ),
-          model_name="meta-llama/Llama-3.1-8B-Instruct",
-          status=GenerationStatus.ACTIVE,
-          target_endpoint=None,
-          dkv_cache_hint=None,
-          cache_salt=None,
-          cached_prefix_length=None,
-        )
-
-request_queue.put(context)
-  |
-  +-- IN
-  |     TextContext above
-  +-- STRUCTURES
-  |     MAX queue payload typed as TextContext; not HTTP JSON
-  +-- LOGIC
-  |     queue serializer transfers the typed context API process -> worker process
-  +-- OUT
-        logical worker queue item = {
-          RequestID("req-chat-001"): TextContext above
-        }
-        raw ZeroMQ frames = [RUNTIME serializer/transport bytes]
-
-batch_constructor.construct_batch()
-  |
-  +-- IN
-  |     replica_0.ce_reqs = {
-  |       RequestID("req-chat-001"): TextContext above
-  |     }
-  |     replica_0.tg_reqs = {}
-  +-- STRUCTURES
-  |     ReplicaBatch -> TextGenerationInputs
-  +-- LOGIC
-  |     fresh generated_length=0 request is CE/prefill work
-  +-- OUT
-        TextGenerationInputs(
-          batches=[[TextContext(req-chat-001)]],
-          input_tokens=49,
-          context_tokens=0,
-          batch_type=BatchType.CE,
-          per_replica_input_tokens=[49],
-          per_replica_context_tokens=[0],
-        )
-
-Llama3BatchProcessor.prepare_initial_token_inputs(...)
-  |
-  +-- IN
-  |     replica_batches = [[TextContext(req-chat-001)]]
-  |     return_n_logits = 1
-  |     kv allocation = first request, no cached prefix
-  +-- STRUCTURES
-  |     packed device buffers + KVCacheInputsPerDevice
-  +-- LOGIC
-  |     flatten active tokens; build cumulative row offsets; attach KV metadata
-  +-- OUT
-        [CONCRETE request-derived buffers]
-        tokens = Buffer(
-          shape=[49],
-          dtype="int64",
-          device="gpu:0",
-          values=[
-            128000,128006,9125,128007,271,38766,1303,33025,2696,25,6790,
-            220,2366,18,198,15724,2696,25,220,1627,10263,220,2366,19,271,
-            2675,527,264,64694,18328,13,128009,128006,882,128007,271,849,
-            21435,85748,6636,304,832,11914,13,128009,128006,78191,128007,271
-          ],
-        )
-
-        input_row_offsets = Buffer(
-          shape=[2],
-          dtype="uint32",
-          device="gpu:0",
-          values=[0,49],
-        )
-
-        return_n_logits = Buffer(
-          shape=[1],
-          dtype="int64",
-          device="cpu",
-          values=[1],
-        )
-
-        [ILLUSTRATIVE allocator-selected block ID]
-        kv_cache_inputs = KVCacheInputsPerDevice(
-          kv_blocks=Buffer(
-            device="gpu:0",
-            shape=[RUNTIME model/cache configuration],
-            dtype=[RUNTIME KV dtype],
-            values=[RUNTIME model state],
-          ),
-          cache_lengths=Buffer(
-            shape=[1], dtype="uint32", device="gpu:0", values=[0]
-          ),
-          lookup_table=Buffer(
-            shape=[1,1], dtype="int32", device="gpu:0", values=[[7]]
-          ),
-          max_prompt_length=Buffer(
-            shape=[1], dtype="uint32", device="gpu:0", values=[49]
-          ),
-          max_cache_length=Buffer(
-            shape=[1], dtype="uint32", device="gpu:0", values=[49]
-          ),
-          page_stride=Buffer(
-            shape=[1], dtype="int64", device="gpu:0", values=[RUNTIME]
-          ),
-          kv_scales=None,
-          scales_page_stride=None,
-          scales_lookup_table=None,
-          attention_dispatch_metadata=None,
-          draft_attention_dispatch_metadata=None,
-          mla_num_partitions=None,
-          draft_mla_num_partitions=None,
-          kv_blocks_per_layer=None,
-          kv_scales_per_layer=None,
-        )
-
-        llama3_inputs = Llama3Inputs(
-          tokens=tokens,
-          input_row_offsets=input_row_offsets,
-          signal_buffers=[],
-          return_n_logits=return_n_logits,
-          data_parallel_splits=None,
-          kv_cache_inputs=kv_cache_inputs,
-        )
-
-self.model.execute(*llama3_inputs.buffers)
-  |
-  +-- IN
-  |     ordered buffers = (
-  |       tokens,
-  |       input_row_offsets,
-  |       return_n_logits,
-  |       *signal_buffers,
-  |       *tree.leaves(kv_cache_inputs),
-  |     )
-  +-- STRUCTURES
-  |     compiled Llama graph input ABI
-  +-- LOGIC
-  |     execute transformer graph; produce last-token vocabulary logits
-  +-- OUT
-        [RUNTIME full output]
-        raw_logits = Buffer(
-          shape=[1,128256],
-          dtype="float32",
-          device="gpu:0",
-          values=[128256 runtime-computed floats],
-        )
-
-        [ILLUSTRATIVE top-candidate view of that full buffer]
-        top_candidates = [
-          {"token_id":83807,"decoded":"KV","logit":8.40},
-          {"token_id":791,"decoded":"The","logit":7.95},
-          {"token_id":32,"decoded":"A","logit":7.31},
-          {"token_id":2675,"decoded":"You","logit":6.88}
-        ]
-
-process_ragged_kv_outputs(raw_graph_outputs)
-  |
-  +-- IN
-  |     raw logits Buffer above
-  +-- STRUCTURES
-  |     ModelOutputs
-  +-- LOGIC
-  |     map compiled output positions to named Python fields
-  +-- OUT
-        ModelOutputs(
-          logits=raw_logits,
-          next_token_logits=None,
-          logit_offsets=None,
-          hidden_states=None,
-        )
-
-FusedSamplingProcessor / compiled sampler
-  |
-  +-- IN
-  |     logits shape=[1,128256]
-  |     temperature=[0.2]
-  |     top_k=[50]
-  |     top_p=[0.9]
-  |     min_p=[0.0]
-  |     seed=[42]
-  +-- STRUCTURES
-  |     sampling parameter buffers + RNG state + token output Buffer
-  +-- LOGIC
-  |     filter candidate distribution and sample one token
-  +-- OUT
-        [ILLUSTRATIVE model-dependent]
-        generated_tokens_device = Buffer(
-          shape=[1], dtype="int64", device="gpu:0", values=[83807]
-        )
-        generated_tokens_host = np.array([83807], dtype=np.int64)
-
-update_context_and_prepare_responses(...)
-  |
-  +-- IN
-  |     context=req-chat-001
-  |     generated_tokens_host=[83807]
-  +-- STRUCTURES
-  |     updated TokenBuffer + TextGenerationOutput
-  +-- LOGIC
-  |     append token; advance status/grammar; expose unstreamed token delta
-  +-- OUT
-        context.tokens.generated = [83807]
-        context.status = GenerationStatus.ACTIVE
-
-        TextGenerationOutput(
-          request_id=RequestID("req-chat-001"),
-          tokens=[83807],
-          final_status=GenerationStatus.ACTIVE,
-          log_probabilities=None,
-          num_cached_tokens=0,
-        )
-
-SchedulerResult.create(output, batch_id=1)
-  |
-  +-- IN
-  |     TextGenerationOutput above
-  +-- STRUCTURES
-  |     msgspec SchedulerResult
-  +-- LOGIC
-  |     copy output completion state and stamp scheduler batch ID
-  +-- OUT
-        SchedulerResult(
-          is_done=False,
-          result=TextGenerationOutput(
-            request_id=RequestID("req-chat-001"),
-            tokens=[83807],
-            final_status=GenerationStatus.ACTIVE,
-            log_probabilities=None,
-            num_cached_tokens=0,
-          ),
-          error=None,
-          batch_id=1,
-        )
-
-response_queue.put_nowait(response_dict)
-  |
-  +-- IN
-  |     response_dict = {
-  |       RequestID("req-chat-001"): SchedulerResult above
-  |     }
-  +-- STRUCTURES
-  |     MAX worker -> API response queue payload; not OpenAI JSON
-  +-- LOGIC
-  |     serialize typed result map across process boundary
-  +-- OUT
-        API response_worker receives {
-          RequestID("req-chat-001"): SchedulerResult above
-        }
-
-TokenGeneratorPipeline._generate(...)
-  |
-  +-- IN
-  |     TextGenerationOutput(tokens=[83807], final_status=ACTIVE)
-  +-- STRUCTURES
-  |     buffered detokenizer + TokenGeneratorOutput
-  +-- LOGIC
-  |     decode token ID; attach request/batch/token-count metadata
-  +-- OUT
-        [ILLUSTRATIVE tokenizer-dependent decoding]
-        TokenGeneratorOutput(
-          status=GenerationStatus.ACTIVE,
-          decoded_tokens="KV",
-          decoded_reasoning_tokens=None,
-          token_count=1,
-          token_log_probabilities=None,
-          top_log_probabilities=None,
-          sampled_tokens=None,
-          prompt_token_count=49,
-          cached_token_count=0,
-          reasoning_token_count=0,
-          stop_sequence=None,
-          batch_id=1,
-          token_ids=[83807],
-          prompt_token_ids=np.array([
-            128000,128006,9125,128007,271,38766,1303,33025,2696,25,6790,
-            220,2366,18,198,15724,2696,25,220,1627,10263,220,2366,19,271,
-            2675,527,264,64694,18328,13,128009,128006,882,128007,271,849,
-            21435,85748,6636,304,832,11914,13,128009,128006,78191,128007,271
-          ], dtype=np.int64),
-        )
-
-[ILLUSTRATIVE] COMPLETE NORMAL-TEXT STREAM
-  |
-  +-- IN
-  |     decoded chunks = [
-  |       "KV cache",
-  |       " stores reusable attention keys and values from earlier tokens.",
-  |     ]
-  |     terminal status = END_OF_SEQUENCE
-  |     completion_token_ids =
-  |       [83807,6636,10756,62671,6666,7039,323,2819,505,6931,11460,13,128009]
-  |     prompt_tokens=49; completion_tokens=13; cached_tokens=0
-  +-- STRUCTURES
-  |     EventSourceResponse over OpenAI stream-response JSON strings
-  +-- LOGIC
-  |     one JSON object per SSE data frame; usage chunk; [DONE]
-  +-- OUT
-        HTTP/1.1 200 OK
-        Content-Type: text/event-stream; charset=utf-8
-
-        data: {"id":"req-chat-001","choices":[{"index":0,"delta":{"content":"KV cache","role":"assistant"}}],"created":1730000004,"model":"meta-llama/Llama-3.1-8B-Instruct","object":"chat.completion.chunk"}
-
-        data: {"id":"req-chat-001","choices":[{"index":0,"delta":{"content":" stores reusable attention keys and values from earlier tokens.","role":"assistant"}}],"created":1730000004,"model":"meta-llama/Llama-3.1-8B-Instruct","object":"chat.completion.chunk"}
-
-        data: {"id":"req-chat-001","choices":[{"index":0,"delta":{"content":""},"finish_reason":"stop"}],"created":1730000004,"model":"meta-llama/Llama-3.1-8B-Instruct","object":"chat.completion.chunk"}
-
-        data: {"id":"req-chat-001","choices":[],"created":1730000004,"model":"meta-llama/Llama-3.1-8B-Instruct","object":"chat.completion.chunk","usage":{"completion_tokens":13,"prompt_tokens":49,"total_tokens":62,"completion_tokens_details":{"reasoning_tokens":0},"prompt_tokens_details":{"cached_tokens":0}}}
-
-        data: [DONE]
-
-[ILLUSTRATIVE] COMPLETE NON-STREAMING RESPONSE FOR THE SAME TEXT
-  |
-  +-- IN
-  |     all TokenGeneratorOutput chunks collected by pipeline.all_tokens(...)
-  +-- STRUCTURES
-  |     CreateChatCompletionResponse
-  +-- LOGIC
-  |     concatenate decoded content; derive finish_reason; calculate usage
-  +-- OUT
-        HTTP/1.1 200 OK
-        Content-Type: application/json
-
-        {
-          "id": "req-chat-001",
-          "choices": [
-            {
-              "index": 0,
-              "message": {
-                "role": "assistant",
-                "content": "KV cache stores reusable attention keys and values from earlier tokens.",
-                "tool_calls": null,
-                "function_call": null,
-                "refusal": ""
-              },
-              "finish_reason": "stop",
-              "logprobs": {
-                "content": [],
-                "refusal": []
-              }
-            }
-          ],
-          "created": 1730000004,
-          "model": "meta-llama/Llama-3.1-8B-Instruct",
-          "object": "chat.completion",
-          "usage": {
-            "prompt_tokens": 49,
-            "completion_tokens": 13,
-            "total_tokens": 62,
-            "prompt_tokens_details": {
-              "cached_tokens": 0
-            },
-            "completion_tokens_details": {
-              "reasoning_tokens": 0
-            }
-          }
-        }
+FIXTURE.http_request
+  method = "POST"
+  path = "/v1/chat/completions"
+  headers = {
+    "content-type": "application/json",
+    "x-request-id": "req-chat-001"
+  }
+  body = {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+      {"role": "system", "content": "You are a concise assistant."},
+      {"role": "user", "content": "Explain KV cache in one sentence."}
+    ],
+    "temperature": 0.2,
+    "top_k": 50,
+    "top_p": 0.9,
+    "max_completion_tokens": 32,
+    "seed": 42,
+    "stop": "\nUser:",
+    "stream": true,
+    "stream_options": {"include_usage": true}
+  }
+
+FIXTURE.raw_body
+  b'{"model":"meta-llama/Llama-3.1-8B-Instruct","messages":[{"role":"system","content":"You are a concise assistant."},{"role":"user","content":"Explain KV cache in one sentence."}],"temperature":0.2,"top_k":50,"top_p":0.9,"max_completion_tokens":32,"seed":42,"stop":"\\nUser:","stream":true,"stream_options":{"include_usage":true}}'
+
+FIXTURE.parsed_body
+  {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "messages": [
+      {"role": "system", "content": "You are a concise assistant."},
+      {"role": "user", "content": "Explain KV cache in one sentence."}
+    ],
+    "temperature": 0.2,
+    "top_k": 50,
+    "top_p": 0.9,
+    "max_completion_tokens": 32,
+    "seed": 42,
+    "stop": "\nUser:",
+    "stream": True,
+    "stream_options": {"include_usage": True}
+  }
+
+FIXTURE.completion_request
+  CreateChatCompletionRequest.model_dump(exclude_none=True) =
+  FIXTURE.parsed_body
+
+FIXTURE.sampling_params
+  SamplingParams(
+    top_k=50,
+    top_p=0.9,
+    min_p=0.0,
+    temperature=0.2,
+    thinking_temperature=None,
+    frequency_penalty=0.0,
+    presence_penalty=0.0,
+    repetition_penalty=1.0,
+    max_new_tokens=32,
+    min_new_tokens=0,
+    ignore_eos=False,
+    stop=["\nUser:"],
+    stop_token_ids=None,
+    detokenize=True,
+    seed=42,
+    logits_processors=None
+  )
+
+FIXTURE.token_request
+  TextGenerationRequest(
+    request_id=RequestID("req-chat-001"),
+    model_name="meta-llama/Llama-3.1-8B-Instruct",
+    prompt=None,
+    messages=[
+      TextGenerationRequestMessage(
+        role="system", content="You are a concise assistant."
+      ),
+      TextGenerationRequestMessage(
+        role="user", content="Explain KV cache in one sentence."
+      )
+    ],
+    images=[], videos=[], decoded_images=[], tools=None,
+    response_format=None,
+    timestamp_ns=1730000000000000000,
+    request_path="/v1/chat/completions",
+    logprobs=0,
+    echo=False,
+    chat_template_options=None,
+    sampling_params=FIXTURE.sampling_params,
+    target_endpoint=None,
+    dkv_cache_hint=None,
+    cache_salt=None
+  )
+
+FIXTURE.rendered_prompt
+  &lt;|begin_of_text|&gt;&lt;|start_header_id|&gt;system&lt;|end_header_id|&gt;
+
+  Cutting Knowledge Date: December 2023
+  Today Date: 26 Jul 2024
+
+  You are a concise assistant.&lt;|eot_id|&gt;&lt;|start_header_id|&gt;user&lt;|end_header_id|&gt;
+
+  Explain KV cache in one sentence.&lt;|eot_id|&gt;&lt;|start_header_id|&gt;assistant&lt;|end_header_id|&gt;
+
+
+FIXTURE.prompt_token_ids
+  [128000,128006,9125,128007,271,38766,1303,33025,2696,25,6790,220,
+   2366,18,198,15724,2696,25,220,1627,10263,220,2366,19,271,2675,527,
+   264,64694,18328,13,128009,128006,882,128007,271,849,21435,85748,
+   6636,304,832,11914,13,128009,128006,78191,128007,271]
+
+FIXTURE.text_context
+  TextContext(
+    request_id=RequestID("req-chat-001"),
+    max_length=81,
+    tokens=TokenBuffer(
+      array=np.array(FIXTURE.prompt_token_ids, dtype=np.int64)
+    ),
+    eos_tracker=EOSTracker(
+      eos_token_ids={128001,128008,128009},
+      eos_sequences=[[198,1502,25]],
+      eos_stop_strings=["\nUser:"]
+    ),
+    vocab_size=128256,
+    log_probabilities=0,
+    log_probabilities_echo=False,
+    ignore_eos=False,
+    json_schema=None,
+    grammar=None,
+    grammar_state=GrammarEnforcementState(grammar_enforced=False),
+    sampling_params=FIXTURE.sampling_params,
+    model_name="meta-llama/Llama-3.1-8B-Instruct",
+    status=GenerationStatus.ACTIVE,
+    target_endpoint=None,
+    dkv_cache_hint=None,
+    cache_salt=None,
+    cached_prefix_length=None
+  )
+  derived token-buffer state immediately after construction:
+    prompt_length=49
+    generated=[]
+    processed_length=0
+    active=FIXTURE.prompt_token_ids
+
+FIXTURE.text_generation_inputs
+  constructor call:
+    TextGenerationInputs(batches=[[FIXTURE.text_context]])
+  fields derived by TextGenerationInputs.__post_init__():
+    batches=[[FIXTURE.text_context]]
+    input_tokens=49
+    context_tokens=0
+    batch_type=BatchType.CE
+    per_replica_input_tokens=[49]
+    per_replica_context_tokens=[0]
+
+FIXTURE.llama_inputs
+  Llama3Inputs(
+    tokens=Buffer(shape=[49], dtype=int64, values=FIXTURE.prompt_token_ids),
+    input_row_offsets=Buffer(shape=[2], dtype=uint32, values=[0,49]),
+    signal_buffers=[],
+    return_n_logits=Buffer(shape=[1], dtype=int64, values=[1]),
+    data_parallel_splits=None,
+    kv_cache_inputs=KVCacheInputsPerDevice(
+      kv_blocks=Buffer(name="kv_blocks_gpu0", device="gpu:0"),
+      cache_lengths=Buffer(values=[0]),
+      lookup_table=Buffer(values=[[7]]),
+      max_prompt_length=Buffer(values=[49]),
+      max_cache_length=Buffer(values=[49]),
+      page_stride=Buffer(shape=[1], dtype=int64, values=[-1]),
+      kv_scales=None,
+      scales_page_stride=None,
+      scales_lookup_table=None,
+      attention_dispatch_metadata=Buffer(
+        name="attention_dispatch_metadata_gpu0", device="gpu:0"
+      ),
+      draft_attention_dispatch_metadata=None,
+      mla_num_partitions=None,
+      draft_mla_num_partitions=None,
+      kv_blocks_per_layer=None,
+      kv_scales_per_layer=None
+    )
+  )
+  `kv_blocks` and attention-dispatch buffers are preallocated runtime buffers;
+  the request supplies their handles and per-request indexing metadata, not a
+  JSON or Python list containing every device-resident KV value.
+
+FIXTURE.first_model_output
+  TextGenerationOutput(
+    request_id=RequestID("req-chat-001"),
+    tokens=[83807],
+    final_status=GenerationStatus.ACTIVE,
+    log_probabilities=None,
+    num_cached_tokens=0
+  )
+  token 83807 -> "KV"
+
+FIXTURE.model_outputs
+  ModelOutputs(
+    logits=Buffer(shape=[1,128256], dtype=float32, device="gpu:0"),
+    next_token_logits=Buffer(shape=[1,128256], dtype=float32, device="gpu:0"),
+    logit_offsets=None,
+    hidden_states=None
+  )
+  illustrative selected values from the one 128256-value logit row:
+    token_id=83807  logit=12.40  decoded_token="KV"
+    token_id=6636   logit=11.82  decoded_token=" cache"
+    token_id=14463  logit=10.91  decoded_token="The"
+  The complete logit row remains in the device Buffer. Python receives the
+  Buffer handle and shape rather than copying 128256 floats into a list.
+
+FIXTURE.first_token_generator_output
+  TokenGeneratorOutput(
+    status=GenerationStatus.ACTIVE,
+    decoded_tokens="KV",
+    decoded_reasoning_tokens=None,
+    token_count=1,
+    token_log_probabilities=None,
+    top_log_probabilities=None,
+    sampled_tokens=None,
+    prompt_token_count=49,
+    cached_token_count=0,
+    reasoning_token_count=0,
+    stop_sequence=None,
+    batch_id=1,
+    token_ids=[83807],
+    prompt_token_ids=FIXTURE.prompt_token_ids
+  )
+
+FIXTURE.complete_generation
+  token_ids =
+    [83807,6636,10756,62671,6666,7039,323,2819,505,6931,11460,13,128009]
+  decoded_text =
+    "KV cache stores reusable attention keys and values from earlier tokens."
+  usage = {
+    "prompt_tokens": 49,
+    "completion_tokens": 13,
+    "total_tokens": 62
+  }
+
+FIXTURE.first_sse_payload
+  {
+    "id": "req-chat-001",
+    "object": "chat.completion.chunk",
+    "created": 1730000000,
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "choices": [
+      {
+        "index": 0,
+        "delta": {"role": "assistant", "content": "KV"},
+        "finish_reason": null
+      }
+    ]
+  }
+
+FIXTURE.non_streaming_response
+  {
+    "id": "req-chat-001",
+    "object": "chat.completion",
+    "created": 1730000000,
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "KV cache stores reusable attention keys and values from earlier tokens."
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 49,
+      "completion_tokens": 13,
+      "total_tokens": 62,
+      "prompt_tokens_details": {"cached_tokens": 0},
+      "completion_tokens_details": {"reasoning_tokens": 0}
+    }
+  }
+
+FIXTURE.tool_definition
+  {
+    "type": "function",
+    "function": {
+      "name": "get_weather",
+      "description": "Return the current weather for a city.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "city": {"type": "string"},
+          "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}
+        },
+        "required": ["city"],
+        "additionalProperties": false
+      },
+      "strict": true
+    }
+  }
+  model tool output =
+    {"name":"get_weather","parameters":{"city":"Colombo","unit":"celsius"}}
+
+FIXTURE.json_schema_response_format
+  {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "kv_cache_answer",
+      "strict": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "answer": {"type": "string"},
+          "benefit": {"type": "string"}
+        },
+        "required": ["answer", "benefit"],
+        "additionalProperties": false
+      }
+    }
+  }
 </pre>
 
 </details>
 
 ## 1. One-Time Startup Wiring
 
+The request path depends on objects and background loops created before the
+first HTTP request arrives.
+
 <details>
 <summary><strong>Expand: API server startup and API-worker wiring</strong></summary>
+
+<pre>
+fastapi_app(settings, serving_settings)  <a href="0000_A_folder_structure.md#expandable-root-level-map">[Map]</a>
+  api_server.py:330
+    |
+    +-- [CALL] FastAPI(title="MAX Serve", ...)
+    |
+    +-- [CALL] app.include_router(ROUTES[api_type].router)
+    |     api_server.py:438
+    |       |
+    |       +-- OpenAI router prefix = "/v1"
+    |             openai_routes.py:235
+    |
+    +-- [FRAMEWORK] lifespan(...)
+          api_server.py:111
+            |
+            +-- [CALL] ZmqModelWorkerInterface(...)
+            |
+            +-- [AWAIT] start_model_worker(...)
+            |     model_worker.py:613
+            |       |
+            |       +-- proc.start(ModelWorker(), ...)
+            |       |
+            |       +-- [FRAMEWORK] spawned child invokes
+            |       |     ModelWorker.__call__(...)
+            |       |       model_worker.py:564
+            |       |         |
+            |       |         +-- [CALL] uvloop.run(ModelWorker.run(...))
+            |       |
+            |       +-- [AWAIT] proc.ready(...)
+            |       |
+            |       +-- [AWAIT] model_worker_interface.model_worker_proxy()
+            |             zmq_interface.py:331
+            |               |
+            |               +-- create ZmqModelWorkerProxy
+            |               |
+            |               +-- [BACKGROUND] asyncio.create_task(
+            |               |     proxy.response_worker()  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L100">[Route:L100]</a>
+            |               |   )
+            |               |     zmq_interface.py:247
+            |               |
+            |               +-- [BACKGROUND] asyncio.create_task(
+            |               |     proxy._metrics_worker()
+            |               |   )
+            |               |
+            |               +-- [AWAIT] proxy.wait_until_connected(...)
+            |
+            +-- [CALL] TokenGeneratorPipeline(...)
+            |
+            +-- app.state.pipeline = TokenGeneratorPipeline
+            +-- app.state.pipeline_config = PipelineConfig
+    |
+    +-- app.state.settings = settings
+    +-- [CALL] register_request(app, ...)
+          |
+          +-- installs request_session HTTP middleware
+</pre>
+
+
+<!-- BEGIN ADDED FUNCTION DETAILS 1 -->
+<strong>Function details for the unchanged call tree above</strong>
 
 <pre>
 fastapi_app(settings, serving_settings)
   api_server.py:330
     |
+    +-- EXAMPLE
+    |     api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
     +-- IN
     |     settings: Settings
     |     serving_settings: ServingTokenGeneratorSettings
@@ -1961,6 +468,7 @@ fastapi_app(settings, serving_settings)
     |
     +-- [CALL] FastAPI(title="MAX Serve", lifespan=lifespan_wrap)
     |     |
+    |     +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
     |     +-- IN: title + lifespan callback
     |     +-- STRUCTURES: FastAPI application object
     |     +-- LOGIC: initialize ASGI app and state container
@@ -1968,6 +476,7 @@ fastapi_app(settings, serving_settings)
     |
     +-- [CALL] app.include_router(ROUTES[api_type].router)
     |     |
+    |     +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
     |     +-- IN: OpenAI router with prefix "/v1"
     |     +-- STRUCTURES: APIRouter + route table
     |     +-- LOGIC: attach /v1/chat/completions and related endpoints
@@ -1976,6 +485,7 @@ fastapi_app(settings, serving_settings)
     +-- [FRAMEWORK] lifespan(app, settings, serving_settings, zmq_endpoint_base)
           api_server.py:111
             |
+            +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
             +-- IN: app + server/model settings + IPC endpoint base
             +-- STRUCTURES: AsyncExitStack; app.state; model worker interface
             +-- LOGIC: create long-lived serving dependencies; yield while live
@@ -1983,6 +493,7 @@ fastapi_app(settings, serving_settings)
             |
             +-- [CALL] ZmqModelWorkerInterface(...)
             |     |
+            |     +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
             |     +-- IN: task; context type; request_queue_size
             |     +-- STRUCTURES: ZMQ request/response/cancel queue factories
             |     +-- LOGIC: configure typed process boundary
@@ -1991,6 +502,7 @@ fastapi_app(settings, serving_settings)
             +-- [AWAIT] start_model_worker(...)
             |     model_worker.py:613
             |       |
+            |       +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
             |       +-- IN: model_factory; configs; interface; endpoint; memory_plan
             |       +-- STRUCTURES: ProcessMonitor; Event; spawned ModelWorker process
             |       +-- LOGIC: spawn worker -> wait ready -> create API proxy
@@ -1998,6 +510,7 @@ fastapi_app(settings, serving_settings)
             |       |
             |       +-- proc.start(ModelWorker(), ...)
             |       |     |
+            |       |     +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
             |       |     +-- IN: callable ModelWorker + startup arguments
             |       |     +-- STRUCTURES: child process + alive/ready event
             |       |     +-- LOGIC: invoke ModelWorker.__call__ in child
@@ -2006,6 +519,7 @@ fastapi_app(settings, serving_settings)
             |       +-- ModelWorker.__call__(...)
             |       |     model_worker.py:564
             |       |       |
+            |       |       +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
             |       |       +-- IN: same startup arguments in child process
             |       |       +-- STRUCTURES: uvloop event loop
             |       |       +-- LOGIC: run ModelWorker.run coroutine; suppress Ctrl-C noise
@@ -2013,6 +527,7 @@ fastapi_app(settings, serving_settings)
             |       |       |
             |       |       +-- uvloop.run(ModelWorker.run(...))
             |       |             |
+            |       |             +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
             |       |             +-- IN: ModelWorker.run coroutine object
             |       |             +-- STRUCTURES: uvloop runtime
             |       |             +-- LOGIC: own child-process event loop
@@ -2020,6 +535,7 @@ fastapi_app(settings, serving_settings)
             |       |
             |       +-- [AWAIT] proc.ready(...)
             |       |     |
+            |       |     +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
             |       |     +-- IN: worker heartbeat/readiness event
             |       |     +-- STRUCTURES: ProcessMonitor state
             |       |     +-- LOGIC: block startup until child signals alive
@@ -2028,6 +544,7 @@ fastapi_app(settings, serving_settings)
             |       +-- [AWAIT] model_worker_interface.model_worker_proxy()
             |             zmq_interface.py:331
             |               |
+            |               +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
             |               +-- IN: API-side interface configuration
             |               +-- STRUCTURES: ZmqModelWorkerProxy; ZMQ queues; task set
             |               +-- LOGIC: create proxy -> start background consumers -> connect
@@ -2035,6 +552,7 @@ fastapi_app(settings, serving_settings)
             |               |
             |               +-- asyncio.create_task(proxy.response_worker())
             |               |     |
+            |               |     +-- EXAMPLE: worker response map -> pending out_queue for req-chat-001
             |               |     +-- IN: response_worker coroutine
             |               |     +-- STRUCTURES: asyncio.Task
             |               |     +-- LOGIC: route worker results continuously
@@ -2042,6 +560,7 @@ fastapi_app(settings, serving_settings)
             |               |
             |               +-- asyncio.create_task(proxy._metrics_worker())
             |               |     |
+            |               |     +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
             |               |     +-- IN: metrics coroutine
             |               |     +-- STRUCTURES: asyncio.Task
             |               |     +-- LOGIC: consume worker metrics continuously
@@ -2049,6 +568,7 @@ fastapi_app(settings, serving_settings)
             |               |
             |               +-- [AWAIT] proxy.wait_until_connected(timeout_s)
             |                     |
+            |                     +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
             |                     +-- IN: optional connection timeout
             |                     +-- STRUCTURES: request/response/cancel MAX queues
             |                     +-- LOGIC: wait until IPC sockets are connected
@@ -2056,6 +576,7 @@ fastapi_app(settings, serving_settings)
             |
             +-- [CALL] TokenGeneratorPipeline(...)
             |     |
+            |     +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
             |     +-- IN: model_name; tokenizer; proxy; LoRA/reasoning options
             |     +-- STRUCTURES: TokenGeneratorPipeline
             |     +-- LOGIC: bind API tokenization/detokenization to worker proxy
@@ -2063,6 +584,7 @@ fastapi_app(settings, serving_settings)
             |
             +-- app.state.pipeline/config/settings = initialized objects
                   |
+                  +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
                   +-- IN: pipeline + configuration objects
                   +-- STRUCTURES: Starlette app.state
                   +-- LOGIC: expose dependencies to request routes
@@ -2071,21 +593,62 @@ fastapi_app(settings, serving_settings)
 register_request(app, structured_logging=...)
   request.py:45
     |
+    +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
     +-- IN: FastAPI app + logging mode
     +-- STRUCTURES: HTTP middleware closure request_session
     +-- LOGIC: register request identity/timing/trace middleware
     +-- OUT: None; middleware installed
 </pre>
-
+<!-- END ADDED FUNCTION DETAILS 1 -->
 </details>
+
+The spawned model-worker process builds the model pipeline and then runs the
+scheduler forever:
 
 <details>
 <summary><strong>Expand: Model-worker startup and scheduler loop</strong></summary>
 
 <pre>
+[BACKGROUND] uvloop executes ModelWorker.run(...)
+  model_worker.py:232
+    |
+    +-- [CALL] model_factory()
+    |     |
+    |     +-- build TextGenerationPipeline
+    |     +-- build/load Llama graph model
+    |     +-- compile graph and sampler once
+    |
+    +-- [AWAIT] model_worker_interface.model_worker_queues()
+    |     |
+    |     +-- request_queue: worker-side ZMQ PULL
+    |     +-- response_queue: worker-side ZMQ PUSH
+    |     +-- cancel_queue: worker-side ZMQ PULL
+    |
+    +-- [CALL] load_scheduler(...)
+    |     scheduler/__init__.py
+    |       |
+    |       +-- pipeline_role == "prefill_and_decode"
+    |             |
+    |             +-- load_text_generation_scheduler(...)
+    |                   |
+    |                   +-- TokenGenerationScheduler
+    |
+    +-- [BACKGROUND] while True
+          |
+          +-- scheduler.run_iteration()  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L64">[Iter:L64]</a>
+          +-- sleep_with_backoff(...) when no progress
+</pre>
+
+
+<!-- BEGIN ADDED FUNCTION DETAILS 2 -->
+<strong>Function details for the unchanged call tree above</strong>
+
+<pre>
 ModelWorker.run(...)
   model_worker.py:232
     |
+    +-- EXAMPLE
+    |     api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
     +-- IN
     |     model_factory; pipeline_config; settings; worker interface; memory_plan
     +-- STRUCTURES
@@ -2097,6 +660,7 @@ ModelWorker.run(...)
     |
     +-- [CALL] model_factory()
     |     |
+    |     +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
     |     +-- IN: captured architecture/config/session/weights
     |     +-- STRUCTURES: TextGenerationPipeline + compiled Llama model
     |     +-- LOGIC: build/compile/load graph once during startup
@@ -2105,6 +669,7 @@ ModelWorker.run(...)
     +-- [AWAIT] model_worker_interface.model_worker_queues()
     |     zmq_interface.py:321
     |       |
+    |       +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
     |       +-- IN: worker-side interface configuration
     |       +-- STRUCTURES: WorkerQueues(request_queue,response_queue,cancel_queue)
     |       +-- LOGIC: bind worker PULL/PUSH/PULL sockets
@@ -2113,12 +678,14 @@ ModelWorker.run(...)
     +-- [CALL] load_scheduler(...)
     |     scheduler/__init__.py:76
     |       |
+    |       +-- EXAMPLE: FIXTURE.text_generation_inputs -> response map for req-chat-001
     |       +-- IN: pipeline + configs + WorkerQueues + memory_plan
     |       +-- STRUCTURES: Scheduler implementation + batch constructor
     |       +-- LOGIC: select scheduler from task and pipeline role
     |       +-- OUT: TokenGenerationScheduler for prefill_and_decode
     |       |
     |       +-- load_text_generation_scheduler(...)
+    |             +-- EXAMPLE: FIXTURE.text_generation_inputs -> response map for req-chat-001
     |             +-- IN: text pipeline + scheduler settings + worker queues
     |             +-- STRUCTURES: TextBatchConstructor + TokenGenerationScheduler
     |             +-- LOGIC: construct combined prefill/decode scheduler
@@ -2126,32 +693,62 @@ ModelWorker.run(...)
     |
     +-- [BACKGROUND] while True
           |
+          +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
           +-- IN: scheduler + live queues
           +-- STRUCTURES: SchedulerProgress + backoff counter
           +-- LOGIC: execute one iteration; heartbeat; back off when idle
           +-- OUT: repeated request progress
           |
           +-- scheduler.run_iteration()
-          |     +-- OUT: MADE_PROGRESS or NO_PROGRESS
+          |     +-- EXAMPLE: request_queue=[FIXTURE.text_context] -> MADE_PROGRESS
+          |     +-- IN: live request/cancel queues + batch constructor + pipeline
+          |     +-- STRUCTURES: SchedulerProgress; TextGenerationInputs; SchedulerResult
+          |     +-- LOGIC: drain requests -> build batch -> execute -> publish responses
+          |     +-- OUT: MADE_PROGRESS for this request; NO_PROGRESS when idle
           |
           +-- sleep_with_backoff(count_no_progress)
+                +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
                 +-- IN: consecutive idle count
                 +-- STRUCTURES: asyncio timer
                 +-- LOGIC: avoid busy-spinning when no work exists
                 +-- OUT: None after delay
 </pre>
-
+<!-- END ADDED FUNCTION DETAILS 2 -->
 </details>
 
-## 2. HTTP Middleware And OpenAI Ingress
+## 2. Complete Request Call Tree
+
+This is the continuous source-level tree for the normal OpenAI ingress path.
+
+Immediately before route dispatch, MAX Serve's HTTP middleware creates the
+request ID and timer consumed by the route:
 
 <details>
 <summary><strong>Expand: Request middleware prelude</strong></summary>
+
+```text
+[FRAMEWORK] request_session(request, call_next)
+  request.py:52
+    |
+    +-- request_id = uuid.uuid4().hex
+    +-- request.state.request_id = request_id
+    +-- request.state.request_timer = StopWatch()
+    |
+    +-- [AWAIT] call_next(request)
+          |
+          +-- enters the route tree below
+```
+
+
+<!-- BEGIN ADDED FUNCTION DETAILS 3 -->
+<strong>Function details for the unchanged call tree above</strong>
 
 <pre>
 request_session(request, call_next)
   request.py:52
     |
+    +-- EXAMPLE
+    |     req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     +-- IN
     |     request=Request(POST /v1/chat/completions, body=&lt;concrete JSON&gt;)
     |     call_next=&lt;Starlette route dispatcher&gt;
@@ -2163,6 +760,7 @@ request_session(request, call_next)
     |     Response with X-Request-ID="req-chat-001"
     |
     +-- uuid.uuid4().hex
+    |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |     +-- IN: operating-system/random UUID source
     |     +-- STRUCTURES: UUID -> 32-character hex string
     |     +-- LOGIC: create collision-resistant request identity
@@ -2176,22 +774,218 @@ request_session(request, call_next)
     |
     +-- [AWAIT] call_next(request)
           |
+          +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
           +-- IN: mutated Request
           +-- STRUCTURES: Starlette middleware chain
           +-- LOGIC: dispatch matching endpoint
           +-- OUT: route Response
 </pre>
-
+<!-- END ADDED FUNCTION DETAILS 3 -->
 </details>
 
 <details>
-<summary><strong>Expand: Complete HTTP route input, structures, logic, and output</strong></summary>
+<summary><strong>Expand: Complete HTTP route call tree</strong></summary>
 
 <pre>
 POST /v1/chat/completions
     |
     +-- [FRAMEWORK] FastAPI/Starlette route dispatch
           |
+          +-- [AWAIT] openai_create_chat_completion(request)  <a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#L20">[Ingress:L20]</a>
+                openai_routes.py:2218
+                  |
+                  +-- request_id = request.state.request_id
+                  |
+                  +-- [AWAIT] _parse_openai_request_body(  <a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#L99">[Parse:L99]</a>
+                  |             request,
+                  |             request_id,
+                  |             CreateChatCompletionRequest,
+                  |           )
+                  |     openai_routes.py:3070
+                  |       |
+                  |       +-- [AWAIT] request.body()
+                  |       |
+                  |       +-- [CALL] json.loads(raw)
+                  |       |     |
+                  |       |     +-- parsed: dict/list/str/number/bool/None
+                  |       |
+                  |       +-- [BRANCH] parsed is not dict
+                  |       |     |
+                  |       |     +-- model_cls.model_validate(parsed)  <a href="0001_B_1_parse_openai_request_body_pydantic_schema_validation.md#L9">[Validate:L9]</a>
+                  |       |           |
+                  |       |           +-- usually ValidationError for chat schema
+                  |       |
+                  |       +-- [BRANCH] parsed is dict
+                  |             |
+                  |             +-- tools = parsed.get("tools")
+                  |             |
+                  |             +-- [BRANCH] tools is list
+                  |             |     |
+                  |             |     +-- [CALL] _normalize_tools_parameters(tools)  <a href="0001_A_2_parse_openai_request_body_tool_parameter_normalization.md#L43">[Tools:L43]</a>
+                  |             |           tool_call_normalization.py:62
+                  |             |             |
+                  |             |             +-- copy each tool dict
+                  |             |             +-- copy function dict
+                  |             |             +-- parameters None/missing -> {}
+                  |             |
+                  |             +-- [CALL] get_app_pipeline_config(request.app)  <a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#L63">[Config:L63]</a>
+                  |             |
+                  |             +-- [BRANCH] allow_extra_request_fields
+                  |             |     |
+                  |             |     +-- known = set(model_cls.model_fields)
+                  |             |     +-- calculate unknown keys
+                  |             |     +-- rebuild parsed without unknown keys
+                  |             |
+                  |             +-- [CALL] model_cls.model_validate(parsed)  <a href="0001_B_1_parse_openai_request_body_pydantic_schema_validation.md#L9">[Validate:L9]</a>
+                  |                   inherited BaseModel.model_validate
+                  |                     |
+                  |                     +-- CreateChatCompletionRequest
+                  |                     |     schemas/openai.py:448
+                  |                     |
+                  |                     +-- [CALL] before model validators
+                  |                     |     |
+                  |                     |     +-- _translate_thinking_to_standard(...)  <a href="0001_B_1_parse_openai_request_body_pydantic_schema_validation.md#L346">[Before:L346]</a>
+                  |                     |
+                  |                     +-- validate inherited OpenAI fields
+                  |                     +-- validate MAX extension fields
+                  |                     +-- validate model and messages
+                  |                     +-- reject forbidden extra fields
+                  |                     |
+                  |                     +-- [CALL] after model validators
+                  |                           |
+                  |                           +-- _reconcile_max_completion_tokens(...)  <a href="0001_B_1_parse_openai_request_body_pydantic_schema_validation.md#L376">[After:L376]</a>
+                  |                           |
+                  |                           +-- completion_request:
+                  |                               CreateChatCompletionRequest
+                  |
+                  +-- [CALL] get_pipeline(  <a href="0002_A_1_get_pipeline_model_selection.md#L33">[Select:L33]</a>
+                  |             request,
+                  |             completion_request.model,
+                  |           )
+                  |     openai_routes.py:458
+                  |       |
+                  |       +-- app_state = request.app.state
+                  |       +-- pipeline = app_state.pipeline
+                  |       +-- models = base model + LoRA names
+                  |       +-- validate requested model name
+                  |       +-- isinstance(pipeline.tokenizer, PipelineTokenizer)  <a href="0002_B_1_get_pipeline_pipeline_tokenizer_protocol.md#L16">[Protocol:L16]</a>
+                  |       +-- return existing TokenGeneratorPipeline
+                  |
+                  +-- [CALL] get_tool_parser(request.app)
+                  |
+                  +-- tokenizer = pipeline.tokenizer
+                  |
+                  +-- [AWAIT] openai_parse_chat_completion_request(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L122">[Chat:L122]</a>
+                  |     openai_routes.py:1719
+                  |       |
+                  |       +-- [CALL] _validate_tool_message_consistency(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L136">[MsgCheck:L136]</a>
+                  |       |
+                  |       +-- validate every message role
+                  |       |
+                  |       +-- for each completion_request.messages entry
+                  |       |     |
+                  |       |     +-- content = message.get("content")
+                  |       |     +-- raw_tool_calls = message.get("tool_calls")
+                  |       |     |
+                  |       |     +-- [CALL] normalize_tool_call_arguments(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L189">[ToolArgs:L189]</a>
+                  |       |     |     when tool calls are present
+                  |       |     |
+                  |       |     +-- [BRANCH] content is list
+                  |       |     |     |
+                  |       |     |     +-- for each content_part
+                  |       |     |           |
+                  |       |     |           +-- text -> TextContentPart  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L263">[Text:L263]</a>
+                  |       |     |           |
+                  |       |     |           +-- image_url
+                  |       |     |           |     +-- make_media_ref(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L217">[MediaRef:L217]</a>
+                  |       |     |           |     +-- ImageContentPart(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L220">[Image:L220]</a>
+                  |       |     |           |
+                  |       |     |           +-- video_url
+                  |       |     |                 +-- make_media_ref(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L234">[MediaRef:L234]</a>
+                  |       |     |                 +-- VideoContentPart(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L237">[Video:L237]</a>
+                  |       |     |
+                  |       |     +-- [BRANCH] content is scalar/None
+                  |       |     |     |
+                  |       |     |     +-- use content or ""
+                  |       |     |
+                  |       |     +-- [CALL] _normalize_openai_role(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L269">[Role:L269]</a>
+                  |       |     +-- [CALL] TextGenerationRequestMessage(...)  <a href="0003_A_1_openai_parse_chat_completion_request_messages.md#L268">[Message:L268]</a>
+                  |       |
+                  |       +-- record image/video count metrics
+                  |       +-- enforce model-specific media count limits
+                  |       |
+                  |       +-- [CALL] _request_media_budget(settings)  <a href="0003_A_2_openai_parse_chat_completion_request_media.md#L59">[Media:L59]</a>
+                  |       |     _image_resolution.py:582
+                  |       |
+                  |       +-- [OPTIONAL MEDIA BRANCH]
+                  |       |     |
+                  |       |     +-- create resolve_image_from_url(...) tasks  <a href="0003_A_2_openai_parse_chat_completion_request_media.md#L61">[Resolve:L61]</a>
+                  |       |     |     _image_resolution.py:839
+                  |       |     |       |
+                  |       |     |       +-- http/https -> _fetch_url_bytes(...)
+                  |       |     |       +-- data URI -> _decode_data_uri_base64(...)
+                  |       |     |       +-- file URI -> validate root + read bytes
+                  |       |     |
+                  |       |     +-- [AWAIT] asyncio.gather(image tasks)
+                  |       |     |
+                  |       |     +-- [AWAIT] asyncio.to_thread(
+                  |       |     |             _resolve_and_decode_images,  <a href="0003_A_2_openai_parse_chat_completion_request_media.md#L74">[Decode:L74]</a>
+                  |       |     |           )
+                  |       |     |
+                  |       |     +-- create/await video resolution tasks
+                  |       |
+                  |       +-- return _ParsedChatRequest(
+                  |             messages,
+                  |             request_images,
+                  |             request_videos,
+                  |             decoded_images,
+                  |           )
+                  |
+                  +-- [CALL] get_app_pipeline_config(request.app)  <a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#L63">[Config:L63]</a>
+                  |
+                  +-- [CALL]
+                  |     _convert_chat_completion_tools_to_token_generator_tools(...)  <a href="0003_B_1_openai_parse_chat_completion_request_tool_conversion.md#L85">[Tools:L85]</a>
+                  |
+                  +-- [CALL] _create_response_format(...)
+                  |
+                  +-- [OPTIONAL GRAMMAR BRANCH]
+                  |     |
+                  |     +-- _resolve_grammar_constraints(...)
+                  |     +-- parser.generate_tool_call_grammar(...)
+                  |     +-- TextGenerationResponseFormat(type="grammar", ...)
+                  |
+                  +-- [CALL] OpenAIChatResponseGenerator(...)
+                  |
+                  +-- [CALL] SamplingParams.from_input_and_generation_config(...)  <a href="0004_B_1_TextGenerationRequest_sampling_params_resolution.md#L287">[Sampling:L287]</a>
+                  |
+                  +-- [CALL] TextGenerationRequest(...)  <a href="0004_A_1_TextGenerationRequest_construction_and_validation.md#L17">[Request:L17]</a>
+                  |     text_generation.py:336
+                  |       |
+                  |       +-- [CALL] TextGenerationRequest.__post_init__()  <a href="0004_A_1_TextGenerationRequest_construction_and_validation.md#L101">[Validate:L101]</a>
+                  |             text_generation.py:479
+                  |               |
+                  |               +-- convert dict messages to typed messages
+                  |               +-- reject prompt + messages together
+                  |               +-- reject string prompt with media
+                  |               +-- verify media placeholder counts
+                  |
+                  +-- [BRANCH] completion_request.stream
+                        |
+                        +-- True  -> streaming path in section 3
+                        |
+                        +-- False -> non-streaming path in section 4
+</pre>
+
+
+<!-- BEGIN ADDED FUNCTION DETAILS 4 -->
+<strong>Function details for the unchanged call tree above</strong>
+
+<pre>
+POST /v1/chat/completions
+    |
+    +-- [FRAMEWORK] FastAPI/Starlette route dispatch
+          |
+          +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
           +-- IN: Request + registered route table
           +-- STRUCTURES: ASGI scope; dependency/middleware stack
           +-- LOGIC: match POST path to openai_create_chat_completion
@@ -2200,6 +994,8 @@ POST /v1/chat/completions
           +-- [AWAIT] openai_create_chat_completion(request)
                 openai_routes.py:2218
                   |
+                  +-- EXAMPLE
+                  |     FIXTURE.http_request -> SSE or JSON response
                   +-- IN
                   |     request with concrete body/state values
                   +-- STRUCTURES
@@ -2212,6 +1008,7 @@ POST /v1/chat/completions
                   |
                   +-- request_id = request.state.request_id
                   |     |
+                  |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |     +-- IN: request.state
                   |     +-- STRUCTURES: str
                   |     +-- LOGIC: read middleware-created identifier
@@ -2222,6 +1019,7 @@ POST /v1/chat/completions
                   |           )
                   |     openai_routes.py:3070
                   |       |
+                  |       +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |       +-- IN: Request; "req-chat-001"; schema class
                   |       +-- STRUCTURES: bytes; JSON value; Pydantic model class
                   |       +-- LOGIC: read -> decode JSON -> normalize tools/extras -> validate
@@ -2229,13 +1027,15 @@ POST /v1/chat/completions
                   |       |
                   |       +-- [AWAIT] request.body()
                   |       |     |
+                  |       |     +-- EXAMPLE: request.body() -> FIXTURE.raw_body
                   |       |     +-- IN: Starlette Request receive channel
                   |       |     +-- STRUCTURES: cached body bytes
                   |       |     +-- LOGIC: consume/cache complete HTTP request body
-                  |       |     +-- OUT: b'{"model":"meta-llama/...","messages":[...],...}'
+                  |       |     +-- OUT: FIXTURE.raw_body
                   |       |
                   |       +-- [CALL] json.loads(raw)
                   |       |     |
+                  |       |     +-- EXAMPLE: json.loads(FIXTURE.raw_body) -> FIXTURE.parsed_body
                   |       |     +-- IN: raw body bytes
                   |       |     +-- STRUCTURES: Python dict/list/scalar JSON values
                   |       |     +-- LOGIC: JSON decode
@@ -2243,6 +1043,7 @@ POST /v1/chat/completions
                   |       |
                   |       +-- [BRANCH] parsed is not dict
                   |       |     |
+                  |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |       |     +-- IN: list/str/number/bool/None
                   |       |     +-- STRUCTURES: Pydantic validation error details
                   |       |     +-- LOGIC: pass directly to model_validate
@@ -2250,12 +1051,14 @@ POST /v1/chat/completions
                   |       |
                   |       +-- [BRANCH] parsed is dict
                   |             |
+                  |             +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |             +-- IN: concrete body dict
                   |             +-- STRUCTURES: tools value; known model fields; extras set
                   |             +-- LOGIC: normalize optional tool definitions and extra fields
                   |             +-- OUT: validation-ready dict
                   |             |
                   |             +-- parsed.get("tools")
+                  |             |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |             |     +-- IN: parsed request dict
                   |             |     +-- STRUCTURES: list[tool] | None | other JSON value
                   |             |     +-- LOGIC: inspect optional tools without requiring key presence
@@ -2264,6 +1067,7 @@ POST /v1/chat/completions
                   |             +-- _normalize_tools_parameters(tools)
                   |             |     tool_call_normalization.py:62
                   |             |       |
+                  |             |       +-- EXAMPLE: [FIXTURE.tool_definition] -> normalized tool dictionaries
                   |             |       +-- IN: list[tool dict] when tools is a list
                   |             |       +-- STRUCTURES: copied tool/function/parameters dicts
                   |             |       +-- LOGIC: replace missing/None function.parameters with {}
@@ -2272,6 +1076,7 @@ POST /v1/chat/completions
                   |             +-- get_app_pipeline_config(request.app)
                   |             |     openai_routes.py:3061
                   |             |       |
+                  |             |       +-- EXAMPLE: request.app.state.pipeline_config -> PipelineConfig
                   |             |       +-- IN: FastAPI app
                   |             |       +-- STRUCTURES: app.state.pipeline_config
                   |             |       +-- LOGIC: typed state lookup
@@ -2279,12 +1084,14 @@ POST /v1/chat/completions
                   |             |
                   |             +-- [BRANCH] allow_extra_request_fields
                   |             |     |
+                  |             |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |             |     +-- IN: parsed keys + model_cls.model_fields
                   |             |     +-- STRUCTURES: known/extras sets
                   |             |     +-- LOGIC: optionally remove unknown top-level keys
                   |             |     +-- OUT: unchanged or filtered parsed dict
                   |             |     |
                   |             |     +-- set(model_cls.model_fields)
+                  |             |           +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |             |           +-- IN: Pydantic field-name mapping
                   |             |           +-- STRUCTURES: set[str]
                   |             |           +-- LOGIC: enable O(1) known-key membership tests
@@ -2293,18 +1100,21 @@ POST /v1/chat/completions
                   |             +-- model_cls.model_validate(parsed)
                   |                   inherited Pydantic BaseModel.model_validate
                   |                     |
+                  |                     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |                     +-- IN: parsed dict + CreateChatCompletionRequest class
                   |                     +-- STRUCTURES: field validators; before/after model validators
                   |                     +-- LOGIC: coerce/validate fields; reject forbidden extras
                   |                     +-- OUT: completion_request
                   |                     |
                   |                     +-- _translate_thinking_to_standard(data)
+                  |                     |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |                     |     +-- IN: raw request mapping
                   |                     |     +-- STRUCTURES: reasoning/thinking compatibility fields
                   |                     |     +-- LOGIC: translate vendor thinking fields before validation
                   |                     |     +-- OUT: normalized mapping
                   |                     |
                   |                     +-- _reconcile_max_completion_tokens(self)
+                  |                           +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |                           +-- IN: validated max_tokens/max_completion_tokens
                   |                           +-- STRUCTURES: mutable Pydantic model during validation
                   |                           +-- LOGIC: max_completion_tokens wins when both differ
@@ -2313,12 +1123,14 @@ POST /v1/chat/completions
                   +-- [CALL] get_pipeline(request, completion_request.model)
                   |     openai_routes.py:458
                   |       |
+                  |       +-- EXAMPLE: model="meta-llama/Llama-3.1-8B-Instruct" -> existing TokenGeneratorPipeline
                   |       +-- IN: Request; "meta-llama/Llama-3.1-8B-Instruct"
                   |       +-- STRUCTURES: app.state.pipeline; base/LoRA model names; PipelineTokenizer protocol
                   |       +-- LOGIC: validate model name and tokenizer capability
                   |       +-- OUT: existing TokenGeneratorPipeline
                   |       |
                   |       +-- isinstance(pipeline.tokenizer, PipelineTokenizer)
+                  |             +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |             +-- IN: selected pipeline tokenizer object
                   |             +-- STRUCTURES: runtime-checkable protocol
                   |             +-- LOGIC: verify required tokenizer methods/properties exist
@@ -2327,6 +1139,7 @@ POST /v1/chat/completions
                   +-- [CALL] get_tool_parser(request.app)
                   |     openai_routes.py:3110
                   |       |
+                  |       +-- EXAMPLE: configured parser name "llama" -> LlamaToolParser
                   |       +-- IN: FastAPI app
                   |       +-- STRUCTURES: PipelineConfig runtime parser name; parser registry
                   |       +-- LOGIC: resolve optional architecture tool parser
@@ -2334,6 +1147,7 @@ POST /v1/chat/completions
                   |
                   +-- tokenizer = pipeline.tokenizer
                   |     |
+                  |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |     +-- IN: selected pipeline
                   |     +-- STRUCTURES: PipelineTokenizer implementation
                   |     +-- LOGIC: read tokenizer dependency
@@ -2342,6 +1156,8 @@ POST /v1/chat/completions
                   +-- [AWAIT] openai_parse_chat_completion_request(...)
                   |     openai_routes.py:1719
                   |       |
+                  |       +-- EXAMPLE
+                  |       |     FIXTURE.completion_request.messages -> two TextGenerationRequestMessage objects
                   |       +-- IN
                   |       |     completion_request; expects_content_wrapping; media/role limits
                   |       +-- STRUCTURES
@@ -2353,6 +1169,7 @@ POST /v1/chat/completions
                   |       |
                   |       +-- _validate_tool_message_consistency(messages)
                   |       |     |
+                  |       |     +-- EXAMPLE: system/user history -> accepted with no pending tool IDs
                   |       |     +-- IN: two OpenAI message dicts
                   |       |     +-- STRUCTURES: pending tool_call IDs set
                   |       |     +-- LOGIC: ensure tool responses match earlier assistant tool calls
@@ -2360,12 +1177,14 @@ POST /v1/chat/completions
                   |       |
                   |       +-- normalize_tool_call_arguments(raw_tool_calls)
                   |       |     |
+                  |       |     +-- EXAMPLE: arguments={"city":"Colombo"} -> JSON argument string
                   |       |     +-- IN: assistant tool_calls | None
                   |       |     +-- STRUCTURES: copied tool-call dictionaries
                   |       |     +-- LOGIC: normalize function arguments representation
                   |       |     +-- OUT: normalized calls | None; None here
                   |       |
                   |       +-- message.get("content") / message.get("tool_calls")
+                  |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |       |     +-- IN: each OpenAI message mapping
                   |       |     +-- STRUCTURES: scalar/multipart content + optional tool-call list
                   |       |     +-- LOGIC: read optional keys without raising KeyError
@@ -2373,30 +1192,35 @@ POST /v1/chat/completions
                   |       |
                   |       +-- [BRANCH] content is list
                   |       |     |
+                  |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |       |     +-- IN: multipart text/image/video content
                   |       |     +-- STRUCTURES: TextContentPart/ImageContentPart/VideoContentPart
                   |       |     +-- LOGIC: convert every OpenAI part and collect media refs
                   |       |     +-- OUT: typed part list + media tasks
                   |       |     |
                   |       |     +-- TextContentPart(text=...)
-                  |       |     |     +-- IN: {"type":"text","text":"..."}
+                  |       |     |     +-- EXAMPLE: {"type":"text","text":"Explain KV cache"} -> TextContentPart
+                  |       |     |     +-- IN: {"type":"text","text":"Explain KV cache in one sentence."}
                   |       |     |     +-- STRUCTURES: typed text content part
                   |       |     |     +-- LOGIC: preserve text for chat-template rendering
                   |       |     |     +-- OUT: TextContentPart
                   |       |     |
                   |       |     +-- make_media_ref(url)
+                  |       |           +-- EXAMPLE: "https://example.com/cat.png" -> URL-backed MediaRef
                   |       |           +-- IN: image/video URL string
                   |       |           +-- STRUCTURES: MediaRef implementation
                   |       |           +-- LOGIC: preserve parsed or raw media URL form
                   |       |           +-- OUT: MediaRef
                   |       |           |
                   |       |           +-- ImageContentPart(...)
+                  |       |           |     +-- EXAMPLE: image_url="https://example.com/cat.png" -> ImageContentPart
                   |       |           |     +-- IN: normalized image metadata/placeholder
                   |       |           |     +-- STRUCTURES: typed image content part
                   |       |           |     +-- LOGIC: replace URL content with internal image placeholder
                   |       |           |     +-- OUT: ImageContentPart
                   |       |           |
                   |       |           +-- VideoContentPart(...)
+                  |       |                 +-- EXAMPLE: video_url="https://example.com/demo.mp4" -> VideoContentPart
                   |       |                 +-- IN: normalized video metadata/placeholder
                   |       |                 +-- STRUCTURES: typed video content part
                   |       |                 +-- LOGIC: replace URL content with internal video placeholder
@@ -2404,6 +1228,7 @@ POST /v1/chat/completions
                   |       |
                   |       +-- [BRANCH] content is scalar/None
                   |       |     |
+                  |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |       |     +-- IN: concrete message content strings
                   |       |     +-- STRUCTURES: str
                   |       |     +-- LOGIC: use string; map None to empty string
@@ -2411,6 +1236,7 @@ POST /v1/chat/completions
                   |       |
                   |       +-- _normalize_openai_role(role, allowed_roles)
                   |       |     |
+                  |       |     +-- EXAMPLE: "user" -> "user"
                   |       |     +-- IN: "system" then "user"
                   |       |     +-- STRUCTURES: allowed role set
                   |       |     +-- LOGIC: validate and normalize role spelling
@@ -2418,6 +1244,7 @@ POST /v1/chat/completions
                   |       |
                   |       +-- TextGenerationRequestMessage(...)
                   |       |     |
+                  |       |     +-- EXAMPLE: role="user", content="Explain KV cache in one sentence." -> typed message
                   |       |     +-- IN: role/content/tool metadata
                   |       |     +-- STRUCTURES: frozen Pydantic message model
                   |       |     +-- LOGIC: validate content shape and preserve tool metadata
@@ -2425,6 +1252,7 @@ POST /v1/chat/completions
                   |       |
                   |       +-- record/enforce media counts
                   |       |     |
+                  |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |       |     +-- IN: image_count=0; video_count=0; model limits
                   |       |     +-- STRUCTURES: telemetry counters + validation errors
                   |       |     +-- LOGIC: emit metrics; reject counts above limits
@@ -2433,6 +1261,7 @@ POST /v1/chat/completions
                   |       +-- _request_media_budget(settings)
                   |       |     _image_resolution.py:582
                   |       |       |
+                  |       |       +-- EXAMPLE: max_media_bytes setting -> _MediaByteBudget(limit)
                   |       |       +-- IN: Settings
                   |       |       +-- STRUCTURES: _MediaByteBudget(limit)
                   |       |       +-- LOGIC: derive per-request decoded-media byte budget
@@ -2441,53 +1270,67 @@ POST /v1/chat/completions
                   |       +-- [OPTIONAL MEDIA] resolve_image_from_url(media_ref,...)
                   |       |     _image_resolution.py:839
                   |       |       |
+                  |       |       +-- EXAMPLE: https://example.com/cat.png -> validated PNG bytes
                   |       |       +-- IN: MediaRef + security/size settings + budget
                   |       |       +-- STRUCTURES: URL/data/file bytes; media facts
                   |       |       +-- LOGIC: fetch/decode source; enforce host/root/byte policy
                   |       |       +-- OUT: validated image bytes
                   |       |       |
                   |       |       +-- _fetch_url_bytes(...)
+                  |       |       |     +-- EXAMPLE: HTTPS media URL -> bounded response bytes
                   |       |       |     +-- IN: validated HTTP(S) URL
                   |       |       |     +-- STRUCTURES: streamed HTTP response
                   |       |       |     +-- LOGIC: fetch within redirect/host/byte limits
                   |       |       |     +-- OUT: image bytes
                   |       |       |
                   |       |       +-- _decode_data_uri_base64(...)
+                  |       |             +-- EXAMPLE: data:image/png;base64,
+                  |       |             |     iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8
+                  |       |             |     /x8AAusB9Wl2nE8AAAAASUVORK5CYII= -> 1x1 PNG bytes
                   |       |             +-- IN: data URI
                   |       |             +-- STRUCTURES: base64 payload
                   |       |             +-- LOGIC: clean and decode payload
                   |       |             +-- OUT: image bytes
                   |       |
                   |       +-- asyncio.gather(image_tasks)
+                  |       |     +-- EXAMPLE: [] image tasks -> [] request_images
                   |       |     +-- IN: zero or more image coroutines
                   |       |     +-- STRUCTURES: ordered result list
                   |       |     +-- LOGIC: resolve images concurrently
                   |       |     +-- OUT: request_images
                   |       |
                   |       +-- asyncio.to_thread(_resolve_and_decode_images,...)
+                  |       |     +-- EXAMPLE: [] resolved images -> [] decoded_images
                   |       |     +-- IN: resolved image bytes
                   |       |     +-- STRUCTURES: worker thread + PIL images
                   |       |     +-- LOGIC: keep CPU-heavy image decode off event loop
                   |       |     +-- OUT: decoded_images
                   |       |
                   |       +-- create/await video resolution tasks
+                  |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |       |     +-- IN: video MediaRef values + media budget/settings
                   |       |     +-- STRUCTURES: asynchronous video byte/frame results
                   |       |     +-- LOGIC: resolve and validate every requested video
                   |       |     +-- OUT: request_videos; skipped for concrete request
                   |       |
                   |       +-- return _ParsedChatRequest(...)
+                  |             +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |             +-- IN: normalized messages and media lists
                   |             +-- STRUCTURES: NamedTuple
                   |             +-- LOGIC: package parser products
                   |             +-- OUT: two messages, [], [], []
                   |
                   +-- get_app_pipeline_config(request.app)
+                  |     +-- EXAMPLE: request.app.state.pipeline_config -> configured PipelineConfig
+                  |     +-- IN: request.app with pipeline_config in Starlette state
+                  |     +-- STRUCTURES: PipelineConfig
+                  |     +-- LOGIC: retrieve the shared serving configuration with its declared type
                   |     +-- OUT: PipelineConfig used by tools/sampling/runtime
                   |
                   +-- _convert_chat_completion_tools_to_token_generator_tools(...)
                   |     openai_routes.py:2558
                   |       |
+                  |       +-- EXAMPLE: FIXTURE.tool_definition -> TextGenerationRequestTool
                   |       +-- IN: tools=None; valid name regex; tool-call policy
                   |       +-- STRUCTURES: TextGenerationRequestTool dictionaries
                   |       +-- LOGIC: validate names/types/functions; copy descriptions/parameters
@@ -2496,6 +1339,7 @@ POST /v1/chat/completions
                   +-- _create_response_format(...)
                   |     openai_routes.py:2632
                   |       |
+                  |       +-- EXAMPLE: FIXTURE.json_schema_response_format -> TextGenerationResponseFormat
                   |       +-- IN: response_format=None; structured-output feature flag
                   |       +-- STRUCTURES: TextGenerationResponseFormat
                   |       +-- LOGIC: translate text/json_object/json_schema request
@@ -2504,6 +1348,7 @@ POST /v1/chat/completions
                   +-- [OPTIONAL GRAMMAR] _resolve_grammar_constraints(...)
                   |     openai_routes.py:2109
                   |       |
+                  |       +-- EXAMPLE: tool_choice="auto" -> tools_forced=False, enforce_from_start=False
                   |       +-- IN: tools; tool_choice; response_format
                   |       +-- STRUCTURES: grammar tools/schema/flags tuple
                   |       +-- LOGIC: decide tool/schema grammar and start-enforcement mode
@@ -2511,6 +1356,7 @@ POST /v1/chat/completions
                   |
                   +-- [OPTIONAL GRAMMAR] parser.generate_tool_call_grammar(...)
                   |     |
+                  |     +-- EXAMPLE: get_weather schema -> parser-specific grammar string
                   |     +-- IN: tools/schema/tokenizer/backend/tool choice
                   |     +-- STRUCTURES: architecture-specific grammar string
                   |     +-- LOGIC: encode valid tool-call output language
@@ -2518,6 +1364,7 @@ POST /v1/chat/completions
                   |
                   +-- TextGenerationResponseFormat(type="grammar", ...)
                   |     |
+                  |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |     +-- IN: generated grammar + enforcement flags
                   |     +-- STRUCTURES: response-format dataclass/model
                   |     +-- LOGIC: carry grammar to tokenizer/scheduler
@@ -2526,6 +1373,7 @@ POST /v1/chat/completions
                   +-- OpenAIChatResponseGenerator(...)
                   |     openai_routes.py:538
                   |       |
+                  |       +-- EXAMPLE: stream_options.include_usage=True -> configured response generator
                   |       +-- IN: pipeline; stream options; parser/tools/format options
                   |       +-- STRUCTURES: response generator state
                   |       +-- LOGIC: bind MAX token outputs to OpenAI response formatting
@@ -2534,6 +1382,8 @@ POST /v1/chat/completions
                   +-- SamplingParams.from_input_and_generation_config(...)
                   |     sampling_params.py
                   |       |
+                  |       +-- EXAMPLE
+                  |       |     req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |       +-- IN
                   |       |     SamplingParamsInput(top_k=50,temperature=0.2,top_p=0.9,
                   |       |       max_new_tokens=32,seed=42,others=None)
@@ -2548,6 +1398,8 @@ POST /v1/chat/completions
                   +-- TextGenerationRequest(...)
                   |     text_generation.py:336
                   |       |
+                  |       +-- EXAMPLE
+                  |       |     FIXTURE.completion_request -> FIXTURE.token_request
                   |       +-- IN
                   |       |     request ID/model/messages/media/tools/format/sampling/routing fields
                   |       +-- STRUCTURES
@@ -2559,6 +1411,7 @@ POST /v1/chat/completions
                   |       |
                   |       +-- TextGenerationRequest.__post_init__()
                   |             |
+                  |             +-- EXAMPLE: prompt=None plus two messages -> accepted internal request
                   |             +-- IN: newly constructed request fields
                   |             +-- STRUCTURES: typed message list + media counts
                   |             +-- LOGIC: convert dict messages; reject invalid prompt/media combinations
@@ -2566,26 +1419,152 @@ POST /v1/chat/completions
                   |
                   +-- [BRANCH] completion_request.stream
                         |
+                        +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                         +-- IN: true
                         +-- STRUCTURES: streaming/non-streaming response paths
                         +-- LOGIC: choose SSE path before tokens are visible
                         +-- OUT: streaming path below
 </pre>
-
+<!-- END ADDED FUNCTION DETAILS 4 -->
 </details>
 
-## 3. Streaming Admission And API-To-Worker Handoff
+## 3. Streaming Path: Admission, First Token, And SSE
+
+The streaming branch deliberately submits the request and resolves the first
+item before returning the SSE response. This allows admission and early
+generation failures to become a real non-200 HTTP response.
 
 <details>
 <summary><strong>Expand: Streaming admission and first SSE chunk</strong></summary>
 
 <pre>
+openai_create_chat_completion(...)  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L12">[Dispatch:L12]</a>
+    |
+    +-- [AWAIT] response_generator.stream(token_request)  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L57">[Stream:L57]</a>
+    |     OpenAIChatResponseGenerator.stream
+    |     openai_routes.py:687
+    |       |
+    |       +-- [AWAIT] pipeline.next_token_chunk(token_request)  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L65">[Next:L65]</a>
+    |       |     llm.py:294
+    |       |       |
+    |       |       +-- initialize TTFT/ITL/decode timers
+    |       |       +-- optionally create/reset reasoning parser
+    |       |       |
+    |       |       +-- model_worker.note_awaiting_admission(+1)  <a href="0008_A_1_note_awaiting_admission_counter_lifecycle.md#L64">[Await:L64]</a>
+    |       |       |
+    |       |       +-- [AWAIT] tokenizer.new_context(request)  <a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md#L189">[Context:L189]</a>
+    |       |       |     tokenizer.py:819
+    |       |       |       |
+    |       |       |       +-- [AWAIT] _generate_prompt_and_token_ids(...)  <a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md#L95">[Prompt:L95]</a>
+    |       |       |       |     tokenizer.py:718
+    |       |       |       |       |
+    |       |       |       |       +-- [BRANCH] prompt str/list exists
+    |       |       |       |       |     +-- [AWAIT] encode(prompt, ...)  <a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md#L103">[Encode:L103]</a>
+    |       |       |       |       |
+    |       |       |       |       +-- [BRANCH] use messages
+    |       |       |       |             +-- apply_chat_template(...)  <a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md#L105">[Template:L105]</a>
+    |       |       |       |             +-- [AWAIT] _encode_chat_prompt(...)  <a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md#L139">[Encode:L139]</a>
+    |       |       |       |                   +-- custom encoder or encode(...)
+    |       |       |       |
+    |       |       |       +-- derive json_schema and grammar
+    |       |       |       +-- GrammarEnforcementState.from_response_format(...)  <a href="0006_A_2_tokenizer_new_context_metadata_and_state.md#L55">[Grammar:L55]</a>
+    |       |       |       +-- max_tokens_to_generate(...)  <a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md#L219">[MaxTokens:L219]</a>
+    |       |       |       +-- TokenBuffer(token_ids)  <a href="0006_A_2_tokenizer_new_context_metadata_and_state.md#L126">[Buffer:L126]</a>
+    |       |       |       +-- [AWAIT] create_eos_tracker(request)  <a href="0006_A_2_tokenizer_new_context_metadata_and_state.md#L86">[EOS:L86]</a>
+    |       |       |       +-- TextContext(...)  <a href="0006_A_2_tokenizer_new_context_metadata_and_state.md#L84">[TextCtx:L84]</a>
+    |       |       |       +-- return context
+    |       |       |
+    |       |       +-- inject_trace_carrier(context)
+    |       |       |
+    |       |       +-- [CALL] create_buffered_detokenizer(...)  <a href="0007_A_1_create_buffered_detokenizer_factory_and_decode.md#L47">[Detok:L47]</a>
+    |       |       |     incremental_detokenizer.py:343
+    |       |       |       +-- content detokenizer
+    |       |       |       +-- reasoning detokenizer
+    |       |       |
+    |       |       +-- [AWAIT] model_worker.stream(  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L34">[IPC:L34]</a>
+    |       |       |             context.request_id,
+    |       |       |             context,
+    |       |       |           )
+    |       |       |     ZmqModelWorkerProxy.stream
+    |       |       |     zmq_interface.py:105
+    |       |       |       |
+    |       |       |       +-- reject duplicate request ID
+    |       |       |       +-- [AWAIT] acquire _admission_lock
+    |       |       |       +-- [AWAIT] request_queue.writable()
+    |       |       |       |
+    |       |       |       +-- [BRANCH] queue full
+    |       |       |       |     +-- raise RequestQueueFull
+    |       |       |       |           +-- API exception handler -> HTTP 429
+    |       |       |       |
+    |       |       |       +-- create per-request asyncio out_queue
+    |       |       |       +-- pending_out_queues[request_id] = out_queue
+    |       |       |       +-- [AWAIT] request_queue.put(context)
+    |       |       |       |     |
+    |       |       |       |     +-- [IPC] API process -> model worker process
+    |       |       |       |     |
+    |       |       |       |     +-- [BRANCH] put raises
+    |       |       |       |           +-- delete pending_out_queues[request_id]
+    |       |       |       |           +-- send best-effort cancellation
+    |       |       |       |           +-- re-raise
+    |       |       |       |
+    |       |       |       +-- return _drain_responses(request_id, out_queue)  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L126">[Drain:L126]</a>
+    |       |       |
+    |       |       +-- [BRANCH] tokenization or worker handoff raises
+    |       |       |     +-- model_worker.note_awaiting_admission(-1)  <a href="0008_A_1_note_awaiting_admission_counter_lifecycle.md#L64">[Await:L64]</a>
+    |       |       |     +-- re-raise
+    |       |       |
+    |       |       +-- successful worker handoff
+    |       |             +-- model_worker.note_awaiting_admission(-1)  <a href="0008_A_1_note_awaiting_admission_counter_lifecycle.md#L64">[Await:L64]</a>
+    |       |             +-- return TokenGeneratorPipeline._generate async generator
+    |       |
+    |       +-- return OpenAIChatResponseGenerator._stream async generator
+    |
+    +-- [AWAIT] _start_stream(stream)  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L87">[Gate:L87]</a>
+    |     openai_routes.py:185
+    |       |
+    |       +-- [AWAIT] stream.__anext__()
+    |             |
+    |             +-- starts OpenAIChatResponseGenerator._stream(...)
+    |             +-- [ITERATE] token_generator
+    |                   |
+    |                   +-- starts TokenGeneratorPipeline._generate(...)
+    |                   +-- [ITERATE] response_stream
+    |                         |
+    |                         +-- starts ZmqModelWorkerProxy._drain_responses(...)  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L126">[Drain:L126]</a>
+    |                         +-- [AWAIT] per-request out_queue.get()
+    |                               |
+    |                               +-- waits for worker path in section 5
+    |
+    +-- after first item succeeds:
+          return EventSourceResponse(token_stream, ...)
+            |
+            +-- request_session resumes
+            |     +-- add X-Request-ID response header
+            |     +-- wrap body iterator for stream-span cleanup
+            |
+            +-- [FRAMEWORK] ASGI starts the HTTP response
+                  |
+                  +-- EventSourceResponse iterates token_stream
+</pre>
+
+
+<!-- BEGIN ADDED FUNCTION DETAILS 5 -->
+<strong>Function details for the unchanged call tree above</strong>
+
+<pre>
 openai_create_chat_completion(...)
+    |
+    +-- EXAMPLE: FIXTURE.http_request with stream=true -> EventSourceResponse
+    +-- IN: Starlette Request containing FIXTURE.raw_body and request ID "req-chat-001"
+    +-- STRUCTURES: CreateChatCompletionRequest; TextGenerationRequest; EventSourceResponse
+    +-- LOGIC: use the already parsed token request and select the streaming response path
+    +-- OUT: HTTP 200 text/event-stream response
     |
     +-- [AWAIT] response_generator.stream(token_request)
     |     OpenAIChatResponseGenerator.stream
     |     openai_routes.py:687
     |       |
+    |       +-- EXAMPLE: stream_options.include_usage=True -> configured response generator
     |       +-- IN: token_request from section 0
     |       +-- STRUCTURES: TokenGeneratorOutput async generator; OpenAI stream generator
     |       +-- LOGIC: acquire MAX token generator; wrap it in OpenAI SSE formatter
@@ -2594,24 +1573,28 @@ openai_create_chat_completion(...)
     |       +-- [AWAIT] pipeline.next_token_chunk(token_request)
     |       |     llm.py:294
     |       |       |
+    |       |       +-- EXAMPLE: FIXTURE.token_request -> TokenGeneratorOutput async generator
     |       |       +-- IN: TextGenerationRequest
     |       |       +-- STRUCTURES: timers; TextContext; detokenizers; worker stream
     |       |       +-- LOGIC: tokenize -> admit -> return API-side output generator
     |       |       +-- OUT: AsyncGenerator[TokenGeneratorOutput, None]
     |       |       |
     |       |       +-- initialize TTFT/ITL/decode timers
+    |       |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |       |     +-- IN: request timestamp and pipeline metrics
     |       |       |     +-- STRUCTURES: StopWatch/metric state
     |       |       |     +-- LOGIC: start latency accounting
     |       |       |     +-- OUT: initialized timer state
     |       |       |
     |       |       +-- optionally create/reset reasoning parser
+    |       |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |       |     +-- IN: configured parser name
     |       |       |     +-- STRUCTURES: ReasoningParser | None
     |       |       |     +-- LOGIC: prepare parser-specific streaming state
     |       |       |     +-- OUT: parser | None; None in concrete example
     |       |       |
     |       |       +-- model_worker.note_awaiting_admission(+1)
+    |       |       |     +-- EXAMPLE: awaiting_admission 0 -> 1
     |       |       |     +-- IN: delta=+1
     |       |       |     +-- STRUCTURES: API-side admission gauge/counter
     |       |       |     +-- LOGIC: count request before tokenization and worker handoff
@@ -2620,6 +1603,7 @@ openai_create_chat_completion(...)
     |       |       +-- [AWAIT] tokenizer.new_context(request)
     |       |       |     tokenizer.py:819
     |       |       |       |
+    |       |       |       +-- EXAMPLE: FIXTURE.token_request -> FIXTURE.text_context
     |       |       |       +-- IN: TextGenerationRequest
     |       |       |       +-- STRUCTURES: prompt text/IDs; grammar state; TokenBuffer; EOS tracker
     |       |       |       +-- LOGIC: create all scheduler-visible request state
@@ -2628,24 +1612,28 @@ openai_create_chat_completion(...)
     |       |       |       +-- [AWAIT] _generate_prompt_and_token_ids(request)
     |       |       |       |     tokenizer.py:718
     |       |       |       |       |
+    |       |       |       |       +-- EXAMPLE: two chat messages -> FIXTURE.rendered_prompt + 49 token IDs
     |       |       |       |       +-- IN: prompt=None; two typed messages
     |       |       |       |       +-- STRUCTURES: rendered prompt string + np.ndarray token IDs
     |       |       |       |       +-- LOGIC: choose prompt branch or messages/chat-template branch
     |       |       |       |       +-- OUT: prompt text + concrete 49 token IDs
     |       |       |       |       |
     |       |       |       |       +-- [BRANCH] prompt exists
+    |       |       |       |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |       |       |       |     +-- IN: str or Sequence[int]
     |       |       |       |       |     +-- STRUCTURES: direct tokenizer input
     |       |       |       |       |     +-- LOGIC: encode directly; no chat template
     |       |       |       |       |     +-- OUT: prompt + token IDs
     |       |       |       |       |
     |       |       |       |       +-- [BRANCH] prompt is None; use messages
+    |       |       |       |             +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |       |       |             +-- IN: system/user messages
     |       |       |       |             +-- STRUCTURES: model chat template
     |       |       |       |             +-- LOGIC: render roles/content then tokenize
     |       |       |       |             +-- OUT: rendered Llama prompt + token IDs
     |       |       |       |             |
     |       |       |       |             +-- apply_chat_template(...)
+    |       |       |       |             |     +-- EXAMPLE: system/user messages -> FIXTURE.rendered_prompt
     |       |       |       |             |     +-- IN: flattened messages + template options
     |       |       |       |             |     +-- STRUCTURES: Jinja/chat template
     |       |       |       |             |     +-- LOGIC: insert model control/header tokens
@@ -2654,18 +1642,21 @@ openai_create_chat_completion(...)
     |       |       |       |             +-- [AWAIT] _encode_chat_prompt(...)
     |       |       |       |                   tokenizer.py:737
     |       |       |       |                     |
+    |       |       |       |                     +-- EXAMPLE: FIXTURE.rendered_prompt -> FIXTURE.prompt_token_ids
     |       |       |       |                     +-- IN: rendered prompt/messages and media
     |       |       |       |                     +-- STRUCTURES: custom encoder or base tokenizer
     |       |       |       |                     +-- LOGIC: architecture-specific encode when available
     |       |       |       |                     +-- OUT: np.ndarray token IDs
     |       |       |       |
     |       |       |       +-- derive json_schema / grammar
+    |       |       |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |       |       |     +-- IN: request.response_format=None
     |       |       |       |     +-- STRUCTURES: optional schema/grammar strings
     |       |       |       |     +-- LOGIC: select structured-output constraints
     |       |       |       |     +-- OUT: no constraints for concrete request
     |       |       |       |
     |       |       |       +-- GrammarEnforcementState.from_response_format(...)
+    |       |       |       |     +-- EXAMPLE: response_format=None -> grammar_enforced=False
     |       |       |       |     +-- IN: response_format=None + tokenizer metadata
     |       |       |       |     +-- STRUCTURES: grammar matcher/build state
     |       |       |       |     +-- LOGIC: create constrained-decoding state only when requested
@@ -2674,32 +1665,38 @@ openai_create_chat_completion(...)
     |       |       |       +-- max_tokens_to_generate(prompt_size, sampling_params, max_length)
     |       |       |       |     tokenizer.py:347
     |       |       |       |       |
+    |       |       |       |       +-- EXAMPLE: prompt_size=49, max_new_tokens=32 -> 32
     |       |       |       |       +-- IN: prompt_size=49; requested=32; model limit
     |       |       |       |       +-- STRUCTURES: integer length limits
     |       |       |       |       +-- LOGIC: clamp requested generation to remaining context window
     |       |       |       |       +-- OUT: 32
     |       |       |       |
     |       |       |       +-- TokenBuffer(token_ids)
+    |       |       |       |     +-- EXAMPLE: FIXTURE.prompt_token_ids -> prompt_length=49, generated=[]
     |       |       |       |     +-- IN: concrete 49 prompt IDs
     |       |       |       |     +-- STRUCTURES: prompt/active/generated token windows
     |       |       |       |     +-- LOGIC: initialize mutable token lifecycle state
-    |       |       |       |     +-- OUT: TokenBuffer(prompt=[...], generated=[])
+    |       |       |       |     +-- OUT: TokenBuffer(array=np.array(FIXTURE.prompt_token_ids,
+    |       |       |       |             dtype=np.int64)); prompt_length=49; generated=[]
     |       |       |       |
     |       |       |       +-- [AWAIT] create_eos_tracker(request)
     |       |       |       |     tokenizer.py:809
     |       |       |       |       |
+    |       |       |       |       +-- EXAMPLE: EOS IDs plus stop="\nUser:" -> EOSTracker
     |       |       |       |       +-- IN: stop strings/token IDs + tokenizer EOS IDs
     |       |       |       |       +-- STRUCTURES: EOSToken/stop-sequence tracker
     |       |       |       |       +-- LOGIC: combine model and request stop conditions
     |       |       |       |       +-- OUT: eos_tracker
     |       |       |       |
     |       |       |       +-- TextContext(...)
+    |       |       |             +-- EXAMPLE: token buffer plus sampling metadata -> FIXTURE.text_context
     |       |       |             +-- IN: IDs/buffer/sampling/EOS/grammar/routing metadata
     |       |       |             +-- STRUCTURES: TextContext dataclass
     |       |       |             +-- LOGIC: package request state for scheduling and model execution
     |       |       |             +-- OUT: context
     |       |       |
     |       |       +-- inject_trace_carrier(context)
+    |       |       |     +-- EXAMPLE: request trace carrier -> context trace metadata
     |       |       |     +-- IN: current API trace + context
     |       |       |     +-- STRUCTURES: serialized trace carrier field
     |       |       |     +-- LOGIC: propagate tracing across IPC
@@ -2708,6 +1705,7 @@ openai_create_chat_completion(...)
     |       |       +-- create_buffered_detokenizer(tokenizer, ...)
     |       |       |     incremental_detokenizer.py:343
     |       |       |       |
+    |       |       |       +-- EXAMPLE: prompt IDs plus tokenizer -> BufferedDetokenizer
     |       |       |       +-- IN: tokenizer + EOS IDs + output mode
     |       |       |       +-- STRUCTURES: fast/token-healing/fallback detokenizer implementations
     |       |       |       +-- LOGIC: select incremental decoder that protects partial UTF-8
@@ -2717,6 +1715,7 @@ openai_create_chat_completion(...)
     |       |       |     ZmqModelWorkerProxy.stream
     |       |       |     zmq_interface.py:105
     |       |       |       |
+    |       |       |       +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |       |       +-- IN: RequestID("req-chat-001") + TextContext
     |       |       |       +-- STRUCTURES: admission lock; bounded request queue;
     |       |       |       |               pending_out_queues; per-request asyncio.Queue
@@ -2724,65 +1723,76 @@ openai_create_chat_completion(...)
     |       |       |       +-- OUT: AsyncGenerator[(list[TextGenerationOutput],batch_id),None]
     |       |       |       |
     |       |       |       +-- duplicate request ID check
+    |       |       |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |       |       |     +-- IN: pending_out_queues keys
     |       |       |       |     +-- LOGIC: reject ambiguous response routing
     |       |       |       |     +-- OUT: continue or RuntimeError
     |       |       |       |
     |       |       |       +-- [AWAIT] _admission_lock
+    |       |       |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |       |       |     +-- IN: concurrent submitters
     |       |       |       |     +-- STRUCTURES: asyncio.Lock
     |       |       |       |     +-- LOGIC: serialize writable-check plus push
     |       |       |       |     +-- OUT: exclusive admission section
     |       |       |       |
     |       |       |       +-- [AWAIT] request_queue.writable()
+    |       |       |       |     +-- EXAMPLE: connected queue with free slot -> True
     |       |       |       |     +-- IN: bounded ZMQ request queue state
     |       |       |       |     +-- STRUCTURES: queue capacity/backpressure signal
     |       |       |       |     +-- LOGIC: non-blocking admission decision
     |       |       |       |     +-- OUT: true for concrete request
     |       |       |       |
     |       |       |       +-- [BRANCH] queue full
+    |       |       |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |       |       |     +-- IN: writable=false
     |       |       |       |     +-- STRUCTURES: RequestQueueFull
     |       |       |       |     +-- LOGIC: reject before response state is committed
     |       |       |       |     +-- OUT: HTTP 429 path
     |       |       |       |
     |       |       |       +-- out_queue = asyncio.Queue()
+    |       |       |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |       |       |     +-- IN: admitted request ID
     |       |       |       |     +-- STRUCTURES: per-request in-process queue
     |       |       |       |     +-- LOGIC: isolate responses for this request
     |       |       |       |     +-- OUT: pending_out_queues["req-chat-001"]
     |       |       |       |
     |       |       |       +-- [AWAIT] request_queue.put(context)
+    |       |       |       |     +-- EXAMPLE: FIXTURE.text_context -> worker request queue
     |       |       |       |     +-- IN: TextContext
     |       |       |       |     +-- STRUCTURES: serialized ZMQ queue payload
     |       |       |       |     +-- LOGIC: transfer request API process -> worker process
     |       |       |       |     +-- OUT: None after successful enqueue
     |       |       |       |
     |       |       |       +-- [BRANCH] put raises
+    |       |       |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |       |       |     +-- IN: queue transport exception
     |       |       |       |     +-- STRUCTURES: pending map + cancel queue
     |       |       |       |     +-- LOGIC: remove orphan state; best-effort cancel; re-raise
     |       |       |       |     +-- OUT: exception
     |       |       |       |
     |       |       |       +-- return _drain_responses(request_id, out_queue)
+    |       |       |             +-- EXAMPLE: req-chat-001 out_queue -> ([TextGenerationOutput], batch_id=1)
     |       |       |             +-- IN: request ID + registered queue
     |       |       |             +-- STRUCTURES: async generator
     |       |       |             +-- LOGIC: defer waiting until consumer iterates
     |       |       |             +-- OUT: response_stream
     |       |       |
     |       |       +-- model_worker.note_awaiting_admission(-1)
+    |       |       |     +-- EXAMPLE: awaiting_admission 1 -> 0
     |       |       |     +-- IN: delta=-1 on success or exception
     |       |       |     +-- STRUCTURES: admission gauge
     |       |       |     +-- LOGIC: close API-side awaiting-admission interval
     |       |       |     +-- OUT: None; gauge decremented
     |       |       |
     |       |       +-- return TokenGeneratorPipeline._generate async generator
+    |       |             +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |             +-- IN: context + response_stream + detokenizers/parsers
     |       |             +-- STRUCTURES: nested async generator closure
     |       |             +-- LOGIC: defer response processing until iteration
     |       |             +-- OUT: token_generator
     |       |
     |       +-- return OpenAIChatResponseGenerator._stream async generator
+    |             +-- EXAMPLE: stream_options.include_usage=True -> configured response generator
     |             +-- IN: token_generator
     |             +-- STRUCTURES: SSE JSON formatter generator
     |             +-- LOGIC: defer OpenAI chunk serialization until iteration
@@ -2791,12 +1801,14 @@ openai_create_chat_completion(...)
     +-- [AWAIT] _start_stream(stream)
     |     openai_routes.py:185
     |       |
+    |       +-- EXAMPLE: first JSON payload available -> EventSourceResponse path
     |       +-- IN: OpenAI SSE async generator
     |       +-- STRUCTURES: first item + chained async generator
     |       +-- LOGIC: pull first result before committing HTTP 200/SSE headers
     |       +-- OUT: (error=None, token_stream including first item)
     |       |
     |       +-- [AWAIT] stream.__anext__()
+    |             +-- EXAMPLE: SSE generator -> first serialized chat chunk
     |             +-- IN: unstarted generator chain
     |             +-- STRUCTURES: OpenAI _stream -> pipeline _generate -> _drain_responses
     |             +-- LOGIC: start chain and wait for first worker result
@@ -2804,6 +1816,7 @@ openai_create_chat_completion(...)
     |
     +-- EventSourceResponse(token_stream, ping=100000, sep="\n")
           |
+          +-- EXAMPLE: token_stream -> HTTP 200 text/event-stream response
           +-- IN: primed token stream
           +-- STRUCTURES: SSE response/body iterator
           +-- LOGIC: expose stream to ASGI
@@ -2815,19 +1828,61 @@ openai_create_chat_completion(...)
           +-- ASGI starts HTTP response and iterates token_stream
                 +-- OUT: SSE frames sent to client
 </pre>
-
+<!-- END ADDED FUNCTION DETAILS 5 -->
 </details>
 
-## 4. Non-Streaming Branch
+## 4. Non-Streaming Path
+
+The non-streaming path uses the same admission, tokenization, worker,
+scheduler, model, and detokenization path. The difference is that it consumes
+the complete token generator before constructing one JSON response.
 
 <details>
 <summary><strong>Expand: Non-streaming aggregation path</strong></summary>
 
 <pre>
+openai_create_chat_completion(...)  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L24">[Dispatch:L24]</a>
+    |
+    +-- [AWAIT] response_generator.complete([token_request])  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L130">[Complete:L130]</a>
+          OpenAIChatResponseGenerator.complete
+          openai_routes.py:1159
+            |
+            +-- [AWAIT] pipeline.all_tokens(token_request)  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L156">[All:L156]</a>
+            |     llm.py:678
+            |       |
+            |       +-- [AWAIT] pipeline.next_token_chunk(token_request)  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L65">[Next:L65]</a>
+            |       |     +-- same admission path as section 3
+            |       |
+            |       +-- [ITERATE] generator until request completes
+            |       +-- return list[TokenGeneratorOutput]
+            |
+            +-- concatenate decoded content/reasoning
+            +-- process log probabilities
+            +-- derive finish_reason
+            +-- optionally parse complete tool calls
+            +-- build ChatCompletionResponseChoice objects
+            +-- build CompletionUsage
+            +-- CreateChatCompletionResponse(...)
+            +-- return response to FastAPI
+</pre>
+
+
+<!-- BEGIN ADDED FUNCTION DETAILS 6 -->
+<strong>Function details for the unchanged call tree above</strong>
+
+<pre>
 openai_create_chat_completion(...)
+    |
+    +-- EXAMPLE: FIXTURE.http_request with stream=false -> FIXTURE.non_streaming_response
+    +-- IN: Starlette Request containing the same body with "stream": false
+    +-- STRUCTURES: TextGenerationRequest; list[TokenGeneratorOutput];
+    |               CreateChatCompletionResponse
+    +-- LOGIC: consume all generated chunks before returning one JSON response
+    +-- OUT: HTTP 200 application/json response containing FIXTURE.non_streaming_response
     |
     +-- [BRANCH] completion_request.stream == false
           |
+          +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
           +-- IN: same token_request with stream=false
           +-- STRUCTURES: list[TokenGeneratorOutput] + final OpenAI response models
           +-- LOGIC: consume full generation before returning HTTP response
@@ -2837,6 +1892,7 @@ openai_create_chat_completion(...)
                 OpenAIChatResponseGenerator.complete
                 openai_routes.py:1159
                   |
+                  +-- EXAMPLE: stream_options.include_usage=True -> configured response generator
                   +-- IN: one-item request list
                   +-- STRUCTURES: outputs list; choices; usage; tool parser
                   +-- LOGIC: collect -> concatenate -> format final choices/usage
@@ -2845,53 +1901,74 @@ openai_create_chat_completion(...)
                   +-- [AWAIT] pipeline.all_tokens(token_request)
                   |     llm.py:678
                   |       |
+                  |       +-- EXAMPLE: FIXTURE.token_request -> complete list[TokenGeneratorOutput]
                   |       +-- IN: TextGenerationRequest
                   |       +-- STRUCTURES: next_token_chunk async generator + output list
                   |       +-- LOGIC: iterate until terminal output
                   |       +-- OUT: list[TokenGeneratorOutput]
                   |       |
                   |       +-- [AWAIT] pipeline.next_token_chunk(token_request)
+                  |       |     +-- EXAMPLE: FIXTURE.token_request -> complete-generation async iterator
+                  |       |     +-- IN: FIXTURE.token_request
+                  |       |     +-- STRUCTURES: TextContext; worker response stream; detokenizers
+                  |       |     +-- LOGIC: tokenize, admit, decode each worker result, and yield chunks
                   |       |     +-- OUT: same admitted generator as streaming path
                   |       |
                   |       +-- [ITERATE] generator until done
+                  |             +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |             +-- IN: active output generator
                   |             +-- LOGIC: append every yielded chunk
                   |             +-- OUT: complete ordered chunk list
                   |
                   +-- concatenate content/reasoning
+                  |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |     +-- IN: decoded fragments
                   |     +-- OUT: full assistant text and optional reasoning text
                   |
                   +-- process log probabilities
+                  |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |     +-- IN: per-token logprob records or None
                   |     +-- OUT: OpenAI logprobs object or None
                   |
                   +-- derive finish_reason
+                  |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |     +-- IN: terminal generation status
                   |     +-- OUT: "stop", "length", "tool_calls", or error mapping
                   |
                   +-- optionally parse complete tool calls
+                  |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |     +-- IN: full generated text + parser/tools
                   |     +-- OUT: parsed tool calls or plain content
                   |
                   +-- ChatCompletionResponseChoice(...)
-                  |     +-- IN: message/content/tool calls/finish reason/logprobs
-                  |     +-- OUT: final choice model
+                  |     +-- EXAMPLE: decoded sentence + finish_reason="stop" -> choice index 0
+                  |     +-- IN: message.content=FIXTURE.complete_generation.decoded_text;
+                  |     |       tool_calls=None; finish_reason="stop"; logprobs=None
+                  |     +-- STRUCTURES: ChatCompletionResponseChoice; ChatCompletionResponseMessage
+                  |     +-- LOGIC: package the completed assistant message as OpenAI choice index 0
+                  |     +-- OUT: choice(index=0, message.role="assistant", finish_reason="stop")
                   |
                   +-- CompletionUsage(...)
-                  |     +-- IN: prompt/generated token counts
-                  |     +-- OUT: usage model
+                  |     +-- EXAMPLE: prompt=49 and completion=13 -> total=62
+                  |     +-- IN: prompt_tokens=49; completion_tokens=13
+                  |     +-- STRUCTURES: CompletionUsage
+                  |     +-- LOGIC: calculate total_tokens = prompt_tokens + completion_tokens
+                  |     +-- OUT: CompletionUsage(prompt_tokens=49, completion_tokens=13, total_tokens=62)
                   |
                   +-- CreateChatCompletionResponse(...)
+                        +-- EXAMPLE: decoded sentence plus usage -> OpenAI JSON response
                         +-- IN: ID/model/choices/usage
                         +-- STRUCTURES: OpenAI Pydantic response model
                         +-- LOGIC: validate final response shape
                         +-- OUT: FastAPI-serializable JSON response
 </pre>
-
+<!-- END ADDED FUNCTION DETAILS 6 -->
 </details>
 
-## 5. Worker Scheduler, Batch Construction, And Llama Execution
+## 5. Worker-Side Recursive Execution
+
+The worker-side path is not called directly by the API coroutine. It is
+activated by the `TextContext` arriving on the worker's ZMQ request queue.
 
 <details>
 <summary><strong>Expand: Worker scheduler through Llama execution</strong></summary>
@@ -2899,6 +1976,205 @@ openai_create_chat_completion(...)
 <pre>
 [IPC] TextContext arrives on worker request_queue
     |
+    +-- [BACKGROUND] ModelWorker.run(...) loop
+          model_worker.py:232
+            |
+            +-- [CALL] scheduler.run_iteration()  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L64">[Iter:L64]</a>
+                  TokenGenerationScheduler.run_iteration
+                  text_generation_scheduler.py:205
+                    |
+                    +-- [CALL] _retrieve_pending_requests()  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L10">[Retrieve:L10]</a>
+                    |     text_generation_scheduler.py:161
+                    |       |
+                    |       +-- drain_queue(request_queue, max_items)  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L24">[Drain:L24]</a>
+                    |       |
+                    |       +-- for each TextContext
+                    |             |
+                    |             +-- batch_constructor.enqueue_new_request(ctx)  <a href="0011_A_1_text_batch_constructor_request_admission.md#L113">[Enqueue:L113]</a>
+                    |                   text_batch_constructor.py:677
+                    |                     |
+                    |                     +-- optional grammar gate submit/install
+                    |                     |
+                    |                     +-- _admit_request(ctx, replica_idx)  <a href="0011_A_1_text_batch_constructor_request_admission.md#L158">[Admit:L158]</a>
+                    |                           |
+                    |                           +-- optional DP CE pending pool
+                    |                           |
+                    |                           +-- _bind_request(...)  <a href="0011_A_1_text_batch_constructor_request_admission.md#L195">[Bind:L195]</a>
+                    |                                 |
+                    |                                 +-- generated_length == 0
+                    |                                 |     -> replica.ce_reqs
+                    |                                 |
+                    |                                 +-- generated_length > 0
+                    |                                       -> replica.tg_reqs
+                    |
+                    +-- [CALL] batch_constructor.construct_batch()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L84">[Batch:L84]</a>
+                    |     text_batch_constructor.py:1845
+                    |       |
+                    |       +-- kv_cache.poll_transfers()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L87">[KV:L87]</a>
+                    |       +-- _readmit_completed_onloads()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L89">[Onload:L89]</a>
+                    |       +-- _promote_grammar_ready_requests()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L90">[Grammar:L90]</a>
+                    |       +-- _plan_ce_step()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L97">[CEPlan:L97]</a>
+                    |       +-- _should_backfill_ce()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L98">[Backfill:L98]</a>
+                    |       +-- _identify_priority(...) for CE/TG priority  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L105">[Priority:L105]</a>
+                    |       |
+                    |       +-- for each replica
+                    |       |     |
+                    |       |     +-- _construct_replica_batch(...)  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L11">[Replica:L11]</a>
+                    |       |           text_batch_constructor.py:1534
+                    |       |             |
+                    |       |             +-- create ReplicaBatch + _create_new_token_budget(...)  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L25">[Budget:L25]</a>
+                    |       |             +-- _add_ce_requests(...), or  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L36">[CE:L36]</a>
+                    |       |             +-- _add_tg_requests(...)  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L39">[TG:L39]</a>
+                    |       |
+                    |       +-- TextGenerationInputs(batches=...)
+                    |       +-- optional _dp_padder.pad_batch(inputs)  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L144">[DPPad:L144]</a>
+                    |       +-- return inputs
+                    |
+                    +-- [CALL] batch_constructor.take_grammar_failed()  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L74">[Failed:L74]</a>
+                    |     |
+                    |     +-- failed grammar requests
+                    |           -> SchedulerResult.failed(error)
+                    |           -> response_queue.put_nowait(...)
+                    |
+                    +-- [BRANCH] no inputs, no required empty batch,
+                    |            and no overlap output pending
+                    |     |
+                    |     +-- return SchedulerProgress.NO_PROGRESS
+                    |
+                    +-- [CALL] _schedule(inputs)  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L163">[Schedule:L163]</a>
+                          text_generation_scheduler.py
+                            |
+                            +-- batch_id = monotonic scheduler counter
+                            |
+                            +-- [CALL] pipeline.execute(inputs)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L76">[Execute:L76]</a>
+                            |     TextGenerationPipeline.execute
+                            |     text_generation.py:515
+                            |       |
+                            |       +-- request validator context
+                            |       +-- [CALL] _execute(inputs)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L88">[Step:L88]</a>
+                            |             text_generation.py:527
+                            |               |
+                            |               +-- [CALL] prepare_batch(inputs.batches)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L10">[Prepare:L10]</a>
+                            |               |     text_generation.py:399
+                            |               |       |
+                            |               |       +-- _maybe_sort_loras(...) if needed  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L19">[LoRA:L19]</a>
+                            |               |       +-- flatten2d(replica batches)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L21">[Flatten:L21]</a>
+                            |               |       +-- initialize_bitmask(flat_batch)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L24">[Bitmask:L24]</a>
+                            |               |       +-- update_for_structured_output(...)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L28">[Grammar:L28]</a>
+                            |               |       +-- kv_manager.runtime_inputs(...)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L31">[KVInputs:L31]</a>
+                            |               |       |
+                            |               |       +-- [CALL]
+                            |               |           _pipeline_model.prepare_initial_token_inputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L53">[Stage:L53]</a>
+                            |               |             |
+                            |               |             +-- LlamaModelBase.prepare_initial_token_inputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L53">[Stage:L53]</a>
+                            |               |             |     llama3/model.py:168
+                            |               |             |       |
+                            |               |             |       +-- super().prepare_initial_token_inputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L53">[Stage:L53]</a>
+                            |               |             |             pipeline_model.py:623
+                            |               |             |               |
+                            |               |             |               +-- batch_processor.prepare_initial_token_inputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L53">[Stage:L53]</a>
+                            |               |             |                     llama3/batch_processor.py:99
+                            |               |             |                       |
+                            |               |             |                       +-- flatten contexts
+                            |               |             |                       +-- _stage_ragged_token_inputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L9">[Ragged:L9]</a>
+                            |               |             |                       |     +-- pack active token IDs
+                            |               |             |                       |     +-- build row offsets
+                            |               |             |                       +-- build return_n_logits buffer
+                            |               |             |                       +-- optional DP splits
+                            |               |             |                       +-- _make_inputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L115">[Inputs:L115]</a>
+                            |               |             |                             llama3/batch_processor.py:166
+                            |               |             |                               |
+                            |               |             |                               +-- Llama3Inputs(...)
+                            |               |             |
+                            |               |             +-- return model_inputs
+                            |               |
+                            |               +-- FusedSamplingProcessor(...)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L107">[Sampler:L107]</a>
+                            |               |     sampling_logits_processor.py:97
+                            |               |
+                            |               +-- [CALL] _launch_forward_pass(...)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L245">[Forward:L245]</a>
+                            |               |     text_generation.py:655
+                            |               |       |
+                            |               |       +-- _pipeline_model.execute(model_inputs)  <a href="0014_A_1_llama_model_execution_runtime_and_graph.md#L80">[Model:L80]</a>
+                            |               |             |
+                            |               |             +-- LlamaModelBase.execute(...)  <a href="0014_A_1_llama_model_execution_runtime_and_graph.md#L80">[Model:L80]</a>
+                            |               |                   llama3/model.py:183
+                            |               |                     |
+                            |               |                     +-- model_inputs.buffers
+                            |               |                     |
+                            |               |                     +-- [COMPILED]
+                            |               |                     |     self.model.execute(*buffers)  <a href="0014_A_1_llama_model_execution_runtime_and_graph.md#L83">[Graph:L83]</a>
+                            |               |                     |       |
+                            |               |                     |       +-- compiled Llama graph
+                            |               |                     |       +-- attention/KV/linear/norm ops
+                            |               |                     |       +-- MAX runtime + device kernels
+                            |               |                     |
+                            |               |                     +-- batch_processor.process_outputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L151">[Outputs:L151]</a>
+                            |               |                           llama3/batch_processor.py:153
+                            |               |                             |
+                            |               |                             +-- process_ragged_kv_outputs(...)  <a href="0013_A_1_llama_input_staging_ragged_buffers.md#L154">[RaggedOut:L154]</a>
+                            |               |                             +-- ModelOutputs
+                            |               |
+                            |               +-- sampling_processor.logits_for_sampling(...)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L138">[Logits:L138]</a>
+                            |               |
+                            |               +-- apply_logits_processors(...)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L144">[LogitOps:L144]</a>
+                            |               |     sampling/logits_processor.py:27
+                            |               |       |
+                            |               |       +-- request-specific processors
+                            |               |       +-- FusedSamplingProcessor.__call__(...)
+                            |               |             |
+                            |               |             +-- _sample_logits(...)
+                            |               |                   |
+                            |               |                   +-- [COMPILED] sampler(*graph_inputs)
+                            |               |                   +-- new token IDs
+                            |               |
+                            |               +-- copy generated tokens device -> host
+                            |               |
+                            |               +-- update_context_and_prepare_responses(...)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L211">[Update:L211]</a>
+                            |               |     pipeline_variants/utils.py:157
+                            |               |       |
+                            |               |       +-- context.advance_token_buffer(...)
+                            |               |       +-- context.advance_fsm(...)
+                            |               |       +-- context.to_generation_output()
+                            |               |       +-- dict[request_id, TextGenerationOutput]
+                            |               |
+                            |               +-- kv_manager.step(ctx)  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L219">[KVStep:L219]</a>
+                            |               +-- return responses
+                            |
+                            +-- filter responses for released requests
+                            |
+                            +-- batch_constructor.advance_requests(inputs)  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L212">[Advance:L212]</a>
+                            |     text_batch_constructor.py:808
+                            |       |
+                            |       +-- completed prefill: CE -> TG queue
+                            |       +-- incomplete chunked prefill: back to CE queue
+                            |
+                            +-- release_request(...) when response.is_done  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L217">[Release:L217]</a>
+                            |
+                            +-- response_queue.put_nowait(  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L223">[Publish:L223]</a>
+                                  request_id -> SchedulerResult(response, batch_id)
+                                )
+                                  |
+                                  +-- [IPC] worker process -> API process
+                    |
+                    +-- scheduler_logger.log_metrics(...)  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L106">[Metrics:L106]</a>
+                    |
+                    +-- [CALL] get_cancelled_reqs(cancel_queue)  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L128">[Cancel:L128]</a>
+                    |     |
+                    |     +-- release matching request
+                    |     +-- SchedulerResult.cancelled()
+                    |     +-- response_queue.put_nowait(...)
+                    |
+                    +-- return SchedulerProgress.MADE_PROGRESS
+</pre>
+
+
+<!-- BEGIN ADDED FUNCTION DETAILS 7 -->
+<strong>Function details for the unchanged call tree above</strong>
+
+<pre>
+[IPC] TextContext arrives on worker request_queue
+    |
+    +-- EXAMPLE: token buffer plus sampling metadata -> FIXTURE.text_context
     +-- IN: serialized context from API process
     +-- STRUCTURES: worker-side MAXPullQueue[TextContext]
     +-- LOGIC: queue delivery activates independent worker loop
@@ -2906,6 +2182,7 @@ openai_create_chat_completion(...)
     |
     +-- [BACKGROUND] ModelWorker.run(...) loop
           |
+          +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
           +-- IN: live scheduler and WorkerQueues
           +-- STRUCTURES: heartbeat + idle backoff state
           +-- LOGIC: repeatedly call run_iteration
@@ -2915,6 +2192,7 @@ openai_create_chat_completion(...)
                 TokenGenerationScheduler.run_iteration
                 text_generation_scheduler.py:205
                   |
+                  +-- EXAMPLE: queued TextContext -> one scheduler progress result
                   +-- IN: request/cancel/response queues + batch constructor + pipeline
                   +-- STRUCTURES: TextGenerationInputs; SchedulerResult; SchedulerProgress
                   +-- LOGIC: retrieve -> batch -> execute -> advance/release -> publish
@@ -2923,12 +2201,14 @@ openai_create_chat_completion(...)
                   +-- [CALL] _retrieve_pending_requests()
                   |     text_generation_scheduler.py:161
                   |       |
+                  |       +-- EXAMPLE: worker request queue -> [FIXTURE.text_context]
                   |       +-- IN: worker request_queue
                   |       +-- STRUCTURES: list[TextContext] + batch constructor queues
                   |       +-- LOGIC: bounded drain; enqueue every context
                   |       +-- OUT: None; constructor owns pending request
                   |       |
                   |       +-- drain_queue(request_queue, max_items)
+                  |       |     +-- EXAMPLE: request_queue, max_items -> [FIXTURE.text_context]
                   |       |     +-- IN: queue + retrieval cap
                   |       |     +-- STRUCTURES: drained context list
                   |       |     +-- LOGIC: take currently available items without blocking loop
@@ -2937,12 +2217,14 @@ openai_create_chat_completion(...)
                   |       +-- batch_constructor.enqueue_new_request(ctx)
                   |             text_batch_constructor.py:677
                   |               |
+                  |               +-- EXAMPLE: fresh TextContext generated_length=0 -> replica.ce_reqs
                   |               +-- IN: TextContext
                   |               +-- STRUCTURES: grammar pending map; CE pending pool; replica queues
                   |               +-- LOGIC: grammar gate then scheduler admission
                   |               +-- OUT: None; context stored in pending/replica queue
                   |               |
                   |               +-- optional submit_grammar_build(ctx)
+                  |               |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |               |     +-- IN: context with unresolved grammar
                   |               |     +-- STRUCTURES: async matcher build state
                   |               |     +-- LOGIC: begin grammar compilation before batching
@@ -2951,6 +2233,7 @@ openai_create_chat_completion(...)
                   |               +-- _admit_request(ctx, replica_idx)
                   |                     text_batch_constructor.py:703
                   |                       |
+                  |                       +-- EXAMPLE: req-chat-001 -> selected replica 0
                   |                       +-- IN: context + optional caller replica
                   |                       +-- STRUCTURES: DP CE pending pool; round-robin selector
                   |                       +-- LOGIC: defer fresh prefill for DP balance or choose replica
@@ -2959,6 +2242,7 @@ openai_create_chat_completion(...)
                   |                       +-- _bind_request(ctx, replica_idx)
                   |                             text_batch_constructor.py:725
                   |                               |
+                  |                               +-- EXAMPLE: fresh request -> replica_0.ce_reqs
                   |                               +-- IN: context + selected replica 0
                   |                               +-- STRUCTURES: replica.ce_reqs; replica.tg_reqs
                   |                               +-- LOGIC: generated_length==0 -> CE; otherwise TG
@@ -2967,42 +2251,49 @@ openai_create_chat_completion(...)
                   +-- [CALL] batch_constructor.construct_batch()
                   |     text_batch_constructor.py:1845
                   |       |
+                  |       +-- EXAMPLE: replica_0.ce_reqs -> FIXTURE.text_generation_inputs
                   |       +-- IN: all pending CE/TG/grammar/onload state
                   |       +-- STRUCTURES: ReplicaBatch; token budgets; TextGenerationInputs
                   |       +-- LOGIC: settle state -> choose priorities -> pack each replica
                   |       +-- OUT: TextGenerationInputs(batches=[[context]], batch_type=CE)
                   |       |
                   |       +-- kv_cache.poll_transfers()
+                  |       |     +-- EXAMPLE: no outstanding KV transfers -> no completed transfers
                   |       |     +-- IN: pending KV onload/offload transfers
                   |       |     +-- STRUCTURES: KV transfer events
                   |       |     +-- LOGIC: settle completed asynchronous transfers
                   |       |     +-- OUT: None; cache transfer state updated
                   |       |
                   |       +-- _readmit_completed_onloads()
+                  |       |     +-- EXAMPLE: no completed onloads -> no queue changes
                   |       |     +-- IN: _onloading_reqs
                   |       |     +-- STRUCTURES: transfer events + replica CE queues
                   |       |     +-- LOGIC: move settled requests to front of CE queue
                   |       |     +-- OUT: None
                   |       |
                   |       +-- _promote_grammar_ready_requests()
+                  |       |     +-- EXAMPLE: no grammar pending -> no promoted requests
                   |       |     +-- IN: _grammar_pending map
                   |       |     +-- STRUCTURES: grammar matcher build results
                   |       |     +-- LOGIC: install ready matcher; admit request or record failure
                   |       |     +-- OUT: promoted requests + failure list
                   |       |
                   |       +-- _plan_ce_step()
+                  |       |     +-- EXAMPLE: 49 prompt tokens -> one CE prefill plan
                   |       |     +-- IN: per-replica CE loads and DP balancing settings
                   |       |     +-- STRUCTURES: CE weights; quotas; deferred replica set
                   |       |     +-- LOGIC: choose balanced prefill work and late-bind pooled requests
                   |       |     +-- OUT: _ce_step_quota/_ce_deferred_replicas
                   |       |
                   |       +-- _should_backfill_ce()
+                  |       |     +-- EXAMPLE: CE work available -> scheduler policy decision
                   |       |     +-- IN: pending CE/TG work + coalescing/cadence settings
                   |       |     +-- STRUCTURES: held-step counter
                   |       |     +-- LOGIC: decide whether decode batch may absorb prefill
                   |       |     +-- OUT: bool _ce_backfill_open
                   |       |
                   |       +-- _identify_priority(replica_idx)
+                  |       |     +-- EXAMPLE: CE/TG queue state -> selected priority class
                   |       |     +-- IN: replica 0 CE/TG queues + scheduling strategy
                   |       |     +-- STRUCTURES: RequestType.CE/TG/None
                   |       |     +-- LOGIC: choose work class for next batch
@@ -3011,36 +2302,42 @@ openai_create_chat_completion(...)
                   |       +-- _construct_replica_batch(replica_idx, priority_override)
                   |       |     text_batch_constructor.py:1534
                   |       |       |
+                  |       |       +-- EXAMPLE: replica 0 pending request -> ReplicaBatch(req-chat-001)
                   |       |       +-- IN: replica 0 + CE priority
                   |       |       +-- STRUCTURES: ReplicaBatch(batch={}, token_budget=...)
                   |       |       +-- LOGIC: create budget; add CE or TG; optional mixed backfill
                   |       |       +-- OUT: ReplicaBatch containing context
                   |       |       |
                   |       |       +-- _create_new_token_budget(ce_capacity)
+                  |       |       |     +-- EXAMPLE: scheduler token limit -> remaining CE/TG budget
                   |       |       |     +-- IN: optional CE quota
                   |       |       |     +-- STRUCTURES: token/batch/chunk capacity counters
                   |       |       |     +-- LOGIC: initialize per-step admission budget
                   |       |       |     +-- OUT: token_budget
                   |       |       |
                   |       |       +-- _add_ce_requests(batch, replica_idx)
+                  |       |       |     +-- EXAMPLE: req-chat-001 -> CE batch with 49 active tokens
                   |       |       |     +-- IN: empty ReplicaBatch + replica CE queue
                   |       |       |     +-- STRUCTURES: KV allocations; LoRA state; budget statuses
                   |       |       |     +-- LOGIC: oldest-first prefill admission within budgets/cache
                   |       |       |     +-- OUT: batch.batch contains req-chat-001
                   |       |       |
                   |       |       +-- _add_tg_requests(batch, replica_idx)
+                  |       |             +-- EXAMPLE: active decode request -> TG batch with one token slot
                   |       |             +-- IN: ReplicaBatch + replica TG queue
                   |       |             +-- STRUCTURES: decode candidates; KV blocks; budgets
                   |       |             +-- LOGIC: admit decode work; preempt under KV/LoRA pressure
                   |       |             +-- OUT: decode contexts added; not used on first prefill
                   |       |
                   |       +-- TextGenerationInputs(batches=replica_batches)
+                  |       |     +-- EXAMPLE: [[FIXTURE.text_context]] -> input_tokens=49, batch_type=CE
                   |       |     +-- IN: list[list[TextContext]]
                   |       |     +-- STRUCTURES: input token counts + BatchType
                   |       |     +-- LOGIC: freeze this step's workload metadata
                   |       |     +-- OUT: inputs
                   |       |
                   |       +-- optional _dp_padder.pad_batch(inputs)
+                  |             +-- EXAMPLE: single-replica batch -> unchanged unless DP capture requires padding
                   |             +-- IN: uneven DP replica batches
                   |             +-- STRUCTURES: padding contexts/batch metadata
                   |             +-- LOGIC: align replica shapes for lockstep execution
@@ -3049,18 +2346,21 @@ openai_create_chat_completion(...)
                   +-- [CALL] batch_constructor.take_grammar_failed()
                   |     text_batch_constructor.py:907
                   |       |
+                  |       +-- EXAMPLE: no grammar failures -> {}
                   |       +-- IN: accumulated grammar failures
                   |       +-- STRUCTURES: list[(RequestID,error)]
                   |       +-- LOGIC: return-and-clear failures
                   |       +-- OUT: [] for concrete request
                   |       |
                   |       +-- SchedulerResult.failed(error)
+                  |             +-- EXAMPLE: grammar error string -> terminal failed result
                   |             +-- IN: grammar error
                   |             +-- STRUCTURES: terminal SchedulerResult
                   |             +-- LOGIC: encode worker-side request failure
                   |             +-- OUT: failed result for response queue
                   |             |
                   |             +-- response_queue.put_nowait(...)
+                  |                   +-- EXAMPLE: SchedulerResult(batch_id=1) -> API response queue
                   |                   +-- IN: request_id -> failed SchedulerResult
                   |                   +-- STRUCTURES: worker MAXPushQueue
                   |                   +-- LOGIC: publish failure without model execution
@@ -3068,6 +2368,7 @@ openai_create_chat_completion(...)
                   |
                   +-- [BRANCH] no executable inputs
                   |     |
+                  |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                   |     +-- IN: empty batches + no overlap/required empty batch
                   |     +-- STRUCTURES: SchedulerProgress
                   |     +-- LOGIC: skip pipeline execution
@@ -3076,12 +2377,14 @@ openai_create_chat_completion(...)
                   +-- [CALL] _schedule(inputs)
                         text_generation_scheduler.py:299
                           |
+                          +-- EXAMPLE: FIXTURE.text_generation_inputs -> response map for req-chat-001
                           +-- IN: TextGenerationInputs
                           +-- STRUCTURES: batch ID; pipeline responses; SchedulerResult map
                           +-- LOGIC: execute -> advance/release -> publish
                           +-- OUT: number of scheduled contexts
                           |
                           +-- batch_id = next monotonic scheduler counter
+                          |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                           |     +-- IN: previous counter
                           |     +-- OUT: 1 for illustrative first batch
                           |
@@ -3089,6 +2392,7 @@ openai_create_chat_completion(...)
                           |     TextGenerationPipeline.execute
                           |     text_generation.py:515
                           |       |
+                          |       +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                           |       +-- IN: TextGenerationInputs
                           |       +-- STRUCTURES: request-validation context + pipeline metrics
                           |       +-- LOGIC: validate context lifecycle then call _execute
@@ -3097,44 +2401,51 @@ openai_create_chat_completion(...)
                           |       +-- [CALL] _execute(inputs)
                           |             text_generation.py:527
                           |               |
+                          |               +-- EXAMPLE: CE batch -> token 83807 and updated context
                           |               +-- IN: scheduled replica batches
                           |               +-- STRUCTURES: model inputs; flat batch; sampler; logits; tokens
                           |               +-- LOGIC: prepare -> forward -> process logits -> sample -> update
-                          |               +-- OUT: {"req-chat-001": TextGenerationOutput(...)}
+                          |               +-- OUT: {RequestID("req-chat-001"): FIXTURE.first_model_output}
                           |               |
                           |               +-- [CALL] prepare_batch(inputs.batches)
                           |               |     text_generation.py:399
                           |               |       |
+                          |               |       +-- EXAMPLE: [[FIXTURE.text_context]] -> FIXTURE.llama_inputs plus flat batch
                           |               |       +-- IN: [[context]]
                           |               |       +-- STRUCTURES: flat batch; grammar bitmask; KV inputs; Llama3Inputs
                           |               |       +-- LOGIC: convert scheduler contexts to architecture model buffers
                           |               |       +-- OUT: (model_inputs, flat_batch, bitmask)
                           |               |       |
                           |               |       +-- _maybe_sort_loras(replica_batches)
+                          |               |       |     +-- EXAMPLE: no LoRA adapter -> batch order unchanged
                           |               |       |     +-- IN: batches with optional LoRA IDs
                           |               |       |     +-- STRUCTURES: reordered context lists
                           |               |       |     +-- LOGIC: group/sort only when LoRA execution needs it
                           |               |       |     +-- OUT: unchanged [[context]] here
                           |               |       |
                           |               |       +-- flatten2d(replica_batches)
+                          |               |       |     +-- EXAMPLE: [[context]] -> [context]
                           |               |       |     +-- IN: [[context]]
                           |               |       |     +-- STRUCTURES: list[TextContext]
                           |               |       |     +-- LOGIC: concatenate replica lists
                           |               |       |     +-- OUT: [context]
                           |               |       |
                           |               |       +-- initialize_bitmask(flat_batch)
+                          |               |       |     +-- EXAMPLE: no grammar -> no token bitmask
                           |               |       |     +-- IN: [context]
                           |               |       |     +-- STRUCTURES: grammar bitmask Buffer | None
                           |               |       |     +-- LOGIC: allocate mask storage only for constrained outputs
                           |               |       |     +-- OUT: None for concrete request
                           |               |       |
                           |               |       +-- update_for_structured_output(flat_batch, bitmask)
+                          |               |       |     +-- EXAMPLE: grammar=None -> logits remain unconstrained
                           |               |       |     +-- IN: contexts + optional mask
                           |               |       |     +-- STRUCTURES: GrammarEnforcementState/matcher
                           |               |       |     +-- LOGIC: fill allowed-token masks for current FSM state
                           |               |       |     +-- OUT: unchanged None mask here
                           |               |       |
                           |               |       +-- kv_manager.runtime_inputs(replica_batches)
+                          |               |       |     +-- EXAMPLE: fresh 49-token prefill -> KV lookup/cache-length buffers
                           |               |       |     +-- IN: scheduled contexts and cache block tables
                           |               |       |     +-- STRUCTURES: KVCacheInputs[Buffer,Buffer]
                           |               |       |     +-- LOGIC: stage cache metadata needed by graph
@@ -3142,6 +2453,7 @@ openai_create_chat_completion(...)
                           |               |       |
                           |               |       +-- _pipeline_model.prepare_initial_token_inputs(...)
                           |               |             |
+                          |               |             +-- EXAMPLE: one 49-token context -> FIXTURE.llama_inputs
                           |               |             +-- IN: replica batches + KV inputs + return_n_logits
                           |               |             +-- STRUCTURES: architecture batch processor
                           |               |             +-- LOGIC: delegate architecture-specific input staging
@@ -3150,6 +2462,7 @@ openai_create_chat_completion(...)
                           |               |             +-- LlamaModelBase.prepare_initial_token_inputs(...)
                           |               |             |     llama3/model.py:168
                           |               |             |       |
+                          |               |             |       +-- EXAMPLE: one 49-token context -> FIXTURE.llama_inputs
                           |               |             |       +-- IN: same batches/KV/logit count
                           |               |             |       +-- STRUCTURES: GraphPipelineModelWithKVCache base method
                           |               |             |       +-- LOGIC: delegate and narrow result type
@@ -3158,6 +2471,7 @@ openai_create_chat_completion(...)
                           |               |             |       +-- super().prepare_initial_token_inputs(...)
                           |               |             |             pipeline_model.py:623
                           |               |             |               |
+                          |               |             |               +-- EXAMPLE: one 49-token context -> FIXTURE.llama_inputs
                           |               |             |               +-- IN: replica batches + KV inputs + logit count
                           |               |             |               +-- STRUCTURES: bound architecture batch_processor
                           |               |             |               +-- LOGIC: forward common model request to processor
@@ -3166,6 +2480,7 @@ openai_create_chat_completion(...)
                           |               |             +-- batch_processor.prepare_initial_token_inputs(...)
                           |               |                   llama3/batch_processor.py:99
                           |               |                     |
+                          |               |                     +-- EXAMPLE: one 49-token context -> FIXTURE.llama_inputs
                           |               |                     +-- IN: [[context]], KV inputs, return_n_logits=1
                           |               |                     +-- STRUCTURES: stager buffers; DP split metadata
                           |               |                     +-- LOGIC: flatten -> stage ragged tokens -> package inputs
@@ -3174,12 +2489,14 @@ openai_create_chat_completion(...)
                           |               |                     +-- _stage_ragged_token_inputs(context_batch)
                           |               |                     |     llama3/batch_processor.py:56
                           |               |                     |       |
+                          |               |                     |       +-- EXAMPLE: 49 token IDs -> tokens Buffer[49], offsets [0,49]
                           |               |                     |       +-- IN: [context] with active_length=49
                           |               |                     |       +-- STRUCTURES: pinned host/device token and offset buffers
                           |               |                     |       +-- LOGIC: concatenate active tokens; cumulative row offsets
                           |               |                     |       +-- OUT: tokens Buffer(49); offsets Buffer([0,49]); host offsets
                           |               |                     |
                           |               |                     +-- Buffer.from_numpy([return_n_logits])
+                          |               |                     |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                           |               |                     |     +-- IN: 1
                           |               |                     |     +-- STRUCTURES: int64 Buffer
                           |               |                     |     +-- LOGIC: graph-readable scalar control
@@ -3188,6 +2505,7 @@ openai_create_chat_completion(...)
                           |               |                     +-- _make_inputs(...)
                           |               |                           llama3/batch_processor.py:166
                           |               |                             |
+                          |               |                             +-- EXAMPLE: staged buffers -> Llama3Inputs
                           |               |                             +-- IN: tokens/offsets/logit/signal/KV/DP buffers
                           |               |                             +-- STRUCTURES: Llama3Inputs dataclass
                           |               |                             +-- LOGIC: assign exact graph-signature fields
@@ -3196,6 +2514,7 @@ openai_create_chat_completion(...)
                           |               +-- FusedSamplingProcessor(...)
                           |               |     sampling_logits_processor.py:97
                           |               |       |
+                          |               |       +-- EXAMPLE: flat batch plus seed=42 -> sampling buffers/RNG state
                           |               |       +-- IN: flat_batch + devices + sampler + grammar bitmask
                           |               |       +-- STRUCTURES: sampling graph inputs and logit-offset metadata
                           |               |       +-- LOGIC: prepare fused per-request sampling controls
@@ -3204,12 +2523,14 @@ openai_create_chat_completion(...)
                           |               +-- [CALL] _launch_forward_pass(model_inputs, flat_batch)
                           |               |     text_generation.py:655
                           |               |       |
+                          |               |       +-- EXAMPLE: FIXTURE.llama_inputs -> ModelOutputs(logits)
                           |               |       +-- IN: Llama3Inputs + [context]
                           |               |       +-- STRUCTURES: pipeline model + telemetry spans
                           |               |       +-- LOGIC: execute architecture model and record timing
                           |               |       +-- OUT: ModelOutputs
                           |               |       |
                           |               |       +-- _pipeline_model.execute(model_inputs)
+                          |               |             +-- EXAMPLE: FIXTURE.llama_inputs -> ModelOutputs
                           |               |             +-- IN: Llama3Inputs
                           |               |             +-- STRUCTURES: LlamaModelBase wrapper
                           |               |             +-- LOGIC: architecture runtime dispatch
@@ -3218,18 +2539,21 @@ openai_create_chat_completion(...)
                           |               |             +-- LlamaModelBase.execute(model_inputs)
                           |               |                   llama3/model.py:183
                           |               |                     |
+                          |               |                     +-- EXAMPLE: FIXTURE.llama_inputs.buffers -> ModelOutputs
                           |               |                     +-- IN: asserted Llama3Inputs with non-None KV inputs
                           |               |                     +-- STRUCTURES: ordered buffer tuple + compiled Model
                           |               |                     +-- LOGIC: flatten input object -> run graph -> process outputs
                           |               |                     +-- OUT: ModelOutputs
                           |               |                     |
                           |               |                     +-- model_inputs.buffers
+                          |               |                     |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                           |               |                     |     +-- IN: Llama3Inputs fields
                           |               |                     |     +-- STRUCTURES: tuple[Buffer,...]
                           |               |                     |     +-- LOGIC: order tokens/offsets/logit/DP-or-signal/KV buffers
                           |               |                     |     +-- OUT: exact compiled graph argument tuple
                           |               |                     |
                           |               |                     +-- [COMPILED] self.model.execute(*buffers)
+                          |               |                     |     +-- EXAMPLE: compiled graph buffers -> logits Buffer[1,128256]
                           |               |                     |     +-- IN: ordered device buffers
                           |               |                     |     +-- STRUCTURES: compiled Llama graph; MAX runtime; kernels
                           |               |                     |     +-- LOGIC: embeddings -> transformer/KV/attention/MLP/norm/head
@@ -3238,18 +2562,22 @@ openai_create_chat_completion(...)
                           |               |                     +-- batch_processor.process_outputs(model_outputs)
                           |               |                           llama3/batch_processor.py:153
                           |               |                             |
+                          |               |                             +-- EXAMPLE: raw graph buffers -> named ModelOutputs
                           |               |                             +-- IN: raw graph output buffers
                           |               |                             +-- STRUCTURES: ModelOutputs
                           |               |                             +-- LOGIC: map ragged KV graph outputs to named result fields
-                          |               |                             +-- OUT: ModelOutputs(logits=...,logit_offsets=...)
+                          |               |                             +-- OUT: FIXTURE.model_outputs
                           |               |                             |
                           |               |                             +-- process_ragged_kv_outputs(...)
+                          |               |                                   +-- EXAMPLE: one raw [1,128256] logits Buffer
+                          |               |                                       -> FIXTURE.model_outputs
                           |               |                                   +-- IN: raw buffers + return flags
                           |               |                                   +-- STRUCTURES: logits/offsets/hidden-state slots
                           |               |                                   +-- LOGIC: interpret graph output ordering
                           |               |                                   +-- OUT: ModelOutputs
                           |               |
                           |               +-- sampling_processor.logits_for_sampling(model_outputs)
+                          |               |     +-- EXAMPLE: logits[1,128256] -> final-row sample logits
                           |               |     +-- IN: ModelOutputs
                           |               |     +-- STRUCTURES: logits Buffer + optional offsets
                           |               |     +-- LOGIC: choose last-token or requested multi-token logits
@@ -3258,34 +2586,40 @@ openai_create_chat_completion(...)
                           |               +-- apply_logits_processors(context_batch, logits, offsets, ...)
                           |               |     sampling/logits_processor.py:27
                           |               |       |
+                          |               |       +-- EXAMPLE: sample logits plus request controls -> processed logits
                           |               |       +-- IN: [context] + batch logits + offsets + fused processor
                           |               |       +-- STRUCTURES: ProcessorInputs; BatchProcessorInputs
                           |               |       +-- LOGIC: mutate per-request logit slices then whole batch
                           |               |       +-- OUT: None; logits modified in place
                           |               |       |
                           |               |       +-- request-specific processors
+                          |               |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                           |               |       |     +-- IN: context sampling_params.logits_processors
                           |               |       |     +-- OUT: adjusted request logit slice
                           |               |       |
                           |               |       +-- FusedSamplingProcessor.__call__(...)
+                          |               |             +-- EXAMPLE: flat batch plus seed=42 -> sampling buffers/RNG state
                           |               |             +-- IN: full logits/offsets/context batch
                           |               |             +-- STRUCTURES: temperature/top-k/top-p/min-p/penalty arrays
                           |               |             +-- LOGIC: apply batch sampling controls
                           |               |             +-- OUT: sampled token device buffer
                           |               |             |
                           |               |             +-- _sample_logits(...)
+                          |               |                   +-- EXAMPLE: top_k=50, top_p=0.9, temperature=0.2 -> [83807]
                           |               |                   +-- IN: processed logits + graph inputs
                           |               |                   +-- STRUCTURES: compiled sampler
                           |               |                   +-- LOGIC: select one token under sampling policy
                           |               |                   +-- OUT: illustrative token ID [83807]
                           |               |                   |
                           |               |                   +-- [COMPILED] sampler(*graph_inputs)
+                          |               |                         +-- EXAMPLE: compiled sampler inputs -> generated token Buffer([83807])
                           |               |                         +-- IN: logits + sampling parameter buffers + RNG state
                           |               |                         +-- STRUCTURES: compiled sampling graph
                           |               |                         +-- LOGIC: normalize/filter/sample
                           |               |                         +-- OUT: generated token device Buffer([83807])
                           |               |
                           |               +-- copy generated tokens device -> host
+                          |               |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                           |               |     +-- IN: generated token device buffer
                           |               |     +-- STRUCTURES: host numpy/int array
                           |               |     +-- LOGIC: make token IDs available to Python context update
@@ -3294,36 +2628,42 @@ openai_create_chat_completion(...)
                           |               +-- update_context_and_prepare_responses(...)
                           |               |     pipeline_variants/utils.py:157
                           |               |       |
+                          |               |       +-- EXAMPLE: token 83807 plus context -> TextGenerationOutput(tokens=[83807])
                           |               |       +-- IN: [context] + next_tokens + optional logprobs/steps
                           |               |       +-- STRUCTURES: mutable TextContext + TextGenerationOutput map
                           |               |       +-- LOGIC: append tokens -> advance grammar/status -> build outputs
                           |               |       +-- OUT: {req-chat-001: TextGenerationOutput(tokens=[83807],final_status=ACTIVE)}
                           |               |       |
                           |               |       +-- context.advance_token_buffer(...)
+                          |               |       |     +-- EXAMPLE: generated=[] plus 83807 -> generated=[83807]
                           |               |       |     +-- IN: token 83807 + generated steps
                           |               |       |     +-- STRUCTURES: TokenBuffer
                           |               |       |     +-- LOGIC: append generated token and advance processed windows
                           |               |       |     +-- OUT: context.tokens.generated=[83807]
                           |               |       |
                           |               |       +-- context.advance_fsm(...)
+                          |               |       |     +-- EXAMPLE: token 83807 with no grammar -> state remains unconstrained
                           |               |       |     +-- IN: generated token + grammar state
                           |               |       |     +-- STRUCTURES: grammar FSM | None
                           |               |       |     +-- LOGIC: consume token in constrained decoder
                           |               |       |     +-- OUT: unchanged None grammar here
                           |               |       |
                           |               |       +-- context.to_generation_output()
+                          |               |             +-- EXAMPLE: updated context -> TextGenerationOutput
                           |               |             +-- IN: updated context delta/status/logprobs
                           |               |             +-- STRUCTURES: TextGenerationOutput
                           |               |             +-- LOGIC: expose only response-ready generation delta
                           |               |             +-- OUT: TextGenerationOutput(tokens=[83807],final_status=ACTIVE)
                           |               |
                           |               +-- kv_manager.step(ctx)
+                          |                     +-- EXAMPLE: processed prefill/decode step -> updated KV cache lengths
                           |                     +-- IN: updated context and cache allocation
                           |                     +-- STRUCTURES: paged KV cache state
                           |                     +-- LOGIC: commit cache progress for this model step
                           |                     +-- OUT: None
                           |
                           +-- filter responses for released requests
+                          |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                           |     +-- IN: pipeline response map + cancellation/release state
                           |     +-- STRUCTURES: filtered dict
                           |     +-- LOGIC: suppress outputs for no-longer-owned requests
@@ -3332,6 +2672,7 @@ openai_create_chat_completion(...)
                           +-- batch_constructor.advance_requests(inputs)
                           |     text_batch_constructor.py:808
                           |       |
+                          |       +-- EXAMPLE: completed prefill -> move req-chat-001 CE -> TG
                           |       +-- IN: just-executed inputs
                           |       +-- STRUCTURES: CE/TG replica queues + token windows
                           |       +-- LOGIC: incomplete prefill -> CE; complete prefill/decode -> TG
@@ -3340,6 +2681,7 @@ openai_create_chat_completion(...)
                           +-- release_request(request_id) when response.is_done
                           |     text_batch_constructor.py:913
                           |       |
+                          |       +-- EXAMPLE: terminal status -> remove request and release KV blocks
                           |       +-- IN: terminal RequestID
                           |       +-- STRUCTURES: queue maps; grammar build; KV allocation
                           |       +-- LOGIC: remove all scheduler state and release cache
@@ -3347,52 +2689,131 @@ openai_create_chat_completion(...)
                           |
                           +-- response_queue.put_nowait({request_id: SchedulerResult(...)})
                           |     |
+                          |     +-- EXAMPLE: SchedulerResult(batch_id=1) -> API response queue
                           |     +-- IN: TextGenerationOutput + batch_id=1
                           |     +-- STRUCTURES: SchedulerResult + worker MAXPushQueue
                           |     +-- LOGIC: publish result worker process -> API process
                           |     +-- OUT: None after enqueue
                           |
                           +-- scheduler_logger.log_metrics(...)
+                          |     +-- EXAMPLE: batch/KV/scheduler counters -> telemetry records
                           |     +-- IN: batch/latency/KV/scheduler state
                           |     +-- STRUCTURES: telemetry counters/histograms
                           |     +-- LOGIC: record iteration observability
                           |     +-- OUT: None
                           |
                           +-- get_cancelled_reqs(cancel_queue)
+                          |     +-- EXAMPLE: empty cancel queue -> []
                           |     +-- IN: worker cancel queue
                           |     +-- STRUCTURES: set/list[RequestID]
                           |     +-- LOGIC: drain cancellation messages
                           |     +-- OUT: [] for concrete request
                           |     |
                           |     +-- SchedulerResult.cancelled()
+                          |           +-- EXAMPLE: cancelled request -> is_done=True, result=None
                           |           +-- IN: cancelled request
                           |           +-- STRUCTURES: terminal cancelled result
                           |           +-- LOGIC: notify API consumer after cleanup
                           |           +-- OUT: cancellation response
                           |           |
                           |           +-- response_queue.put_nowait(...)
+                          |                 +-- EXAMPLE: SchedulerResult(batch_id=1) -> API response queue
                           |                 +-- IN: request_id -> cancelled SchedulerResult
                           |                 +-- STRUCTURES: worker MAXPushQueue
                           |                 +-- LOGIC: publish terminal cancellation
                           |                 +-- OUT: None
                           |
                           +-- return SchedulerProgress.MADE_PROGRESS
+                                +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                                 +-- IN: successful retrieve/batch/execute/publish work
                                 +-- STRUCTURES: enum value
                                 +-- LOGIC: reset worker idle backoff
                                 +-- OUT: MADE_PROGRESS
 </pre>
-
+<!-- END ADDED FUNCTION DETAILS 7 -->
 </details>
 
-## 6. Worker Response Back To The Client
+## 6. Response Path Back To The Client
+
+The response follows the reverse queue path and resumes the suspended API-side
+generators.
 
 <details>
-<summary><strong>Expand: Response routing, detokenization, and OpenAI SSE output</strong></summary>
+<summary><strong>Expand: Worker response back to the HTTP client</strong></summary>
 
 <pre>
 [IPC] SchedulerResult arrives on API response_queue
     |
+    +-- [BACKGROUND] ZmqModelWorkerProxy.response_worker()  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L100">[Route:L100]</a>
+    |     zmq_interface.py:247
+    |       |
+    |       +-- [AWAIT] response_queue.get()
+    |       +-- locate pending_out_queues[request_id]
+    |       +-- [AWAIT] per-request out_queue.put(response)
+    |
+    +-- ZmqModelWorkerProxy._drain_responses(...) resumes  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L126">[Drain:L126]</a>
+    |     zmq_interface.py:167
+    |       |
+    |       +-- [AWAIT] out_queue.get()
+    |       +-- coalesce already-buffered results
+    |       +-- yield (outputs, batch_id)
+    |       +-- stop when SchedulerResult.is_done
+    |       +-- [BRANCH] consumer abandons/errors
+    |       |     +-- send best-effort worker cancellation
+    |       |     +-- re-raise
+    |       +-- finally remove pending_out_queues[request_id]
+    |
+    +-- TokenGeneratorPipeline._generate(...) resumes  <a href="0007_A_1_create_buffered_detokenizer_factory_and_decode.md#L288">[Detok:L288]</a>
+    |     llm.py, nested in next_token_chunk
+    |       |
+    |       +-- TextGenerationOutput.merge(responses)
+    |       +-- optional reasoning_parser.stream(...)
+    |       |
+    |       +-- [AWAIT] content_detokenizer.decode(tokens)  <a href="0007_A_1_create_buffered_detokenizer_factory_and_decode.md#L17">[Decode:L17]</a>
+    |       +-- [AWAIT] reasoning_detokenizer.decode(tokens)  <a href="0007_A_1_create_buffered_detokenizer_factory_and_decode.md#L17">[Decode:L17]</a>
+    |       |
+    |       +-- eos_tracker.is_eos_from_string(...)
+    |       +-- optional logprob decoding
+    |       +-- yield TokenGeneratorOutput(...)
+    |
+    +-- [BRANCH] streaming
+    |     |
+    |     +-- OpenAIChatResponseGenerator._stream(...) resumes
+    |           |
+    |           +-- optional parser.parse_delta(...) for tool calls
+    |           +-- get_finish_reason_from_status(...)
+    |           +-- ChatCompletionStreamResponseDelta(...)
+    |           +-- ChatCompletionStreamResponseChoice(...)
+    |           +-- CreateChatCompletionStreamResponse(...)
+    |           +-- response.model_dump_json(exclude_none=True)
+    |           +-- yield JSON SSE payload
+    |           |
+    |           +-- repeat sections 5 and 6 until done
+    |           +-- optional final usage chunk
+    |           +-- yield "[DONE]"
+    |                 |
+    |                 +-- EventSourceResponse formats SSE frame
+    |                 +-- ASGI sends frame -> client
+    |
+    +-- [BRANCH] non-streaming
+          |
+          +-- pipeline.all_tokens(...) collects every TokenGeneratorOutput
+          +-- OpenAIChatResponseGenerator.complete(...) aggregates them
+          +-- CreateChatCompletionResponse(...)
+          +-- FastAPI serializes JSON
+                |
+                +-- request_session adds X-Request-ID
+                +-- ASGI sends JSON -> client
+</pre>
+
+
+<!-- BEGIN ADDED FUNCTION DETAILS 8 -->
+<strong>Function details for the unchanged call tree above</strong>
+
+<pre>
+[IPC] SchedulerResult arrives on API response_queue
+    |
+    +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     +-- IN: {RequestID("req-chat-001"): SchedulerResult(output,batch_id=1)}
     +-- STRUCTURES: API-side MAXPullQueue
     +-- LOGIC: transport worker result to proxy background task
@@ -3401,20 +2822,26 @@ openai_create_chat_completion(...)
     +-- [BACKGROUND] ZmqModelWorkerProxy.response_worker()
     |     zmq_interface.py:247
     |       |
+    |       +-- EXAMPLE: worker response map -> pending out_queue for req-chat-001
     |       +-- IN: shared response_queue + pending_out_queues map
     |       +-- STRUCTURES: per-request asyncio.Queue objects
     |       +-- LOGIC: demultiplex response by request ID
     |       +-- OUT: None; per-request queue receives result
     |       |
     |       +-- [AWAIT] response_queue.get()
+    |       |     +-- EXAMPLE: {req-chat-001: SchedulerResult} <- worker queue
     |       |     +-- IN: shared worker-response queue
+    |       |     +-- STRUCTURES: MAXPullQueue[dict[RequestID, SchedulerResult]]
+    |       |     +-- LOGIC: asynchronously wait without blocking the API event-loop thread
     |       |     +-- OUT: result map for req-chat-001
     |       |
     |       +-- pending_out_queues[request_id]
+    |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |     +-- IN: RequestID("req-chat-001")
     |       |     +-- OUT: registered out_queue
     |       |
     |       +-- [AWAIT] out_queue.put(response)
+    |             +-- EXAMPLE: SchedulerResult -> req-chat-001 asyncio queue
     |             +-- IN: SchedulerResult
     |             +-- STRUCTURES: asyncio.Queue
     |             +-- LOGIC: wake only this request's consumer
@@ -3423,147 +2850,191 @@ openai_create_chat_completion(...)
     +-- ZmqModelWorkerProxy._drain_responses(request_id, out_queue)
     |     zmq_interface.py:167
     |       |
+    |       +-- EXAMPLE: req-chat-001 out_queue -> ([TextGenerationOutput], batch_id=1)
     |       +-- IN: req-chat-001 + per-request queue
     |       +-- STRUCTURES: SchedulerResult accumulator + async generator
     |       +-- LOGIC: wait/coalesce/yield until terminal result; always clean map
     |       +-- OUT: yields ([TextGenerationOutput], batch_id)
     |       |
     |       +-- [AWAIT] out_queue.get()
+    |       |     +-- EXAMPLE: req-chat-001 queue -> SchedulerResult(batch_id=1)
     |       |     +-- IN: routed queue
     |       |     +-- OUT: SchedulerResult(is_done=False,result=&lt;token 83807 output&gt;,batch_id=1)
     |       |
     |       +-- coalesce already-buffered results
+    |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |     +-- IN: first result + immediately available queue items
     |       |     +-- STRUCTURES: list[TextGenerationOutput]
     |       |     +-- LOGIC: reduce coroutine wakeups while preserving order
     |       |     +-- OUT: [output]
     |       |
     |       +-- yield (outputs, batch_id)
+    |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |     +-- IN: [output], 1
     |       |     +-- OUT: worker response tuple to pipeline generator
     |       |
     |       +-- [BRANCH] result.is_done
+    |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |     +-- IN: ACTIVE now; terminal later
     |       |     +-- LOGIC: continue while active; stop on terminal status
     |       |     +-- OUT: next wait or generator completion
     |       |
     |       +-- [BRANCH] consumer abandons/errors
+    |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |     +-- IN: GeneratorExit/cancellation/exception
     |       |     +-- STRUCTURES: worker cancel queue
     |       |     +-- LOGIC: send best-effort cancel and re-raise
     |       |     +-- OUT: cancelled worker request
     |       |
     |       +-- finally remove pending_out_queues[request_id]
+    |             +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |             +-- IN: terminal/abandoned generator
     |             +-- OUT: no orphan per-request queue
     |
     +-- TokenGeneratorPipeline._generate(...)
     |     llm.py:448 nested in next_token_chunk
     |       |
+    |       +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       +-- IN: response tuples + context + detokenizers/parsers
     |       +-- STRUCTURES: TextGenerationOutput; TokenGeneratorOutput; timers
     |       +-- LOGIC: merge -> decode -> apply stop/reasoning/logprobs -> yield
     |       +-- OUT: TokenGeneratorOutput chunks
     |       |
     |       +-- TextGenerationOutput.merge(responses)
+    |       |     +-- EXAMPLE: [tokens=[83807]] -> tokens=[83807]
     |       |     +-- IN: one or more output deltas
     |       |     +-- STRUCTURES: merged token/status/logprob output
     |       |     +-- LOGIC: preserve ordered deltas from coalesced scheduler results
     |       |     +-- OUT: merged output tokens=[83807]
     |       |
     |       +-- optional reasoning_parser.stream(...)
+    |       |     +-- EXAMPLE: non-reasoning Llama response -> content tokens unchanged
     |       |     +-- IN: generated token/text stream
     |       |     +-- STRUCTURES: reasoning/content token partitions
     |       |     +-- LOGIC: split model-specific thinking markers
     |       |     +-- OUT: content/reasoning tokens; skipped here
     |       |
     |       +-- [AWAIT] content_detokenizer.decode([83807])
+    |       |     +-- EXAMPLE: [83807] -> "KV"
     |       |     +-- IN: illustrative token IDs [83807]
     |       |     +-- STRUCTURES: incremental tokenizer byte/text buffer
     |       |     +-- LOGIC: decode only safe complete text suffix
     |       |     +-- OUT: illustrative "KV"
     |       |
     |       +-- [AWAIT] reasoning_detokenizer.decode(tokens)
+    |       |     +-- EXAMPLE: no reasoning tokens -> None
     |       |     +-- IN: reasoning token IDs; [] here
+    |       |     +-- STRUCTURES: BufferedDetokenizer + incremental byte/text state
+    |       |     +-- LOGIC: decode only the reasoning-token partition; this partition is empty
     |       |     +-- OUT: ""
     |       |
     |       +-- eos_tracker.is_eos_from_string(decoded_text)
+    |       |     +-- EXAMPLE: "KV" against stop="\nUser:" -> no match
     |       |     +-- IN: decoded fragment + configured stop strings
     |       |     +-- STRUCTURES: incremental stop matcher
     |       |     +-- LOGIC: detect text stop boundary not visible as one token
     |       |     +-- OUT: false for "KV"
     |       |
     |       +-- optional logprob decoding
+    |       |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |       |     +-- IN: token/logprob arrays when requested
     |       |     +-- OUT: decoded top-logprob records; skipped because logprobs=0
     |       |
     |       +-- yield TokenGeneratorOutput(...)
+    |             +-- EXAMPLE: token 83807 -> decoded_tokens="KV", token_count=1
     |             +-- IN: decoded content/reasoning/status/token counts/logprobs
     |             +-- STRUCTURES: TokenGeneratorOutput dataclass
     |             +-- LOGIC: expose API-facing generation delta
-    |             +-- OUT: TokenGeneratorOutput(decoded_tokens="KV",status=ACTIVE,...)
+    |             +-- OUT: FIXTURE.first_token_generator_output
     |
     +-- [BRANCH] streaming
     |     |
     |     +-- OpenAIChatResponseGenerator._stream(...)
     |           openai_routes.py:698
     |             |
+    |             +-- EXAMPLE: stream_options.include_usage=True -> configured response generator
     |             +-- IN: TokenGeneratorOutput stream
     |             +-- STRUCTURES: OpenAI delta/choice/response models
     |             +-- LOGIC: transform each MAX chunk to SSE JSON
     |             +-- OUT: JSON payload strings then "[DONE]"
     |             |
     |             +-- optional parser.parse_delta(...)
+    |             |     +-- EXAMPLE: normal text delta "KV" -> no tool-call delta
     |             |     +-- IN: decoded fragment + parser state
     |             |     +-- OUT: incremental tool-call delta or plain content
     |             |
     |             +-- get_finish_reason_from_status(status)
+    |             |     +-- EXAMPLE: GenerationStatus.ACTIVE -> None
     |             |     +-- IN: ACTIVE/END_OF_SEQUENCE/MAXIMUM_LENGTH/etc.
+    |             |     +-- STRUCTURES: GenerationStatus enum + OpenAI finish-reason string
+    |             |     +-- LOGIC: map MAX terminal states to the OpenAI response vocabulary
     |             |     +-- OUT: None while active; OpenAI finish_reason when terminal
     |             |
     |             +-- ChatCompletionStreamResponseDelta(...)
+    |             |     +-- EXAMPLE: decoded_tokens="KV" -> delta.content="KV"
     |             |     +-- IN: role/content/reasoning/tool delta
+    |             |     +-- STRUCTURES: ChatCompletionStreamResponseDelta Pydantic model
+    |             |     +-- LOGIC: validate one incremental assistant-message update
     |             |     +-- OUT: delta model
     |             |
     |             +-- ChatCompletionStreamResponseChoice(...)
+    |             |     +-- EXAMPLE: delta plus index=0 -> stream choice
     |             |     +-- IN: index + delta + finish reason + logprobs
+    |             |     +-- STRUCTURES: ChatCompletionStreamResponseChoice Pydantic model
+    |             |     +-- LOGIC: associate the delta with choice index 0 and its current status
     |             |     +-- OUT: choice model
     |             |
     |             +-- CreateChatCompletionStreamResponse(...)
+    |             |     +-- EXAMPLE: stream choice -> chat.completion.chunk object
     |             |     +-- IN: request/model metadata + choice + optional usage
+    |             |     +-- STRUCTURES: CreateChatCompletionStreamResponse Pydantic model
+    |             |     +-- LOGIC: construct the OpenAI-compatible envelope for one SSE payload
     |             |     +-- OUT: OpenAI stream response model
     |             |
     |             +-- response.model_dump_json(exclude_none=True)
+    |             |     +-- EXAMPLE: stream response object -> compact JSON string
     |             |     +-- IN: response model
     |             |     +-- STRUCTURES: compact JSON string
     |             |     +-- LOGIC: omit absent OpenAI fields
-    |             |     +-- OUT: '{"id":"req-chat-001",...,"delta":{"content":"KV"}}'
+    |             |     +-- OUT: json.dumps(FIXTURE.first_sse_payload)
     |             |
     |             +-- repeat scheduler/response tree until terminal status
     |             |     +-- OUT: ordered content chunks
     |             |
     |             +-- optional final usage chunk
+    |             |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |             |     +-- IN: stream_options.include_usage
     |             |     +-- OUT: final usage-only chunk when enabled
     |             |
     |             +-- yield "[DONE]"
+    |                   +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |                   +-- IN: terminal generation reached
     |                   +-- OUT: SSE completion sentinel
     |                   |
     |                   +-- EventSourceResponse formats SSE frame
+    |                   |     +-- EXAMPLE: token_stream -> HTTP 200 text/event-stream response
     |                   |     +-- IN: payload string
     |                   |     +-- OUT: "data: &lt;payload&gt;\n\n"
     |                   |
     |                   +-- ASGI sends frame -> client
+    |                         +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |                         +-- IN: encoded SSE bytes
     |                         +-- OUT: network response bytes
     |
     +-- [BRANCH] non-streaming
           |
           +-- pipeline.all_tokens(...)
-          |     +-- OUT: complete list[TokenGeneratorOutput]
+          |     +-- EXAMPLE: FIXTURE.token_request -> 13 generated token chunks
+          |     +-- IN: FIXTURE.token_request
+          |     +-- STRUCTURES: AsyncGenerator[TokenGeneratorOutput] + list accumulator
+          |     +-- LOGIC: consume next_token_chunk until the terminal output
+          |     +-- OUT: complete ordered list[TokenGeneratorOutput]
           |
           +-- OpenAIChatResponseGenerator.complete(...)
+          |     +-- EXAMPLE: 13 chunks -> decoded sentence and usage 49/13/62
+          |     +-- IN: complete ordered list[TokenGeneratorOutput]
+          |     +-- STRUCTURES: response choice; assistant message; CompletionUsage
+          |     +-- LOGIC: concatenate text, parse tools if configured, and build final response
           |     +-- OUT: CreateChatCompletionResponse
           |
           +-- FastAPI serializes response model
@@ -3575,69 +3046,135 @@ openai_create_chat_completion(...)
           +-- ASGI sends JSON -> client
                 +-- OUT: complete non-streaming HTTP response
 </pre>
-
+<!-- END ADDED FUNCTION DETAILS 8 -->
 </details>
 
 ## 7. Prefill And Decode Repeat Loop
 
+One call to `scheduler.run_iteration()` normally performs one model step for a
+selected batch. Generation therefore loops through the scheduler, pipeline,
+model, sampler, and response queue multiple times.
+
 <details>
-<summary><strong>Expand: Request state across repeated scheduler iterations</strong></summary>
+<summary><strong>Expand: Prefill and decode repeat loop</strong></summary>
 
 <pre>
 new TextContext
     |
-    +-- IN: TokenBuffer(prompt=49 IDs, generated=[])
+    +-- CE/prefill queue
+          |
+          +-- construct_batch()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L84">[Batch:L84]</a>
+          +-- pipeline.execute()  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L76">[Execute:L76]</a>
+          +-- model forward pass  <a href="0014_A_1_llama_model_execution_runtime_and_graph.md#L80">[Model:L80]</a>
+          |
+          +-- [BRANCH] prompt not fully processed
+          |     |
+          |     +-- context returns to CE queue
+          |
+          +-- [BRANCH] prefill complete
+                |
+                +-- context moves to TG/decode queue
+                      |
+                      +-- construct_batch()  <a href="0011_A_2_text_batch_constructor_batch_packing.md#L84">[Batch:L84]</a>
+                      +-- pipeline.execute()  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L76">[Execute:L76]</a>
+                      +-- sample next token
+                      +-- update TextContext  <a href="0012_A_1_pipeline_execution_prepare_forward_sample.md#L211">[Update:L211]</a>
+                      +-- send TextGenerationOutput
+                      |
+                      +-- [BRANCH] status ACTIVE
+                      |     |
+                      |     +-- remain in TG queue
+                      |     +-- next scheduler iteration
+                      |
+                      +-- [BRANCH] EOS / maximum length / cancelled
+                            |
+                            +-- release request state and KV cache
+                            +-- send terminal SchedulerResult
+</pre>
+
+
+<!-- BEGIN ADDED FUNCTION DETAILS 9 -->
+<strong>Function details for the unchanged call tree above</strong>
+
+<pre>
+new TextContext
+    |
+    +-- EXAMPLE: token buffer plus sampling metadata -> FIXTURE.text_context
+    +-- IN: TokenBuffer(array=np.array(FIXTURE.prompt_token_ids, dtype=np.int64));
+    |       derived prompt_length=49 and generated=[]
     +-- STRUCTURES: replica.ce_reqs
     +-- LOGIC: fresh requests begin as context-encoding/prefill work
     +-- OUT: CE queue entry
     |
     +-- construct_batch()
+    |     +-- EXAMPLE: replica_0.ce_reqs -> FIXTURE.text_generation_inputs
     |     +-- IN: CE queue entry
+    |     +-- STRUCTURES: ReplicaBatch; TokenBudget; TextGenerationInputs
+    |     +-- LOGIC: select prefill work that fits token, KV-cache, and replica budgets
     |     +-- OUT: TextGenerationInputs(batch_type=CE)
     |
     +-- pipeline.execute()
+    |     +-- EXAMPLE: FIXTURE.text_generation_inputs -> {req-chat-001: TextGenerationOutput}
     |     +-- IN: CE inputs
+    |     +-- STRUCTURES: Llama3Inputs; ModelOutputs; FusedSamplingProcessor
+    |     +-- LOGIC: stage inputs -> run model -> sample token -> update request context
     |     +-- OUT: model output + sampled token/context progress
     |
     +-- model forward pass
+    |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |     +-- IN: active prompt token slice + KV metadata
     |     +-- OUT: logits and updated KV cache
     |
     +-- [BRANCH] prompt not fully processed
+    |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
     |     +-- IN: processed_length &lt; prompt_length
     |     +-- LOGIC: preserve chunked-prefill state
     |     +-- OUT: context returns to CE queue
     |
     +-- [BRANCH] prefill complete
+          +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
           +-- IN: processed_length == prompt_length
           +-- LOGIC: future steps need only current decode token
           +-- OUT: context moves to TG queue
           |
           +-- construct_batch()
+          |     +-- EXAMPLE: replica_0.ce_reqs -> FIXTURE.text_generation_inputs
           |     +-- IN: TG queue entry
+          |     +-- STRUCTURES: ReplicaBatch; decode TokenBudget; TextGenerationInputs
+          |     +-- LOGIC: select active decode requests and allocate one next-token slot each
           |     +-- OUT: TextGenerationInputs(batch_type=TG)
           |
           +-- pipeline.execute()
+          |     +-- EXAMPLE: FIXTURE.text_generation_inputs -> {req-chat-001: TextGenerationOutput}
           |     +-- IN: active decode token(s)
+          |     +-- STRUCTURES: decode Llama3Inputs; logits; sampled-token buffer
+          |     +-- LOGIC: run one decode forward pass and sample the next token
           |     +-- OUT: next sampled token
           |
           +-- update_context_and_prepare_responses()
+          |     +-- EXAMPLE: token 83807 plus context -> TextGenerationOutput(tokens=[83807])
           |     +-- IN: sampled token
+          |     +-- STRUCTURES: TextContext; TokenBuffer; TextGenerationOutput
+          |     +-- LOGIC: append token, advance grammar/EOS state, and create API-bound output
           |     +-- OUT: updated TokenBuffer + TextGenerationOutput
           |
           +-- [BRANCH] status ACTIVE
+          |     +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
           |     +-- IN: no EOS/length/cancel condition
           |     +-- OUT: remain in TG queue; next scheduler iteration
           |
           +-- [BRANCH] EOS / maximum length / cancelled
+                +-- EXAMPLE: req-chat-001, model="meta-llama/Llama-3.1-8B-Instruct", stream=True
                 +-- IN: terminal status
                 +-- LOGIC: release scheduler/grammar/KV state
                 +-- OUT: terminal SchedulerResult and completed API stream
 </pre>
-
+<!-- END ADDED FUNCTION DETAILS 9 -->
 </details>
 
-## 8. Alternate Paths And Configuration Branches
+## 8. Alternate Ingress And Configuration Branches
+
+### SageMaker Ingress
 
 <details>
 <summary><strong>Expand: SageMaker ingress path</strong></summary>
@@ -3646,18 +3183,39 @@ new TextContext
 POST /invocations
     |
     +-- [FRAMEWORK] sagemaker_routes.invocations(request)
+          sagemaker_routes.py
+            |
+            +-- [AWAIT] openai_create_chat_completion(request)  <a href="0001_A_1_parse_openai_request_body_http_ingress_and_parser.md#L20">[Ingress:L20]</a>
+                  |
+                  +-- same request path from section 2 onward
+</pre>
+
+
+<!-- BEGIN ADDED FUNCTION DETAILS 10 -->
+<strong>Function details for the unchanged call tree above</strong>
+
+<pre>
+POST /invocations
+    |
+    +-- [FRAMEWORK] sagemaker_routes.invocations(request)
           |
+          +-- EXAMPLE: POST /invocations body -> OpenAI chat route call
           +-- IN: SageMaker HTTP request carrying OpenAI-compatible body
           +-- STRUCTURES: FastAPI Request
           +-- LOGIC: adapt/forward to shared OpenAI chat route
           +-- OUT: shared route response
           |
           +-- [AWAIT] openai_create_chat_completion(request)
+                +-- EXAMPLE: FIXTURE.http_request -> SSE or JSON response
                 +-- IN: same Request object
+                +-- STRUCTURES: CreateChatCompletionRequest; TextGenerationRequest; HTTP response
+                +-- LOGIC: enter the same shared OpenAI route tree used by /v1/chat/completions
                 +-- OUT: same tree from section 2 onward
 </pre>
-
+<!-- END ADDED FUNCTION DETAILS 10 -->
 </details>
+
+### Prompt Tokens Already Supplied
 
 <details>
 <summary><strong>Expand: Pre-tokenized prompt branch</strong></summary>
@@ -3665,6 +3223,25 @@ POST /invocations
 <pre>
 completion_request.prompt_tokens is non-empty
     |
+    +-- TextGenerationRequest.prompt = prompt token IDs  <a href="0004_A_1_TextGenerationRequest_construction_and_validation.md#L17">[Request:L17]</a>
+    +-- TextGenerationRequest.messages = []
+    |
+    +-- tokenizer._generate_prompt_and_token_ids(...)  <a href="0006_A_1_tokenizer_new_context_prompt_and_tokens.md#L95">[Prompt:L95]</a>
+          |
+          +-- encode(sequence[int])
+                |
+                +-- np.array(existing IDs)
+                +-- no chat-template rendering
+</pre>
+
+
+<!-- BEGIN ADDED FUNCTION DETAILS 11 -->
+<strong>Function details for the unchanged call tree above</strong>
+
+<pre>
+completion_request.prompt_tokens is non-empty
+    |
+    +-- EXAMPLE: prompt_tokens=[128000,128006,882,128007,271] -> unchanged int64 token IDs
     +-- IN: prompt_tokens=[128000,128006,882,128007,271]
     +-- STRUCTURES: Sequence[int]
     +-- LOGIC: orchestrator-supplied IDs win over messages
@@ -3672,26 +3249,45 @@ completion_request.prompt_tokens is non-empty
     |
     +-- tokenizer._generate_prompt_and_token_ids(request)
           |
+          +-- EXAMPLE: two chat messages -> FIXTURE.rendered_prompt + 49 token IDs
           +-- IN: request.prompt is Sequence[int]
           +-- STRUCTURES: numpy token array
           +-- LOGIC: route directly to encode(sequence[int])
           +-- OUT: existing IDs; no chat template
           |
           +-- encode(sequence[int])
+                +-- EXAMPLE: prompt_tokens=[128000,128006,882,128007,271] -> unchanged int64 token IDs
                 +-- IN: existing IDs
                 +-- STRUCTURES: np.ndarray(dtype=int64/int32 as tokenizer path requires)
                 +-- LOGIC: copy/normalize IDs without text tokenization
                 +-- OUT: np.array([128000,128006,882,128007,271])
 </pre>
-
+<!-- END ADDED FUNCTION DETAILS 11 -->
 </details>
+
+### Scheduler/Pipeline Variants
 
 <details>
 <summary><strong>Expand: Scheduler and pipeline variants</strong></summary>
 
+```text
+pipeline_role == "prefill_and_decode" -> TokenGenerationScheduler
+pipeline_role == "decode_only"        -> DecodeScheduler
+pipeline_role == "prefill_only"       -> PrefillScheduler
+
+enable_overlap_scheduler              -> OverlapTextGenerationPipeline path
+speculative decoding enabled          -> speculative pipeline/context update
+non-Llama architecture                -> architecture-specific batch processor/model
+```
+
+
+<!-- BEGIN ADDED FUNCTION DETAILS 12 -->
+<strong>Function details for the unchanged call tree above</strong>
+
 <pre>
 load_scheduler(pipeline_config.role, ...)
     |
+    +-- EXAMPLE: FIXTURE.text_generation_inputs -> response map for req-chat-001
     +-- IN: pipeline role and runtime feature flags
     +-- STRUCTURES: scheduler/pipeline implementation classes
     +-- LOGIC: select one execution family
@@ -3708,6 +3304,7 @@ load_scheduler(pipeline_config.role, ...)
 
 runtime/model variants
     |
+    +-- EXAMPLE: pipeline_role="prefill_and_decode" -> TokenGenerationScheduler
     +-- IN: overlap/speculative/architecture configuration
     +-- STRUCTURES: alternate pipeline/context/batch processor/model classes
     +-- LOGIC: replace worker-side subtree while preserving API and IPC boundaries
@@ -3716,46 +3313,96 @@ runtime/model variants
           +-- speculative decoding    -> speculative sample/context-update path
           +-- non-Llama architecture -> architecture-specific staging/model path
 </pre>
-
+<!-- END ADDED FUNCTION DETAILS 12 -->
 </details>
 
-## 9. Error Exit Tree
+These alternatives share the API request parsing and worker IPC boundaries but
+replace part of the worker-side execution tree.
+
+## 9. Error Exits
+
+The successful path above has several deliberate exits. These are part of the
+runtime call stack because they decide whether the client receives JSON, HTTP
+429, or an in-stream error.
 
 <details>
-<summary><strong>Expand: Inputs, structures, logic, and outputs for error exits</strong></summary>
+<summary><strong>Expand: Error exit tree</strong></summary>
 
 <pre>
 request body / route preparation
     |
     +-- JSONDecodeError
+    |     -> route catches it
+    |     -> HTTPException(400, "Missing JSON.")
+    |
+    +-- KeyError or TypeError
+    |     -> route catches it
+    |     -> HTTPException(400, "Invalid JSON.")
+    |
+    +-- Pydantic ValidationError
+    |     -> route catches it
+    |     -> HTTPException(400, validation detail)
+    |
+    +-- InputError / UndefinedError / ValueError
+    |     -> route catches it
+    |     -> HTTP 400
+    |
+    +-- RequestQueueFull from ZmqModelWorkerProxy.stream(...)  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L34">[IPC:L34]</a>
+    |     -> not consumed by the route's validation catches
+    |     -> app-level _request_queue_full_exception_handler(...)
+    |     -> HTTP 429 + Retry-After: 1
+    |
+    +-- streaming error before the first visible SSE payload
+    |     -> OpenAIChatResponseGenerator._stream yields JSONResponse
+    |     -> _start_stream(...) returns that real HTTP error response  <a href="0005_A_1_streaming_vs_non_streaming_response_dispatch.md#L87">[Gate:L87]</a>
+    |
+    +-- streaming error after SSE output has started
+          -> HTTP 200 is already committed
+          -> stream yields an OpenAI error JSON frame
+</pre>
+
+
+<!-- BEGIN ADDED FUNCTION DETAILS 13 -->
+<strong>Function details for the unchanged call tree above</strong>
+
+<pre>
+request body / route preparation
+    |
+    +-- JSONDecodeError
+    |     +-- EXAMPLE: req-chat-001 invalid/full-queue branch -> documented HTTP or stream error
     |     +-- IN: missing/malformed JSON bytes
     |     +-- STRUCTURES: json.JSONDecodeError -> FastAPI HTTPException
     |     +-- LOGIC: route catches decode failure
     |     +-- OUT: HTTP 400 "Missing JSON."
     |     |
     |     +-- HTTPException(status_code=400, detail="Missing JSON.")
+    |           +-- EXAMPLE: invalid request input -> HTTP 400 response
     |           +-- IN: caught JSONDecodeError
     |           +-- OUT: FastAPI error response path
     |
     +-- KeyError or TypeError
+    |     +-- EXAMPLE: req-chat-001 invalid/full-queue branch -> documented HTTP or stream error
     |     +-- IN: invalid JSON shape/value use
     |     +-- STRUCTURES: Python exception -> HTTPException
     |     +-- LOGIC: map unsafe request shape to generic client error
     |     +-- OUT: HTTP 400 "Invalid JSON."
     |
     +-- Pydantic ValidationError
+    |     +-- EXAMPLE: req-chat-001 invalid/full-queue branch -> documented HTTP or stream error
     |     +-- IN: schema-invalid parsed value
     |     +-- STRUCTURES: field/model validation details
     |     +-- LOGIC: preserve useful validation detail
     |     +-- OUT: HTTP 400 with validation text
     |
     +-- InputError / UndefinedError / ValueError
+    |     +-- EXAMPLE: req-chat-001 invalid/full-queue branch -> documented HTTP or stream error
     |     +-- IN: semantic request/template/sampling failure
     |     +-- STRUCTURES: route exception handlers
     |     +-- LOGIC: map preparation failures to client-visible 400
     |     +-- OUT: HTTP 400
     |
     +-- RequestQueueFull from ZmqModelWorkerProxy.stream(...)
+    |     +-- EXAMPLE: req-chat-001 invalid/full-queue branch -> documented HTTP or stream error
     |     +-- IN: request_queue.writable() == false
     |     +-- STRUCTURES: RequestQueueFull + app exception handler
     |     +-- LOGIC: load shed before SSE headers/state commit
@@ -3764,34 +3411,59 @@ request body / route preparation
     |     +-- _request_queue_full_exception_handler(request, exc)
     |           api_server.py:307
     |             |
+    |             +-- EXAMPLE: RequestQueueFull -> HTTP 429, Retry-After: 1
     |             +-- IN: Request + RequestQueueFull
     |             +-- STRUCTURES: OpenAI error envelope + JSONResponse headers
     |             +-- LOGIC: map admission backpressure to standard rate-limit response
     |             +-- OUT: JSONResponse(status=429, Retry-After="1")
     |
     +-- streaming error before first visible payload
+    |     +-- EXAMPLE: req-chat-001 invalid/full-queue branch -> documented HTTP or stream error
     |     +-- IN: generator yields JSONResponse first
     |     +-- STRUCTURES: _start_stream first-item gate
     |     +-- LOGIC: return real error response instead of SSE 200
     |     +-- OUT: non-200 HTTP response
     |
     +-- streaming error after SSE output starts
+          +-- EXAMPLE: req-chat-001 invalid/full-queue branch -> documented HTTP or stream error
           +-- IN: exception after HTTP 200 committed
           +-- STRUCTURES: OpenAI error JSON SSE frame
           +-- LOGIC: status cannot change; report error in stream
           +-- OUT: HTTP 200 stream containing error payload
 </pre>
-
+<!-- END ADDED FUNCTION DETAILS 13 -->
 </details>
 
-## 10. IPC And Compiled-Runtime Boundaries
+## 10. Boundaries That Are Not Direct Calls
+
+These distinctions prevent a call-stack diagram from implying false Python
+calls:
 
 <details>
-<summary><strong>Expand: Boundaries that are handoffs, not nested Python calls</strong></summary>
+<summary><strong>Expand: IPC and compiled-runtime boundaries</strong></summary>
+
+<pre>
+API process                    Model worker process
+-----------                    --------------------
+request_queue.put(context)  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L61">[Push:L61]</a> --> scheduler drains request_queue
+                               not a direct call to run_iteration()  <a href="0010_A_1_scheduler_iteration_queue_batch_execute.md#L64">[Iter:L64]</a>
+
+scheduler response_queue   --> proxy.response_worker()  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L100">[Route:L100]</a>
+                               not a direct call to _drain_responses()  <a href="0009_A_1_model_worker_stream_admission_and_response_drain.md#L126">[Drain:L126]</a>
+
+LlamaModelBase.execute()  <a href="0014_A_1_llama_model_execution_runtime_and_graph.md#L80">[Model:L80]</a>
+  -> self.model.execute(...)   crosses into compiled MAX runtime  <a href="0014_A_1_llama_model_execution_runtime_and_graph.md#L83">[Graph:L83]</a>
+                               Python does not recursively call Mojo kernel files
+</pre>
+
+
+<!-- BEGIN ADDED FUNCTION DETAILS 14 -->
+<strong>Function details for the unchanged call tree above</strong>
 
 <pre>
 request_queue.put(context)
     |
+    +-- EXAMPLE: FIXTURE.text_context -> worker request queue
     +-- IN: API-process TextContext
     +-- STRUCTURES: ZeroMQ/MAX queue serialization and transport
     +-- LOGIC: cross process boundary; worker scheduler later drains independently
@@ -3801,6 +3473,7 @@ request_queue.put(context)
 
 response_queue.put_nowait(SchedulerResult)
     |
+    +-- EXAMPLE: SchedulerResult(batch_id=1) -> API response queue
     +-- IN: worker-process result map
     +-- STRUCTURES: ZeroMQ/MAX queue transport
     +-- LOGIC: cross process boundary; API response_worker later consumes independently
@@ -3810,6 +3483,7 @@ response_queue.put_nowait(SchedulerResult)
 
 LlamaModelBase.execute(model_inputs)
     |
+    +-- EXAMPLE: FIXTURE.llama_inputs.buffers -> ModelOutputs
     +-- IN: Llama3Inputs
     +-- STRUCTURES: Python wrapper + compiled MAX Model
     +-- LOGIC: model_inputs.buffers -> self.model.execute(*buffers)
@@ -3817,5 +3491,112 @@ LlamaModelBase.execute(model_inputs)
           |
           +-- compiled graph/runtime/kernel execution is not a Python call-stack recursion
 </pre>
-
+<!-- END ADDED FUNCTION DETAILS 14 -->
 </details>
+
+The compiled Llama graph was built during worker startup. At request time,
+`self.model.execute(*model_inputs.buffers)` invokes that already-compiled graph.
+Graph operators eventually dispatch lower-level kernels, but those kernel
+invocations are not represented as ordinary Python frames.
+
+## 11. Source Map
+
+- API application and route registration:
+  [`api_server.py`](../../../max/python/max/serve/api_server.py#L330)
+- Request ID/timer HTTP middleware:
+  [`request.py`](../../../max/python/max/serve/request.py#L45)
+- OpenAI route and response generation:
+  [`openai_routes.py`](../../../max/python/max/serve/router/openai_routes.py#L2217)
+- OpenAI request schemas:
+  [`schemas/openai.py`](../../../max/python/max/serve/schemas/openai.py#L448)
+- Tool parameter normalization:
+  [`tool_call_normalization.py`](../../../max/python/max/serve/parser/tool_call_normalization.py#L62)
+- Media resolution:
+  [`_image_resolution.py`](../../../max/python/max/serve/router/_image_resolution.py#L839)
+- Internal text-generation request:
+  [`modeling/types/.../text_generation.py`](../../../max/python/max/pipelines/modeling/types/pipeline_variants/text_generation.py#L336)
+- API-side LLM pipeline:
+  [`llm.py`](../../../max/python/max/serve/pipelines/llm.py#L294)
+- Tokenizer and context creation:
+  [`tokenizer.py`](../../../max/python/max/pipelines/lib/tokenizer.py#L718)
+- Buffered detokenization:
+  [`incremental_detokenizer.py`](../../../max/python/max/serve/pipelines/incremental_detokenizer.py#L343)
+- ZMQ worker interface:
+  [`zmq_interface.py`](../../../max/python/max/serve/worker_interface/zmq_interface.py#L105)
+- Model-worker process loop:
+  [`model_worker.py`](../../../max/python/max/serve/pipelines/model_worker.py#L232)
+- Scheduler:
+  [`text_generation_scheduler.py`](../../../max/python/max/serve/scheduler/text_generation_scheduler.py#L205)
+- Scheduler selection:
+  [`scheduler/__init__.py`](../../../max/python/max/serve/scheduler/__init__.py#L61)
+- Batch constructor:
+  [`text_batch_constructor.py`](../../../max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py#L677)
+- Text-generation pipeline:
+  [`pipeline_variants/text_generation.py`](../../../max/python/max/pipelines/lib/pipeline_variants/text_generation.py#L399)
+- Sampling:
+  [`sampling_logits_processor.py`](../../../max/python/max/pipelines/sampling/sampling_logits_processor.py#L97)
+- Per-request and fused logits-processor dispatch:
+  [`logits_processor.py`](../../../max/python/max/pipelines/sampling/logits_processor.py#L27)
+- Context update and response construction:
+  [`pipeline_variants/utils.py`](../../../max/python/max/pipelines/lib/pipeline_variants/utils.py#L157)
+- Pipeline-model delegation to the architecture batch processor:
+  [`pipeline_model.py`](../../../max/python/max/pipelines/lib/interfaces/pipeline_model.py#L623)
+- Llama input staging:
+  [`llama3/batch_processor.py`](../../../max/python/max/pipelines/architectures/llama3/batch_processor.py#L99)
+- Llama model runtime wrapper:
+  [`llama3/model.py`](../../../max/python/max/pipelines/architectures/llama3/model.py#L168)
+
+## 12. Walkthrough Cross-References
+
+The following documents provide source excerpts, worked values, and focused
+explanations for nodes in the call tree:
+
+- Folder map:
+  [0000_A_folder_structure.md](0000_A_folder_structure.md)
+- Function/step inputs, structures, logic, and outputs:
+  [0000_C_end_to_end_function_io_tree.md](0000_C_end_to_end_function_io_tree.md)
+- HTTP parsing:
+  [0001_parse_openai_request_body.md](0001_parse_openai_request_body.md),
+  [0001_A_1_parse_openai_request_body_http_ingress_and_parser.md](0001_A_1_parse_openai_request_body_http_ingress_and_parser.md),
+  [0001_A_2_parse_openai_request_body_tool_parameter_normalization.md](0001_A_2_parse_openai_request_body_tool_parameter_normalization.md),
+  [0001_B_1_parse_openai_request_body_pydantic_schema_validation.md](0001_B_1_parse_openai_request_body_pydantic_schema_validation.md)
+- Pipeline selection and tokenizer contract:
+  [0002_get_pipeline.md](0002_get_pipeline.md),
+  [0002_get_pipeline_0a_PipelineTokenizer.md](0002_get_pipeline_0a_PipelineTokenizer.md),
+  [0002_A_1_get_pipeline_model_selection.md](0002_A_1_get_pipeline_model_selection.md),
+  [0002_B_1_get_pipeline_pipeline_tokenizer_protocol.md](0002_B_1_get_pipeline_pipeline_tokenizer_protocol.md)
+- Chat parsing and media:
+  [0003_openai_parse_chat_completion_request.md](0003_openai_parse_chat_completion_request.md),
+  [0003_A_1_openai_parse_chat_completion_request_messages.md](0003_A_1_openai_parse_chat_completion_request_messages.md),
+  [0003_A_2_openai_parse_chat_completion_request_media.md](0003_A_2_openai_parse_chat_completion_request_media.md),
+  [0003_B_1_openai_parse_chat_completion_request_tool_conversion.md](0003_B_1_openai_parse_chat_completion_request_tool_conversion.md)
+- Internal request and HTTP response branches:
+  [0004_TextGenerationRequest.md](0004_TextGenerationRequest.md),
+  [0004_A_1_TextGenerationRequest_construction_and_validation.md](0004_A_1_TextGenerationRequest_construction_and_validation.md),
+  [0004_B_1_TextGenerationRequest_sampling_params_resolution.md](0004_B_1_TextGenerationRequest_sampling_params_resolution.md),
+  [0005_streaming_vs_non_streaming.md](0005_streaming_vs_non_streaming.md),
+  [0005_A_1_streaming_vs_non_streaming_response_dispatch.md](0005_A_1_streaming_vs_non_streaming_response_dispatch.md)
+- Context creation and output decoding:
+  [0006_tokenizer_new_context.md](0006_tokenizer_new_context.md),
+  [0006_A_1_tokenizer_new_context_prompt_and_tokens.md](0006_A_1_tokenizer_new_context_prompt_and_tokens.md),
+  [0006_A_2_tokenizer_new_context_metadata_and_state.md](0006_A_2_tokenizer_new_context_metadata_and_state.md),
+  [0007_create_buffered_detokenizer.md](0007_create_buffered_detokenizer.md),
+  [0007_A_1_create_buffered_detokenizer_factory_and_decode.md](0007_A_1_create_buffered_detokenizer_factory_and_decode.md)
+- Admission and worker IPC:
+  [0008_note_awaiting_admission.md](0008_note_awaiting_admission.md),
+  [0008_A_1_note_awaiting_admission_counter_lifecycle.md](0008_A_1_note_awaiting_admission_counter_lifecycle.md),
+  [0009_model_worker_stream.md](0009_model_worker_stream.md),
+  [0009_A_1_model_worker_stream_admission_and_response_drain.md](0009_A_1_model_worker_stream_admission_and_response_drain.md)
+- Scheduler and batch construction:
+  [0010_scheduler_iteration.md](0010_scheduler_iteration.md),
+  [0010_A_1_scheduler_iteration_queue_batch_execute.md](0010_A_1_scheduler_iteration_queue_batch_execute.md),
+  [0011_text_batch_constructor.md](0011_text_batch_constructor.md),
+  [0011_A_1_text_batch_constructor_request_admission.md](0011_A_1_text_batch_constructor_request_admission.md),
+  [0011_A_2_text_batch_constructor_batch_packing.md](0011_A_2_text_batch_constructor_batch_packing.md)
+- Pipeline and Llama execution:
+  [0012_pipeline_execution.md](0012_pipeline_execution.md),
+  [0012_A_1_pipeline_execution_prepare_forward_sample.md](0012_A_1_pipeline_execution_prepare_forward_sample.md),
+  [0013_llama_input_staging.md](0013_llama_input_staging.md),
+  [0013_A_1_llama_input_staging_ragged_buffers.md](0013_A_1_llama_input_staging_ragged_buffers.md),
+  [0014_llama_model_execution.md](0014_llama_model_execution.md),
+  [0014_A_1_llama_model_execution_runtime_and_graph.md](0014_A_1_llama_model_execution_runtime_and_graph.md)
