@@ -830,11 +830,12 @@ fastapi_app(settings, serving_settings)  <a href="0000_A_folder_structure.md#exp
 ### Component and Process Architecture
 
 ```mermaid
-flowchart LR
+flowchart TB
     CLI["max serve CLI"] --> UV
     CLIENT["HTTP clients"] --> BIND
 
     subgraph API["API Process"]
+        direction LR
         UV["Uvicorn Server"]
         BIND["Bind host:port\n0.0.0.0:8000"]
         ACCEPT["Accept TCP connections"]
@@ -871,6 +872,7 @@ flowchart LR
     end
 
     subgraph WORKER["Model-Worker Process"]
+        direction LR
         MODEL_WORKER["ModelWorker"]
         SCHED["Scheduler"]
         EXEC["Model Executor"]
