@@ -565,6 +565,104 @@ max serve --model &lt;model&gt;
                                           +-- OUT: HTTP responses/SSE streams until shutdown
 </pre>
 
+<details>
+<summary><strong>Expand: Complete inputs passed to fastapi_app(settings, pipeline_settings)</strong></summary>
+
+<pre>
+fastapi_app(
+  # Default snapshot; CLI flags and MAX_SERVE_* environment variables can
+  # replace these values before fastapi_app(...) is called.
+  settings = Settings(
+    api_types=[APIType.OPENAI, APIType.SAGEMAKER],
+    offline_inference=False,
+    headless=False,
+    host="0.0.0.0",
+    port=8000,
+    metrics_port=8001,
+    http_keepalive_timeout_s=120,
+    max_queue_size=None,
+    max_pending_requests=None,
+    max_request_bytes=104857600,
+    allowed_image_roots=[],
+    max_local_image_bytes=20971520,
+    max_media_bytes=104857600,
+    media_kind="image",
+    media_url_ssrf_protection_enabled=True,
+    media_url_allowed_hosts=[],
+    generated_media_storage_mb=512,
+    use_client_cache_salt=False,
+    logs_console_level="INFO",
+    logs_otlp_level=None,
+    logs_file_level=None,
+    logs_file_path=None,
+    structured_logging=False,
+    logs_enable_components=None,
+    disable_telemetry=False,
+    otlp_metrics_endpoint=None,
+    kernel_trace_level=KernelTraceLevel.OFF,
+    use_heartbeat=False,
+    mw_timeout_s=None,
+    mw_health_fail_s=60.0,
+    eplb_profile=False,
+    gc_debug=False,
+    gc_debug_top_objects=0,
+    telemetry_worker_spawn_timeout=None,
+    graceful_shutdown_timeout_s=5,
+    metric_recording=MetricRecordingMethod.PROCESS,
+    stream_min_chunk_tokens=1,
+    transaction_recording_file=None,
+    transaction_recording_include_responses=False,
+    di_bind_address="tcp://127.0.0.1:5555",
+    log_prefix=None,
+  ),
+
+  pipeline_settings = ServingTokenGeneratorSettings(
+    model_factory=&lt;resolved pipeline factory callable&gt;,
+    pipeline_config=PipelineConfig(
+      debug_verify_replay=&lt;resolved bool&gt;,
+      tokenizer_impl=&lt;resolved str | None&gt;,
+      models=ModelManifest(
+        main=&lt;complete resolved MAXModelConfig for the selected model&gt;,
+        component_models=&lt;resolved role-to-MAXModelConfig mapping&gt;,
+      ),
+      model_override=&lt;resolved list[str], default []&gt;,
+      sampling=&lt;complete resolved SamplingConfig&gt;,
+      profiling=&lt;complete resolved ProfilingConfig&gt;,
+      lora=&lt;resolved LoRAConfig | None&gt;,
+      speculative=&lt;resolved SpeculativeConfig | None&gt;,
+      runtime=&lt;complete resolved PipelineRuntimeConfig; role is
+               "prefill_and_decode" for the normal server path&gt;,
+      task=PipelineTask.TEXT_GENERATION,
+    ),
+    tokenizer=&lt;resolved PipelineTokenizer&gt;,
+    task=PipelineTask.TEXT_GENERATION,
+    reasoning_parser_name=&lt;runtime reasoning parser or None&gt;,
+    temperature=&lt;runtime temperature or None; request temperature is
+                 applied later by SamplingParams&gt;,
+    thinking_temperature=&lt;runtime thinking temperature or None&gt;,
+    memory_plan=MemoryPlan(
+      planned_max_batch_size=&lt;resolved batch limit&gt;,
+      footprint=&lt;resolved device-memory estimate in bytes&gt;,
+      planned_max_length=&lt;resolved sequence-length limit&gt;,
+      available_cache_memory=&lt;resolved KV-cache bytes or None&gt;,
+      device_specs=&lt;resolved device specifications&gt;,
+      planned_max_batch_total_tokens=&lt;resolved token budget or None&gt;,
+      vision_cache_plan=&lt;resolved vision plan or None&gt;,
+    ),
+  ),
+)
+
+Value source:
+  Settings = CLI options + MAX_SERVE_* environment variables + defaults.
+  pipeline_settings = PipelineConfig.from_args(...) + registry-resolved
+                       tokenizer, model factory, and memory plan.
+
+Output:
+  app: FastAPI
+</pre>
+
+</details>
+
 <strong>API application factory and API-worker wiring</strong>
 
 <pre>
