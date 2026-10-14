@@ -386,6 +386,51 @@ first HTTP request arrives.
 <details>
 <summary><strong>Expand: API server startup and API-worker wiring</strong></summary>
 
+<strong>MAX CLI path that starts the API server</strong>
+
+<pre>
+max serve --model &lt;model&gt;
+    |
+    +-- max._entrypoints.pipelines.main()  <a href="../../../max/python/max/_entrypoints/pipelines.py#L197">[CLI:L197]</a>
+          |
+          +-- Click dispatches the "serve" command
+          |
+          +-- cli_serve(...)  <a href="../../../max/python/max/_entrypoints/pipelines.py#L434">[Serve:L434]</a>
+                |
+                +-- build Settings and PipelineArgs
+                +-- configure logging and pipeline configuration
+                |
+                +-- [BRANCH] headless=True
+                |     |
+                |     +-- start_workers(...)  <a href="../../../max/python/max/_entrypoints/pipelines.py#L560">[Headless:L560]</a>
+                |           |
+                |           +-- no FastAPI app is created
+                |
+                +-- [BRANCH] headless=False
+                      |
+                      +-- serve_api_server_and_model_worker(...)  <a href="../../../max/python/max/_entrypoints/pipelines.py#L565">[ServeAPI:L565]</a>
+                            serve_api_and_model_worker.py:59
+                              |
+                              +-- fastapi_app(settings, pipeline_settings)  <a href="../../../max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L117">[AppFactory:L117]</a>
+                              |     |
+                              |     +-- fastapi_app(settings, serving_settings)  <a href="../../../max/python/max/serve/api_server.py#L330">[FastAPI:L330]</a>
+                              |           |
+                              |           +-- create FastAPI app and register middleware
+                              |           +-- store app.state.zmq_endpoint_base
+                              |           +-- return app
+                              |
+                              +-- fastapi_config(app, server_settings)
+                              +-- validate_port_is_free(settings.port)
+                              +-- Server(config)
+                              |
+                              +-- uvloop.run(serve())  <a href="../../../max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L163">[Run:L163]</a>
+                                    |
+                                    +-- async with lifespan(...)
+                                    +-- await server.serve()
+</pre>
+
+<strong>API application factory and API-worker wiring</strong>
+
 <pre>
 fastapi_app(settings, serving_settings)  <a href="0000_A_folder_structure.md#expandable-root-level-map">[Map]</a>
   api_server.py:330
