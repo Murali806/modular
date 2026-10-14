@@ -825,7 +825,9 @@ fastapi_app(settings, serving_settings)  <a href="0000_A_folder_structure.md#exp
 </pre>
 </details>
 
-## Server Runtime Architecture Diagrams
+<details>
+<summary><strong>Expand: Server Runtime Architecture Diagrams</strong></summary>
+
 
 ### Component and Process Architecture
 
@@ -989,6 +991,8 @@ sequenceDiagram
 Each client has its own request ID and response path, while the scheduler and
 model executor can share batches and device work. Async API tasks wait on their
 own output stream instead of blocking other clients at the HTTP layer.
+
+</details>
 
 The spawned model-worker process builds the model pipeline and then runs the
 scheduler forever:
