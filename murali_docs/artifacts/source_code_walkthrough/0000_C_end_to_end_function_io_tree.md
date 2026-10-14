@@ -832,22 +832,42 @@ fastapi_app(settings, serving_settings)  <a href="0000_A_folder_structure.md#exp
 ```mermaid
 flowchart LR
     CLI["max serve CLI"] --> UV
+    CLIENT["HTTP clients"] --> BIND
 
     subgraph API["API Process"]
         UV["Uvicorn Server"]
+        BIND["Bind host:port\n0.0.0.0:8000"]
+        ACCEPT["Accept TCP connections"]
+        PARSE["Parse HTTP requests"]
+        LOOP["uvloop async event loop\nnon-blocking await/scheduling"]
+        TASKS["Concurrent ASGI tasks\nclient A | client B | ..."]
+        ASGI["ASGI call per task\napp(scope, receive, send)"]
         FA["FastAPI Application"]
         MW["Middleware"]
         ROUTES["API Routes"]
         LIFE["Lifespan"]
         PIPE["TokenGeneratorPipeline"]
         PROXY["ZmqModelWorkerProxy"]
+        EVENTS["ASGI response events"]
+        WRITE["Send HTTP response bytes"]
+        SHUT["Graceful shutdown and\nconnection timeouts"]
 
-        UV --> FA
+        UV --> BIND
+        BIND --> ACCEPT
+        ACCEPT --> PARSE
+        PARSE --> LOOP
+        LOOP --> TASKS
+        TASKS --> ASGI
+        ASGI --> FA
         FA --> MW
         FA --> ROUTES
         FA --> LIFE
         ROUTES --> PIPE
         PIPE --> PROXY
+        FA --> EVENTS
+        EVENTS --> WRITE
+        WRITE --> CLIENT
+        LOOP --> SHUT
     end
 
     subgraph WORKER["Model-Worker Process"]
@@ -870,7 +890,20 @@ flowchart LR
     GRAPH --> OUTPUT["Generated tokens"]
     OUTPUT --> PROXY
     PROXY --> ROUTES
+
+    classDef uvicorn fill:#e8f1ff,stroke:#2563eb,stroke-width:2px
+    classDef eventloop fill:#fff4cc,stroke:#d97706,stroke-width:4px
+    classDef shutdown fill:#ffe4e6,stroke:#dc2626,stroke-width:2px
+    class UV,BIND,ACCEPT,PARSE,ASGI,EVENTS,WRITE uvicorn
+    class LOOP,TASKS eventloop
+    class SHUT shutdown
 ```
+
+The highlighted event-loop path shows how Uvicorn keeps the loop responsive:
+each client request becomes an independent ASGI task, and `await` yields
+control while that task waits for model-worker or network I/O. The scheduler
+can therefore serve other clients during that wait. The red node represents
+graceful shutdown and timeout enforcement for active connections.
 
 ### Per-Request Runtime State Machine
 
