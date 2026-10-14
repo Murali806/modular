@@ -846,9 +846,14 @@ flowchart TB
         TASKS["Concurrent ASGI tasks\nclient A | client B | ..."]
         ASGI["ASGI call per task\napp(scope, receive, send)"]
         FA["FastAPI Application"]
-        MW["Middleware"]
+        MW["Middleware\nper request"]
+        MW_IN["Request phase\nsize limit | request ID | timing"]
+        MW_OUT["Response phase\nrecording | headers | logging"]
         ROUTES["API Routes"]
-        LIFE["Lifespan"]
+        LIFE["Lifespan\nonce per server"]
+        START["Startup\nmedia storage | telemetry | ZMQ worker"]
+        READY["Yield\nserver accepts requests"]
+        STOP["Shutdown\nworkers | queues | telemetry | temp media"]
         PIPE["TokenGeneratorPipeline"]
         PROXY["ZmqModelWorkerProxy"]
         EVENTS["ASGI response events"]
@@ -863,8 +868,13 @@ flowchart TB
         TASKS --> ASGI
         ASGI --> FA
         FA --> MW
+        MW --> MW_IN
+        MW_IN --> MW_OUT
         FA --> ROUTES
         FA --> LIFE
+        LIFE --> START
+        START --> READY
+        READY --> STOP
         ROUTES --> PIPE
         PIPE --> PROXY
         FA --> EVENTS
@@ -897,10 +907,14 @@ flowchart TB
 
     classDef uvicorn fill:#e8f1ff,stroke:#2563eb,stroke-width:2px
     classDef eventloop fill:#fff4cc,stroke:#d97706,stroke-width:4px
+    classDef middleware fill:#e0f2fe,stroke:#0284c7,stroke-width:2px
+    classDef lifecycle fill:#ecfdf5,stroke:#16a34a,stroke-width:2px
     classDef shutdown fill:#ffe4e6,stroke:#dc2626,stroke-width:2px
     class UV,BIND,ACCEPT,PARSE,ASGI,EVENTS,WRITE uvicorn
     class LOOP,TASKS eventloop
-    class SHUT shutdown
+    class MW,MW_IN,MW_OUT middleware
+    class LIFE,START,READY lifecycle
+    class STOP,SHUT shutdown
 ```
 
 The highlighted event-loop path shows how Uvicorn keeps the loop responsive:
