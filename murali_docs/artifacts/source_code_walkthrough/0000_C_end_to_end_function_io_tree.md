@@ -474,6 +474,27 @@ max serve --model &lt;model&gt;
                               +-- LOGIC: prepare model serving dependencies, build app, then run HTTP server
                               +-- OUT: running Uvicorn API server
                               |
+                              +-- ASGI boundary
+                              |     HTTP client
+                              |         |
+                              |         | HTTP request to host:port
+                              |         v
+                              |     Uvicorn
+                              |     Python ASGI web server
+                              |         |
+                              |         | await fastapi_app(scope, receive, send)
+                              |         v
+                              |     FastAPI application
+                              |     Python ASGI web app
+                              |         |
+                              |         +-- middleware
+                              |         +-- route matching
+                              |         +-- request handlers
+                              |         |
+                              |         | send(response events)
+                              |         v
+                              |     Uvicorn writes the HTTP response
+                              |
                               +-- fastapi_app(settings, pipeline_settings)  <a href="../../../max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L117">[AppFactory:L117]</a>
                               |     |
                               |     +-- EXAMPLE: pipeline_settings.task=TEXT_GENERATION
