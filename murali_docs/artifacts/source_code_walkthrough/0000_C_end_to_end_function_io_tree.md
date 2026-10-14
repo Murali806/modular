@@ -391,42 +391,157 @@ first HTTP request arrives.
 <pre>
 max serve --model &lt;model&gt;
     |
+    +-- EXAMPLE: max serve --model meta-llama/Llama-3.1-8B-Instruct
+    +-- IN: CLI arguments, environment variables, model identifier
+    +-- STRUCTURES: Click command context; Settings; PipelineArgs
+    +-- LOGIC: parse CLI options and select the standard serving path
+    +-- OUT: running API server or headless worker process
+    |
     +-- max._entrypoints.pipelines.main()  <a href="../../../max/python/max/_entrypoints/pipelines.py#L197">[CLI:L197]</a>
           |
+          +-- EXAMPLE: ctx.invoked_subcommand="serve", log_level="INFO"
+          +-- IN: process argv and Click context
+          +-- STRUCTURES: Click Group command registry; logging configuration
+          +-- LOGIC: initialize CLI logging/telemetry and dispatch the subcommand
+          +-- OUT: cli_serve(...) is selected
+          |
           +-- Click dispatches the "serve" command
+          |     |
+          |     +-- EXAMPLE: command name="serve" with --model argument
+          |     +-- IN: registered Click command and parsed parameters
+          |     +-- STRUCTURES: Click command callback
+          |     +-- LOGIC: invoke the callback after option validation
+          |     +-- OUT: cli_serve(...) receives typed options
+          |
           |
           +-- cli_serve(...)  <a href="../../../max/python/max/_entrypoints/pipelines.py#L434">[Serve:L434]</a>
                 |
+                +-- EXAMPLE: headless=False, model_path="meta-llama/Llama-3.1-8B-Instruct"
+                +-- IN: port/host flags; model and task options; headless flag
+                +-- STRUCTURES: Settings; PipelineArgs; PipelineConfig
+                +-- LOGIC: resolve configuration, load pipeline metadata, choose server mode
+                +-- OUT: configured server startup request
+                |
                 +-- build Settings and PipelineArgs
+                |     |
+                |     +-- EXAMPLE: Settings(port=8000) + PipelineArgs(model_path="meta-llama/Llama-3.1-8B-Instruct")
+                |     +-- IN: CLI option values and environment configuration
+                |     +-- STRUCTURES: Settings; PipelineArgs
+                |     +-- LOGIC: normalize command-line values into typed configuration objects
+                |     +-- OUT: settings and pipeline_args
+                |
                 +-- configure logging and pipeline configuration
+                |     |
+                |     +-- EXAMPLE: pipeline task=TEXT_GENERATION, log level=INFO
+                |     +-- IN: settings and pipeline_args
+                |     +-- STRUCTURES: logging handlers; PipelineConfig
+                |     +-- LOGIC: install logging and resolve model/tokenizer configuration
+                |     +-- OUT: configured runtime environment
+                |
                 |
                 +-- [BRANCH] headless=True
                 |     |
+                |     +-- EXAMPLE: --headless supplied
+                |     +-- IN: settings; pipeline_args; headless=True
+                |     +-- STRUCTURES: worker-process startup configuration
+                |     +-- LOGIC: skip HTTP application creation and launch workers directly
+                |     +-- OUT: headless worker service
+                |     |
                 |     +-- start_workers(...)  <a href="../../../max/python/max/_entrypoints/pipelines.py#L560">[Headless:L560]</a>
+                |           |
+                |           +-- EXAMPLE: worker-only deployment with model_path configured
+                |           +-- IN: settings and pipeline_args
+                |           +-- STRUCTURES: model worker processes; IPC queues
+                |           +-- LOGIC: start worker-side serving components without FastAPI
+                |           +-- OUT: running headless workers
                 |           |
                 |           +-- no FastAPI app is created
                 |
                 +-- [BRANCH] headless=False
                       |
+                      +-- EXAMPLE: normal `max serve` invocation
+                      +-- IN: settings; pipeline_args; headless=False
+                      +-- STRUCTURES: API process; model-worker process; ZMQ IPC
+                      +-- LOGIC: start the API server and model worker together
+                      +-- OUT: serving API startup path
+                      |
                       +-- serve_api_server_and_model_worker(...)  <a href="../../../max/python/max/_entrypoints/pipelines.py#L565">[ServeAPI:L565]</a>
                             serve_api_and_model_worker.py:59
                               |
+                              +-- EXAMPLE: model factory and tokenizer resolved for Llama 3.1
+                              +-- IN: Settings; PipelineArgs; tokenizer; pipeline factory; memory plan
+                              +-- STRUCTURES: ServingTokenGeneratorSettings; FastAPI app; Uvicorn Server
+                              +-- LOGIC: prepare model serving dependencies, build app, then run HTTP server
+                              +-- OUT: running Uvicorn API server
+                              |
                               +-- fastapi_app(settings, pipeline_settings)  <a href="../../../max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L117">[AppFactory:L117]</a>
                               |     |
+                              |     +-- EXAMPLE: pipeline_settings.task=TEXT_GENERATION
+                              |     +-- IN: Settings and ServingTokenGeneratorSettings
+                              |     +-- STRUCTURES: application factory call; ZMQ endpoint path
+                              |     +-- LOGIC: create the API application before Uvicorn starts
+                              |     +-- OUT: app: FastAPI
+                              |     |
                               |     +-- fastapi_app(settings, serving_settings)  <a href="../../../max/python/max/serve/api_server.py#L330">[FastAPI:L330]</a>
+                              |           |
+                              |           +-- EXAMPLE: settings.port=8000, API type="openai"
+                              |           +-- IN: Settings; ServingTokenGeneratorSettings
+                              |           +-- STRUCTURES: FastAPI app; middleware; app.state
+                              |           +-- LOGIC: register routes/middleware and attach startup state
+                              |           +-- OUT: configured FastAPI app
                               |           |
                               |           +-- create FastAPI app and register middleware
                               |           +-- store app.state.zmq_endpoint_base
                               |           +-- return app
                               |
                               +-- fastapi_config(app, server_settings)
+                              |     |
+                              |     +-- EXAMPLE: app plus host/port/TLS settings -> Uvicorn Config
+                              |     +-- IN: FastAPI app and server Settings
+                              |     +-- STRUCTURES: uvicorn.Config
+                              |     +-- LOGIC: translate server settings into Uvicorn configuration
+                              |     +-- OUT: config: uvicorn.Config
+                              |
                               +-- validate_port_is_free(settings.port)
+                              |     |
+                              |     +-- EXAMPLE: port=8000 is available
+                              |     +-- IN: integer TCP port
+                              |     +-- STRUCTURES: local socket probe
+                              |     +-- LOGIC: fail early if another process owns the port
+                              |     +-- OUT: None, or startup exception
+                              |
                               +-- Server(config)
+                              |     |
+                              |     +-- EXAMPLE: config.bind="0.0.0.0:8000"
+                              |     +-- IN: uvicorn.Config
+                              |     +-- STRUCTURES: uvicorn.Server
+                              |     +-- LOGIC: create the asynchronous HTTP server controller
+                              |     +-- OUT: server object
+                              |
                               |
                               +-- uvloop.run(serve())  <a href="../../../max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L163">[Run:L163]</a>
                                     |
+                                    +-- EXAMPLE: server event loop starts on port 8000
+                                    +-- IN: serve() coroutine
+                                    +-- STRUCTURES: uvloop event loop; async context manager
+                                    +-- LOGIC: run the API server lifecycle to completion
+                                    +-- OUT: process remains serving until shutdown
+                                    |
                                     +-- async with lifespan(...)
+                                    |     |
+                                    |     +-- EXAMPLE: app + settings + pipeline settings + ZMQ endpoint
+                                    |     +-- IN: API app and model-worker startup dependencies
+                                    |     +-- STRUCTURES: async context manager; worker TaskGroup; telemetry
+                                    |     +-- LOGIC: start model worker/pipeline before accepting requests
+                                    |     +-- OUT: active serving context
+                                    |
                                     +-- await server.serve()
+                                          |
+                                          +-- EXAMPLE: HTTP listener accepts POST /v1/chat/completions
+                                          +-- IN: configured Uvicorn Server
+                                          +-- STRUCTURES: ASGI server; FastAPI application
+                                          +-- LOGIC: accept connections and dispatch requests to FastAPI
+                                          +-- OUT: HTTP responses/SSE streams until shutdown
 </pre>
 
 <strong>API application factory and API-worker wiring</strong>
