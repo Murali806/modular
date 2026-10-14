@@ -441,7 +441,7 @@ max serve --model &lt;model&gt;
                 |
                 +-- [BRANCH] headless=True
                 |     |
-                |     +-- EXAMPLE: --headless supplied
+                |     +-- EXAMPLE: headless=True (--headless; dispatcher + model-worker only, no HTTP API)
                 |     +-- IN: settings; pipeline_args; headless=True
                 |     +-- STRUCTURES: worker-process startup configuration
                 |     +-- LOGIC: skip HTTP application creation and launch workers directly
