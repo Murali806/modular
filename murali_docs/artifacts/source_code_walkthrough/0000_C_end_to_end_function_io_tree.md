@@ -416,7 +416,7 @@ max serve --model &lt;model&gt;
           |
           +-- cli_serve(...)  <a href="../../../max/python/max/_entrypoints/pipelines.py#L434">[Serve:L434]</a>
                 |
-                +-- EXAMPLE: headless=False, model_path="meta-llama/Llama-3.1-8B-Instruct"
+                +-- EXAMPLE: headless=False (normal API + model-worker mode), model_path="meta-llama/Llama-3.1-8B-Instruct"
                 +-- IN: port/host flags; model and task options; headless flag
                 +-- STRUCTURES: Settings; PipelineArgs; PipelineConfig
                 +-- LOGIC: resolve configuration, load pipeline metadata, choose server mode
