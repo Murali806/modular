@@ -825,6 +825,136 @@ fastapi_app(settings, serving_settings)  <a href="0000_A_folder_structure.md#exp
 </pre>
 </details>
 
+## Server Runtime Architecture Diagrams
+
+### Component and Process Architecture
+
+```mermaid
+flowchart LR
+    CLI["max serve CLI"] --> UV
+
+    subgraph API["API Process"]
+        UV["Uvicorn Server"]
+        FA["FastAPI Application"]
+        MW["Middleware"]
+        ROUTES["API Routes"]
+        LIFE["Lifespan"]
+        PIPE["TokenGeneratorPipeline"]
+        PROXY["ZmqModelWorkerProxy"]
+
+        UV --> FA
+        FA --> MW
+        FA --> ROUTES
+        FA --> LIFE
+        ROUTES --> PIPE
+        PIPE --> PROXY
+    end
+
+    subgraph WORKER["Model-Worker Process"]
+        MODEL_WORKER["ModelWorker"]
+        SCHED["Scheduler"]
+        EXEC["Model Executor"]
+        KV["KV-Cache Manager"]
+        GRAPH["Compiled MAX Graph"]
+
+        MODEL_WORKER --> SCHED
+        SCHED --> EXEC
+        SCHED --> KV
+        EXEC --> GRAPH
+    end
+
+    PROXY -->|"request_queue"| SCHED
+    SCHED -->|"response_queue"| PROXY
+    PROXY -->|"cancel_queue"| MODEL_WORKER
+
+    GRAPH --> OUTPUT["Generated tokens"]
+    OUTPUT --> PROXY
+    PROXY --> ROUTES
+```
+
+### Per-Request Runtime State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> RECEIVED
+
+    RECEIVED --> VALIDATING: FastAPI receives request
+    VALIDATING --> REJECTED: invalid JSON/schema
+    VALIDATING --> QUEUED: request accepted
+    QUEUED --> REJECTED: RequestQueueFull
+    QUEUED --> ADMITTED: worker accepts request
+
+    ADMITTED --> PREFILLING: scheduler builds prefill batch
+    PREFILLING --> RUNNING: first model execution completes
+    RUNNING --> STREAMING: token output is available
+    STREAMING --> RUNNING: more tokens required
+    RUNNING --> COMPLETED: EOS/stop/max tokens
+
+    QUEUED --> CANCELLED: client disconnect/cancel
+    ADMITTED --> CANCELLED: cancellation received
+    PREFILLING --> CANCELLED: cancellation received
+    RUNNING --> CANCELLED: cancellation received
+    STREAMING --> CANCELLED: client disconnect/cancel
+
+    PREFILLING --> FAILED: model/scheduler error
+    RUNNING --> FAILED: model/scheduler error
+    STREAMING --> FAILED: response formatting error
+
+    REJECTED --> CLEANUP
+    COMPLETED --> CLEANUP
+    CANCELLED --> CLEANUP
+    FAILED --> CLEANUP
+    CLEANUP --> [*]
+```
+
+### Multiple Clients and Async Concurrency
+
+```mermaid
+sequenceDiagram
+    participant A as Client A
+    participant B as Client B
+    participant UV as Uvicorn/ASGI
+    participant FA as FastAPI Routes
+    participant P as ZmqModelWorkerProxy
+    participant Q as Shared ZMQ Request Queue
+    participant S as Model Scheduler
+    participant M as Model Executor
+    participant R as Per-Request Response Queues
+
+    par Client A request
+        A->>UV: POST /v1/chat/completions (req-A)
+        UV->>FA: ASGI task A
+        FA->>P: stream(req-A)
+        P->>Q: enqueue TextContext(req-A)
+    and Client B request
+        B->>UV: POST /v1/chat/completions (req-B)
+        UV->>FA: ASGI task B
+        FA->>P: stream(req-B)
+        P->>Q: enqueue TextContext(req-B)
+    end
+
+    S->>Q: drain available requests
+    S->>S: batch req-A and req-B when scheduling allows
+    S->>M: execute one batch
+    M-->>S: token outputs keyed by request ID
+    S->>R: publish req-A output
+    S->>R: publish req-B output
+
+    R-->>P: response for req-A
+    P-->>FA: detokenized req-A chunk
+    FA-->>UV: SSE/JSON for req-A
+    UV-->>A: response for req-A
+
+    R-->>P: response for req-B
+    P-->>FA: detokenized req-B chunk
+    FA-->>UV: SSE/JSON for req-B
+    UV-->>B: response for req-B
+```
+
+Each client has its own request ID and response path, while the scheduler and
+model executor can share batches and device work. Async API tasks wait on their
+own output stream instead of blocking other clients at the HTTP layer.
+
 The spawned model-worker process builds the model pipeline and then runs the
 scheduler forever:
 
