@@ -405,7 +405,7 @@ max serve --model &lt;model&gt;
           +-- LOGIC: initialize CLI logging/telemetry and dispatch the subcommand
           +-- OUT: cli_serve(...) is selected
           |
-          +-- Click dispatches the "serve" command
+          +-- Click is a command-line dispatcher which invokes cli_serve(...)
           |     |
           |     +-- EXAMPLE: command name="serve" with --model argument
           |     +-- IN: registered Click command and parsed parameters
