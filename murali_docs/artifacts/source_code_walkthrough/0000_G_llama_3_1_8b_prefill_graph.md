@@ -267,6 +267,121 @@ Evidence: `SOURCE`. Native compiler/runtime internals are marked `BOUNDARY`.
 `GraphPipelineModelWithKVCache`; it does not use the non-KV
 `GraphPipelineModel.load_model()` method.
 
+<details>
+<summary><strong>checkpoint: official Hugging Face safetensors - what does this format contain?</strong></summary>
+
+This means the model weights come directly from Meta's Hugging Face repository
+in the `safetensors` format. They are the original BF16 checkpoint tensors, not
+a converted GGUF checkpoint or GPTQ/other quantized representation.
+
+A `.safetensors` file is a binary container for named, dense tensors. It stores
+model parameter data, not executable model code or the model computation graph.
+
+```text
+model-00001-of-00004.safetensors
+    |
+    +-- 8-byte little-endian header length
+    |
+    +-- UTF-8 JSON header
+    |     +-- tensor name
+    |     +-- dtype
+    |     +-- shape
+    |     +-- byte offsets into the data region
+    |
+    +-- contiguous raw tensor bytes
+```
+
+The JSON header conceptually contains entries such as:
+
+```json
+{
+  "model.layers.0.self_attn.q_proj.weight": {
+    "dtype": "BF16",
+    "shape": [4096, 4096],
+    "data_offsets": [0, 33554432]
+  },
+  "model.layers.0.self_attn.k_proj.weight": {
+    "dtype": "BF16",
+    "shape": [1024, 4096],
+    "data_offsets": [33554432, 41943040]
+  }
+}
+```
+
+The data offsets select regions in the raw data area:
+
+```text
+raw tensor data
+    |
+    +-- q_proj.weight
+    |     4096 * 4096 * 2 bytes = 32 MiB
+    |
+    +-- k_proj.weight
+    |     1024 * 4096 * 2 bytes = 8 MiB
+    |
+    +-- subsequent tensor bytes
+```
+
+`BF16` occupies two bytes per element. Safetensors stores the tensor shape and
+dtype, but does not describe how the tensor participates in Llama inference;
+MAX obtains that architecture information from `config.json` and its Llama 3
+implementation.
+
+The 8B checkpoint is divided into multiple files:
+
+```text
+meta-llama/Llama-3.1-8B-Instruct
+    |
+    +-- config.json
+    +-- tokenizer.json and tokenizer configuration
+    +-- model.safetensors.index.json
+    +-- model-00001-of-00004.safetensors
+    +-- model-00002-of-00004.safetensors
+    +-- model-00003-of-00004.safetensors
+    +-- model-00004-of-00004.safetensors
+```
+
+`model.safetensors.index.json` contains a `weight_map` that identifies the
+shard containing each named tensor:
+
+```text
+model.layers.0.self_attn.q_proj.weight
+    -> model-00001-of-00004.safetensors
+
+model.layers.20.mlp.down_proj.weight
+    -> model-00003-of-00004.safetensors
+```
+
+The companion `config.json` supplies architectural values such as hidden size,
+layer count, Q/KV head counts, intermediate size, vocabulary size, RMSNorm
+epsilon, and RoPE settings. Tokenizer files define how input text becomes token
+IDs. The safetensors shards contain only named parameter arrays.
+
+Safetensors is called "safe" because it cannot embed executable Python objects,
+unlike pickle-based checkpoint formats. A loader parses the bounded JSON header
+and exposes tensor byte regions. Files can be memory-mapped, allowing a loader
+to locate tensors without deserializing the complete checkpoint, although a
+later device transfer or dtype conversion can still copy the data.
+
+For this MAX path:
+
+```text
+safetensors shards
+    |
+    +-- Weights object reads names and tensor regions
+    +-- convert_safetensor_state_dict strips the "model." prefix
+    +-- value.data() creates WeightData metadata and array access
+    +-- load_state_dict validates names, shapes, dtypes, and alignment
+    +-- underlying DLPack-compatible arrays enter weights_registry
+    +-- session.load(...) binds them to the compiled Llama graph
+```
+
+The official checkpoint provides separate BF16 tensors such as `q_proj`,
+`k_proj`, `v_proj`, `gate_proj`, `up_proj`, and `down_proj`; it does not provide
+the packed tensors and quantization scales used by GPTQ or GGUF variants.
+
+</details>
+
 ```text
 CONCRETE PATH USED BY THIS TREE
     |
