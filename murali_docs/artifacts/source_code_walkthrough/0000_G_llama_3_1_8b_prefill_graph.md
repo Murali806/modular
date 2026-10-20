@@ -1042,6 +1042,426 @@ Converting `DeviceSpec` to `DeviceRef` does not load the GPU, allocate memory, o
     |     |     |     |     |     +-- o_proj input channels split; partial
     |     |     |     |     |     |   attention outputs combined by allreduce
     |     |     |     |     |     +-- gate/up output channels split
+```
+
+<details>
+<summary><strong>Tensor-parallel attention and MLP split details</strong></summary>
+
+The lines describe tensor parallelism: one transformer layer is divided across multiple GPUs. Consider Llama 3.1 8B running on two GPUs.
+
+## 1. Initial Hidden State
+
+At the beginning of the attention block, both GPUs have the same hidden state:
+
+```text
+GPU 0: X [S,4096]
+GPU 1: X [S,4096]
+```
+
+`S` is the number of tokens currently processed.
+
+```text
+Replicated X [S,4096]
+        |
+        +-----------------------------+-----------------------------+
+        | GPU 0                       | GPU 1
+        | X [S,4096]                  | X [S,4096]
+        +-----------------------------+-----------------------------+
+```
+
+RMSNorm is also replicated, so each GPU independently computes the same:
+
+```text
+Xnorm = RMSNorm(X) -> [S,4096]
+```
+
+## 2. Q/K/V Projection Outputs Split By Heads
+
+Llama 3.1 8B has:
+
+```text
+32 Q heads
+8 K heads
+8 V heads
+head_dim = 128
+```
+
+The full projection weights are:
+
+```text
+Wq [4096,4096]
+Wk [1024,4096]
+Wv [1024,4096]
+```
+
+With two GPUs, MAX splits the projection output rows by heads:
+
+```text
+Full Wq [4096,4096]
+    +-- GPU 0: Wq0 [2048,4096] -> 16 Q heads
+    +-- GPU 1: Wq1 [2048,4096] -> 16 Q heads
+
+Full Wk [1024,4096]
+    +-- GPU 0: Wk0 [512,4096] -> 4 K heads
+    +-- GPU 1: Wk1 [512,4096] -> 4 K heads
+
+Full Wv [1024,4096]
+    +-- GPU 0: Wv0 [512,4096] -> 4 V heads
+    +-- GPU 1: Wv1 [512,4096] -> 4 V heads
+```
+
+Each GPU performs its local projections:
+
+```text
+GPU 0:
+    Q0 = Xnorm @ Wq0.T -> [S,2048] -> [S,16,128]
+    K0 = Xnorm @ Wk0.T -> [S, 512] -> [S, 4,128]
+    V0 = Xnorm @ Wv0.T -> [S, 512] -> [S, 4,128]
+
+GPU 1:
+    Q1 = Xnorm @ Wq1.T -> [S,2048] -> [S,16,128]
+    K1 = Xnorm @ Wk1.T -> [S, 512] -> [S, 4,128]
+    V1 = Xnorm @ Wv1.T -> [S, 512] -> [S, 4,128]
+```
+
+```text
+Replicated Xnorm [S,4096]
+        |
+        +-----------------------------+-----------------------------+
+        | GPU 0                       | GPU 1
+        | Q heads 0-15                | Q heads 16-31
+        | K heads 0-3                 | K heads 4-7
+        | V heads 0-3                 | V heads 4-7
+        |                             |
+        | Q0 [S,16,128]               | Q1 [S,16,128]
+        | K0 [S, 4,128]               | K1 [S, 4,128]
+        | V0 [S, 4,128]               | V1 [S, 4,128]
+        +-----------------------------+-----------------------------+
+```
+
+That is what "Q/K/V projection outputs split by heads" means.
+
+## 3. Local RoPE, KV Cache And Attention
+
+Each GPU applies RoPE only to its local Q and K heads:
+
+```text
+GPU 0:
+    Qrot0 = RoPE(Q0)
+    Krot0 = RoPE(K0)
+
+GPU 1:
+    Qrot1 = RoPE(Q1)
+    Krot1 = RoPE(K1)
+```
+
+Each GPU stores its local K/V heads in its local KV-cache shard:
+
+```text
+GPU 0 KV cache: Krot0 and V0
+GPU 1 KV cache: Krot1 and V1
+```
+
+Because this is grouped-query attention:
+
+```text
+16 local Q heads / 4 local KV heads
+    = 4 Q heads sharing each KV head
+```
+
+Each GPU computes only its local attention:
+
+```text
+GPU 0: A0 = Attention(Qrot0, Kcache0, Vcache0)
+GPU 1: A1 = Attention(Qrot1, Kcache1, Vcache1)
+```
+
+Shapes:
+
+```text
+GPU 0: A0 [S,16,128] -> [S,2048]
+GPU 1: A1 [S,16,128] -> [S,2048]
+```
+
+```text
+        +-----------------------------+-----------------------------+
+        | GPU 0                       | GPU 1
+        | RoPE(Q0,K0)                 | RoPE(Q1,K1)
+        | local KV cache K0/V0        | local KV cache K1/V1
+        |                             |
+        | local attention A0          | local attention A1
+        | A0 [S,2048]                 | A1 [S,2048]
+        +-----------------------------+-----------------------------+
+```
+
+The logical complete attention value would be:
+
+```text
+A = concat(A0, A1) -> [S,4096]
+```
+
+MAX does not need to create this concatenated value before `o_proj`.
+
+## 4. `o_proj` Input Channels Split
+
+The complete output projection is:
+
+```text
+Y = A @ Wo.T
+
+A  [S,4096]
+Wo [4096,4096]
+Y  [S,4096]
+```
+
+Because `A` is divided between GPUs, `Wo` is split along its input-channel dimension:
+
+```text
+Wo = [Wo0 | Wo1]
+
+Wo0 [4096,2048]
+Wo1 [4096,2048]
+```
+
+Each GPU multiplies its local attention channels by the corresponding weight columns:
+
+```text
+GPU 0:
+    Y0 = A0 @ Wo0.T
+    Y0 [S,4096]
+
+GPU 1:
+    Y1 = A1 @ Wo1.T
+    Y1 [S,4096]
+```
+
+`Y0` and `Y1` both have the final output shape, but each contains only one GPU's contribution. This is why they are called partial outputs.
+
+Mathematically:
+
+```text
+Y = concat(A0,A1) @ [Wo0 | Wo1].T
+
+  = A0 @ Wo0.T + A1 @ Wo1.T
+
+  = Y0 + Y1
+```
+
+## 5. Attention Allreduce
+
+Allreduce sums the partial values and returns the result to every GPU:
+
+```text
+GPU 0 has Y0 ----+
+                 +-- allreduce SUM --+--> Y0 + Y1 -> GPU 0
+GPU 1 has Y1 ----+                   +--> Y0 + Y1 -> GPU 1
+```
+
+Overall attention flow:
+
+```text
+Replicated X [S,4096]
+        |
+        +-----------------------------+-----------------------------+
+        | GPU 0                       | GPU 1
+        | local Q/K/V heads           | local Q/K/V heads
+        | local RoPE and KV cache     | local RoPE and KV cache
+        | local attention A0          | local attention A1
+        | partial o_proj Y0           | partial o_proj Y1
+        +--------------+--------------+--------------+--------------+
+                       |                             |
+                       +-------- allreduce SUM ------+
+                                      |
+                                      v
+                         complete Y [S,4096]
+                         replicated on both GPUs
+                                      |
+                                      v
+                            H = X + Y residual
+```
+
+After allreduce:
+
+```text
+GPU 0: Y [S,4096]
+GPU 1: Y [S,4096]
+```
+
+Both GPUs can independently perform:
+
+```text
+H = X + Y
+```
+
+## 6. MLP Input
+
+The post-attention RMSNorm is replicated:
+
+```text
+GPU 0: Hnorm = RMSNorm(H) -> [S,4096]
+GPU 1: Hnorm = RMSNorm(H) -> [S,4096]
+```
+
+The Llama MLP has:
+
+```text
+gate_proj [14336,4096]
+up_proj   [14336,4096]
+down_proj [4096,14336]
+```
+
+## 7. Gate And Up Projections Split
+
+The `14336` intermediate channels are divided across GPUs:
+
+```text
+Full Wgate [14336,4096]
+    +-- GPU 0: Wgate0 [7168,4096]
+    +-- GPU 1: Wgate1 [7168,4096]
+
+Full Wup [14336,4096]
+    +-- GPU 0: Wup0 [7168,4096]
+    +-- GPU 1: Wup1 [7168,4096]
+```
+
+Each GPU computes half of the intermediate MLP channels:
+
+```text
+GPU 0:
+    Gate0 = Hnorm @ Wgate0.T -> [S,7168]
+    Up0   = Hnorm @ Wup0.T   -> [S,7168]
+    Z0    = SiLU(Gate0) * Up0
+
+GPU 1:
+    Gate1 = Hnorm @ Wgate1.T -> [S,7168]
+    Up1   = Hnorm @ Wup1.T   -> [S,7168]
+    Z1    = SiLU(Gate1) * Up1
+```
+
+```text
+Replicated Hnorm [S,4096]
+        |
+        +-----------------------------+-----------------------------+
+        | GPU 0                       | GPU 1
+        | Gate0 [S,7168]              | Gate1 [S,7168]
+        | Up0   [S,7168]              | Up1   [S,7168]
+        |                             |
+        | Z0 = SiLU(Gate0) * Up0      | Z1 = SiLU(Gate1) * Up1
+        +-----------------------------+-----------------------------+
+```
+
+No communication is needed for SiLU or multiplication because these are elementwise operations on independent intermediate channels.
+
+Logically:
+
+```text
+Z = concat(Z0, Z1) -> [S,14336]
+```
+
+## 8. Down Projection Split
+
+The down projection converts `14336` intermediate channels back to hidden size `4096`:
+
+```text
+M = Z @ Wdown.T
+```
+
+`Wdown` is split along its input-channel dimension:
+
+```text
+Wdown = [Wdown0 | Wdown1]
+
+Wdown0 [4096,7168]
+Wdown1 [4096,7168]
+```
+
+Each GPU calculates a partial full-shaped output:
+
+```text
+GPU 0:
+    M0 = Z0 @ Wdown0.T
+    M0 [S,4096]
+
+GPU 1:
+    M1 = Z1 @ Wdown1.T
+    M1 [S,4096]
+```
+
+Mathematically:
+
+```text
+M = concat(Z0,Z1) @ [Wdown0 | Wdown1].T
+
+  = Z0 @ Wdown0.T + Z1 @ Wdown1.T
+
+  = M0 + M1
+```
+
+## 9. MLP Allreduce
+
+```text
+GPU 0 has M0 ----+
+                 +-- allreduce SUM --+--> M0 + M1 -> GPU 0
+GPU 1 has M1 ----+                   +--> M0 + M1 -> GPU 1
+```
+
+Overall MLP flow:
+
+```text
+Replicated Hnorm [S,4096]
+        |
+        +-----------------------------+-----------------------------+
+        | GPU 0                       | GPU 1
+        | local Gate0 and Up0         | local Gate1 and Up1
+        | local activation Z0         | local activation Z1
+        | partial down_proj M0        | partial down_proj M1
+        +--------------+--------------+--------------+--------------+
+                       |                             |
+                       +-------- allreduce SUM ------+
+                                      |
+                                      v
+                         complete M [S,4096]
+                         replicated on both GPUs
+                                      |
+                                      v
+                            Output = H + M
+```
+
+## 10. Complete Transformer Block
+
+```text
+Replicated X [S,4096]
+        |
+        +-- replicated input RMSNorm
+        |
+        +-- split Q/K/V projection outputs by heads
+        +-- local RoPE
+        +-- local KV-cache writes
+        +-- local attention
+        +-- split o_proj input channels
+        +-- partial attention outputs
+        +-- allreduce SUM
+        |
+        +-- attention residual: H = X + Y
+        +-- replicated post-attention RMSNorm
+        |
+        +-- split gate/up output channels
+        +-- local SiLU(Gate) * Up
+        +-- split down_proj input channels
+        +-- partial MLP outputs
+        +-- allreduce SUM
+        |
+        +-- MLP residual: Output = H + M
+        |
+        v
+Replicated block output [S,4096] on both GPUs
+```
+
+Attention partitions the Q/K/V heads. The MLP partitions the `14336` intermediate channels. Both paths project their local values back to `[S,4096]`, produce partial contributions, and use allreduce to reconstruct the complete result on every GPU.
+
+</details>
+
+```text
     |     |     |     |     |     +-- down_proj input channels split; partial
     |     |     |     |     |     |   MLP outputs combined by allreduce
     |     |     |     |     |     +-- RMSNorm weights replicated on every GPU
