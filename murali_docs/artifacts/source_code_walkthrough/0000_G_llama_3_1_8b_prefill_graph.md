@@ -640,6 +640,90 @@ LlamaModelBase.__init__(...)                                      [SOURCE]
     |                 |     speculative_method=None, num_draft_tokens=0
     |                 |
     |                 +-- resolve page_size=128 tokens by default
+```
+
+<details>
+<summary><strong>|                 +-- resolve page_size=128 tokens by default   => can you explain why page_size is  128 tokens? tokens means (embedded tokens which is of size hidden_dimension=4096 - correct?, dtype?)</strong></summary>
+
+`page_size=128 tokens` means one KV-cache page holds 128 sequence positions. It does not store 128 embedding vectors of size 4096.
+
+For each input token:
+
+```text
+token ID: scalar int64
+    |
+    +-- embedding lookup
+    |
+    v
+hidden state: [4096] BF16
+    |
+    +-- K projection -> [8,128] BF16
+    +-- V projection -> [8,128] BF16
+```
+
+The KV cache stores only K and V, not the original `[4096]` embedding or Q.
+
+For one token in one layer:
+
+```text
+K: 8 heads * 128 elements * 2 bytes = 2 KiB
+V: 8 heads * 128 elements * 2 bytes = 2 KiB
+
+K + V = 4 KiB per layer
+```
+
+Across 32 layers:
+
+```text
+4 KiB * 32 = 128 KiB per token
+```
+
+Therefore, one 128-token page is:
+
+```text
+128 tokens * 128 KiB/token = 16 MiB
+```
+
+Its physical tensor shape is:
+
+```text
+[2, 32, 128, 8, 128]
+ |   |    |   |   |
+ |   |    |   |   +-- head dimension
+ |   |    |   +------ KV heads
+ |   |    +---------- token slots per page
+ |   +--------------- transformer layers
+ +------------------- K and V
+```
+
+The dtype is BF16 for this path, so each element occupies two bytes.
+
+`128` is a MAX paged-KV-cache implementation default, not a Llama architectural property. The current implementation requires the page size to be at least 128 and a multiple of 128. It provides a tradeoff between:
+
+- Fewer page-table entries and more contiguous kernel work.
+- Allocation granularity and unused space in partially filled pages.
+- Efficient paged-attention kernel dispatch.
+
+For a 512-token prompt:
+
+```text
+512 / 128 = 4 KV-cache pages
+```
+
+A page table maps logical token positions to those physical cache pages:
+
+```text
+positions 0-127   -> page 0
+positions 128-255 -> page 1
+positions 256-383 -> page 2
+positions 384-511 -> page 3
+```
+
+So “token” here means a cached sequence position whose projected K/V values are stored across all layers.
+
+</details>
+
+```text
     |                 +-- slots_per_page=None -> 128 physical token slots
     |                 +-- tensor_parallel_degree = devices / DP = 1 / 1 = 1
     |                 +-- n_kv_heads_per_device = 8 / TP = 8
