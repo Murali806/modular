@@ -1461,6 +1461,170 @@ Attention partitions the Q/K/V heads. The MLP partitions the `14336` intermediat
 
 </details>
 
+<details>
+<summary><strong>Which structure holds Wq0 and Wq1 after graph compilation?</strong></summary>
+
+The actual GPU bytes are held in native runtime-managed device allocations owned by the initialized `max.engine.Model`.
+
+They are not stored inside the Python `Weight` object.
+
+```text
+self.model: max.engine.Model
+    |
+    +-- native MAX runtime model handle
+          |
+          +-- GPU 0 device allocation containing Wq0
+          +-- GPU 1 device allocation containing Wq1
+```
+
+There are three different structures at different stages:
+
+| Stage | Structure | Holds actual bytes? |
+|---|---|---:|
+| Checkpoint loading | `weights_registry: dict[str, DLPackArray]` | Yes, full host `Wq` |
+| Graph construction | `max.graph.Weight` shard objects | No, symbolic descriptors |
+| Model initialization/runtime | native allocations owned by `max.engine.Model` | Yes, GPU shards |
+
+## During Graph Construction
+
+The Python objects are approximately:
+
+```text
+TensorParallelAttentionWithRope
+    |
+    +-- list_of_attentions[0]
+    |     |
+    |     +-- qkv_proj.q_proj.weight
+    |           max.graph.Weight
+    |           shard_idx=0
+    |           device=gpu:0
+    |           -> symbolic Wq0
+    |
+    +-- list_of_attentions[1]
+          |
+          +-- qkv_proj.q_proj.weight
+                max.graph.Weight
+                shard_idx=1
+                device=gpu:1
+                -> symbolic Wq1
+```
+
+These `Weight` objects contain metadata:
+
+```text
+name
+dtype
+shape
+DeviceRef
+shard index
+sharding strategy
+reference to the original host Weight
+```
+
+They do not contain the actual GPU memory.
+
+## Host Weight Structure
+
+The complete checkpoint tensor is held through:
+
+```python
+weights_registry: dict[str, DLPackArray]
+```
+
+For example:
+
+```text
+weights_registry[
+    "layers.0.self_attn.q_proj.weight"
+]
+    |
+    v
+full Wq [4096,4096] BF16
+```
+
+The underlying `DLPackArray` may be a safetensors-backed array, NumPy array, or MAX `Buffer`.
+
+## MLIR Graph Structure
+
+When the symbolic shard is used, MAX inserts graph values conceptually equivalent to:
+
+```text
+external constant Wq
+    |
+    +-- shard/slice for shard_idx=0
+    |       |
+    |       +-- transfer to gpu:0
+    |              |
+    |              v
+    |          TensorValue Wq0
+    |
+    +-- shard/slice for shard_idx=1
+            |
+            +-- transfer to gpu:1
+                   |
+                   v
+               TensorValue Wq1
+```
+
+`TensorValue` and the underlying MLIR SSA value describe data flow. They still do not own persistent GPU bytes.
+
+## Runtime Structure
+
+Initialization crosses this native boundary:
+
+```python
+models = self._impl._load_all(
+    compiled._compiled,
+    weights_registry,
+)
+```
+
+`_load_all()` returns native model handles:
+
+```text
+max._core.engine.Model
+    exposed as
+max.engine.Model
+```
+
+That initialized model internally references the persistent device allocations:
+
+```text
+max.engine.Model
+    |
+    +-- runtime parameter/resource table
+    |     |
+    |     +-- gpu:0 allocation -> Wq0
+    |     +-- gpu:1 allocation -> Wq1
+    |
+    +-- compiled executable kernels
+    +-- device queues and execution state
+```
+
+The Python code does not expose this parameter table as something like:
+
+```python
+model.gpu0_weights["Wq0"]
+```
+
+The storage is opaque and managed by the native MAX engine.
+
+So the precise answer is:
+
+```text
+Wq0 actual bytes
+    -> GPU 0 VRAM allocation
+    -> owned/referenced by native max.engine.Model
+
+Wq1 actual bytes
+    -> GPU 1 VRAM allocation
+    -> owned/referenced by native max.engine.Model
+```
+
+The per-device Python `max.graph.Weight` objects only tell the compiler which shard each native runtime allocation must contain.
+
+</details>
+
 ```text
     |     |     |     |     |     +-- down_proj input channels split; partial
     |     |     |     |     |     |   MLP outputs combined by allreduce
