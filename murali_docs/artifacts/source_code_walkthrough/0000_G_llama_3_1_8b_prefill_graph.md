@@ -268,6 +268,32 @@ Evidence: `SOURCE`. Native compiler/runtime internals are marked `BOUNDARY`.
 `GraphPipelineModel.load_model()` method.
 
 ```text
+CONCRETE PATH USED BY THIS TREE
+    |
+    +-- model: meta-llama/Llama-3.1-8B-Instruct
+    +-- checkpoint: official Hugging Face safetensors
+    +-- target: one GPU
+    +-- request: 512-token prefill
+    +-- no explicit --quantization-encoding override
+    +-- no explicit KV-cache dtype override
+    |
+    +-- resolved model encoding: bfloat16
+    +-- model/weight compute dtype: BF16
+    +-- KV-cache dtype: BF16
+    +-- model QuantizationEncoding: None
+    +-- GPTQ QuantizationConfig: None
+    +-- scaled QuantConfig: None
+    +-- selected Linear implementation: Linear, not GPTQLinear
+    +-- selected attention: AttentionWithRope
+    +-- selected normalization: RMSNorm
+    +-- selected RoPE: Llama3RotaryEmbedding
+    +-- official separate weights: stacked_qkv=False, stacked_mlp=False
+    +-- tie_word_embeddings=False
+    |
+    +-- NOTE: q4_k is Llama3Config.DEFAULT_ENCODING, but it is only the
+        fallback when checkpoint/config inspection cannot infer an encoding.
+        The official BF16 safetensors resolve to bfloat16 before that fallback.
+
 LlamaModelBase.__init__(...)                                      [SOURCE]
   max/python/max/pipelines/architectures/llama3/model.py:135
     |
@@ -280,12 +306,48 @@ LlamaModelBase.__init__(...)                                      [SOURCE]
     |     +-- establish pipeline/model/device configuration
     |     +-- construct self.kv_params through Llama3Config.construct_kv_params(...)
     |           |
-    |           +-- KVCacheConfig.to_params(...)
-    |                 +-- dtype and optional quantization
-    |                 +-- 8 KV heads, head dimension 128, 32 layers
-    |                 +-- device/data-parallel topology
-    |                 +-- paged-cache block and speculative-decoding settings
-    |                 +-- OUT: KVCacheParams
+    |           +-- [CALL] Llama3Config.get_head_dim(hf_config)
+    |           |     +-- hidden_size / num_attention_heads
+    |           |     +-- 4096 / 32 = 128 elements per Q/K/V head
+    |           |
+    |           +-- [CALL] cache_dtype_for_encoding("bfloat16", None)
+    |           |     +-- no explicit kv_cache_format override
+    |           |     +-- encoding-to-cache map selects DType.bfloat16
+    |           |     +-- [LEAF] each cached scalar occupies 2 bytes
+    |           |
+    |           +-- [CALL] KVCacheConfig.to_params(...)
+    |                 max/python/max/pipelines/kv_cache/config.py:317
+    |                 |
+    |                 +-- IN
+    |                 |     dtype=BF16, n_kv_heads=8, head_dim=128,
+    |                 |     num_layers=32, devices=[gpu:0], DP degree=1,
+    |                 |     speculative_method=None, num_draft_tokens=0
+    |                 |
+    |                 +-- resolve page_size=128 tokens by default
+    |                 +-- slots_per_page=None -> 128 physical token slots
+    |                 +-- tensor_parallel_degree = devices / DP = 1 / 1 = 1
+    |                 +-- n_kv_heads_per_device = 8 / TP = 8
+    |                 +-- MHA kv_dim=2: index 0 stores K; index 1 stores V
+    |                 +-- no KV-cache quantization scale buffer
+    |                 +-- no speculative draft-cache fields
+    |                 |
+    |                 +-- [LEAF] MHAKVCacheParams.shape_per_block
+    |                 |     [kv_dim, layers, slots, KV heads/device, head_dim]
+    |                 |     = [2, 32, 128, 8, 128]
+    |                 |
+    |                 +-- [LEAF] raw value bytes per 128-token page
+    |                 |     2 * 32 * 128 * 8 * 128 * 2 bytes
+    |                 |     = 16 MiB across the one-device TP group
+    |                 |
+    |                 +-- [LEAF] raw K/V bytes per cached token
+    |                 |     2 * 32 * 8 * 128 * 2 bytes = 128 KiB
+    |                 |
+    |                 +-- [LEAF] raw 512-token prefill K/V payload
+    |                       512 * 128 KiB = 64 MiB
+    |                       excluding page tables, allocator padding, reserved
+    |                       free pages, dispatch metadata, and prefix-cache data
+    |
+    |           +-- OUT: self.kv_params: MHAKVCacheParams
     |
     +-- [CALL] self.load_model(session)
           |
@@ -299,15 +361,45 @@ GraphPipelineModelWithKVCache.load_model(session)                  [SOURCE]
     |     +-- [CALL] parse_state_dict_from_weights(...)
     |           max/python/max/pipelines/lib/utils.py:122
     |           |
-    |           +-- [BRANCH] adapter is configured
+    |           +-- [UPSTREAM ADAPTER SELECTION BEFORE MODEL CONSTRUCTION]
+    |           |     +-- model_config.resolved_weight_paths()
+    |           |     +-- resolve/download official *.safetensors shards
+    |           |     +-- weights_format(paths) -> WeightsFormat.safetensors
+    |           |     +-- architecture registry supplies
+    |           |         convert_safetensor_state_dict as self.adapter
+    |           |
+    |           +-- [BRANCH] adapter is configured: ACTIVE HERE
     |           |     |
     |           |     +-- materialize dict(weights.items())
     |           |     +-- select explicit hf_config or pipeline model config
-    |           |     +-- [CALL] adapter(...)
-    |           |           +-- rename/reshape/repack architecture weights
-    |           |           +-- [LEAF] return dict[str, WeightData]
+    |           |     +-- [CALL] convert_safetensor_state_dict(...)
+    |           |           weight_adapters.py:115
+    |           |           |
+    |           |           +-- _select_quantization_encoding(...)
+    |           |           |     +-- infer bfloat16 from official weights/config
+    |           |           |     +-- do not use fallback q4_k
+    |           |           |
+    |           |           +-- _select_dtype_cast(...)
+    |           |           |     +-- native BF16 -> (None, None)
+    |           |           |     +-- no load-time dtype conversion
+    |           |           |
+    |           |           +-- [LOOP] each safetensor weight
+    |           |           |     +-- strip leading "model."
+    |           |           |     |     model.layers.0.self_attn.q_proj.weight
+    |           |           |     |       -> layers.0.self_attn.q_proj.weight
+    |           |           |     +-- rename GPTQ g_idx -> perm_idx if present
+    |           |           |     +-- value.data() -> WeightData
+    |           |           |
+    |           |           +-- [INACTIVE GPTQ ADAPTER WORK]
+    |           |           |     +-- argsort permutation indices
+    |           |           |     +-- cast selected FP16 tensors to BF16
+    |           |           |     +-- remove unused bias/qzeros/perm_idx keys
+    |           |           |
+    |           |           +-- [LEAF] dict[str, WeightData]
+    |           |                 each value carries data, name, dtype, shape,
+    |           |                 and optional quantization metadata
     |           |
-    |           +-- [BRANCH] no adapter
+    |           +-- [BRANCH] no adapter: INACTIVE FOR SAFETENSORS
     |                 |
     |                 +-- iterate weights.items()
     |                 +-- [CALL] WeightData loader value.data() for each key
@@ -326,13 +418,27 @@ GraphPipelineModelWithKVCache.load_model(session)                  [SOURCE]
     |     |           max/python/max/pipelines/architectures/llama3/model_config.py:247
     |     |           |
     |     |           +-- _select_quantization_encoding(...)
-    |     |           +-- supported_encoding_dtype(...)
-    |     |           +-- cache_dtype_for_encoding(...)
+    |     |           |     +-- OUT: SupportedEncoding "bfloat16"
+    |     |           +-- supported_encoding_dtype("bfloat16")
+    |     |           |     +-- OUT: config.dtype = DType.bfloat16
+    |     |           +-- supported_encoding_quantization("bfloat16")
+    |     |           |     +-- OUT: model_quantization_encoding = None
+    |     |           +-- cache_dtype_for_encoding("bfloat16", None)
+    |     |           |     +-- OUT: KV dtype = DType.bfloat16
     |     |           +-- convert DeviceSpec values to DeviceRef values
     |     |           +-- read embedding/residual multipliers
-    |     |           +-- parse flat llama3 or longrope scaling configuration
-    |     |           +-- calculate attention scale, normally 1/sqrt(head_dim)
-    |     |           +-- gptq_quant_config(...) when applicable
+    |     |           +-- parse flat llama3 RoPE configuration
+    |     |           |     +-- theta=500000
+    |     |           |     +-- factor=8, low_freq_factor=1,
+    |     |           |     |   high_freq_factor=4
+    |     |           |     +-- original_max_position=8192
+    |     |           |     +-- configured maximum positions=131072 unless
+    |     |           |         runtime max_seq_len is explicitly constrained
+    |     |           +-- safetensors -> interleaved_rope_weights=False
+    |     |           +-- attention scale = 1/sqrt(head_dim)
+    |     |           |     = 1/sqrt(128)
+    |     |           +-- gptq_quant_config("bfloat16", ...)
+    |     |           |     +-- [LEAF] None
     |     |           +-- Llama3Config.construct_kv_params(...)
     |     |           |     +-- KVCacheConfig.to_params(...)
     |     |           |     +-- [LEAF] KVCacheParams
@@ -346,11 +452,15 @@ GraphPipelineModelWithKVCache.load_model(session)                  [SOURCE]
     |           |
     |           +-- inspect language_model./model. prefixes through a normalized view
     |           +-- _parse_quant_config(...) -> parse_quant_config(...)
-    |           +-- detect normalization weight dtype
-    |           +-- detect tied versus separate embedding/LM-head weights
-    |           +-- read RMSNorm epsilon
-    |           +-- detect packed gate_up_proj -> stacked_mlp
-    |           +-- detect packed qkv_proj -> stacked_qkv
+    |           |     +-- no scaled FP8/FP4 metadata -> quant_config=None
+    |           +-- detect normalization weight dtype -> BF16 checkpoint value
+    |           +-- tie_word_embeddings=False and lm_head.weight exists
+    |           |     +-- keep embedding and LM-head weights separate
+    |           +-- read rms_norm_eps=1e-5
+    |           +-- no layers.0.mlp.gate_up_proj.weight
+    |           |     +-- stacked_mlp=False; use gate/up/down checkpoint tensors
+    |           +-- no layers.0.self_attn.qkv_proj.weight
+    |           |     +-- stacked_qkv=False; use q_proj/k_proj/v_proj tensors
     |           +-- store norm, attention-bias, logits, and hidden-state policies
     |           +-- [LEAF] mutate and finalize the Llama3Config instance
     |     |
@@ -377,9 +487,54 @@ GraphPipelineModelWithKVCache.load_model(session)                  [SOURCE]
     |     |     |     +-- [LEAF FOR THIS DOCUMENT] separate data-parallel path
     |     |     |
     |     |     +-- [BRANCH] len(self.devices) > 1
+    |     |     |     +-- [INACTIVE FOR THE ONE-GPU EXAMPLE]
     |     |     |     +-- _build_tensor_parallel_graph_for_compile(...)
-    |     |     |     +-- DistributedLlama3(...)
-    |     |     |     +-- shard model state and add signal-buffer graph inputs
+    |     |     |     |     |
+    |     |     |     |     +-- [CALL] DistributedLlama3(model_config)
+    |     |     |     |     |     distributed_llama.py:39
+    |     |     |     |     |     |
+    |     |     |     |     |     +-- reject GPTQ and packed stacked-MLP TP
+    |     |     |     |     |     +-- Q/K/V projection outputs split by heads
+    |     |     |     |     |     +-- o_proj input channels split; partial
+    |     |     |     |     |     |   attention outputs combined by allreduce
+    |     |     |     |     |     +-- gate/up output channels split
+    |     |     |     |     |     +-- down_proj input channels split; partial
+    |     |     |     |     |     |   MLP outputs combined by allreduce
+    |     |     |     |     |     +-- RMSNorm weights replicated on every GPU
+    |     |     |     |     |     +-- embedding vocabulary rows sharded
+    |     |     |     |     |     +-- LM-head vocabulary output range sharded;
+    |     |     |     |     |     |   logits combined by allgather
+    |     |     |     |     |     +-- KV heads divided across TP devices
+    |     |     |     |     |     +-- [LEAF] sharded Module/Weight hierarchy
+    |     |     |     |     |
+    |     |     |     |     +-- dist_model.load_state_dict(state_dict, ...)
+    |     |     |     |     |     +-- each sharded Weight records the slice of
+    |     |     |     |     |     |   the original checkpoint tensor it owns
+    |     |     |     |     |     +-- registry values remain DLPack-compatible
+    |     |     |     |     |     +-- [LEAF] per-device model state registry
+    |     |     |     |     |
+    |     |     |     |     +-- DistributedLlama3.input_types(kv_params)
+    |     |     |     |           |
+    |     |     |     |           +-- normal token/offset/return-logit inputs
+    |     |     |     |           +-- Signals(devices).input_types()
+    |     |     |     |           |     +-- one mutable uint8 BufferType/GPU
+    |     |     |     |           |     +-- barrier counters and communication
+    |     |     |     |           |     |   scratch used by P2P collectives
+    |     |     |     |           |     +-- graph inputs because these buffers
+    |     |     |     |           |         are runtime state, not weights
+    |     |     |     |           +-- flattened per-device KV-cache inputs
+    |     |     |     |           +-- [LEAF] TP graph input signature
+    |     |     |     |
+    |     |     |     +-- runtime Signals.allocate(...)
+    |     |     |     |     +-- enable peer access when available
+    |     |     |     |     +-- allocate/zero one signal buffer per GPU
+    |     |     |     |     +-- initialize Lamport communication region
+    |     |     |     |     +-- synchronize devices before first collective
+    |     |     |     |
+    |     |     |     +-- NOTE
+    |     |     |     |     These signal buffers are unrelated to the paged
+    |     |     |     |     KV cache. They coordinate allreduce/allgather and
+    |     |     |     |     device-to-device communication.
     |     |     |     +-- [LEAF FOR THIS DOCUMENT] separate multi-device path
     |     |     |
     |     |     +-- [BRANCH] one device, used by the example below
@@ -395,42 +550,142 @@ GraphPipelineModelWithKVCache.load_model(session)                  [SOURCE]
     |     |                 |     +-- [CALL] create_rope_embedding(...)
     |     |                 |     |     model_config.py:62
     |     |                 |     |     |
-    |     |                 |     |     +-- longrope configured
+    |     |                 |     |     +-- [BRANCH] longrope configured
     |     |                 |     |     |     +-- LongRoPERotaryEmbedding(...)
+    |     |                 |     |     |           |
+    |     |                 |     |     |           +-- INACTIVE for Llama 3.1
+    |     |                 |     |     |           +-- consume short_factor[] and
+    |     |                 |     |     |           |   long_factor[] arrays
+    |     |                 |     |     |           +-- compute separately scaled
+    |     |                 |     |     |           |   inverse frequencies
+    |     |                 |     |     |           +-- positions below original
+    |     |                 |     |     |           |   limit use short factors
+    |     |                 |     |     |           +-- later positions use long
+    |     |                 |     |     |           |   factors
+    |     |                 |     |     |           +-- stitch both cos/sin tables
+    |     |                 |     |     |           +-- optionally adjust attention
+    |     |                 |     |     |               scale for context extension
     |     |                 |     |     |
-    |     |                 |     |     +-- otherwise
-    |     |                 |     |           +-- [LEAF] Llama3RotaryEmbedding(...)
+    |     |                 |     |     +-- [BRANCH] otherwise: ACTIVE HERE
+    |     |                 |     |           +-- [CALL] Llama3RotaryEmbedding(...)
+    |     |                 |     |                 rotary_embedding.py:362
+    |     |                 |     |                 |
+    |     |                 |     |                 +-- dim=4096, n_heads=32
+    |     |                 |     |                 +-- head_dim=4096/32=128
+    |     |                 |     |                 +-- theta=500000
+    |     |                 |     |                 +-- interleaved=False
+    |     |                 |     |                 +-- Llama3 scaling parameters
+    |     |                 |     |                 |     factor=8, low=1, high=4,
+    |     |                 |     |                 |     original positions=8192
+    |     |                 |     |                 |
+    |     |                 |     |                 +-- base inverse frequency i
+    |     |                 |     |                 |     inv_freq[i]
+    |     |                 |     |                 |       = 1 / theta^(2i/128)
+    |     |                 |     |                 |       for i=0..63
+    |     |                 |     |                 |
+    |     |                 |     |                 +-- classify each wavelength
+    |     |                 |     |                 |     short/high-frequency:
+    |     |                 |     |                 |       retain base frequency
+    |     |                 |     |                 |     long/low-frequency:
+    |     |                 |     |                 |       divide frequency by 8
+    |     |                 |     |                 |     middle range:
+    |     |                 |     |                 |       smoothly interpolate
+    |     |                 |     |                 |
+    |     |                 |     |                 +-- outer(position, inv_freq)
+    |     |                 |     |                 +-- stack cos and sin values
+    |     |                 |     |                 +-- reshape frequency table to
+    |     |                 |     |                 |   [2*max_seq_len, 128]
+    |     |                 |     |                 +-- [LEAF] symbolic freqs_cis
+    |     |                 |     |                     later rotates Q and K only;
+    |     |                 |     |                     V is not position-rotated
     |     |                 |     |
     |     |                 |     +-- select normalization constructor
-    |     |                 |     |     +-- RMSNorm(4096, dtype, eps), normally
-    |     |                 |     |     +-- ConstantLayerNorm(...) otherwise
+    |     |                 |     |     +-- [ACTIVE] RMSNorm(4096, BF16, 1e-5,
+    |     |                 |     |     |     multiply_before_cast=False)
+    |     |                 |     |     |     rms_norm.py:55
+    |     |                 |     |     |     |
+    |     |                 |     |     |     +-- learned gamma shape [4096]
+    |     |                 |     |     |     +-- rms = sqrt(mean(x^2) + eps)
+    |     |                 |     |     |     +-- y = (x / rms) * gamma
+    |     |                 |     |     |     +-- no mean subtraction and no beta
+    |     |                 |     |     |     +-- used before attention, before MLP,
+    |     |                 |     |     |         and once before the LM head
+    |     |                 |     |     |
+    |     |                 |     |     +-- [INACTIVE] ConstantLayerNorm(...)
+    |     |                 |     |           layer_norm.py:154
+    |     |                 |     |           +-- constant gamma=1 and beta=0
+    |     |                 |     |           +-- normalize in FP32
+    |     |                 |     |           +-- cast result back to input dtype
     |     |                 |     |
     |     |                 |     +-- select linear constructor
-    |     |                 |     |     +-- GPTQLinear for GPTQ configuration
-    |     |                 |     |     +-- Linear with optional QuantConfig otherwise
+    |     |                 |     |     +-- [INACTIVE] GPTQLinear for GPTQ
+    |     |                 |     |     |     linear.py:748
+    |     |                 |     |     |     +-- packed uint8 qweight
+    |     |                 |     |     |     +-- packed scales
+    |     |                 |     |     |     +-- optional int32 perm_idx for
+    |     |                 |     |     |     |   activation-order GPTQ
+    |     |                 |     |     |     +-- reconstruct packed operand layout
+    |     |                 |     |     |     +-- ops.qmatmul(...)
+    |     |                 |     |     |
+    |     |                 |     |     +-- [ACTIVE] Linear(quant_config=None)
+    |     |                 |     |           +-- BF16 Weight tensors
+    |     |                 |     |           +-- no quantization scales
+    |     |                 |     |           +-- graph emits x @ weight.T
     |     |                 |     |
     |     |                 |     +-- select attention implementation
     |     |                 |     |     +-- GPTQAttentionWithRope for GPTQ
     |     |                 |     |     +-- GGUFQAttentionWithRope for GGUF quantization
-    |     |                 |     |     +-- AttentionWithRope otherwise
+    |     |                 |     |     +-- [ACTIVE] AttentionWithRope otherwise
     |     |                 |     |
     |     |                 |     +-- [LOOP] construct 32 TransformerBlock objects
     |     |                 |     |     |
     |     |                 |     |     +-- AttentionWithRope(...)
     |     |                 |     |     |     attention_with_rope.py:60
     |     |                 |     |     |     |
-    |     |                 |     |     |     +-- calculate Q width 4096
-    |     |                 |     |     |     +-- calculate K/V width 1024 each
+    |     |                 |     |     |     +-- q_weight_dim
+    |     |                 |     |     |     |     = 32 Q heads * 128 = 4096
+    |     |                 |     |     |     +-- kv_weight_dim
+    |     |                 |     |     |     |     = 8 KV heads * 128 = 1024
+    |     |                 |     |     |     +-- flat QKV output width
+    |     |                 |     |     |     |     = 4096 + 1024 + 1024 = 6144
+    |     |                 |     |     |     +-- scale=1/sqrt(128)
+    |     |                 |     |     |     +-- mask_variant=CAUSAL_MASK
     |     |                 |     |     |     +-- StackedLinear(...)
-    |     |                 |     |     |     |     +-- packed qkv_proj Weight, or
-    |     |                 |     |     |     |     +-- q_proj/k_proj/v_proj Linear children
-    |     |                 |     |     |     +-- o_proj Linear(4096 -> 4096)
+    |     |                 |     |     |     |     +-- stacked_qkv=False
+    |     |                 |     |     |     |     +-- q_proj weight [4096,4096]
+    |     |                 |     |     |     |     +-- k_proj weight [1024,4096]
+    |     |                 |     |     |     |     +-- v_proj weight [1024,4096]
+    |     |                 |     |     |     |     +-- may concatenate these symbolic
+    |     |                 |     |     |     |         weights for one QKV matmul
+    |     |                 |     |     |     +-- o_proj weight [4096,4096]
+    |     |                 |     |     |     +-- rope reference supplies freqs_cis
+    |     |                 |     |     |     +-- kv_params supplies paged-cache
+    |     |                 |     |     |     |   dimensions and storage contract
     |     |                 |     |     |     +-- [LEAF] attention Module tree
     |     |                 |     |     |
     |     |                 |     |     +-- MLP(...) or StackedMLP(...)
-    |     |                 |     |     |     +-- gate/up: 4096 -> 14336 each,
-    |     |                 |     |     |     |   or packed 4096 -> 28672
-    |     |                 |     |     |     +-- down: 14336 -> 4096
+    |     |                 |     |     |     +-- [ACTIVE] MLP with separate
+    |     |                 |     |     |     |   checkpoint weights
+    |     |                 |     |     |     |     gate_proj [14336,4096]
+    |     |                 |     |     |     |     up_proj   [14336,4096]
+    |     |                 |     |     |     |     down_proj [4096,14336]
+    |     |                 |     |     |     |
+    |     |                 |     |     |     +-- graph-time fused gate/up option
+    |     |                 |     |     |     |     quantization is None, therefore
+    |     |                 |     |     |     |     concatenate gate/up weights to
+    |     |                 |     |     |     |     [28672,4096] and use one matmul
+    |     |                 |     |     |     |
+    |     |                 |     |     |     +-- Hnorm [S,4096]
+    |     |                 |     |     |     +-- Gate = Hnorm @ Wgate.T
+    |     |                 |     |     |     |     -> [S,14336]
+    |     |                 |     |     |     +-- Up = Hnorm @ Wup.T
+    |     |                 |     |     |     |     -> [S,14336]
+    |     |                 |     |     |     +-- Activated = SiLU(Gate) * Up
+    |     |                 |     |     |     |     -> [S,14336]
+    |     |                 |     |     |     +-- MlpOut = Activated @ Wdown.T
+    |     |                 |     |     |     |     -> [S,4096]
+    |     |                 |     |     |     +-- [INACTIVE] StackedMLP checkpoint
+    |     |                 |     |     |         has gate_up_proj [28672,4096]
     |     |                 |     |     |     +-- [LEAF] MLP Module tree
     |     |                 |     |     |
     |     |                 |     |     +-- attention RMSNorm + MLP RMSNorm
@@ -438,11 +693,32 @@ GraphPipelineModelWithKVCache.load_model(session)                  [SOURCE]
     |     |                 |     |
     |     |                 |     +-- Embedding(128256, 4096)
     |     |                 |     +-- LM-head Linear(4096, 128256)
-    |     |                 |     +-- optionally share embedding weight with LM head
+    |     |                 |     +-- tie_word_embeddings=False
+    |     |                 |     |     +-- do not share embedding and LM-head Weight
     |     |                 |     +-- Transformer.__init__(...)
-    |     |                 |           +-- register layers, final norm, embedding,
-    |     |                 |               LM head, RoPE, KV params, and output policy
-    |     |                 |           +-- [LEAF] single_model: Llama3
+    |     |                 |           transformer.py:488
+    |     |                 |           |
+    |     |                 |           +-- self.layers = LayerList(32 blocks)
+    |     |                 |           +-- self.norm = final RMSNorm(4096)
+    |     |                 |           +-- self.lm_head = separate vocabulary projection
+    |     |                 |           +-- self.embed_tokens = token embedding
+    |     |                 |           +-- self.kv_params = paged-cache layout contract
+    |     |                 |           +-- self.rope = cached frequency-table producer
+    |     |                 |           +-- return_logits = LAST_TOKEN normally
+    |     |                 |           +-- return_hidden_states = NONE normally
+    |     |                 |           +-- embedding_multiplier=1.0
+    |     |                 |           +-- logits_scaling=1.0
+    |     |                 |           |
+    |     |                 |           +-- Module.__setattr__(...)
+    |     |                 |           |     +-- child Module values enter _sublayers
+    |     |                 |           |     +-- Weight values enter _layer_weights
+    |     |                 |           |     +-- recursive attribute names form stable
+    |     |                 |           |     |   names such as
+    |     |                 |           |     |   layers.0.self_attn.q_proj.weight
+    |     |                 |           |     +-- registration builds module/weight
+    |     |                 |           |         ownership; it executes no inference
+    |     |                 |           |
+    |     |                 |           +-- [LEAF] single_model: Llama3 Module tree
     |     |                 |
     |     |                 +-- [CALL] single_model.load_state_dict(...)
     |     |                 |     max/python/max/nn/layer/layer.py:378
@@ -455,6 +731,24 @@ GraphPipelineModelWithKVCache.load_model(session)                  [SOURCE]
     |     |                 |     |     +-- override quantization metadata when requested
     |     |                 |     |     +-- force alignment=1 and _check_alignment(...)
     |     |                 |     |     +-- register DLPack-compatible value by full name
+    |     |                 |     |           |
+    |     |                 |     |           +-- DLPackArray is a runtime-checkable
+    |     |                 |     |           |   Python Protocol, not one concrete
+    |     |                 |     |           |   array implementation
+    |     |                 |     |           +-- requires __dlpack__() and
+    |     |                 |     |           |   __dlpack_device__()
+    |     |                 |     |           +-- protocol communicates tensor pointer,
+    |     |                 |     |           |   dtype, shape/strides, and device metadata
+    |     |                 |     |           +-- NumPy/framework arrays, MAX Buffer,
+    |     |                 |     |           |   and WeightData can satisfy it
+    |     |                 |     |           +-- often enables zero-copy sharing, but
+    |     |                 |     |           |   DLPack itself neither owns nor copies
+    |     |                 |     |           |   the underlying memory
+    |     |                 |     |           +-- producer lifetime, device placement,
+    |     |                 |     |               alignment, and contiguity still matter
+    |     |                 |     |           +-- _array_from_weight_loader(...).data
+    |     |                 |     |               unwraps WeightData and stores the
+    |     |                 |     |               underlying DLPackArray in the Module
     |     |                 |     +-- strict=False tolerates the unused rope_freqs key
     |     |                 |     +-- [LEAF] Module weight-value registry populated
     |     |                 |
@@ -462,7 +756,10 @@ GraphPipelineModelWithKVCache.load_model(session)                  [SOURCE]
     |     |                 |     max/python/max/nn/layer/layer.py:480
     |     |                 |     |
     |     |                 |     +-- iterate raw_state_dict() names
-    |     |                 |     +-- use loaded DLPack arrays
+    |     |                 |     +-- return the loaded underlying DLPack arrays
+    |     |                 |     |     +-- the earlier WeightData envelope carried
+    |     |                 |     |         name, dtype, shape, and optional
+    |     |                 |     |         quantization metadata during validation
     |     |                 |     +-- zero-initialize any absent Module weight
     |     |                 |     +-- [LEAF] weights_registry: dict[str, DLPackArray]
     |     |                 |
@@ -489,14 +786,84 @@ GraphPipelineModelWithKVCache.load_model(session)                  [SOURCE]
     |     |                 +-- [ENTER] Graph("llama3", input_types=...)
     |     |                 |     max/python/max/graph/graph.py:682
     |     |                 |     |
-    |     |                 |     +-- create top-level mo.graph and entry block
-    |     |                 |     +-- create symbolic block arguments from input types
-    |     |                 |     +-- initialize device chains and KernelLibrary
-    |     |                 |     +-- Graph.__enter__ sets CURRENT_GRAPH ContextVar
-    |     |                 |     +-- [LEAF] active MLIR graph insertion context
+    |     |                 |     +-- collect symbolic dimension parameters
+    |     |                 |     |     total_seq_len, input_row_offsets_len,
+    |     |                 |     |     return_n_logits, and symbolic KV dimensions
+    |     |                 |     |
+    |     |                 |     +-- create or reuse builtin.ModuleOp
+    |     |                 |     |     +-- top-level MLIR container that can own
+    |     |                 |     |         this graph and optional subgraphs
+    |     |                 |     |
+    |     |                 |     +-- [CALL] _mo.GraphOp(name="llama3", ...)
+    |     |                 |     |     +-- convert every TensorType/BufferType
+    |     |                 |     |     |   into its native MLIR type
+    |     |                 |     |     +-- create the mo.graph operation
+    |     |                 |     |     +-- create its graph region
+    |     |                 |     |     +-- create the region's entry block
+    |     |                 |     |     +-- create one block argument per input
+    |     |                 |     |     +-- [LEAF] block arguments are symbolic
+    |     |                 |     |         MLIR SSA values, not request data
+    |     |                 |     |
+    |     |                 |     +-- _populate_device_info_mapping()
+    |     |                 |     |     +-- attach visible CPU/GPU labels, API,
+    |     |                 |     |     |   architecture, and model metadata
+    |     |                 |     |     +-- compiler later uses placement metadata
+    |     |                 |     |         while lowering device operations
+    |     |                 |     |
+    |     |                 |     +-- initialize _DeviceChainMap
+    |     |                 |     |     +-- host/CPU chain orders orchestration ops
+    |     |                 |     |     +-- lazily create a chain for each device
+    |     |                 |     |     +-- a new device chain starts from the host chain
+    |     |                 |     |     +-- collectives merge host and participating
+    |     |                 |     |     |   device chains before communication
+    |     |                 |     |     +-- chains express asynchronous ordering
+    |     |                 |     |         dependencies without forcing every GPU
+    |     |                 |     |         operation to execute synchronously
+    |     |                 |     |
+    |     |                 |     +-- create always-ready chain
+    |     |                 |     |     +-- used for work safe to schedule without
+    |     |                 |     |         normal per-device ordering, such as staging
+    |     |                 |     |
+    |     |                 |     +-- [CALL] KernelLibrary()
+    |     |                 |     |     graph.py:214
+    |     |                 |     |     |
+    |     |                 |     |     +-- obtain default MLIR context
+    |     |                 |     |     +-- register MAX dialect/context support
+    |     |                 |     |     +-- create native kernel Analysis object
+    |     |                 |     |     +-- inspect built-in/default kernel overlays
+    |     |                 |     |     +-- load optional compiled .mojoc packages
+    |     |                 |     |     +-- compile/load optional Mojo source packages
+    |     |                 |     |     +-- later seed referenced kernel declarations
+    |     |                 |     |         into the module before native compilation
+    |     |                 |     |
+    |     |                 |     +-- [CALL] Graph.__enter__()
+    |     |                 |           graph.py:1110
+    |     |                 |           |
+    |     |                 |           +-- ensure the default MLIR context is active,
+    |     |                 |           |   including background-thread construction
+    |     |                 |           +-- CURRENT_GRAPH.set(self)
+    |     |                 |           |     +-- CURRENT_GRAPH is a Python ContextVar,
+    |     |                 |           |     |   not global GPU/runtime state
+    |     |                 |           |     +-- nested ops.* calls resolve
+    |     |                 |           |     |   Graph.current from this context
+    |     |                 |           |     +-- context-local state avoids one graph
+    |     |                 |           |         leaking into another async Python task
+    |     |                 |           +-- set current insertion target to the end
+    |     |                 |           |   of the graph entry block
+    |     |                 |           +-- each ops.* call
+    |     |                 |           |     +-- unwrap Python Value/Type wrappers
+    |     |                 |           |     +-- construct and insert an MLIR op
+    |     |                 |           |     +-- verify the inserted operation
+    |     |                 |           |     +-- wrap MLIR SSA results as
+    |     |                 |           |         Value/TensorValue objects
+    |     |                 |           +-- Graph.__exit__ resets the ContextVar token
+    |     |                 |           +-- [LEAF] active MLIR insertion context
     |     |                 |
     |     |                 +-- graph.inputs
+    |     |                 |     +-- read the entry block's symbolic arguments
     |     |                 |     +-- wrap MLIR block arguments as Value objects
+    |     |                 |     |     +-- TensorType -> value.tensor
+    |     |                 |     |     +-- BufferType -> value.buffer
     |     |                 |     +-- unpack tokens, offsets, return_n_logits, KV leaves
     |     |                 |
     |     |                 +-- [CALL] self._unflatten_kv_inputs(rest)
@@ -540,8 +907,14 @@ GraphPipelineModelWithKVCache.load_model(session)                  [SOURCE]
     |     |                             |           +-- input_layernorm(x)
     |     |                             |           |     RMSNorm.__call__
     |     |                             |           |     +-- validate final dimension 4096
-    |     |                             |           |     +-- cast/move gamma
+    |     |                             |           |     +-- x [S,4096], gamma [4096]
+    |     |                             |           |     +-- cast gamma to x dtype and move
+    |     |                             |           |     |   it to x.device
+    |     |                             |           |     +-- symbolic formula per token
+    |     |                             |           |     |     rms = sqrt(mean(x*x) + 1e-5)
+    |     |                             |           |     |     x_norm = (x / rms) * gamma
     |     |                             |           |     +-- [GRAPH-OP LEAF] ops.rms_norm(...)
+    |     |                             |           |         OUT: x_norm [S,4096] BF16
     |     |                             |           |
     |     |                             |           +-- self_attn(...)
     |     |                             |           |     AttentionWithRope.__call__
@@ -551,16 +924,21 @@ GraphPipelineModelWithKVCache.load_model(session)                  [SOURCE]
     |     |                             |           |     |     StackedLinear.__call__
     |     |                             |           |     |     stacked_linear.py:403
     |     |                             |           |     |     |
-    |     |                             |           |     |     +-- packed weight, or concatenate
-    |     |                             |           |     |     |   q_proj/k_proj/v_proj weights
+    |     |                             |           |     |     +-- [ACTIVE] concatenate separate
+    |     |                             |           |     |     |   q/k/v weights along output rows
+    |     |                             |           |     |     |     Wqkv [6144,4096] BF16
+    |     |                             |           |     |     +-- [INACTIVE] directly use packed
+    |     |                             |           |     |     |   qkv_proj checkpoint weight
     |     |                             |           |     |     +-- linear(...)
-    |     |                             |           |     |           +-- ops.qmatmul for encoded weights
-    |     |                             |           |     |           +-- quantized_matmul for QuantConfig
-    |     |                             |           |     |           +-- x @ weight.T otherwise
+    |     |                             |           |     |           +-- GPTQ -> ops.qmatmul
+    |     |                             |           |     |           +-- scaled quant -> quantized_matmul
+    |     |                             |           |     |           +-- [ACTIVE] x_norm @ Wqkv.T
     |     |                             |           |     |           +-- [GRAPH-OP LEAF] flat QKV
-    |     |                             |           |     |               [tokens,4096+1024+1024]
+    |     |                             |           |     |               [S,6144] BF16
+    |     |                             |           |     |               for S=512: [512,6144]
     |     |                             |           |     |
-    |     |                             |           |     +-- optional Q/K per-head RMSNorm branch
+    |     |                             |           |     +-- [INACTIVE FOR LLAMA 3.1]
+    |     |                             |           |     |   optional Q/K per-head RMSNorm branch
     |     |                             |           |     |     +-- ops.split / reshape / RMSNorm / concat
     |     |                             |           |     |
     |     |                             |           |     +-- cast/move RoPE frequencies
@@ -571,9 +949,22 @@ GraphPipelineModelWithKVCache.load_model(session)                  [SOURCE]
     |     |                             |           |     |     +-- validate ranks and dtypes
     |     |                             |           |     |     +-- choose fused/unfused or QK-norm form
     |     |                             |           |     |     +-- flatten paged-KV operands
+    |     |                             |           |     |     +-- logically split flat QKV into
+    |     |                             |           |     |     |     Q [S,32,128]
+    |     |                             |           |     |     |     K [S, 8,128]
+    |     |                             |           |     |     |     V [S, 8,128]
+    |     |                             |           |     |     +-- derive each token's position from
+    |     |                             |           |     |     |   ragged row offsets/cache metadata
+    |     |                             |           |     |     +-- apply Llama3 cos/sin rotation to
+    |     |                             |           |     |     |   Q and K pairs; leave V unchanged
+    |     |                             |           |     |     +-- write rotated K and unrotated V into
+    |     |                             |           |     |     |   this layer's paged-cache slots
+    |     |                             |           |     |     +-- for S=512, create 512 valid K/V
+    |     |                             |           |     |     |   positions in each of 32 layers
     |     |                             |           |     |     +-- [GRAPH-OP LEAF] ops.inplace_custom(
     |     |                             |           |     |           "mo.rope_split_store.ragged.paged", ...)
-    |     |                             |           |     |           OUT: rotated Q; side effect: K/V cache write
+    |     |                             |           |     |           OUT: Qrot [S,4096]; side effect:
+    |     |                             |           |     |           Kcache/Vcache page writes
     |     |                             |           |     |
     |     |                             |           |     +-- reshape Q to [tokens,32,128]
     |     |                             |           |     |
@@ -583,32 +974,60 @@ GraphPipelineModelWithKVCache.load_model(session)                  [SOURCE]
     |     |                             |           |     |     +-- validate Q/KV/offset metadata
     |     |                             |           |     |     +-- select causal-mask op parameters
     |     |                             |           |     |     +-- flatten KV and dispatch metadata
+    |     |                             |           |     |     +-- grouped-query mapping
+    |     |                             |           |     |     |     32 Q heads / 8 KV heads
+    |     |                             |           |     |     |     = 4 Q heads share each KV head
+    |     |                             |           |     |     +-- for query position t, read cached
+    |     |                             |           |     |     |   K/V positions 0..t only
+    |     |                             |           |     |     +-- logical attention per Q head
+    |     |                             |           |     |     |     Scores = Qrot @ Kcache.T / sqrt(128)
+    |     |                             |           |     |     |     Prob = softmax(causal_mask(Scores))
+    |     |                             |           |     |     |     A = Prob @ Vcache
+    |     |                             |           |     |     +-- flash implementation tiles these
+    |     |                             |           |     |     |   operations and avoids materializing the
+    |     |                             |           |     |     |   full [32,S,S] score/probability tensors
     |     |                             |           |     |     +-- [GRAPH-OP LEAF] ops.inplace_custom(
     |     |                             |           |     |           "mo.mha.ragged.paged", ...)
-    |     |                             |           |     |           OUT: attention [tokens,32,128]
+    |     |                             |           |     |           OUT: attention [S,32,128] BF16
     |     |                             |           |     |
     |     |                             |           |     +-- ops.reshape -> [tokens,4096]
     |     |                             |           |     +-- o_proj Linear.__call__
-    |     |                             |           |           +-- linear(...)
+    |     |                             |           |           +-- A [S,4096] @ Wo.T [4096,4096]
     |     |                             |           |           +-- [GRAPH-OP LEAF] attention output
+    |     |                             |           |               AttnOut [S,4096] BF16
     |     |                             |           |
     |     |                             |           +-- optional residual multiplier
     |     |                             |           +-- [GRAPH-OP LEAF] h = x + attn_out
     |     |                             |           |
     |     |                             |           +-- post_attention_layernorm(h)
-    |     |                             |           |     +-- [GRAPH-OP LEAF] ops.rms_norm(...)
+    |     |                             |           |     +-- same RMSNorm formula and gamma [4096]
+    |     |                             |           |     +-- [GRAPH-OP LEAF] h_norm [S,4096]
     |     |                             |           |
     |     |                             |           +-- mlp(h_norm)
     |     |                             |           |     |
-    |     |                             |           |     +-- standard MLP.__call__ branch
-    |     |                             |           |     |     +-- fused gate/up linear, or two Linear calls
-    |     |                             |           |     |     +-- ops.split(...)
-    |     |                             |           |     |     +-- activation_function(gate), normally SiLU
-    |     |                             |           |     |     +-- gate * up
-    |     |                             |           |     |     +-- down_proj Linear
+    |     |                             |           |     +-- [ACTIVE] standard MLP.__call__ branch
+    |     |                             |           |     |     linear.py:1037
+    |     |                             |           |     |     |
+    |     |                             |           |     |     +-- _can_used_fused_mlp() -> True
+    |     |                             |           |     |     |     no model QuantizationEncoding and
+    |     |                             |           |     |     |     quant_config is None
+    |     |                             |           |     |     +-- concatenate Wgate and Wup
+    |     |                             |           |     |     |     [14336,4096] + [14336,4096]
+    |     |                             |           |     |     |       -> Wgate_up [28672,4096]
+    |     |                             |           |     |     +-- GateUp = h_norm @ Wgate_up.T
+    |     |                             |           |     |     |     -> [S,28672]
+    |     |                             |           |     |     +-- ops.split ->
+    |     |                             |           |     |     |     Gate [S,14336], Up [S,14336]
+    |     |                             |           |     |     +-- GateAct = SiLU(Gate)
+    |     |                             |           |     |     |     = Gate * sigmoid(Gate)
+    |     |                             |           |     |     +-- Activated = GateAct * Up
+    |     |                             |           |     |     |     -> [S,14336]
+    |     |                             |           |     |     +-- MlpOut = Activated @ Wdown.T
+    |     |                             |           |     |     |     Wdown [4096,14336]
+    |     |                             |           |     |     |     -> [S,4096]
     |     |                             |           |     |     +-- [GRAPH-OP LEAF] MLP output [tokens,4096]
     |     |                             |           |     |
-    |     |                             |           |     +-- packed StackedMLP.__call__ branch
+    |     |                             |           |     +-- [INACTIVE] packed StackedMLP.__call__ branch
     |     |                             |           |           +-- gate_up_proj(x)
     |     |                             |           |           +-- slice gate and up halves
     |     |                             |           |           +-- ops.silu(gate) * up
