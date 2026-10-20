@@ -382,6 +382,207 @@ the packed tensors and quantization scales used by GPTQ or GGUF variants.
 
 </details>
 
+<details>
+<summary><strong>Q: What does "selected Linear implementation: Linear, not GPTQLinear" mean?</strong></summary>
+
+The official checkpoint contains ordinary BF16 weight matrices, so MAX uses
+the standard `Linear` layer rather than the GPTQ-specific layer.
+
+```text
+official BF16 safetensors
+    |
+    +-- GPTQ quantization_config=None
+    +-- scaled quant_config=None
+    |
+    v
+Linear
+```
+
+For a standard projection, `Linear` represents the mathematical operation:
+
+```text
+Y = X @ W.T
+```
+
+For example, the Llama Q projection is:
+
+```text
+X  [S,4096] BF16
+Wq [4096,4096] BF16
+         |
+         +-- X @ Wq.T
+         v
+Q  [S,4096] BF16
+```
+
+`Linear` registers the complete BF16 `Weight`. During graph construction MAX
+inserts the matrix-multiplication operation; during compilation it can still
+select optimized GPU tensor-core kernels and fuse surrounding operations.
+Using `Linear` therefore does not mean that the execution is unoptimized.
+
+`GPTQLinear` is selected only when the checkpoint and configuration describe
+GPTQ-quantized weights:
+
+```text
+GPTQ checkpoint
+    |
+    +-- packed low-bit qweight
+    +-- quantization scales
+    +-- optional perm_idx for activation ordering
+    |
+    v
+GPTQLinear
+    |
+    +-- rebuild the packed operand representation
+    +-- optionally permute the input channels
+    +-- ops.qmatmul(...)
+```
+
+GPTQ avoids storing the complete BF16 matrix directly. The official Llama 3.1
+BF16 checkpoint instead provides normal matrices for Q/K/V/O, MLP, and LM-head
+projections, so the selected implementation is `Linear`.
+
+</details>
+
+<details>
+<summary><strong>Q: What does "selected attention: AttentionWithRope" mean? Is there attention without RoPE?</strong></summary>
+
+`AttentionWithRope` is the MAX attention module selected for the normal BF16
+Llama 3.1 path. It combines Q/K/V projection, Llama positional rotation, paged
+KV-cache writes, causal attention, and the output projection.
+
+```text
+Input X
+    |
+    +-- Q = X @ Wq.T
+    +-- K = X @ Wk.T
+    +-- V = X @ Wv.T
+    |
+    +-- Qrot = RoPE(Q, token_position)
+    +-- Krot = RoPE(K, token_position)
+    |
+    +-- store Krot and V in the paged KV cache
+    +-- Attention(Qrot, Kcache, Vcache)
+    +-- output projection
+```
+
+RoPE is not the attention calculation itself. It rotates pairs of Q and K
+features according to token position before the dot products. This gives the
+attention scores relative-position information. V is not rotated.
+
+The Llama constructor selects among RoPE-capable implementations according to
+the checkpoint encoding:
+
+```text
+BF16 weights           -> AttentionWithRope
+GPTQ weights           -> GPTQAttentionWithRope
+GGUF quantized weights -> GGUFQAttentionWithRope
+```
+
+There is no class literally named `AttentionWithoutRope` in this source tree.
+There are attention families that do not apply RoPE internally:
+
+- `RaggedAttention` projects Q/K/V, stores unrotated K/V in the paged cache,
+  and invokes ragged flash attention.
+- `MultiheadAttention` provides more general multi-head attention without RoPE
+  built into that module.
+
+Conceptually, the non-RoPE ragged path is:
+
+```text
+Q, K, V = project(X)
+store unrotated K and V
+Attention(Q, Kcache, Vcache)
+```
+
+That path cannot simply replace `AttentionWithRope` for Llama 3.1. The
+checkpoint was trained with Llama 3 RoPE; removing it changes the positional
+relationships used by every attention layer and produces incorrect output.
+
+</details>
+
+<details>
+<summary><strong>Q: What do "stacked_qkv=False" and "stacked_mlp=False" mean?</strong></summary>
+
+These flags describe how projection weights are stored in the checkpoint.
+They do not, by themselves, determine how many GPU kernels MAX executes.
+
+With `stacked_qkv=False`, the checkpoint stores three separate tensors:
+
+```text
+q_proj.weight [4096,4096]
+k_proj.weight [1024,4096]
+v_proj.weight [1024,4096]
+```
+
+With `stacked_qkv=True`, the checkpoint would already contain one packed
+projection tensor:
+
+```text
+qkv_proj.weight [6144,4096]
+                  |
+                  +-- 4096 Q rows
+                  +-- 1024 K rows
+                  +-- 1024 V rows
+```
+
+Although the official checkpoint has `stacked_qkv=False`, MAX's
+`StackedLinear` can concatenate the three symbolic weights and construct one
+QKV matrix multiplication:
+
+```text
+Wqkv = concat(Wq, Wk, Wv)
+QKV  = X @ Wqkv.T
+```
+
+With `stacked_mlp=False`, the checkpoint similarly stores separate MLP
+projections:
+
+```text
+gate_proj.weight [14336,4096]
+up_proj.weight   [14336,4096]
+down_proj.weight [4096,14336]
+```
+
+Their logical computation is:
+
+```text
+Gate      = X @ Wgate.T
+Up        = X @ Wup.T
+Activated = SiLU(Gate) * Up
+Output    = Activated @ Wdown.T
+```
+
+With `stacked_mlp=True`, the checkpoint would contain a pre-packed gate/up
+weight:
+
+```text
+gate_up_proj.weight [28672,4096]
+                      |
+                      +-- 14336 gate rows
+                      +-- 14336 up rows
+```
+
+For the unquantized BF16 path, the normal `MLP` can still concatenate the
+separate gate and up weights while constructing the graph:
+
+```text
+Wgate_up = concat(Wgate, Wup)
+GateUp   = X @ Wgate_up.T
+Gate, Up = split(GateUp)
+```
+
+The distinction is therefore:
+
+```text
+stacked=False -> separate tensors in the checkpoint
+stacked=True  -> a packed tensor already exists in the checkpoint
+
+runtime/compiler fusion -> a separate optimization decision
+```
+
+</details>
+
 ```text
 CONCRETE PATH USED BY THIS TREE
     |
