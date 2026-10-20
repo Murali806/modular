@@ -1029,7 +1029,7 @@ scheduler forever:
     +-- OUT
     |     None; long-running worker coroutine
     |
-    +-- [CALL] model_factory()
+    +-- [CALL] model_factory()  <a href="0000_D_model_factory_setup.md#model-factory-call">[Factory:L1]</a>
     |     |
     |     +-- EXAMPLE: api_type="openai", pipeline_role="prefill_and_decode" -> initialized serving component
     |     +-- IN: captured architecture/config/session/weights
@@ -1097,6 +1097,341 @@ scheduler forever:
           |     +-- LOGIC: avoid busy-spinning when no work exists
           |     +-- OUT: None after delay
           |</pre>
+</details>
+
+<details>
+<summary><strong>Expand: Model-worker queues, scheduler selection, and uvloop behavior</strong></summary>
+
+<p><strong>Are these queues ZMQ queues?</strong></p>
+
+<pre>
+API process
+    |
+    +-- ZmqModelWorkerProxy
+          |
+          +-- request_queue: async_push()
+          |       |
+          |       v
+          |   ZMQ IPC transport
+          |       |
+          |       v
+          |   worker request_queue: pull()
+          |
+          +-- response_queue: async_pull()
+          |       ^
+          |       |
+          |   worker response_queue: push()
+          |
+          +-- cancel_queue: async_push()
+                  |
+                  v
+              worker cancel_queue: pull()
+</pre>
+
+<p>Yes. In this worker path, the process-to-process queues are MAX queue abstractions backed by ZMQ IPC endpoints. They are not ordinary Python <code>asyncio.Queue</code> objects.</p>
+
+<pre>
+API process:
+  request async_push  -> worker request pull
+  response async_pull <- worker response push
+  cancel async_push   -> worker cancel pull
+
+Worker process:
+  request_queue:  MAX/ZMQ PULL queue
+  response_queue: MAX/ZMQ PUSH queue
+  cancel_queue:   MAX/ZMQ PULL queue
+
+API process:
+  per-request async output queues are also used after response_worker()
+  demultiplexes worker responses by RequestID.
+</pre>
+
+<p><strong>Which scheduler is selected?</strong></p>
+
+<pre>
+load_scheduler(...)
+    |
+    +-- PixelGenerationPipeline  -> OneShotScheduler
+    +-- AudioGenerationPipeline  -> OneShotScheduler
+    +-- EmbeddingsPipeline       -> EmbeddingsScheduler
+    +-- pipeline_role == "prefill_and_decode"
+    |       -> load_text_generation_scheduler(...)
+    |           -> TextGenerationScheduler
+    +-- pipeline_role == "decode_only"
+    |       -> DecodeScheduler
+    +-- pipeline_role == "prefill_only"
+            -> PrefillScheduler
+</pre>
+
+<p>For the normal OpenAI-compatible LLM serving path, the pipeline is a <code>TextGenerationPipeline</code> and the role is normally <code>prefill_and_decode</code>. Therefore, the usual scheduler is <code>TextGenerationScheduler</code>. The selection is implemented in <code>max/python/max/serve/scheduler/__init__.py</code>.</p>
+
+<p><strong>How does the normal text-generation scheduler work?</strong></p>
+
+<pre>
+worker request_queue
+    |
+    v
+TextGenerationScheduler.run_iteration()
+    |
+    +-- drain newly arrived TextContext requests
+    +-- add requests to pending/batch-construction state
+    +-- consider batch size and available KV-cache capacity
+    +-- select prefill and/or decode work
+    +-- execute TextGenerationPipeline
+    +-- sample next token
+    +-- update TextContext and KV cache
+    +-- create SchedulerResult/TextGenerationOutput
+    |
+    v
+worker response_queue
+    |
+    v
+ZmqModelWorkerProxy
+    |
+    +-- route each result by RequestID
+    +-- produce OpenAI streaming or non-streaming response
+</pre>
+
+<p>The scheduler is created in the model-worker process. The API process does not directly call the scheduler; it communicates with it through the ZMQ queues.</p>
+
+<p><strong>How are multiple clients handled?</strong></p>
+
+<pre>
+Client A --+
+Client B --+--> API process --> ZMQ request queue
+Client C --+                         |
+                                      v
+                           TextGenerationScheduler
+                                      |
+                    +-----------------+-----------------+
+                    |                 |                 |
+                Request A         Request B         Request C
+                    |                 |                 |
+                    +------- shared model batch -------+
+                                      |
+                                      v
+                         results keyed by RequestID
+</pre>
+
+<p>Multiple active requests can remain in scheduler state and share model execution batches. The request ID allows the API proxy to return each token or final result to the correct client.</p>
+
+<p><strong>What is uvloop doing?</strong></p>
+
+<pre>
+uvloop event loop
+    |
+    +-- drives async ModelWorker.run(...)
+          |
+          +-- repeatedly calls scheduler.run_iteration()
+          |
+          +-- awaits sleep_with_backoff(...) when idle
+          |
+          +-- continues worker lifecycle/control handling
+</pre>
+
+<p>uvloop drives the asynchronous worker coroutine. It does not choose the scheduler and does not replace scheduler logic. The scheduler is repeatedly invoked through <code>scheduler.run_iteration()</code>; when there is no work, the worker yields using <code>sleep_with_backoff(...)</code> instead of busy-spinning.</p>
+</details>
+
+<details>
+<summary><strong>Expand: What does model_factory() build during startup?</strong></summary>
+
+<p><strong>Detailed walkthrough:</strong> See <a href="0000_D_model_factory_setup.md#model-factory-call"><code>0000_D_model_factory_setup.md</code> - Model Factory Setup: Pipeline Construction, Graph Compilation, and Runtime State</a>.</p>
+
+<pre>
+model_factory(...)
+    |
+    +-- read model/configuration information
+    |
+    +-- create model architecture
+    |     +-- layers
+    |     +-- attention
+    |     +-- KV-cache integration
+    |     +-- sampler
+    |
+    +-- load model weights
+    |
+    +-- build MAX computation graph
+    |
+    +-- compile graph for target device
+    |
+    +-- create TextGenerationPipeline
+    |
+    v
+TextGenerationPipeline
+</pre>
+
+<p><strong>Input:</strong> model factory, model configuration, pipeline configuration, device/runtime settings, and model weights or checkpoint references.</p>
+
+<p><strong>Logic:</strong></p>
+
+<ul>
+<li><strong>Build model:</strong> create the model objects representing layers such as attention, MLP, normalization, and output projection.</li>
+<li><strong>Load weights:</strong> read trained parameters from the checkpoint and place them in the required host/device memory.</li>
+<li><strong>Build graph:</strong> connect model operations into a MAX computation graph.</li>
+<li><strong>Compile graph:</strong> optimize and translate the graph for the selected CPU/GPU device.</li>
+<li><strong>Create pipeline:</strong> package the compiled model, generation logic, sampler, and KV-cache support into a <code>TextGenerationPipeline</code>.</li>
+</ul>
+
+<pre>
+model_factory(...)
+    |
+    v
+TextGenerationPipeline
+    +-- compiled model graph
+    +-- loaded weights
+    +-- sampler
+    +-- KV-cache support
+    +-- generation configuration
+</pre>
+
+<p><strong>Output:</strong> an initialized <code>TextGenerationPipeline</code> ready for the model-worker scheduler.</p>
+
+<p><strong>Why is this done once during startup?</strong></p>
+
+<pre>
+Startup:
+    build architecture
+    load weights
+    compile graph
+    allocate long-lived resources
+
+Each request:
+    create request context
+    select/build batch
+    execute already-compiled graph
+    generate tokens
+</pre>
+
+<p>Building and compiling the graph for every request would add substantial latency and would prevent efficient concurrent serving. Later, <code>scheduler.run_iteration()</code> executes the already-created pipeline; it does not normally rebuild the model or recompile the graph.</p>
+</details>
+
+<details>
+<summary><strong>Expand: What does load_scheduler(...) do?</strong></summary>
+
+<p><code>load_scheduler(...)</code> is a factory and wiring function. It does not execute model inference. It examines the pipeline type and configuration, selects the matching scheduler, and connects that scheduler to the worker queues.</p>
+
+<pre>
+load_scheduler(
+    pipeline,
+    pipeline_config,
+    settings,
+    worker_queues,
+    memory_plan,
+)
+    |
+    +-- extract request/response/cancel queues
+    +-- inspect pipeline type
+    +-- inspect pipeline_role for text generation
+    +-- construct scheduler
+    |
+    v
+Scheduler instance
+</pre>
+
+<p><strong>Queue extraction:</strong></p>
+
+<pre>
+request_queue  = worker_queues.request_queue  # worker-side ZMQ PULL
+response_queue = worker_queues.response_queue # worker-side ZMQ PUSH
+cancel_queue   = worker_queues.cancel_queue   # worker-side ZMQ PULL
+</pre>
+
+<p>The function also reads <code>pipeline.max_batch_size</code>, which limits how many requests may be included in a generation batch.</p>
+
+<p><strong>Scheduler-selection order:</strong></p>
+
+<pre>
+1. PixelGenerationPipeline
+       -> OneShotScheduler
+
+2. AudioGenerationPipeline
+       -> OneShotScheduler
+
+3. EmbeddingsPipeline
+       -> EmbeddingsScheduler
+
+4. pipeline_role == "prefill_and_decode"
+       -> load_text_generation_scheduler(...)
+          -> TokenGenerationScheduler
+
+5. pipeline_role == "decode_only"
+       -> DecodeScheduler
+
+6. pipeline_role == "prefill_only"
+       -> PrefillScheduler
+
+7. unsupported role
+       -> ValueError
+</pre>
+
+<p>The concrete pipeline checks occur before the <code>pipeline_role</code> checks. For the normal OpenAI-compatible LLM path, the usual selection is:</p>
+
+<pre>
+TextGenerationPipeline
+    +
+pipeline_role == "prefill_and_decode"
+    |
+    v
+load_text_generation_scheduler(...)
+    |
+    v
+TokenGenerationScheduler
+</pre>
+
+<p><strong>What does load_text_generation_scheduler(...) do?</strong></p>
+
+<pre>
+load_text_generation_scheduler(...)
+    |
+    +-- create TokenGenerationSchedulerConfig
+    +-- read pipeline KV-cache manager
+    +-- optionally create DPBatchPadder
+    +-- construct TokenGenerationScheduler
+    |
+    v
+TokenGenerationScheduler
+</pre>
+
+<p><strong>Scheduler configuration:</strong> converts the pipeline configuration, batch size, and memory plan into scheduler limits such as <code>max_batch_size</code>, context-encoding token targets, sequence length, chunked-prefill settings, data-parallel degree, speculative-decoding settings, and decode timeouts.</p>
+
+<p><strong>KV-cache connection:</strong> the scheduler receives <code>pipeline.kv_manager</code>. It uses that existing KV-cache manager for request admission, available-page accounting, sequence growth, and cache release; it does not create an unrelated cache.</p>
+
+<p><strong>Data-parallel padding:</strong> a <code>DPBatchPadder</code> is created only when <code>data_parallel_degree &gt; 1</code> and device graph capture is enabled. It supplies compatible dummy entries when batches must be padded across data-parallel replicas.</p>
+
+<p><strong>Final scheduler inputs:</strong></p>
+
+<pre>
+TokenGenerationScheduler(
+    scheduler_config = generation limits,
+    pipeline         = compiled text-generation pipeline,
+    kv_cache         = pipeline.kv_manager,
+    request_queue    = worker ZMQ PULL,
+    response_queue   = worker ZMQ PUSH,
+    cancel_queue     = worker ZMQ PULL,
+    dp_padder        = optional,
+    max_pending      = configured request limit,
+)
+</pre>
+
+<p>At this point the scheduler is constructed, but no request has necessarily been executed.</p>
+
+<p><strong>Loading versus execution:</strong></p>
+
+<pre>
+load_scheduler(...)
+    -> choose and configure scheduler
+
+scheduler.run_iteration()
+    -> read request queue
+    -> add requests to batch state
+    -> process cancellations
+    -> construct prefill/decode batch
+    -> execute pipeline
+    -> update KV cache
+    -> publish SchedulerResult to response queue
+</pre>
+
+<p>Therefore, <code>load_scheduler(...)</code> prepares the scheduler object, while <code>scheduler.run_iteration()</code> performs the recurring scheduling and inference work.</p>
 </details>
 
 ## 2. Complete Request Call Tree
