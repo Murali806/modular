@@ -1921,6 +1921,115 @@ The per-device Python `max.graph.Weight` objects only tell the compiler which sh
     |     |                 |     +-- create or reuse builtin.ModuleOp
     |     |                 |     |     +-- top-level MLIR container that can own
     |     |                 |     |         this graph and optional subgraphs
+```
+
+<details>
+<summary><strong>Is device information saved in the mo.graph operation?</strong></summary>
+
+No. `mo.device_info_mapping` is saved on the enclosing MLIR `builtin.module`, not directly on the `mo.graph` operation.
+
+The code does:
+
+```python
+module = self._mlir_op.block.owner
+
+module.attributes["mo.device_info_mapping"] = ...
+```
+
+The resulting MLIR structure is conceptually:
+
+```text
+builtin.module
+    attributes {
+        mo.device_info_mapping = {
+            "cpu": {
+                label = "cpu",
+                api = ...,
+                arch = ...,
+                model = ...,
+                tile_based_fusion = false
+            },
+            "gpu": {
+                label = "gpu",
+                api = "cuda" or "hip",
+                arch = ...,
+                model = ...,
+                tile_based_fusion = false
+            }
+        }
+    }
+    |
+    +-- mo.graph @llama3(...)
+          |
+          +-- graph inputs
+          +-- weights
+          +-- computation operations
+          +-- outputs
+```
+
+Device placement is represented separately inside `mo.graph`. For example:
+
+```text
+TensorType(..., device=gpu:0)
+Weight(..., device=gpu:0)
+ops executing on gpu:0
+```
+
+These become MLIR types or attributes containing a `DeviceRefAttr`:
+
+```text
+gpu:0
+cpu:0
+```
+
+The relationship is:
+
+```text
+MLIR module
+    |
+    +-- mo.device_info_mapping
+    |     describes available device kinds:
+    |     API, architecture and model information
+    |
+    +-- mo.graph @llama3
+          |
+          +-- DeviceRef gpu:0
+          |     identifies where an operation/value is placed
+          |
+          +-- DeviceRef cpu:0
+                identifies host placement
+```
+
+When compiling, MAX passes the complete MLIR module to the native compiler:
+
+```text
+builtin.module
+    +-- mo.device_info_mapping
+    +-- mo.graph @llama3
+    +-- kernel declarations
+          |
+          v
+native MAX compiler
+```
+
+So:
+
+```text
+mo.device_info_mapping
+    -> module-level device capability metadata
+
+DeviceRef attributes inside mo.graph
+    -> per-tensor and per-operation placement
+
+mo.graph
+    -> model computation and data flow
+```
+
+The compiler reads both together while lowering the graph for the target CPU or GPU.
+
+</details>
+
+```text
     |     |                 |     |
     |     |                 |     +-- [CALL] _mo.GraphOp(name="llama3", ...)
     |     |                 |     |     +-- convert every TensorType/BufferType
