@@ -826,6 +826,150 @@ GraphPipelineModelWithKVCache.load_model(session)                  [SOURCE]
     |     |           +-- cache_dtype_for_encoding("bfloat16", None)
     |     |           |     +-- OUT: KV dtype = DType.bfloat16
     |     |           +-- convert DeviceSpec values to DeviceRef values
+```
+
+<details>
+<summary><strong>|     |           +-- convert DeviceSpec values to DeviceRef values  => ??</strong></summary>
+
+`DeviceSpec` and `DeviceRef` represent the same device at different stages.
+
+```text
+DeviceSpec -> configuration-time device selection
+DeviceRef  -> symbolic graph-time device placement
+Device     -> actual runtime driver device
+```
+
+### DeviceSpec
+
+`DeviceSpec` is a frozen Python dataclass:
+
+```python
+@dataclass(frozen=True)
+class DeviceSpec:
+    id: int
+    device_type: Literal["cpu", "gpu"]
+```
+
+It records what the user or configuration requested:
+
+```text
+--devices gpu:0
+    |
+    v
+DeviceSpec(id=0, device_type="gpu")
+```
+
+It is used for configuration validation and device discovery. It does not represent a tensor placement inside a MAX graph.
+
+### DeviceRef
+
+`DeviceRef` is the symbolic device representation used by `max.graph`:
+
+```python
+class DeviceRef:
+    device_type: DeviceKind
+    id: int
+```
+
+The Llama configuration performs:
+
+```python
+device_refs = [
+    DeviceRef(spec.device_type, spec.id)
+    for spec in device_specs
+]
+```
+
+For example:
+
+```text
+DeviceSpec(id=0, device_type="gpu")
+    |
+    v
+DeviceRef(DeviceKind.GPU, id=0)
+    |
+    v
+"gpu:0"
+```
+
+`DeviceRef` is attached to symbolic graph objects:
+
+```python
+TensorType(
+    DType.bfloat16,
+    shape=["total_seq_len", 4096],
+    device=DeviceRef.GPU(0),
+)
+
+Weight(
+    "weight",
+    DType.bfloat16,
+    [4096, 4096],
+    device=DeviceRef.GPU(0),
+)
+```
+
+During graph lowering, it becomes an MLIR device attribute:
+
+```text
+DeviceRef.GPU(0)
+    |
+    +-- DeviceRef.to_mlir()
+    v
+MLIR device attribute representing gpu:0
+```
+
+### Actual Device
+
+A third type, `Device`, represents the real runtime driver object:
+
+```text
+DeviceSpec("gpu", 0)
+    |
+    +-- load_device(...)
+    v
+Accelerator(0): Device
+```
+
+This actual `Device` is used by the inference session and buffers:
+
+```text
+Device
+    +-- allocate memory
+    +-- create device queues
+    +-- copy buffers
+    +-- synchronize work
+    +-- execute compiled operations
+```
+
+The complete flow is:
+
+```text
+CLI/configuration
+--devices gpu:0
+    |
+    v
+DeviceSpec("gpu", 0)
+    |  configuration and validation
+    |
+    +-----------------------------+
+    |                             |
+    v                             v
+DeviceRef("gpu", 0)          Accelerator(0)
+symbolic graph placement     actual driver device
+    |                             |
+    +-------------+---------------+
+                  |
+                  v
+        InferenceSession compilation
+        and runtime execution
+```
+
+Converting `DeviceSpec` to `DeviceRef` does not load the GPU, allocate memory, or move tensors. It only tells the graph compiler that particular tensors and operations are intended for `gpu:0`.
+
+</details>
+
+```text
     |     |           +-- read embedding/residual multipliers
     |     |           +-- parse flat llama3 RoPE configuration
     |     |           |     +-- theta=500000
