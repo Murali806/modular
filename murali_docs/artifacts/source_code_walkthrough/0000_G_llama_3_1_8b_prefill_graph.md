@@ -2056,6 +2056,186 @@ The compiler reads both together while lowering the graph for the target CPU or 
     |     |                 |     |     +-- chains express asynchronous ordering
     |     |                 |     |         dependencies without forcing every GPU
     |     |                 |     |         operation to execute synchronously
+```
+
+<details>
+<summary><strong>In case of Llama 3.1 8B model =&gt; how above happens (explain above answer with example)</strong></summary>
+
+Assume Llama 3.1 8B runs prefill with:
+
+```text
+S = prompt token count
+hidden size = 4096
+32 Q heads, 8 KV heads, head dimension = 128
+MLP intermediate size = 14336
+2 GPUs using tensor parallelism
+```
+
+### 1. Initial Chain State
+
+When the graph is created:
+
+```text
+host chain = H0
+GPU0 chain = H0
+GPU1 chain = H0
+```
+
+The GPU chains start from `H0` because host-side setup must finish first:
+
+```text
+load weights
+create KV-cache buffers
+create allreduce signal buffers
+prepare input tensors
+```
+
+### 2. Vocabulary-Parallel Embedding
+
+The vocabulary of 128,256 entries is divided:
+
+```text
+GPU0: embedding rows     0 .. 64,127
+GPU1: embedding rows 64,128 .. 128,255
+```
+
+Tokens are broadcast to both GPUs:
+
+```text
+tokens on GPU0
+      |
+      +-- distributed broadcast --> GPU0 tokens
+      |                         -> GPU1 tokens
+```
+
+Each GPU performs its local embedding lookup:
+
+```text
+GPU0 -> E0[S,4096]
+GPU1 -> E1[S,4096]
+```
+
+Only one GPU has a nonzero result for each token. An allreduce combines them:
+
+```text
+merge(H0, GPU0-chain, GPU1-chain) -> M0
+M0 -> allreduce(E0, E1) -> E[S,4096] on both GPUs
+```
+
+Afterward:
+
+```text
+host = E_chain
+GPU0 = E_chain
+GPU1 = E_chain
+```
+
+### 3. One Transformer Layer
+
+This process repeats for all 32 layers.
+
+#### Local Attention Work
+
+Each GPU independently processes half the heads:
+
+```text
+GPU0:
+    Q0[S,16,128]
+    K0[S, 4,128]
+    V0[S, 4,128]
+    local KV cache for 4 KV heads
+
+GPU1:
+    Q1[S,16,128]
+    K1[S, 4,128]
+    V1[S, 4,128]
+    local KV cache for 4 KV heads
+```
+
+The chains can progress independently:
+
+```text
+GPU0: E_chain -> QKV/Attention/KV-write -> A0_chain
+GPU1: E_chain -> QKV/Attention/KV-write -> A1_chain
+```
+
+Therefore GPU0 and GPU1 may execute their local attention simultaneously.
+
+Each local output projection produces a partial hidden result:
+
+```text
+GPU0: Y0[S,4096]
+GPU1: Y1[S,4096]
+```
+
+They must be summed:
+
+```text
+merge(host, A0_chain, A1_chain) -> M_attn
+M_attn -> allreduce(Y0, Y1) -> Y[S,4096] on both GPUs
+```
+
+The allreduce output chain replaces all participating chains:
+
+```text
+host = ATTENTION_DONE
+GPU0 = ATTENTION_DONE
+GPU1 = ATTENTION_DONE
+```
+
+### 4. Local MLP Work
+
+The MLP intermediate dimension is divided:
+
+```text
+GPU0:
+    Gate0[S,7168]
+    Up0[S,7168]
+    Activated0 = SiLU(Gate0) * Up0
+    Down0[S,4096] partial result
+
+GPU1:
+    Gate1[S,7168]
+    Up1[S,7168]
+    Activated1 = SiLU(Gate1) * Up1
+    Down1[S,4096] partial result
+```
+
+The two MLP paths may overlap:
+
+```text
+GPU0: ATTENTION_DONE -> local MLP -> MLP0_chain
+GPU1: ATTENTION_DONE -> local MLP -> MLP1_chain
+```
+
+The partial down-projection results are combined:
+
+```text
+merge(host, MLP0_chain, MLP1_chain) -> M_mlp
+M_mlp -> allreduce(Down0, Down1) -> MLP[S,4096]
+```
+
+Afterward:
+
+```text
+host = LAYER_0_DONE
+GPU0 = LAYER_0_DONE
+GPU1 = LAYER_0_DONE
+```
+
+Layer 1 starts from `LAYER_0_DONE`, and this repeats through layer 31.
+
+### Important Distinction
+
+Tensor SSA dependencies order normal operations such as matmul, RoPE and RMSNorm. Device chains principally order asynchronous transfers, collectives, cache-related stateful operations and orchestration.
+
+The allreduce `signal_buffers` are real GPU communication buffers. The `!mo.chain` values contain no data; they only ensure that the communication starts after both GPUs have produced their partial results.
+
+Thus, `_DeviceChainMap` lets GPU0 and GPU1 work concurrently between collectives while enforcing synchronization at embedding, attention-output and MLP-output allreduces.
+
+</details>
+
+```text
     |     |                 |     |
     |     |                 |     +-- create always-ready chain
     |     |                 |     |     +-- used for work safe to schedule without
