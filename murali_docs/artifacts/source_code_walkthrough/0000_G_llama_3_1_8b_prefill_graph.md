@@ -2437,7 +2437,82 @@ KV-cache and allreduce buffers:
 
 Equivalent types are uniqued. Repeated uses of `bfloat16 [S,4096]` can refer to the same canonical MLIR type representation.
 
-## 3. Device Attributes
+## 3. `graph.inputs` and Symbolic Block Arguments
+
+The graph inputs are also visible at this point:
+
+```text
+    |     |                 +-- graph.inputs
+    |     |                 |     +-- read the entry block's symbolic arguments
+    |     |                 |     +-- wrap MLIR block arguments as Value objects
+    |     |                 |     |     +-- TensorType -> value.tensor
+    |     |                 |     |     +-- BufferType -> value.buffer
+    |     |                 |     +-- unpack tokens, offsets, return_n_logits, KV leaves
+```
+
+When `_mo.GraphOp` is created, MAX converts every declared `TensorType` and
+`BufferType` into an MLIR type and creates one symbolic SSA block argument for
+each graph input:
+
+```text
+input_types
+    |
+    +-- tokens: TensorType(int64, [total_seq_len], gpu:0)
+    +-- input_row_offsets: TensorType(uint32, [rows+1], gpu:0)
+    +-- return_n_logits: TensorType(int64, [N], cpu:0)
+    +-- KV-cache inputs: BufferType/TensorType values
+    |
+    v
+mo.graph @llama3 entry block
+    |
+    +-- %arg0: symbolic tokens
+    +-- %arg1: symbolic input-row offsets
+    +-- %arg2: symbolic return-n-logits value
+    +-- %arg3...: symbolic KV-cache leaves
+```
+
+For the two-GPU tensor-parallel graph, signal buffers are inserted before the
+KV-cache leaves:
+
+```text
+%arg0       tokens
+%arg1       input_row_offsets
+%arg2       return_n_logits
+%arg3       GPU0 allreduce signal buffer
+%arg4       GPU1 allreduce signal buffer
+%arg5...    GPU0/GPU1 KV-cache input leaves
+```
+
+The `graph.inputs` property reads those existing MLIR block arguments and wraps
+them in Python `Value` objects:
+
+```text
+MLIR block argument
+    |
+    v
+Value wrapper
+    |
+    +-- TensorType -> value.tensor -> TensorValue
+    +-- BufferType -> value.buffer -> BufferValue
+```
+
+Therefore:
+
+```text
+MLIR module associated with the context contains
+    -> typed symbolic SSA block arguments
+
+graph.inputs returns
+    -> Python wrappers referring to those MLIR values
+
+graph.inputs does not contain
+    -> actual prompt tokens, KV-cache bytes or allreduce-buffer contents
+```
+
+At request execution time, the runtime supplies concrete token, offset,
+KV-cache and signal-buffer values for these compiled symbolic arguments.
+
+## 4. Device Attributes
 
 Device placement information is also created using the context:
 
@@ -2460,7 +2535,7 @@ GPU1 attention result  -> gpu:1
 
 The module also receives `mo.device_info_mapping`, describing the visible CPU and GPUs.
 
-## 4. Llama Graph Operations
+## 5. Llama Graph Operations
 
 As Python executes the model construction code, operations are inserted into an MLIR module associated with the context:
 
@@ -2518,7 +2593,7 @@ builtin.module {
 
 This is conceptual syntax, not the exact printed MAX MLIR.
 
-## 5. Attributes and Metadata
+## 6. Attributes and Metadata
 
 The context also manages attributes attached to these operations:
 
