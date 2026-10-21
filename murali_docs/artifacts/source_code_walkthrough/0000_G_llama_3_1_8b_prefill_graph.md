@@ -2258,6 +2258,120 @@ Thus, `_DeviceChainMap` lets GPU0 and GPU1 work concurrently between collectives
     |     |                 |           |
     |     |                 |           +-- ensure the default MLIR context is active,
     |     |                 |           |   including background-thread construction
+```
+
+<details>
+<summary><strong>What is the meaning of the default MLIR context?</strong></summary>
+
+The **default MLIR context** is the shared in-memory environment MAX uses while constructing MLIR operations.
+
+It is created once:
+
+```python
+_DEFAULT_MLIR_CONTEXT = mlir.Context()
+```
+
+It owns or manages:
+
+```text
+MLIR Context
+    |
+    +-- registered dialects
+    |     +-- builtin
+    |     +-- mo
+    |     +-- kgen
+    |     +-- other MAX dialects
+    |
+    +-- MLIR types
+    |     +-- tensor types
+    |     +-- buffer types
+    |     +-- !mo.chain
+    |
+    +-- attributes and locations
+    +-- operation definitions
+    +-- diagnostic/error handlers
+    +-- type/attribute uniquing and internal caches
+```
+
+For the Llama graph:
+
+```text
+with Graph("llama3") as graph:
+    create TensorType
+    create mo.graph
+    create matmul/RMSNorm/RoPE operations
+    create device chains
+    create collective operations
+```
+
+All these MLIR objects must belong to an active `mlir.Context`.
+
+### Meaning of “Active”
+
+The Python MLIR API keeps the current context in thread-local state:
+
+```python
+mlir.Context.current
+```
+
+Conceptually:
+
+```text
+Python thread
+    |
+    +-- active MLIR context
+          |
+          +-- newly created MLIR types
+          +-- newly created attributes
+          +-- newly inserted operations
+```
+
+Without an active context, operations such as creating an MLIR location or type can fail:
+
+```text
+RuntimeError: Can't create location: No MLIR context active
+```
+
+### Background Threads
+
+The current context is thread-local. A background thread does not automatically inherit the main thread’s context:
+
+```text
+Main thread
+    mlir.Context.current = default context
+
+Background thread
+    mlir.Context.current = None
+```
+
+Therefore `Graph.__enter__()` does:
+
+```python
+with ensure_default_mlir_context():
+    ...
+```
+
+This temporarily activates the shared context on that thread:
+
+```text
+Background thread
+    |
+    +-- enter _DEFAULT_MLIR_CONTEXT
+    |
+    +-- construct Llama MLIR graph
+    |
+    +-- leave thread-local context scope
+```
+
+“including background-thread construction” therefore means:
+
+> If the Llama graph is being built from a worker thread, make the shared MLIR context current on that thread before creating MLIR operations.
+
+It does **not** mean a CUDA context, GPU execution context, FastAPI request context, or `InferenceSession`. It is specifically the environment used to construct and manage the MLIR representation before compilation.
+
+</details>
+
+```text
     |     |                 |           +-- CURRENT_GRAPH.set(self)
     |     |                 |           |     +-- CURRENT_GRAPH is a Python ContextVar,
     |     |                 |           |     |   not global GPU/runtime state
