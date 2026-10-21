@@ -3,7 +3,7 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "${script_dir}/../../../.." && pwd)"
-task_tmp="${MAX_KERNEL_LIB_BAZEL_ROOT:-/local/mnt/workspace/max-kernel-lib-bazel-${USER:-user}}"
+task_tmp="${script_dir}"
 
 mkdir -p "${task_tmp}/output-user-root" "${task_tmp}/disk-cache"
 
@@ -16,6 +16,7 @@ exec ./bazelw \
     --output_user_root="${task_tmp}/output-user-root" \
     test \
     --disk_cache="${task_tmp}/disk-cache" \
+    --repo_contents_cache= \
     --config=prebuilt-mojo \
     --config=disable-lint \
     --aspects= \

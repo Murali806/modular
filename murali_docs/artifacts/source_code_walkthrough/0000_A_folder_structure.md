@@ -551,6 +551,7 @@ murali_docs/
     |   +-- 0014_llama_model_execution.md                      # model execution
     |   +-- 0000_A_folder_structure.md                           # folder guide
     |   +-- max_kernel_lib/                                    # runnable MAX custom-kernel example
+    |       +-- .gitignore                                     # excludes generated Bazel cache directories
     |       +-- BUILD.bazel                                    # Bazel build and test targets
     |       +-- README.md                                      # run instructions and flow overview
     |       +-- add_one_demo.py                                # builds and executes the MAX graph
