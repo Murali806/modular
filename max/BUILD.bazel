@@ -20,6 +20,7 @@ package_group(
         "//examples/...",  # OSS only
         "//mach/tools/...",  # mach engine's Python benchmark/MEF tooling
         "//max/...",
+        "//murali_docs/artifacts/source_code_walkthrough/max_kernel_lib/...",
         "//max_private/...",  # private-only entrypoints + tool parsers
         "//oss/...",
         "//oss/modular/max/...",

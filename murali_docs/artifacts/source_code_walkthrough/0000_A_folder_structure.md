@@ -550,6 +550,14 @@ murali_docs/
     |   +-- 0013_llama_input_staging.md                        # input staging
     |   +-- 0014_llama_model_execution.md                      # model execution
     |   +-- 0000_A_folder_structure.md                           # folder guide
+    |   +-- max_kernel_lib/                                    # runnable MAX custom-kernel example
+    |       +-- BUILD.bazel                                    # Bazel build and test targets
+    |       +-- README.md                                      # run instructions and flow overview
+    |       +-- add_one_demo.py                                # builds and executes the MAX graph
+    |       +-- run.sh                                         # runs the test with an external Bazel cache
+    |       +-- kernels/                                       # Mojo custom-op package
+    |           +-- __init__.mojo                              # marks the Mojo package
+    |           +-- add_one.mojo                               # adds one to each tensor element
     +-- 00_environment.md                                      # environment notes
     +-- 03_request_object_trace.md                             # request trace
     +-- 11_kv_cache.md                                          # KV-cache notes
