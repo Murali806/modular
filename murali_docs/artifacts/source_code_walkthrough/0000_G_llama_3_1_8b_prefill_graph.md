@@ -3185,6 +3185,167 @@ compile Llama graph
     |     +-- no batch processor -> [LEAF] return
     |     +-- no bind_ep_comm_initializer method -> [LEAF] return
     |     +-- otherwise bind the optional EP communication initializer
+```
+
+<details>
+<summary><strong>What is this batch processor?</strong></summary>
+
+A **batch processor** converts the requests selected by the scheduler into the exact buffers expected by the compiled model graph.
+
+It does not choose which requests enter the batch. The scheduler does that.
+
+```text
+Scheduler
+    |
+    +-- selects request contexts
+    |
+    v
+Llama3BatchProcessor
+    |
+    +-- combine tokens
+    +-- create row offsets
+    +-- attach KV-cache inputs
+    +-- attach signal buffers
+    +-- create Llama3Inputs
+    |
+    v
+compiled Llama graph
+    |
+    v
+raw output buffers
+    |
+    +-- Llama3BatchProcessor.process_outputs(...)
+    |
+    v
+ModelOutputs
+```
+
+## Llama Ragged-Batch Example
+
+Suppose the scheduler selects two requests:
+
+```text
+Request A active tokens: [101, 102, 103]
+Request B active tokens: [201, 202]
+```
+
+`Llama3BatchProcessor` creates:
+
+```text
+tokens:
+    [101, 102, 103, 201, 202]
+
+input_row_offsets:
+    [0, 3, 5]
+```
+
+The offsets describe the sequence boundaries:
+
+```text
+Request A = tokens[0:3]
+Request B = tokens[3:5]
+```
+
+Therefore no padding is required:
+
+```text
+Padded representation:
+    A = [101, 102, 103]
+    B = [201, 202, PAD]
+
+Ragged representation:
+    tokens  = [101, 102, 103, 201, 202]
+    offsets = [0, 3, 5]
+```
+
+It then constructs:
+
+```text
+Llama3Inputs
+    |
+    +-- tokens
+    +-- input_row_offsets
+    +-- return_n_logits
+    +-- signal_buffers
+    +-- KV-cache input buffers
+    +-- optional data_parallel_splits
+```
+
+These become positional graph inputs:
+
+```python
+self.model.execute(*model_inputs.buffers)
+```
+
+## Main Responsibilities
+
+`Llama3BatchProcessor` handles:
+
+```text
+Input processing
+    +-- flatten contexts from replicas
+    +-- concatenate active token windows
+    +-- calculate cumulative row offsets
+    +-- stage host token data into device buffers
+    +-- attach paged KV-cache metadata
+    +-- attach multi-GPU allreduce signal buffers
+    +-- calculate data-parallel splits
+    +-- construct Llama3Inputs
+
+Output processing
+    +-- interpret the raw model output buffers
+    +-- extract logits
+    +-- extract optional hidden states
+    +-- process KV-related outputs
+    +-- return ModelOutputs
+```
+
+It also supplies symbolic input types while building the graph:
+
+```text
+Llama3BatchProcessor.get_symbolic_inputs(...)
+    |
+    +-- tokens TensorType
+    +-- input_row_offsets TensorType
+    +-- return_n_logits TensorType
+    +-- signal BufferType values for multiple GPUs
+    +-- symbolic KV-cache inputs
+```
+
+This keeps graph construction and runtime input preparation consistent.
+
+## Meaning of `_wire_batch_processor()`
+
+The batch processor is constructed earlier in `PipelineModel.__init__()`. `_wire_batch_processor()` performs optional post-compilation wiring:
+
+```text
+_wire_batch_processor(...)
+    |
+    +-- batch_processor is None
+    |     -> architecture has no batch processor
+    |
+    +-- no bind_ep_comm_initializer method
+    |     -> normal processor needs no late wiring
+    |
+    +-- method exists
+          -> provide the EP communication initializer
+```
+
+**EP** means **Expert Parallelism**, used by Mixture-of-Experts models. Its communication buffers may only become available during distributed model initialization.
+
+For ordinary dense Llama 3.1 8B:
+
+```text
+batch processor = Llama3BatchProcessor
+bind_ep_comm_initializer = absent
+result = no additional wiring required
+```
+
+Llama 3.1 8B is not an MoE model, so this specific `_wire_batch_processor()` call effectively returns without binding EP resources. The batch processor still performs its normal token, row-offset, KV-cache and output-processing work for every inference batch.
+
+</details>
+
+```text
     |
     +-- OUT: executable max.engine.Model assigned to self.model
           |
