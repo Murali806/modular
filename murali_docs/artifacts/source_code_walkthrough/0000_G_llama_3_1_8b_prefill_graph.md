@@ -2371,6 +2371,207 @@ It does **not** mean a CUDA context, GPU execution context, FastAPI request cont
 
 </details>
 
+<details>
+<summary><strong>Can you give me an example =&gt; what goes into this MLIR context =&gt; in this Llama 3.1 8B example?</strong></summary>
+
+The MLIR context does **not** receive actual prompt data or GPU weights. It is the environment in which the symbolic Llama graph, its types, attributes and operations are created.
+
+Assume Llama 3.1 8B, BF16, two GPUs and prompt length `S`.
+
+## 1. Dialect Definitions
+
+The context knows the operation languages used by MAX:
+
+```text
+MLIR Context
+    |
+    +-- builtin dialect
+    |     +-- module
+    |     +-- function/region/block structures
+    |
+    +-- MO dialect
+    |     +-- graph operations
+    |     +-- device transfers
+    |     +-- chains
+    |     +-- distributed collectives
+    |
+    +-- KGEN dialect
+          +-- kernel declarations
+          +-- kernel-generation attributes
+```
+
+This lets MLIR understand operations such as `mo.graph`, `mo.chain.create` and distributed allreduce.
+
+## 2. Llama Types
+
+When MAX constructs graph inputs, intermediate values and outputs, their types are created in this context:
+
+```text
+tokens:
+    int64 [total_seq_len] on GPU0
+
+input_row_offsets:
+    uint32 [number_of_requests + 1] on GPU0
+
+return_n_logits:
+    int64 [N] on CPU
+
+hidden state:
+    bfloat16 [S, 4096]
+
+local GPU0 Q:
+    bfloat16 [S, 16, 128]
+
+local GPU0 K/V:
+    bfloat16 [S, 4, 128]
+
+MLP intermediate:
+    bfloat16 [S, 7168] per GPU
+
+device chain:
+    !mo.chain
+
+KV-cache and allreduce buffers:
+    !mo.buffer<...>
+```
+
+Equivalent types are uniqued. Repeated uses of `bfloat16 [S,4096]` can refer to the same canonical MLIR type representation.
+
+## 3. Device Attributes
+
+Device placement information is also created using the context:
+
+```text
+DeviceRefAttr(cpu:0)
+DeviceRefAttr(gpu:0)
+DeviceRefAttr(gpu:1)
+```
+
+For example:
+
+```text
+tokens                 -> gpu:0
+return_n_logits        -> cpu:0
+GPU0 KV-cache          -> gpu:0
+GPU1 KV-cache          -> gpu:1
+GPU0 attention result  -> gpu:0
+GPU1 attention result  -> gpu:1
+```
+
+The module also receives `mo.device_info_mapping`, describing the visible CPU and GPUs.
+
+## 4. Llama Graph Operations
+
+As Python executes the model construction code, operations are inserted into an MLIR module associated with the context:
+
+```text
+builtin.module
+    |
+    +-- mo.graph @llama3
+          |
+          +-- vocabulary-parallel embedding
+          +-- distributed broadcast
+          +-- embedding allreduce
+          |
+          +-- transformer layer 0
+          |     +-- RMSNorm
+          |     +-- Q/K/V projections
+          |     +-- RoPE
+          |     +-- KV-cache write
+          |     +-- causal attention
+          |     +-- output projection
+          |     +-- attention allreduce
+          |     +-- residual add
+          |     +-- RMSNorm
+          |     +-- gate/up projections
+          |     +-- SiLU and multiply
+          |     +-- down projection
+          |     +-- MLP allreduce
+          |     +-- residual add
+          |
+          +-- transformer layers 1...31
+          +-- final RMSNorm
+          +-- LM head
+          +-- logits outputs
+```
+
+A simplified conceptual representation is:
+
+```mlir
+builtin.module {
+    mo.graph @llama3(%tokens, %offsets, %kv_cache, %signals) {
+        %hidden = embedding %tokens
+
+        %norm = rms_norm %hidden
+        %q, %k, %v = qkv_projection %norm
+        %q_rot, %k_rot = rope %q, %k
+        %attn_partial = paged_attention %q_rot, %k_rot, %v, %kv_cache
+        %attn = distributed_allreduce %attn_partial
+
+        %mlp_partial = llama_mlp %attn
+        %mlp = distributed_allreduce %mlp_partial
+
+        mo.output %mlp
+    }
+}
+```
+
+This is conceptual syntax, not the exact printed MAX MLIR.
+
+## 5. Attributes and Metadata
+
+The context also manages attributes attached to these operations:
+
+```text
+hidden_size = 4096
+num_attention_heads = 32
+num_key_value_heads = 8
+head_dim = 128
+intermediate_size = 14336
+number_of_layers = 32
+RoPE theta and scaling values
+tensor dtype = bfloat16
+device placement = gpu:0 / gpu:1
+collective participant devices
+symbolic dimensions such as total_seq_len
+source-code locations for diagnostics
+```
+
+## What Does Not Go Into It
+
+```text
+Actual prompt token values                 No
+Actual KV-cache contents                   No
+Actual GPU allocations                     No
+CUDA streams                               No
+Loaded weight bytes                        No
+Compiled GPU machine code                  No
+Runtime request state                      No
+```
+
+The weight operations contain symbolic references such as weight names, shapes and types. The actual weight arrays remain in `weights_registry` and are bound when `session.load(...)` initializes the compiled model.
+
+Conceptually:
+
+```text
+MLIR Context
+    -> understands and manages the graph representation
+
+MLIR Module
+    -> contains the symbolic Llama computation
+
+weights_registry
+    -> provides actual checkpoint weight arrays
+
+session.load(...)
+    -> compiles the graph and binds runtime weights
+
+GPU runtime
+    -> executes it using real prompt and KV-cache data
+```
+
+</details>
+
 ```text
     |     |                 |           +-- CURRENT_GRAPH.set(self)
     |     |                 |           |     +-- CURRENT_GRAPH is a Python ContextVar,
