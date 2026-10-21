@@ -2889,6 +2889,219 @@ GPU runtime
     |           |     |     +-- import mode -> claim matching precompiled MEF,
     |           |     |     |   otherwise compile graph
     |           |     |     +-- export mode -> compile, export MEF, write manifest
+```
+
+<details>
+<summary><strong>What is MEF? What does weight/device mapping mean? What does seed kernel declarations from KernelLibrary mean?</strong></summary>
+
+## 1. What Is MEF?
+
+**MEF** means **Modular Executable Format**. It is MAX’s serialized compiled-model artifact format.
+
+```text
+Llama MLIR graph
+    |
+    +-- graph compiler
+    +-- optimization
+    +-- kernel selection
+    +-- CPU/GPU code generation
+    |
+    v
+CompiledModel
+    |
+    +-- export_mef(...)
+    |
+    v
+llama3-<signature>.mef
+```
+
+A MEF can contain:
+
+```text
+compiled graph structure
+selected kernels
+host executable code
+GPU binaries such as CUDA cubins
+input/output signatures
+device-target information
+model names and initialization metadata
+```
+
+External Llama checkpoint weights are normally not embedded by this path. They are supplied later through `weights_registry`.
+
+`compile_reusing_mefs()` supports three paths:
+
+```text
+No MEF store
+    -> compile the Llama graph normally
+
+Import/precompiled mode
+    -> match graph name and input/output signature
+    -> load an existing .mef
+    -> avoid graph recompilation
+
+Export mode
+    -> compile the graph
+    -> export the result as .mef
+    -> record it in manifest.json
+```
+
+MEFs reduce subsequent model startup compilation time, but compiled MEFs are generally target-platform-specific.
+
+## 2. Expected Weight/Device Mapping
+
+The compiler records:
+
+```python
+expected_weights = {
+    name: weight.value.device
+    for name, weight in model._weights.items()
+}
+```
+
+This produces a mapping such as:
+
+```text
+layers.0.self_attn.q_proj.weight -> cpu:0
+layers.0.self_attn.k_proj.weight -> cpu:0
+layers.0.self_attn.v_proj.weight -> cpu:0
+layers.0.mlp.gate_proj.weight    -> cpu:0
+model.embed_tokens.weight        -> cpu:0
+```
+
+It means:
+
+> For every external weight name referenced by the graph, remember whether the supplied DLPack weight is expected to be host-resident or accelerator-resident.
+
+During initialization:
+
+```text
+CompiledModel
+    |
+    +-- expected weight names/devices
+    |
+    +-- weights_registry
+          name -> actual DLPack array
+    |
+    v
+validate
+    +-- is every expected weight present?
+    +-- is its CPU-versus-accelerator device type correct?
+    +-- is the array contiguous?
+```
+
+For example:
+
+```text
+Graph expects:
+    q_proj.weight -> CPU
+
+weights_registry supplies:
+    q_proj.weight -> CPU BF16 array
+
+Result:
+    accepted
+```
+
+This mapping is not necessarily the final tensor-parallel placement:
+
+```text
+checkpoint Wq on CPU
+    |
+    +-- graph initialization/sharding
+    |
+    +-- Wq0 allocation on GPU0
+    +-- Wq1 allocation on GPU1
+```
+
+The graph’s device operations determine final GPU placement. The captured mapping mainly validates external weight inputs at initialization. The current validation distinguishes CPU from non-CPU; it does not enforce an exact GPU ordinal.
+
+## 3. What Is `KernelLibrary`?
+
+`KernelLibrary` is a graph-level registry and resolver for kernels and custom operations available to the graph.
+
+```text
+KernelLibrary
+    |
+    +-- built-in MAX kernel packages
+    +-- compiled Mojo .mojoc packages
+    +-- optional Mojo source packages
+    +-- registered kernel symbol names
+    +-- kernel input/output declarations
+    +-- shape functions
+    +-- opaque-type mappings
+    +-- custom-operation verification
+```
+
+For a Llama graph, it can resolve kernels used for operations such as fused projections, normalization, paged attention, KV-cache operations and collectives.
+
+The exact selected kernels depend on device, dtype, quantization and compiler decisions.
+
+## 4. What Are Kernel Declarations?
+
+A kernel declaration describes how the compiler may call a kernel:
+
+```text
+kernel symbol/name
+input types
+output types
+compile-time parameters
+device requirements
+shape function
+linkage/package information
+```
+
+Conceptually:
+
+```text
+declare kernel @paged_attention(
+    Q,
+    KV-cache,
+    row_offsets,
+    attention_parameters
+) -> attention_output
+```
+
+It is comparable to a function prototype. It identifies the callable kernel and its interface; it is not the complete kernel implementation.
+
+The implementation resides in a built-in package, `.mojoc` package or another registered kernel library.
+
+## 5. What Does “Seed Kernel Declarations” Mean?
+
+“Seed” means **prepopulate the MLIR module with the declarations known by the graph’s `KernelLibrary`**:
+
+```text
+Graph's KernelLibrary
+    |
+    +-- kernel declarations
+    +-- opaque-type mapping
+    |
+    | seed_kernel_decls(...)
+    v
+Llama MLIR module
+    |
+    +-- declarations inserted before compilation
+    |
+    v
+graph compiler can resolve referenced kernel symbols
+```
+
+This does not execute or compile the kernels. It makes their names and interfaces available to the compiler before lowering begins.
+
+It also avoids repeatedly reloading and analyzing kernel packages for every graph compilation:
+
+```text
+KernelLibrary construction
+    -> load/analyze packages once
+
+compile Llama graph
+    -> copy required declarations into module
+    -> compiler skips repeated package-import work
+```
+
+</details>
+
+```text
     |           |     |     |
     |           |     |     +-- [CALL] compile(graph)
     |           |     |           max/python/max/engine/api.py:1048
