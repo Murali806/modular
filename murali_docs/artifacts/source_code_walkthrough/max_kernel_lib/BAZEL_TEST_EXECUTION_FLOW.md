@@ -1686,6 +1686,212 @@ compiled artifact can then be reused or exported independently.
 
 </details>
 
+<details>
+<summary><strong>Step 6.2: <code>InferenceSession.compile()</code>: Implementation</strong></summary>
+
+**Evidence:** `SOURCE`
+
+Source paths:
+
+- `compile()`: `max/python/max/engine/api.py:1048`
+- `compile_async()`: `max/python/max/engine/api.py:955`
+- Native module handoff: `max/python/max/engine/api.py:1262`
+- `CompiledModel`: `max/python/max/engine/api.py:400`
+
+```text
+session.compile(graph)
+|
++-- 1. Record compilation timing
+|
++-- 2. Call compile_async(graph)
+|   |
+|   +-- Normalize explicit custom_extensions
+|   |
+|   +-- Detect input kind
+|   |   +-- Path/string -> native path compilation
+|   |   +-- Graph       -> use graph.module
+|   |   +-- Module      -> compile the supplied MLIR module
+|   |   +-- Other       -> RuntimeError
+|   |
+|   +-- Graph-specific preparation
+|   |   +-- Add graph.kernel_libraries_paths
+|   |   +-- Capture expected weight devices
+|   |   +-- Seed custom-kernel declarations into the MLIR module
+|   |   +-- Record top-level mo.graph names
+|   |
+|   +-- Dispatch compilation
+|       +-- Path/string -> self._impl.compile(path, ...)
+|       +-- Graph/Module -> _compile_module(...)
+|           +-- Acquire process-wide compilation lock
+|           +-- Pass the MLIR module pointer to native MAX
+|           +-- Return an asynchronous native handle
+|           +-- Release the lock when compilation finishes
+|
++-- 3. Wait for the asynchronous handle
+|
++-- 4. Check the compilation result
+|   +-- Success -> return CompiledModel
+|   +-- Failure -> raise the compiler error with MAX context
+|
++-- Returned CompiledModel
+    +-- Contains a compiled artifact
+    +-- Is not directly executable
+    +-- Must be passed to session.init(...)
+```
+
+`compile()` is the blocking wrapper:
+
+```python
+def compile(
+    self,
+    model: str | Path | Module | Graph,
+    *,
+    custom_extensions: CustomExtensionsType | None = None,
+    tile_based_fusion: bool = False,
+) -> CompiledModel:
+    with _record_phase("compile_seconds"):
+        # Schedule compilation and receive a CompiledModel containing a
+        # pending native asynchronous handle.
+        compiled = self.compile_async(
+            model,
+            custom_extensions=custom_extensions,
+            tile_based_fusion=tile_based_fusion,
+        )
+        handle = compiled._compiled
+        assert isinstance(handle, _AsyncValue)
+
+        # Make compile() synchronous.
+        handle.wait()
+
+    exception = handle.exception()
+    if exception is None:
+        return compiled
+
+    # Special requested stop after emitting pre-JIT output.
+    if self.debug.pre_jit and "pre-jit" in str(exception):
+        raise CompilationStopped(str(exception)) from exception
+
+    # Add MAX graph diagnostic guidance for Graph/Module failures.
+    if isinstance(model, (Graph, Module)):
+        raise RuntimeError(self._compile_failure_message()) from exception
+
+    raise exception
+```
+
+For a `Graph`, `compile_async()` performs this preparation:
+
+```python
+module = model.module
+
+# Add the custom-kernel libraries collected while Graph(...) was built.
+custom_extensions_final.extend(
+    _process_custom_extensions_objects(model.kernel_libraries_paths)
+)
+
+# Remember expected weight placement for session.init() validation.
+if hasattr(model, "_weights"):
+    expected_weights = {
+        name: weight.value.device
+        for name, weight in model._weights.items()
+    }
+
+# Insert known custom-kernel declarations and type mappings into the module.
+kernel_library = getattr(model, "_kernel_library", None)
+if kernel_library is not None:
+    kernel_library._analysis.seed_kernel_decls(module.mlir_module)
+
+# Start native compilation of the prepared MLIR module.
+handle = self._compile_module(
+    module,
+    custom_extensions_final,
+    tile_based_fusion,
+)
+
+compiled = CompiledModel(
+    compiled=handle,
+    expected_weights=expected_weights,
+)
+compiled._graph_names = tuple(module.top_level_graph_names())
+return compiled
+```
+
+`_compile_module()` performs the native handoff:
+
+```python
+_COMPILATION_LOCK.acquire()
+try:
+    handle = self._impl.compile(
+        module.mlir_module._CAPIPtr,
+        custom_extensions_final,
+        _derive_pipeline_name(module),
+        tile_based_fusion,
+    )
+except Exception as error:
+    _COMPILATION_LOCK.release()
+    raise RuntimeError(self._compile_failure_message()) from error
+
+# Native compilation is asynchronous. Release the global lock when it resolves.
+handle.add_done_callback(lambda _: _COMPILATION_LOCK.release())
+return handle
+```
+
+```text
+Python Graph
+    |
+    | graph.module
+    v
+MLIR builtin.module
+    |
+    | seed demo_add_one declaration
+    | add custom-kernel library paths
+    v
+module.mlir_module._CAPIPtr
+    |
+    | self._impl.compile(...)
+    v
+Native MAX compiler pipeline
+    |
+    | lower + optimize + generate compiled artifact
+    v
+_AsyncValue[_CompiledModels]
+    |
+    | handle.wait()
+    v
+CompiledModel
+```
+
+For this add-one example:
+
+```text
+session.compile(graph)
+|
++-- graph is a Graph instance
++-- module contains mo.graph @add_one_demo
++-- KernelLibrary supplies demo_add_one declarations
++-- Weight registry is empty
++-- Native MAX compiles the complete graph
++-- compile() waits for completion
++-- Returns CompiledModel
+```
+
+Important boundary:
+
+```text
+compile(graph)
+  +-- Compiles symbolic MLIR and custom-kernel references
+  +-- Does not bind runtime weights
+  +-- Does not allocate the input Buffer
+  +-- Does not execute demo_add_one
+
+init(compiled)
+  +-- Creates the executable runtime Model
+
+model.execute(input_tensor)
+  +-- Executes with real runtime buffers
+```
+
+</details>
+
 </details>
 
 <details>

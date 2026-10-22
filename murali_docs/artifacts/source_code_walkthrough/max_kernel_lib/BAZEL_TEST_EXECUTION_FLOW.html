@@ -1802,6 +1802,196 @@ model = session.<span class="fn">load</span>(graph)  <span class="comment"># Rou
             <p>New code should prefer separate <code>compile()</code> and <code>init()</code>
               calls because the compiled artifact can then be reused or exported independently.</p>
           </details>
+
+          <details class="thin-cell">
+            <summary>Step 6.2: <code>InferenceSession.compile()</code>: Implementation</summary>
+            <p><span class="evidence">SOURCE</span></p>
+            <p>Source paths:</p>
+            <ul>
+              <li><code>compile()</code>: <a href="../../../../max/python/max/engine/api.py#L1048"><code>max/python/max/engine/api.py:1048</code></a></li>
+              <li><code>compile_async()</code>: <a href="../../../../max/python/max/engine/api.py#L955"><code>max/python/max/engine/api.py:955</code></a></li>
+              <li>Native module handoff: <a href="../../../../max/python/max/engine/api.py#L1262"><code>max/python/max/engine/api.py:1262</code></a></li>
+              <li><code>CompiledModel</code>: <a href="../../../../max/python/max/engine/api.py#L400"><code>max/python/max/engine/api.py:400</code></a></li>
+            </ul>
+
+            <pre><code>session.<span class="fn">compile</span>(graph)
+|
++-- 1. Record compilation timing
+|
++-- 2. Call compile_async(graph)
+|   |
+|   +-- Normalize explicit custom_extensions
+|   |
+|   +-- Detect input kind
+|   |   +-- Path/string -&gt; native path compilation
+|   |   +-- Graph       -&gt; use graph.module
+|   |   +-- Module      -&gt; compile the supplied MLIR module
+|   |   +-- Other       -&gt; RuntimeError
+|   |
+|   +-- Graph-specific preparation
+|   |   +-- Add graph.kernel_libraries_paths
+|   |   +-- Capture expected weight devices
+|   |   +-- Seed custom-kernel declarations into the MLIR module
+|   |   +-- Record top-level mo.graph names
+|   |
+|   +-- Dispatch compilation
+|       +-- Path/string -&gt; self._impl.compile(path, ...)
+|       +-- Graph/Module -&gt; _compile_module(...)
+|           +-- Acquire process-wide compilation lock
+|           +-- Pass the MLIR module pointer to native MAX
+|           +-- Return an asynchronous native handle
+|           +-- Release the lock when compilation finishes
+|
++-- 3. Wait for the asynchronous handle
+|
++-- 4. Check the compilation result
+|   +-- Success -&gt; return CompiledModel
+|   +-- Failure -&gt; raise the compiler error with MAX context
+|
++-- Returned CompiledModel
+    +-- Contains a compiled artifact
+    +-- Is not directly executable
+    +-- Must be passed to session.init(...)</code></pre>
+
+            <p><code>compile()</code> is the blocking wrapper:</p>
+
+            <pre><code><span class="kw">def</span> <span class="fn">compile</span>(
+    self,
+    model: str | Path | Module | Graph,
+    *,
+    custom_extensions: CustomExtensionsType | None = None,
+    tile_based_fusion: bool = False,
+) -&gt; CompiledModel:
+    <span class="kw">with</span> _record_phase(<span class="str">"compile_seconds"</span>):
+        <span class="comment"># Schedule compilation and receive a CompiledModel containing a
+        # pending native asynchronous handle.</span>
+        compiled = self.<span class="fn">compile_async</span>(
+            model,
+            custom_extensions=custom_extensions,
+            tile_based_fusion=tile_based_fusion,
+        )
+        handle = compiled._compiled
+        assert isinstance(handle, _AsyncValue)
+
+        <span class="comment"># Make compile() synchronous.</span>
+        handle.<span class="fn">wait</span>()
+
+    exception = handle.<span class="fn">exception</span>()
+    <span class="kw">if</span> exception is None:
+        <span class="kw">return</span> compiled
+
+    <span class="comment"># Special requested stop after emitting pre-JIT output.</span>
+    <span class="kw">if</span> self.debug.pre_jit and <span class="str">"pre-jit"</span> in str(exception):
+        <span class="kw">raise</span> CompilationStopped(str(exception)) from exception
+
+    <span class="comment"># Add MAX graph diagnostic guidance for Graph/Module failures.</span>
+    <span class="kw">if</span> isinstance(model, (Graph, Module)):
+        <span class="kw">raise</span> RuntimeError(self._compile_failure_message()) from exception
+
+    <span class="kw">raise</span> exception</code></pre>
+
+            <p>For a <code>Graph</code>, <code>compile_async()</code> performs this preparation:</p>
+
+            <pre><code>module = model.module
+
+<span class="comment"># Add the custom-kernel libraries collected while Graph(...) was built.</span>
+custom_extensions_final.extend(
+    _process_custom_extensions_objects(model.kernel_libraries_paths)
+)
+
+<span class="comment"># Remember expected weight placement for session.init() validation.</span>
+<span class="kw">if</span> hasattr(model, <span class="str">"_weights"</span>):
+    expected_weights = {
+        name: weight.value.device
+        <span class="kw">for</span> name, weight in model._weights.items()
+    }
+
+<span class="comment"># Insert known custom-kernel declarations and type mappings into the module.</span>
+kernel_library = getattr(model, <span class="str">"_kernel_library"</span>, None)
+<span class="kw">if</span> kernel_library is not None:
+    kernel_library._analysis.<span class="fn">seed_kernel_decls</span>(module.mlir_module)
+
+<span class="comment"># Start native compilation of the prepared MLIR module.</span>
+handle = self.<span class="fn">_compile_module</span>(
+    module,
+    custom_extensions_final,
+    tile_based_fusion,
+)
+
+compiled = <span class="fn">CompiledModel</span>(
+    compiled=handle,
+    expected_weights=expected_weights,
+)
+compiled._graph_names = tuple(module.<span class="fn">top_level_graph_names</span>())
+<span class="kw">return</span> compiled</code></pre>
+
+            <p><code>_compile_module()</code> performs the native handoff:</p>
+
+            <pre><code>_COMPILATION_LOCK.<span class="fn">acquire</span>()
+<span class="kw">try</span>:
+    handle = self._impl.<span class="fn">compile</span>(
+        module.mlir_module._CAPIPtr,
+        custom_extensions_final,
+        _derive_pipeline_name(module),
+        tile_based_fusion,
+    )
+<span class="kw">except</span> Exception <span class="kw">as</span> error:
+    _COMPILATION_LOCK.<span class="fn">release</span>()
+    <span class="kw">raise</span> RuntimeError(self._compile_failure_message()) from error
+
+<span class="comment"># Native compilation is asynchronous. Release the global lock when it resolves.</span>
+handle.<span class="fn">add_done_callback</span>(lambda _: _COMPILATION_LOCK.release())
+<span class="kw">return</span> handle</code></pre>
+
+            <pre><code>Python Graph
+    |
+    | graph.module
+    v
+MLIR builtin.module
+    |
+    | seed <span class="name">demo_add_one</span> declaration
+    | add custom-kernel library paths
+    v
+module.mlir_module._CAPIPtr
+    |
+    | self._impl.compile(...)
+    v
+Native MAX compiler pipeline
+    |
+    | lower + optimize + generate compiled artifact
+    v
+_AsyncValue[_CompiledModels]
+    |
+    | handle.wait()
+    v
+<span class="result">CompiledModel</span></code></pre>
+
+            <p>For this add-one example:</p>
+
+            <pre><code>session.compile(graph)
+|
++-- graph is a Graph instance
++-- module contains <span class="fn">mo.graph @add_one_demo</span>
++-- KernelLibrary supplies <span class="name">demo_add_one</span> declarations
++-- Weight registry is empty
++-- Native MAX compiles the complete graph
++-- compile() waits for completion
++-- Returns <span class="result">CompiledModel</span></code></pre>
+
+            <p>Important boundary:</p>
+
+            <pre><code><span class="fn">compile</span>(graph)
+  +-- Compiles symbolic MLIR and custom-kernel references
+  +-- Does not bind runtime weights
+  +-- Does not allocate the input Buffer
+  +-- Does not execute demo_add_one
+
+<span class="fn">init</span>(compiled)
+  +-- Creates the executable runtime Model
+
+model.<span class="fn">execute</span>(input_tensor)
+  +-- Executes with real runtime buffers</code></pre>
+          </details>
         </details>
 
         <details class="step-cell">
