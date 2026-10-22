@@ -657,6 +657,165 @@ It does not allocate the runtime input buffer, copy it to a GPU, or execute
 demo_add_one.
 ```
 
+<details>
+<summary><strong>Step 4 Deep Dive: Graph-Construction State</strong></summary>
+
+**Evidence:** `SOURCE`
+
+```text
++-- 4. Initialize graph-construction state
+    |
+    +-- What does "graph construction" mean?
+    |   |
+    |   +-- Python executes forward() using symbolic values
+    |   +-- ops.custom(), ops.add(), etc. create MLIR operations
+    |   +-- Operations are appended to the active mo.graph body
+    |   +-- Types, devices and dependencies are verified
+    |   +-- No real tensor calculation occurs during this phase
+    |   |
+    |   |   Python forward(symbolic x)
+    |   |               |
+    |   |               | ops.custom(...)
+    |   |               v
+    |   |       insert symbolic mo.custom
+    |   |               |
+    |   |               v
+    |   |         MLIR/MAX graph
+    |
+    +-- self._context_state = []
+    |   |
+    |   +-- A Python list used as a stack of active graph contexts
+    |   |
+    |   +-- "Stack starts empty" means:
+    |   |   +-- No with graph: block has been entered yet
+    |   |   +-- This graph is not currently Graph.current
+    |   |   +-- No previous graph context needs to be restored
+    |   |
+    |   +-- It is NOT:
+    |   |   +-- A GPU execution stack
+    |   |   +-- A tensor stack
+    |   |   +-- The Python function-call stack
+    |   |   +-- A list of MLIR operations
+    |   |
+    |   +-- Entering with graph:
+    |   |
+    |   |   def __enter__(self):
+    |   |       self._context_state.append(
+    |   |           state := self._enter()
+    |   |       )
+    |   |       return state.__enter__()
+    |   |
+    |   |   State change:
+    |   |
+    |   |   [] -> [context_1]
+    |   |
+    |   |   _enter() performs:
+    |   |
+    |   |   token = CURRENT_GRAPH.set(self)
+    |   |
+    |   |   Therefore:
+    |   |
+    |   |   Graph.current
+    |   |       |
+    |   |       v
+    |   |   returns this graph
+    |   |
+    |   |   ops.custom(...)
+    |   |       |
+    |   |       | reads Graph.current
+    |   |       v
+    |   |   inserts mo.custom into this graph
+    |   |
+    |   +-- Leaving with graph:
+    |   |
+    |   |   def __exit__(self, *exc):
+    |   |       self._context_state.pop().__exit__(*exc)
+    |   |
+    |   |   CURRENT_GRAPH.reset(token)
+    |   |
+    |   |   State change:
+    |   |
+    |   |   [context_1] -> []
+    |   |
+    |   +-- Why use a stack?
+    |       |
+    |       +-- Nested graph contexts exit in reverse order
+    |       |
+    |       |   with graph:          # context_1
+    |       |       with graph:      # context_2
+    |       |           ops.custom(...)
+    |       |
+    |       +-- State evolution:
+    |           +-- Start:         []
+    |           +-- Enter outer:   [context_1]
+    |           +-- Enter inner:   [context_1, context_2]
+    |           +-- Exit inner:    [context_1]
+    |           +-- Exit outer:    []
+    |
+    +-- self._data_dependent_dims = 0
+    |   |
+    |   +-- Counter for dimensions whose size depends on runtime data
+    |   |
+    |   +-- Example:
+    |   |
+    |   |   input = [0, 5, 0, 8]
+    |   |              |
+    |   |              | nonzero(input)
+    |   |              v
+    |   |   output = [1, 3]
+    |   |
+    |   |   Output length depends on input values, not only input shape
+    |   |
+    |   +-- MAX assigns stable internal ordinals:
+    |   |   +-- First data-dependent dimension  -> 0
+    |   |   +-- Second data-dependent dimension -> 1
+    |   |
+    |   +-- Internal update:
+    |   |
+    |   |   index = self._data_dependent_dims
+    |   |   self._data_dependent_dims = index + 1
+    |   |   return index
+    |   |
+    |   +-- Add-one output shape is fixed [2,4]
+    |       +-- Counter remains 0
+    |
+    +-- self._should_verify_ops = True
+        |
+        +-- Verify each MLIR operation as it is inserted
+        |
+        |   def _verify_op(self, op):
+        |       if self._should_verify_ops:
+        |           op.verify()
+        |
+        +-- Can detect invalid:
+        |   +-- Input types
+        |   +-- Output types
+        |   +-- Result count
+        |   +-- Required attributes
+        |   +-- MLIR operation structure
+        |
+        +-- Verification may be temporarily paused:
+        |
+        |   with graph._pause_verification():
+        |       # Construct temporarily incomplete operation state
+        |
+        +-- graph.output(...) later verifies the complete graph
+        |
+        +-- Verification checks symbolic structure
+            +-- It does not execute the operation
+            +-- It does not inspect runtime tensor values
+
+Constructor-time state evolution:
+
+Before forward():                 _context_state = []
+Enter with self:                  _context_state = [context_1]
+Execute forward(symbolic x):      ops.custom inserted into graph
+Call self.output(...):            graph finalized and verified
+Leave with self:                  _context_state = []
+```
+
+</details>
+
 </details>
 
 <details>
