@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bazel Test Execution Flow - MAX Custom Kernel</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f7f8fa;
+      --surface: #ffffff;
+      --text: #20242c;
+      --muted: #5c6573;
+      --border: #d9dee7;
+      --accent: #1769aa;
+      --accent-soft: #e8f2fb;
+      --success: #197642;
+      --danger: #b42318;
+      --code-bg: #161b22;
+      --code-text: #e6edf3;
+      --code-keyword: #ff7b72;
+      --code-function: #d2a8ff;
+      --code-string: #a5d6ff;
+      --code-name: #7ee787;
+      --code-argument: #ffa657;
+      --code-comment: #8b949e;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 16px;
+      line-height: 1.65;
+      letter-spacing: 0;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .header-inner,
+    main {
+      width: min(100% - 32px, 1040px);
+      margin: 0 auto;
+    }
+
+    .header-inner {
+      padding: 28px 0 24px;
+    }
+
+    h1,
+    h2,
+    h3 {
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 23px;
+    }
+
+    h3 {
+      margin: 28px 0 10px;
+      font-size: 18px;
+    }
+
+    p {
+      margin: 10px 0;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    main {
+      padding: 12px 0 56px;
+      background: var(--surface);
+    }
+
+    section {
+      padding: 30px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    section:last-child {
+      border-bottom: 0;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    code {
+      border-radius: 4px;
+      background: #eef1f5;
+      padding: 2px 5px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.92em;
+    }
+
+    pre {
+      max-width: 100%;
+      margin: 14px 0;
+      overflow-x: auto;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      background: var(--code-bg);
+      color: var(--code-text);
+      padding: 16px;
+      line-height: 1.5;
+      tab-size: 4;
+    }
+
+    pre code {
+      border-radius: 0;
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      font-size: 14px;
+    }
+
+    .kw { color: var(--code-keyword); }
+    .fn { color: var(--code-function); }
+    .str { color: var(--code-string); }
+    .name { color: var(--code-name); }
+    .arg { color: var(--code-argument); }
+    .comment { color: var(--code-comment); }
+
+    ol,
+    ul {
+      padding-left: 24px;
+    }
+
+    li {
+      margin: 5px 0;
+    }
+
+    details {
+      margin: 16px 0;
+      border-left: 4px solid var(--accent);
+      background: #fbfcfe;
+      padding: 0 18px 16px;
+    }
+
+    summary {
+      cursor: pointer;
+      padding: 14px 0;
+      color: #124f7e;
+      font-weight: 700;
+    }
+
+    summary:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 4px;
+    }
+
+    .evidence {
+      display: inline-block;
+      margin: 0 0 14px;
+      border: 1px solid #9bc4aa;
+      border-radius: 4px;
+      background: #edf8f1;
+      color: #145c34;
+      padding: 3px 8px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .status-pass {
+      color: var(--success);
+      font-weight: 700;
+    }
+
+    .status-fail {
+      color: var(--danger);
+      font-weight: 700;
+    }
+
+    .mapping {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+    }
+
+    .mapping th,
+    .mapping td {
+      border: 1px solid var(--border);
+      padding: 9px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .mapping th {
+      background: var(--accent-soft);
+    }
+
+    @media (max-width: 640px) {
+      .header-inner,
+      main {
+        width: min(100% - 20px, 1040px);
+      }
+
+      h1 {
+        font-size: 25px;
+      }
+
+      section {
+        padding: 24px 0;
+      }
+
+      pre {
+        padding: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>Bazel Test Execution Flow</h1>
+      <p class="subtitle">MAX custom kernel example: build, graph construction, compilation, and execution</p>
+    </div>
+  </header>
+
+  <main>
+    <section id="overview">
+      <h2>Overview</h2>
+      <p><code>bazel test</code> automatically performs two major operations:</p>
+      <pre><code>1. Build the test and all dependencies
+2. Run the resulting test executable</code></pre>
+    </section>
+
+    <section id="command-start">
+      <h2>Command Start</h2>
+      <pre><code><span class="fn">cd</span> <span class="str">"${repo_root}"</span></code></pre>
+      <p>Moves to the repository root because <code>./bazelw</code> and Bazel labels are resolved from there.</p>
+
+      <pre><code><span class="kw">exec</span> ./bazelw <span class="comment">...</span></code></pre>
+      <p><code>exec</code> replaces the current shell process with <code>bazelw</code>. <code>bazelw</code> then launches the repository's expected Bazel version.</p>
+    </section>
+
+    <section id="build-phase">
+      <h2>Build Phase</h2>
+      <p>Bazel loads <a href="BUILD.bazel">BUILD.bazel</a>.</p>
+      <p>The requested target is:</p>
+      <pre><code>//murali_docs/artifacts/source_code_walkthrough/max_kernel_lib:add_one_demo_test</code></pre>
+
+      <p>Bazel discovers this dependency chain:</p>
+      <pre><code>:add_one_demo_test
+    depends on :add_one_demo
+        depends on add_one_demo.py
+        depends on kernels/add_one.mojo as runtime data
+        depends on MAX Python packages
+        depends on NumPy
+        depends on Mojo packages and runtime tools</code></pre>
+
+      <p>Specifically:</p>
+      <pre><code><span class="fn">modular_run_binary_test</span>(
+    <span class="arg">name</span> = <span class="str">"add_one_demo_test"</span>,
+    <span class="arg">binary</span> = <span class="str">"add_one_demo"</span>,
+)</code></pre>
+      <p>This means <code>:add_one_demo_test</code> cannot be built until <code>:add_one_demo</code> is available.</p>
+
+      <p>Then:</p>
+      <pre><code><span class="fn">modular_py_binary</span>(
+    <span class="arg">name</span> = <span class="str">"add_one_demo"</span>,
+    <span class="arg">srcs</span> = [<span class="str">"add_one_demo.py"</span>],
+    <span class="comment">...</span>
+)</code></pre>
+
+      <p>This causes Bazel to:</p>
+      <ol>
+        <li>Prepare a Python executable launcher.</li>
+        <li>Locate the declared Python dependencies.</li>
+        <li>Prepare the Mojo compiler/runtime environment.</li>
+        <li>Place <code>kernels/add_one.mojo</code> into the runfiles directory.</li>
+        <li>Create the test wrapper and runfiles links.</li>
+        <li>Reuse anything already available in the disk cache.</li>
+      </ol>
+
+      <p>Python itself is not compiled into native machine code. Bazel prepares an executable launcher, Python sources, libraries, tools, environment variables, and runtime files.</p>
+      <p>The custom <code>add_one.mojo</code> kernel is not compiled through the separate <code>:kernels</code> target here. <code>Graph(...)</code> loads the source directory through <code>custom_extensions</code>, builds it into a precompiled Mojo package, and registers the custom operation before the full graph is compiled.</p>
+      <p>If any required build action fails, Bazel stops and does not run the test.</p>
+    </section>
+
+    <section id="test-phase">
+      <details>
+        <summary>Test Phase: expand or collapse the complete runtime sequence</summary>
+        <p>After the build succeeds, Bazel starts the <code>:add_one_demo_test</code> test process.</p>
+
+        <p>The test wrapper launches:</p>
+        <pre><code>:add_one_demo
+    -&gt; Python launcher
+        -&gt; add_one_demo.py</code></pre>
+
+        <p>Python reaches:</p>
+        <pre><code><span class="kw">if</span> <span class="name">__name__</span> == <span class="str">"__main__"</span>:
+    <span class="fn">main</span>()</code></pre>
+
+        <p>Execution inside <code>main()</code> is:</p>
+        <ol>
+          <li>
+            Find the Mojo kernel directory:
+            <pre><code><span class="name">mojo_kernels</span> = <span class="fn">Path</span>(<span class="name">__file__</span>).parent / <span class="str">"kernels"</span></code></pre>
+          </li>
+          <li>Create the hardcoded NumPy input.</li>
+          <li>Select CPU or accelerator.</li>
+          <li>
+            Construct the MAX graph containing:
+            <pre><code><span class="name">ops</span>.<span class="fn">custom</span>(<span class="arg">name</span>=<span class="str">"demo_add_one"</span>, <span class="comment">...</span>)</code></pre>
+          </li>
+          <li>
+            Supply the custom Mojo sources:
+            <pre><code><span class="arg">custom_extensions</span>=[<span class="name">mojo_kernels</span>]</code></pre>
+          </li>
+          <li>
+            Compile the graph:
+            <pre><code><span class="name">compiled</span> = <span class="name">session</span>.<span class="fn">compile</span>(<span class="name">graph</span>)</code></pre>
+            <p>At this point MAX compiles the complete graph. The custom Mojo source package was already loaded and registered while <code>Graph(...)</code> was being constructed through <code>custom_extensions=[mojo_kernels]</code>.</p>
+          </li>
+          <li>
+            Initialize and execute the compiled graph:
+            <pre><code><span class="name">model</span> = <span class="name">session</span>.<span class="fn">init</span>(<span class="name">compiled</span>)
+<span class="name">result</span> = <span class="name">model</span>.<span class="fn">execute</span>(<span class="name">input_tensor</span>)[0]</code></pre>
+          </li>
+          <li>The Mojo kernel adds <code>1</code> to every element.</li>
+          <li>
+            NumPy verifies the result:
+            <pre><code><span class="name">np</span>.testing.<span class="fn">assert_allclose</span>(<span class="name">result_values</span>, <span class="name">expected</span>)</code></pre>
+          </li>
+          <li>The program prints the input, result, and expected values.</li>
+        </ol>
+      </details>
+    </section>
+
+    <section id="pass-fail">
+      <h2>Pass Or Fail</h2>
+      <p>If <code>main()</code> completes normally:</p>
+      <pre><code>Python exit code = 0
+Bazel result = <span class="status-pass">PASSED</span></code></pre>
+
+      <p>If compilation, execution, or assertion fails:</p>
+      <pre><code>Python exit code != 0
+Bazel result = <span class="status-fail">FAILED</span></code></pre>
+
+      <p><code>--test_output=all</code> tells Bazel to display all printed output.</p>
+    </section>
+
+    <section id="flags">
+      <h2>Flag Roles</h2>
+      <table class="mapping">
+        <thead>
+          <tr>
+            <th>Flag</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>--output_user_root=...</code></td>
+            <td>Stores Bazel's working state and generated output inside the selected directory.</td>
+          </tr>
+          <tr>
+            <td><code>--disk_cache=...</code></td>
+            <td>Caches build results so unchanged work can be reused.</td>
+          </tr>
+          <tr>
+            <td><code>--repo_contents_cache=</code></td>
+            <td>Disables Bazel's repository-content cache.</td>
+          </tr>
+          <tr>
+            <td><code>--config=prebuilt-mojo</code></td>
+            <td>Uses the repository configuration for prebuilt Mojo tooling.</td>
+          </tr>
+          <tr>
+            <td><code>--config=disable-lint</code></td>
+            <td>Disables lint-related build configuration.</td>
+          </tr>
+          <tr>
+            <td><code>--aspects=</code><br><code>--output_groups=default</code></td>
+            <td>Clears configured aspects and requests normal build outputs.</td>
+          </tr>
+          <tr>
+            <td><code>--enable_runfiles=true</code><br><code>--build_runfile_links=true</code></td>
+            <td>Creates the runtime file tree needed by the Python executable.</td>
+          </tr>
+          <tr>
+            <td><code>--remote_download_outputs=all</code></td>
+            <td>Downloads all remote build outputs when remote caching or execution is configured.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>The condensed flow is:</p>
+      <pre><code>bazel test
+  -&gt; load and analyze BUILD.bazel
+  -&gt; build :add_one_demo and its dependencies
+  -&gt; create :add_one_demo_test wrapper
+  -&gt; run add_one_demo.py
+  -&gt; construct the graph and load add_one.mojo
+  -&gt; compile the complete MAX graph
+  -&gt; execute kernel
+  -&gt; verify result
+  -&gt; report PASSED or FAILED</code></pre>
+    </section>
+
+    <section id="graph-construction">
+      <h2>Step 4: Construct The MAX Graph</h2>
+      <span class="evidence">SOURCE</span>
+
+      <h3>1. <code>Graph</code></h3>
+      <pre><code><span class="name">graph</span> = <span class="fn">Graph</span>(<span class="comment">...</span>)</code></pre>
+      <p><code>Graph</code> is a <strong>Python class</strong>, defined in <a href="../../../../max/python/max/graph/graph.py#L682">graph.py</a>.</p>
+      <p>It is not a Python struct or Mojo struct. It constructs an internal MLIR/MAX computation graph.</p>
+      <p>The Mojo struct in this example is <code>DemoAddOne</code> in <a href="kernels/add_one.mojo#L22">add_one.mojo</a>.</p>
+
+      <h3>2. <code>forward</code> And <code>lambda</code></h3>
+      <pre><code><span class="arg">forward</span>=<span class="kw">lambda</span> <span class="name">x</span>: (<span class="comment">...</span>)</code></pre>
+      <p><code>forward</code> tells MAX how graph inputs are transformed into graph outputs.</p>
+      <p><code>lambda</code> is an anonymous Python function. This:</p>
+      <pre><code><span class="arg">forward</span>=<span class="kw">lambda</span> <span class="name">x</span>: <span class="name">ops</span>.<span class="fn">custom</span>(<span class="comment">...</span>)[0].tensor</code></pre>
+
+      <p>is equivalent to:</p>
+      <pre><code><span class="kw">def</span> <span class="fn">forward</span>(<span class="name">x</span>):
+    <span class="name">outputs</span> = <span class="name">ops</span>.<span class="fn">custom</span>(<span class="comment">...</span>)
+    <span class="kw">return</span> <span class="name">outputs</span>[0].tensor</code></pre>
+      <p>The function is called while constructing the graph. It describes operations; it does not process the NumPy input immediately.</p>
+
+      <h3>3. Where Does <code>x</code> Come From?</h3>
+      <p>It comes from:</p>
+      <pre><code><span class="arg">input_types</span>=[
+    <span class="fn">TensorType</span>(<span class="comment">...</span>)
+]</code></pre>
+      <p>MAX creates one symbolic graph input for each <code>TensorType</code>. Internally, the constructor effectively calls:</p>
+      <pre><code><span class="name">result</span> = <span class="fn">forward</span>(*<span class="name">self</span>.inputs)</code></pre>
+      <p>Because there is one input type:</p>
+      <pre><code>self.inputs = [symbolic_input]
+                     |
+                     v
+               lambda x</code></pre>
+      <p>Therefore, <code>x</code> is a symbolic <code>TensorValue</code> describing:</p>
+      <pre><code>dtype  = float32
+shape  = [2, 4]
+device = cpu:0 or gpu:0</code></pre>
+      <p>It is not yet the actual NumPy array.</p>
+      <p>Later:</p>
+      <pre><code><span class="name">model</span>.<span class="fn">execute</span>(<span class="name">input_tensor</span>)</code></pre>
+      <p>binds the real <code>input_tensor</code> buffer to symbolic graph input <code>x</code>.</p>
+
+      <h3>4. <code>values=[x]</code></h3>
+      <pre><code><span class="arg">values</span>=[<span class="name">x</span>]</code></pre>
+      <p>Passes symbolic input <code>x</code> as the first argument to the custom operation.</p>
+      <p>At runtime, that corresponds to the Mojo kernel argument:</p>
+      <pre><code><span class="name">x</span>: <span class="fn">InputTensor</span>[<span class="comment">...</span>]</code></pre>
+      <p>The flow is:</p>
+      <pre><code>input_tensor
+    |
+    | model.execute(input_tensor)
+    v
+symbolic graph input x
+    |
+    | values=[x]
+    v
+DemoAddOne.execute(..., x, ...)</code></pre>
+
+      <h3>5. <code>out_types</code></h3>
+      <pre><code><span class="arg">out_types</span>=[
+    <span class="fn">TensorType</span>(
+        <span class="arg">dtype</span>=<span class="name">x</span>.dtype,
+        <span class="arg">shape</span>=<span class="name">x</span>.tensor.shape,
+        <span class="arg">device</span>=<span class="name">device_ref</span>,
+    )
+]</code></pre>
+      <p>This declares the expected custom-operation output:</p>
+      <pre><code>same dtype as x
+same shape as x
+located on device_ref</code></pre>
+      <p>It does not allocate or calculate the output at this point. It gives the graph compiler the output type information it needs.</p>
+
+      <h3>6. <code>ops.custom(...)[0].tensor</code></h3>
+      <p><a href="../../../../max/python/max/graph/ops/custom.py#L58"><code>ops.custom()</code></a> returns a list of symbolic output values:</p>
+      <pre><code><span class="name">list</span>[<span class="name">Value</span>]</code></pre>
+      <p>There is one <code>out_types</code> entry, so there is one output:</p>
+      <pre><code><span class="name">ops</span>.<span class="fn">custom</span>(<span class="comment">...</span>)           -&gt; [output_value]
+<span class="name">ops</span>.<span class="fn">custom</span>(<span class="comment">...</span>)[0]        -&gt; output_value
+<span class="name">ops</span>.<span class="fn">custom</span>(<span class="comment">...</span>)[0].tensor -&gt; output as TensorValue</code></pre>
+      <p><code>.tensor</code> verifies that the selected output is a tensor and returns its <code>TensorValue</code> representation. It does not extract concrete tensor data.</p>
+
+      <h3>7. <code>device=device_ref</code></h3>
+      <p><code>device_ref</code> is a symbolic device identifier such as <code>cpu:0</code> or <code>gpu:0</code>.</p>
+      <p>In the input <code>TensorType</code>, it declares where the graph expects that input tensor to reside.</p>
+      <p>In <code>ops.custom</code>, it assigns the custom operation to that device. It also becomes the Mojo kernel's compile-time <code>target</code> parameter.</p>
+      <p>It does not move data by itself. This line performs the actual transfer:</p>
+      <pre><code><span class="name">input_tensor</span> = <span class="fn">Buffer.from_numpy</span>(<span class="name">input_values</span>).<span class="fn">to</span>(<span class="name">device</span>)</code></pre>
+
+      <h3>8. <code>custom_extensions</code></h3>
+      <pre><code><span class="arg">custom_extensions</span>=[<span class="name">mojo_kernels</span>]</code></pre>
+      <p><code>mojo_kernels</code> points to:</p>
+      <pre><code>max_kernel_lib/kernels/</code></pre>
+      <p>That directory contains <code>add_one.mojo</code>, which registers:</p>
+      <pre><code><span class="name">@extensibility</span>.<span class="fn">register</span>(<span class="str">"demo_add_one"</span>)</code></pre>
+      <p>The registration name matches:</p>
+      <pre><code><span class="name">ops</span>.<span class="fn">custom</span>(<span class="arg">name</span>=<span class="str">"demo_add_one"</span>, <span class="comment">...</span>)</code></pre>
+      <p>During <code>Graph(...)</code> construction, MAX:</p>
+      <pre><code>loads the kernels/ directory
+    -&gt; compiles the Mojo source package
+    -&gt; discovers registered "demo_add_one"
+    -&gt; verifies ops.custom(name="demo_add_one")</code></pre>
+      <p>Then <code>session.compile(graph)</code> compiles the complete MAX graph using that custom kernel.</p>
+      <p>Without <code>custom_extensions=[mojo_kernels]</code>, MAX would not know where the implementation of <code>"demo_add_one"</code> is located.</p>
+    </section>
+  </main>
+</body>
+</html>
