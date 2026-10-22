@@ -331,6 +331,279 @@ implementation.
 </details>
 
 <details>
+<summary><strong>Graph Constructor Implementation: Step By Step</strong></summary>
+
+**Evidence:** `SOURCE`
+
+Source: [`Graph.__init__`](../../../../max/python/max/graph/graph.py#L793)
+
+```text
+Graph(...)
+|
++-- 1. Save graph identity and placement policy
+|   |
+|   |   self.name = name
+|   |   self.strict_device_placement = strict_device_placement
+|   |
+|   +-- name = "add_one_demo"
+|   +-- placement policy defaults to Warn
+|
++-- 2. Optional path-based loading
+|   |
+|   |   if path is not None:
+|   |       self._load_mlir(path)
+|   |       return
+|   |
+|   +-- If path is supplied, load an existing graph
+|   +-- Otherwise, construct a new graph
+|
++-- 3. Collect symbolic dimensions
+|   |
+|   |   self._params = dict.fromkeys(
+|   |       dim.name
+|   |       for t in input_types
+|   |       if isinstance(t, TensorType | BufferType)
+|   |       for dim in t.shape
+|   |       if isinstance(dim, SymbolicDim)
+|   |   )
+|   |
+|   +-- Example:
+|       shape = ["batch", 1024]
+|                  |
+|                  +-- self._params = {"batch": None}
+|
++-- 4. Initialize graph-construction state
+|   |
+|   |   self._context_state = []
+|   |   self._data_dependent_dims = 0
+|   |   self._should_verify_ops = True
+|   |
+|   +-- Context stack starts empty
+|   +-- Operation verification is enabled
+|
++-- 5. Create or reuse an MLIR builtin.module
+|   |
+|   |   self._module = (
+|   |       module.mlir_module
+|   |       if module
+|   |       else builtin.ModuleOp(location=loc)
+|   |   )
+|   |
+|   +-- module not supplied
+|   |   +-- Create a new builtin.module
+|   |
+|   +-- module supplied
+|       +-- Reuse it for subgraphs or multiple models
+|
++-- 6. Create an MLIR builder
+|   |
+|   |   builder = OpBuilder(self._module.body.end)
+|   |
+|   +-- New operations are inserted at the end of the module
+|
++-- 7. Create mo.graph @add_one_demo
+|   |
+|   |   op = _mo.GraphOp(
+|   |       builder,
+|   |       loc,
+|   |       name=name,
+|   |       input_types=[t.to_mlir() for t in input_types],
+|   |       result_types=[],
+|   |   )
+|   |
+|   +-- Converts every Python TensorType to an MLIR type
+|   |
+|   +-- For this example:
+|       TensorType(float32, [2,4], device_ref)
+|                 |
+|                 v
+|       symbolic MLIR block argument %input0
+|
++-- 8. Attach symbolic shape parameters
+|   |
+|   |   op.input_parameters = kgen.ParamDeclArrayAttr(
+|   |       [
+|   |           kgen.ParamDeclAttr(p, si64)
+|   |           for p in self._params
+|   |       ]
+|   |   )
+|   |
+|   +-- Empty for the fixed shape [2,4]
+|
++-- 9. Save the graph operation and graph body
+|   |
+|   |   self._mlir_op = mlir.Operation._CAPICreate(op._CAPIPtr)
+|   |   self._current_block = self._mlir_op.regions[0].blocks[0]
+|   |   self._graph_body = self._current_block
+|   |
+|   +-- _mlir_op
+|   |   +-- mo.graph @add_one_demo
+|   |
+|   +-- _graph_body
+|       +-- Block containing mo.custom and mo.output
+|
++-- 10. Attach device information
+|   |
+|   |   self._populate_device_info_mapping()
+|   |
+|   +-- Adds module attribute:
+|       mo.device_info_mapping
+|           +-- CPU information
+|           +-- Accelerator information, when available
+|
++-- 11. Initialize weight and execution-chain state
+|   |
+|   |   self._weights = {}
+|   |   self._has_chain_input = False
+|   |   self.device_chains = _DeviceChainMap(self)
+|   |
+|   +-- _weights
+|   |   +-- Empty because add-one has no model weights
+|   |
+|   +-- device_chains
+|       +-- Tracks operation ordering per device
+|
++-- 12. Create the always-ready chain
+|   |
+|   |   self._always_ready_chain = _ChainValue(
+|   |       self._add_op_generated(
+|   |           _mo.ChainCreateOp,
+|   |           result=_mo.ChainType(),
+|   |           inputs=[],
+|   |           attach_profile_scopes=False,
+|   |       )[0]
+|   |   )
+|   |
+|   |   self._update_chain(self._always_ready_chain)
+|   |
+|   +-- Used for operations without earlier dependencies
+|   +-- Example: graph-level host/device staging transfers
+|
++-- 13. Create and populate KernelLibrary
+|   |
+|   |   self._kernel_library = kernel_library or KernelLibrary()
+|   |
+|   |   self._import_kernels(
+|   |       _resolved_custom_extensions(custom_extensions)
+|   |   )
+|   |
+|   +-- custom_extensions contains kernels/
+|   |
+|   +-- _import_kernels performs:
+|       |
+|       |   self._kernel_library.load_paths(paths)
+|       |
+|       +-- Mojo source directory detected
+|       +-- Source package precompiled into .mojoc
+|       +-- demo_add_one registration discovered
+|
++-- 14. Initialize subgraph registry
+|   |
+|   |   self._subgraphs = {}
+|   |
+|   +-- Empty for this example
+|
++-- 15. Optionally mark this as a device graph
+|   |
+|   |   if is_device_graph:
+|   |       op.is_device_graph = builtin.UnitAttr()
+|   |
+|   +-- Not enabled in the add-one example
+|
++-- 16. If forward was provided, enter Graph.current context
+|   |
+|   |   if forward is not None:
+|   |       with self:
+|   |           ...
+|   |
+|   +-- with self sets:
+|       CURRENT_GRAPH = this Graph object
+|       |
+|       +-- ops.custom(...) can now find the active graph
+|
++-- 17. Create Python wrappers for symbolic inputs
+|   |
+|   |   @property
+|   |   def inputs(self):
+|   |       return tuple(
+|   |           Value.from_mlir(_Value._from_cmlir(arg))
+|   |           for arg in self._graph_body.arguments
+|   |       )
+|   |
+|   +-- MLIR %input0
+|       |
+|       v
+|       Python symbolic Value x
+|
++-- 18. Invoke forward with symbolic inputs
+|   |
+|   |   result = forward(*self.inputs, *args, **kwargs)
+|   |
+|   +-- For this example:
+|       |
+|       |   result = forward(x)
+|       |
+|       |   forward=lambda x: (
+|       |       ops.custom(
+|       |           name="demo_add_one",
+|       |           values=[x],
+|       |           ...
+|       |       )[0].tensor
+|       |   )
+|       |
+|       +-- ops.custom inserts:
+|           %result = mo.custom "demo_add_one"(%input0)
+|
++-- 19. Normalize forward's return value
+|   |
+|   |   outputs = (
+|   |       ()
+|   |       if result is None
+|   |       else (result,)
+|   |       if not isinstance(result, Iterable)
+|   |       else result
+|   |   )
+|   |
+|   +-- No result    -> ()
+|   +-- One result   -> (result,)
+|   +-- Many results -> result iterable
+|
++-- 20. Finalize the graph outputs
+    |
+    |   self.output(*outputs)
+    |
+    +-- Inserts:
+    |   mo.output %result
+    |
+    +-- Builds input/output function type
+    +-- Adds argument_names = ["input0"]
+    +-- Adds result_names = ["output0"]
+    +-- Verifies the complete mo.graph
+
+The resulting structure is conceptually:
+
+builtin.module {
+    mo.graph @add_one_demo(%input0: float32[2,4]) {
+        %chain = mo.chain.create
+        %result = mo.custom "demo_add_one"(%input0)
+        mo.output %result
+    }
+}
+
+The constructor stops here:
+
+Graph(...)                 Build symbolic graph
+session.compile(graph)     Compile symbolic graph
+session.init(compiled)     Initialize runtime model
+model.execute(buffer)      Execute on real data
+
+It does not allocate the runtime input buffer, copy it to a GPU, or execute
+demo_add_one.
+```
+
+</details>
+
+<details>
 <summary><strong>Q&amp;A: What Does <code>Graph</code> Create And Manage?</strong></summary>
 
 **Evidence:** `SOURCE`
