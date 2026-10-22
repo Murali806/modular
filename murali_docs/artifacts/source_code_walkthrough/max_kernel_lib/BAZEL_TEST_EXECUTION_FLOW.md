@@ -344,6 +344,18 @@ Graph(...)
 |   |
 |   |   self.name = name
 |   |   self.strict_device_placement = strict_device_placement
+|   |       |
+|   |       +-- Device placement means:
+|   |       |   +-- where a symbolic tensor resides: CPU:0, GPU:0, ...
+|   |       |   +-- where an operation is assigned to execute
+|   |       |
+|   |       +-- This policy controls CPU-only operation fallbacks:
+|   |       |   +-- Ignore: allow the operation-specific transfer silently
+|   |       |   +-- Warn: allow the transfer and emit a warning
+|   |       |   +-- Error: stop graph construction with ValueError
+|   |       |
+|   |       +-- It does not select a device, insert arbitrary transfers,
+|   |           or copy runtime buffers by itself
 |   |
 |   +-- name = "add_one_demo"
 |   +-- placement policy defaults to Warn
