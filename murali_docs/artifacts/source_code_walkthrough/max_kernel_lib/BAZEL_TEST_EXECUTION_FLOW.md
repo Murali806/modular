@@ -154,12 +154,33 @@ identity, such as `cpu:0` or `gpu:0`.
 <details>
 <summary><strong>Step 4: Construct The MAX Graph</strong></summary>
 
-```text
-Graph(
-  name="add_one_demo",
-  forward=<symbolic computation>,
-  input_types=[float32[2,4] on device_ref],
-  custom_extensions=[kernels/],
+Exact source: [add_one_demo.py](add_one_demo.py#L26)
+
+```python
+graph = Graph(
+    "add_one_demo",
+    forward=lambda x: (
+        ops.custom(
+            name="demo_add_one",
+            device=device_ref,
+            values=[x],
+            out_types=[
+                TensorType(
+                    dtype=x.dtype,
+                    shape=x.tensor.shape,
+                    device=device_ref,
+                )
+            ],
+        )[0].tensor
+    ),
+    input_types=[
+        TensorType(
+            dtype,
+            shape=[rows, columns],
+            device=device_ref,
+        ),
+    ],
+    custom_extensions=[mojo_kernels],
 )
 ```
 

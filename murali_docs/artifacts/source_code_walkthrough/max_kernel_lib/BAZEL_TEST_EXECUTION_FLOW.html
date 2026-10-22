@@ -327,11 +327,31 @@ device -&gt; DeviceRef.from_device(device) -&gt; <span class="result">device_ref
 
         <details class="step-cell">
           <summary>Step 4: Construct The MAX Graph</summary>
-          <pre><code><span class="fn">Graph</span>(
-  <span class="arg">name</span>=<span class="str">"add_one_demo"</span>,
-  <span class="arg">forward</span>=&lt;symbolic computation&gt;,
-  <span class="arg">input_types</span>=[float32[2,4] on device_ref],
-  <span class="arg">custom_extensions</span>=[kernels/],
+          <p>Exact source: <a href="add_one_demo.py#L26">add_one_demo.py</a></p>
+          <pre><code><span class="name">graph</span> = <span class="fn">Graph</span>(
+    <span class="str">"add_one_demo"</span>,
+    <span class="arg">forward</span>=<span class="kw">lambda</span> <span class="name">x</span>: (
+        <span class="name">ops</span>.<span class="fn">custom</span>(
+            <span class="arg">name</span>=<span class="str">"demo_add_one"</span>,
+            <span class="arg">device</span>=<span class="name">device_ref</span>,
+            <span class="arg">values</span>=[<span class="name">x</span>],
+            <span class="arg">out_types</span>=[
+                <span class="fn">TensorType</span>(
+                    <span class="arg">dtype</span>=<span class="name">x</span>.dtype,
+                    <span class="arg">shape</span>=<span class="name">x</span>.tensor.shape,
+                    <span class="arg">device</span>=<span class="name">device_ref</span>,
+                )
+            ],
+        )[0].tensor
+    ),
+    <span class="arg">input_types</span>=[
+        <span class="fn">TensorType</span>(
+            <span class="name">dtype</span>,
+            <span class="arg">shape</span>=[<span class="name">rows</span>, <span class="name">columns</span>],
+            <span class="arg">device</span>=<span class="name">device_ref</span>,
+        ),
+    ],
+    <span class="arg">custom_extensions</span>=[<span class="name">mojo_kernels</span>],
 )</code></pre>
 
           <h3>4.1 What Is <code>Graph</code>?</h3>
