@@ -151,23 +151,35 @@
       margin: 5px 0;
     }
 
-    details {
-      margin: 16px 0;
+    details.cell {
+      margin: 20px 0;
+      border: 1px solid var(--border);
       border-left: 4px solid var(--accent);
+      border-radius: 6px;
       background: #fbfcfe;
-      padding: 0 18px 16px;
+      padding: 0 18px 18px;
     }
 
-    summary {
+    details.cell > summary {
       cursor: pointer;
-      padding: 14px 0;
+      padding: 16px 0;
       color: #124f7e;
+      font-size: 18px;
       font-weight: 700;
     }
 
-    summary:focus-visible {
+    details.cell[open] > summary {
+      border-bottom: 1px solid var(--border);
+    }
+
+    details.cell > summary:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: 4px;
+    }
+
+    details.cell > section:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
     }
 
     .evidence {
@@ -240,6 +252,9 @@
   </header>
 
   <main>
+    <details class="cell">
+      <summary>Overview Through Test Phase: expand or collapse the complete runtime sequence</summary>
+
     <section id="overview">
       <h2>Overview</h2>
       <p><code>bazel test</code> automatically performs two major operations:</p>
@@ -301,8 +316,8 @@
     </section>
 
     <section id="test-phase">
-      <details>
-        <summary>Test Phase: expand or collapse the complete runtime sequence</summary>
+        <h2>Test Phase</h2>
+        <p>Complete runtime sequence after the build succeeds:</p>
         <p>After the build succeeds, Bazel starts the <code>:add_one_demo_test</code> test process.</p>
 
         <p>The test wrapper launches:</p>
@@ -347,8 +362,11 @@
           </li>
           <li>The program prints the input, result, and expected values.</li>
         </ol>
-      </details>
     </section>
+    </details>
+
+    <details class="cell">
+      <summary>Pass Or Fail Through Flag Roles</summary>
 
     <section id="pass-fail">
       <h2>Pass Or Fail</h2>
@@ -420,6 +438,10 @@ Bazel result = <span class="status-fail">FAILED</span></code></pre>
   -&gt; verify result
   -&gt; report PASSED or FAILED</code></pre>
     </section>
+    </details>
+
+    <details class="cell">
+      <summary>Step 4: Construct The MAX Graph</summary>
 
     <section id="graph-construction">
       <h2>Step 4: Construct The MAX Graph</h2>
@@ -526,6 +548,7 @@ located on device_ref</code></pre>
       <p>Then <code>session.compile(graph)</code> compiles the complete MAX graph using that custom kernel.</p>
       <p>Without <code>custom_extensions=[mojo_kernels]</code>, MAX would not know where the implementation of <code>"demo_add_one"</code> is located.</p>
     </section>
+    </details>
   </main>
 </body>
 </html>
