@@ -144,6 +144,22 @@
 
     details.step-cell[open] > summary { border-bottom: 1px solid var(--border); }
 
+    details.qa-cell {
+      margin: 18px 0 0;
+      border-left: 3px solid #3d8b5f;
+      background: #f4faf6;
+      padding: 0 14px 14px;
+    }
+
+    details.qa-cell > summary {
+      cursor: pointer;
+      padding: 12px 0;
+      color: #174d2e;
+      font-weight: 700;
+    }
+
+    details.qa-cell[open] > summary { border-bottom: 1px solid #b9d7c3; }
+
     summary:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: 3px;
@@ -448,6 +464,484 @@ verify <span class="name">ops</span>.<span class="fn">custom</span>(<span class=
              |
              v
 <span class="result">attach kernel library to graph</span></code></pre>
+
+          <details class="qa-cell">
+            <summary>Q&amp;A: What Does <code>Graph</code> Create And Manage?</summary>
+            <p><span class="evidence">SOURCE</span></p>
+            <pre><code><span class="stage">Python Graph object</span>
+|
++-- MAX-specific Python class
+|   +-- Implemented in max/python/max/graph/graph.py
+|   +-- Builds a symbolic computation
+|   +-- Does not contain runtime tensor data
+|   +-- Does not execute the computation
+|
++-- <span class="stage">MLIR builtin.module</span>
+|   |
+|   +-- Top-level compilation container
+|   +-- Similar to a source file or compilation unit
+|   +-- Can contain multiple mo.graph operations
+|   |
+|   +-- Module-level device information
+|   |   +-- mo.device_info_mapping
+|   |       +-- Device label: cpu:0, gpu:0, ...
+|   |       +-- Device API
+|   |       +-- Architecture
+|   |       +-- Device model
+|   |
+|   +-- <span class="fn">mo.graph @add_one_demo</span>
+|   |   |
+|   |   +-- Represents one model entry point
+|   |   +-- Similar to a function inside a compilation unit
+|   |   |
+|   |   +-- Graph attributes
+|   |   |   +-- name = <span class="str">"add_one_demo"</span>
+|   |   |   +-- input/output function signature
+|   |   |   +-- argument_names = [<span class="str">"input0"</span>]
+|   |   |   +-- result_names = [<span class="str">"output0"</span>]
+|   |   |   +-- custom-kernel library paths
+|   |   |
+|   |   +-- Symbolic input block argument: <span class="data">%input0</span>
+|   |   |   +-- dtype = float32
+|   |   |   +-- shape = [2, 4]
+|   |   |   +-- device = device_ref
+|   |   |   +-- Exposed to forward() as symbolic x
+|   |   |
+|   |   +-- Device dependency chains
+|   |   |   +-- Preserve execution order
+|   |   |   +-- Track CPU operations
+|   |   |   +-- Track GPU:0 and GPU:1 independently
+|   |   |   +-- Coordinate transfers and kernel execution
+|   |   |
+|   |   +-- Always-ready chain
+|   |   |   +-- Used for work without an earlier dependency
+|   |   |
+|   |   +-- <span class="fn">mo.custom "demo_add_one"</span>
+|   |   |   +-- Inserted by ops.custom(...)
+|   |   |   +-- Input = symbolic %input0
+|   |   |   +-- Execution device = device_ref
+|   |   |   +-- Output = symbolic %result
+|   |   |   +-- Matches:
+|   |   |       @extensibility.register(<span class="str">"demo_add_one"</span>)
+|   |   |
+|   |   +-- mo.output %result
+|   |       +-- Marks %result as the graph output
+|   |       +-- Finalizes the graph signature
+|   |       +-- Triggers complete graph verification
+|   |
+|   +-- Optional additional top-level graphs
+|   |   +-- mo.graph @encoder
+|   |   +-- mo.graph @decoder
+|   |
+|   +-- Optional subgraphs
+|       |
+|       +-- Created using:
+|       |
+|       |   with graph.add_subgraph(
+|       |       <span class="str">"add_one_block"</span>,
+|       |       input_types=[input_type],
+|       |   ) as sub:
+|       |       x = sub.inputs[0].tensor
+|       |       sub.output(ops.elementwise.add(x, one))
+|       |
+|       +-- Creates another Python Graph object
+|       |   +-- Passes module=parent.module
+|       |       +-- Parent and subgraph share one MLIR module
+|       |
+|       +-- Creates another mo.graph operation
+|       |   +-- mo.graph @add_one_block
+|       |   +-- Marked with is_subgraph
+|       |   +-- Not loaded as an independent runtime Model
+|       |   +-- Used as a reusable callable definition
+|       |
+|       +-- Called from the parent using:
+|       |
+|       |   result = ops.call(sub, parent_input)
+|       |
+|       +-- ops.call inserts:
+|       |
+|       |   %result = mo.call @add_one_block(%parent_input)
+|       |
+|       +-- Argument handling
+|       |   +-- Checks argument count
+|       |   +-- Arguments must match subgraph input types
+|       |   +-- Returns symbolic subgraph outputs
+|       |
+|       +-- Device-chain handling
+|       |   +-- Chain arguments are added automatically
+|       |   +-- Parent chains are passed into the subgraph
+|       |   +-- Updated chains are returned to the parent
+|       |
+|       +-- Weight-prefix support
+|       |   +-- One definition can represent repeated layers
+|       |   +-- Call 0 can use prefix=<span class="str">"layers.0."</span>
+|       |   +-- Call 1 can use prefix=<span class="str">"layers.1."</span>
+|       |
+|       +-- Benefit
+|       |   +-- Compiler processes repeated definition once
+|       |
+|       +-- Trade-offs
+|           +-- Fusion cannot normally cross subgraph boundaries
+|           +-- Internal allocations may not be shared outside
+|
++-- <span class="stage">Graph-construction context</span>
+|   |
+|   +-- Uses CURRENT_GRAPH
+|   |   +-- Python ContextVar containing the active Graph
+|   |
+|   +-- Entering:
+|   |
+|   |   with graph:
+|   |       ...
+|   |
+|   |   performs:
+|   |
+|   |   token = CURRENT_GRAPH.set(graph)
+|   |
+|   +-- Leaving:
+|   |
+|   |   CURRENT_GRAPH.reset(token)
+|   |   +-- Restores the previous graph
+|   |
+|   +-- Tracks current MLIR block
+|   |   +-- Normally the body of mo.graph
+|   |   +-- Can change for conditions and loops
+|   |   +-- Restored after leaving nested blocks
+|   |
+|   +-- Tracks current insertion point
+|   |   +-- New operations are appended to the active block
+|   |
+|   +-- Tracks block-local state
+|   |   +-- Device chains are saved and restored
+|   |   +-- Weight-deduplication state is saved and restored
+|   |
+|   +-- Graph constructor flow
+|       |
+|       +-- Step 1: Create symbolic inputs
+|       |
+|       |   input_types=[
+|       |       TensorType(float32, [2,4], device_ref)
+|       |   ]
+|       |
+|       |   creates:
+|       |       symbolic block argument %input0
+|       |
+|       +-- Step 2: Call forward()
+|       |
+|       |   result = forward(*self.inputs)
+|       |
+|       |   Effectively:
+|       |       result = forward(%input0)
+|       |
+|       +-- Step 3: Execute Python lambda
+|       |
+|       |   forward=lambda x: ops.custom(...)[0].tensor
+|       |
+|       |   Important:
+|       |   +-- Lambda runs during graph construction
+|       |   +-- x is symbolic
+|       |   +-- No numerical calculation occurs yet
+|       |
+|       +-- Step 4: ops.custom(...) deep dive
+|       |   +-- Reads Graph.current
+|       |   +-- Converts name to MLIR symbol attribute
+|       |   +-- Converts DeviceRef to MLIR device attribute
+|       |   +-- Converts values=[x] to MLIR operands
+|       |   +-- Converts out_types to MLIR result types
+|       |   +-- Creates and inserts mo.custom
+|       |   +-- Adds compile-time parameters
+|       |   +-- Verifies against KernelLibrary
+|       |   +-- Returns symbolic Python Value wrappers
+|       |
+|       +-- Step 5: Record output
+|
+|           graph.output(result)
+|               +-- Creates mo.output
+|               +-- Updates graph signature
+|               +-- Assigns input/output names
+|               +-- Verifies completed graph
+|
++-- <span class="stage">Operation builder</span>
+|   |
+|   +-- Example Python expression
+|   |
+|   |   result = ops.custom(
+|   |       name=<span class="str">"demo_add_one"</span>,
+|   |       values=[x],
+|   |       out_types=[output_type],
+|   |       device=device_ref,
+|   |   )
+|   |
+|   +-- Converts Python wrappers to MLIR SSA values
+|   |
+|   |   Python:
+|   |       x = TensorValue(_mlir_value=%input0)
+|   |
+|   |   Builder unwraps:
+|   |       x -&gt; %input0
+|   |
+|   |   MLIR receives:
+|   |       mo.custom(%input0)
+|   |
+|   +-- Inserts operation into graph body
+|   |
+|   |   Before:
+|   |
+|   |   mo.graph @add_one_demo(%input0) {
+|   |   }
+|   |
+|   |   After:
+|   |
+|   |   mo.graph @add_one_demo(%input0) {
+|   |       %result = mo.custom <span class="str">"demo_add_one"</span>(%input0)
+|   |   }
+|   |
+|   +-- Converts MLIR results to Python wrappers
+|   |
+|   |   MLIR:
+|   |       %result
+|   |
+|   |   Python:
+|   |       Value(_mlir_value=%result)
+|   |
+|   |   Tensor interface:
+|   |       ops.custom(...)[0].tensor
+|   |
+|   |   This permits additional symbolic operations:
+|   |       y = ops.add(result, another_tensor)
+|   |
+|   +-- Records source locations
+|       +-- Enable:
+|       |   Graph.debug.source_tracebacks = True
+|       +-- MLIR operation stores Python call-stack information
+|       +-- Errors can point to:
+|           add_one_demo.py:31
+|           ops.custom(...)
+|
++-- <span class="stage">Operation verifier</span>
+|   |
+|   +-- Input count
+|   |   +-- Correct: values=[x]
+|   |   +-- Incorrect: values=[]
+|   |       +-- Kernel expects an input, so verification fails
+|   |
+|   +-- Input types
+|   |   +-- Checks dtype
+|   |   +-- Checks rank
+|   |   +-- Checks tensor/buffer category
+|   |   +-- Checks compatibility with registered signature
+|   |
+|   +-- Output count
+|   |   +-- Correct: out_types=[TensorType(...)]
+|   |   +-- Incorrect: out_types=[]
+|   |       +-- DemoAddOne produces one output
+|   |
+|   +-- Output types
+|   |   +-- Expected: float32[2,4]
+|   |   +-- Incompatible dtype/rank can fail verification
+|   |
+|   +-- Device placement
+|   |   +-- x.device = gpu:0
+|   |   +-- custom-op device = gpu:0
+|   |   +-- output device = gpu:0
+|   |
+|   +-- Required attributes
+|   |   +-- Non-empty operation symbol
+|   |   +-- Device attribute
+|   |   +-- Result types
+|   |   +-- Valid parameter types
+|   |
+|   +-- Kernel existence
+|
+|       Python:
+|           name=<span class="str">"demo_add_one"</span>
+|
+|       Must match:
+|           @extensibility.register(<span class="str">"demo_add_one"</span>)
+|
+|       An unknown name causes graph construction to fail
+|
++-- <span class="stage">KernelLibrary</span>
+|   +-- Receives custom_extensions=[mojo_kernels]
+|   +-- Recognizes kernels/ through __init__.mojo
+|   +-- Precompiles source into a .mojoc package
+|   +-- Discovers registered custom operations
+|   +-- Verifies custom-op signatures
+|   +-- Supplies declarations and paths to compilation
+|
++-- <span class="stage">Weight registry</span>
+|   |
+|   +-- Used for learned/static model parameters
+|   |
+|   +-- Example:
+|   |
+|   |   weight = Weight(
+|   |       <span class="str">"linear.weight"</span>,
+|   |       DType.float32,
+|   |       [1024, 1024],
+|   |       device=DeviceRef.GPU(0),
+|   |   )
+|   |
+|   +-- First use creates:
+|   |
+|   |   %weight = mo.constant.external <span class="str">"linear.weight"</span>
+|   |
+|   +-- Actual data is supplied during initialization:
+|   |
+|   |   session.init(
+|   |       compiled,
+|   |       weights_registry={
+|   |           <span class="str">"linear.weight"</span>: actual_array
+|   |       },
+|   |   )
+|   |
+|   +-- Registry entry
+|   |   +-- _weights[<span class="str">"linear.weight"</span>]
+|   |       +-- Original Weight object
+|   |       +-- Symbolic TensorValue
+|   |
+|   +-- Duplicate prevention
+|   |   +-- Same Weight object used twice
+|   |   |   +-- Reuses existing symbolic value
+|   |   +-- Different Weight object with same name
+|   |       +-- Raises ValueError
+|   |
+|   +-- Add-one example
+|       +-- No weights, so registry is empty
+|
++-- Symbolic-dimension registry
+|   +-- Tracks dimensions such as <span class="str">"batch"</span>
+|   +-- Example shape: [<span class="str">"batch"</span>, 1024]
+|   +-- Adds <span class="str">"batch"</span> to graph parameters
+|   +-- Add-one uses fixed [2,4], so registry is empty
+|
++-- <span class="stage">Device-placement state</span>
+|   |
+|   +-- Can one graph contain multiple DeviceRefs?
+|   |   +-- <span class="result">Yes</span>
+|   |       +-- CPU:0
+|   |       +-- GPU:0
+|   |       +-- GPU:1
+|   |
+|   +-- Example multi-device graph
+|   |
+|   |   cpu_x = graph input on CPU:0
+|   |       |
+|   |       +-- Programmer explicitly writes:
+|   |       |
+|   |       |   gpu_x = cpu_x.to(DeviceRef.GPU(0))
+|   |       |
+|   |       +-- During graph construction
+|   |       |   +-- Python executes TensorValue.to(...)
+|   |       |       +-- Graph inserts:
+|   |       |           mo.transfer CPU:0 -&gt; GPU:0
+|   |       |
+|   |       +-- During compilation
+|   |       |   +-- Compiler sees the existing mo.transfer
+|   |       |   +-- Lowers it to a runtime transfer
+|   |       |   +-- May optimize or reschedule it
+|   |       |
+|   |       +-- During model.execute()
+|   |           +-- Runtime performs the actual memory copy
+|   |
+|   +-- Does compilation automatically insert the transfer?
+|   |   |
+|   |   +-- <span class="result">No</span>
+|   |       +-- Compiler does not insert Python code:
+|   |       |
+|   |       |   cpu_x.to(DeviceRef.GPU(0))
+|   |       |
+|   |       +-- Programmer normally inserts it explicitly
+|   |       +-- Missing placement can cause verification,
+|   |           compilation or operation-specific errors
+|   |
+|   +-- Exception: operation-specific implicit transfers
+|   |   +-- Some MAX operations only support CPU execution
+|   |   +-- Their Python implementation may internally call:
+|   |   |
+|   |   |   ops.transfer_to(x, DeviceRef.CPU())
+|   |   |
+|   |   +-- Controlled by strict_device_placement
+|   |       +-- Ignore: transfer without warning
+|   |       +-- Warn: transfer and emit warning
+|   |       +-- Error: reject graph construction
+|   |
+|   +-- Records where operations execute
+|   |
+|   |   ops.custom(
+|   |       device=DeviceRef.GPU(0),
+|   |       ...
+|   |   )
+|   |
+|   |   records:
+|   |       demo_add_one executes on GPU:0
+|   |
+|   +-- Records where results reside
+|   |
+|   |   TensorType(
+|   |       dtype=DType.float32,
+|   |       shape=[2,4],
+|   |       device=DeviceRef.GPU(0),
+|   |   )
+|   |
+|   |   records:
+|   |       Result resides on GPU:0 at runtime
+|   |
+|   +-- DeviceRef itself does not copy data
+|   |   |
+|   |   +-- DeviceRef is symbolic graph metadata
+|   |   |
+|   |   +-- Graph-level transfer
+|   |   |   |
+|   |   |   |   gpu_x = cpu_x.to(DeviceRef.GPU(0))
+|   |   |   |
+|   |   |   +-- Records mo.transfer
+|   |   |       +-- Copy occurs during model execution
+|   |   |
+|   |   +-- Runtime Buffer transfer
+|   |       |
+|   |       |   gpu_buffer = cpu_buffer.to(Accelerator())
+|   |       |
+|   |       +-- Copies an actual buffer before model.execute()
+|   |
+|   +-- Current add-one example
+|
+|       Graph input is declared on device_ref:
+|
+|       input_types=[
+|           TensorType(..., device=device_ref)
+|       ]
+|
+|       Python prepares the real buffer:
+|
+|       input_tensor = Buffer.from_numpy(input_values).to(device)
+|
+|       Therefore:
+|       +-- Input arrives on the required CPU/GPU
+|       +-- No graph-level mo.transfer is needed
+|       +-- demo_add_one can execute directly
+|
++-- Profiling and debugging state
+|   +-- Source traceback locations
+|   +-- Profile-scope labels
+|   +-- Captured MLIR diagnostics
+|
++-- Compilation and execution handoff
+    |
+    +-- session.compile(graph)
+        +-- Reads graph.module
+        +-- Gets the complete MLIR builtin.module
+        +-- Adds custom-kernel declarations
+        +-- Passes module to native MAX
+        +-- Returns CompiledModel
+            |
+            +-- session.init(compiled)
+                +-- Creates executable Model
+                    |
+                    +-- model.execute(input_tensor)
+                        +-- Executes transfers and kernels
+                            on real runtime buffers</code></pre>
+          </details>
         </details>
 
         <details class="step-cell">
