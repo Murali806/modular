@@ -341,100 +341,68 @@ Source: [`Graph.__init__`](../../../../max/python/max/graph/graph.py#L793)
 Graph(...)
 |
 +-- 1. Save graph identity and placement policy
-```
-
-- `self.name = name`
-
-  Stores the graph identifier:
-
-  ```python
-  name = "add_one_demo"
-  ```
-
-  It becomes the graph/model symbol, approximately:
-
-  ```text
-  mo.graph @add_one_demo
-  ```
-
----
-
-`self.strict_device_placement = strict_device_placement`
-
-Stores the policy for handling operations that cannot run on the tensor's
-current device.
-
-### Device Placement
-
-Device placement describes where a tensor resides and where an operation
-executes:
-
-```python
-TensorType(..., device=DeviceRef.GPU(0))
-```
-
-```text
-Tensor data must reside on GPU:0
-```
-
-```python
-ops.custom(..., device=DeviceRef.GPU(0))
-```
-
-```text
-Custom operation executes on GPU:0
-```
-
-### Strict Placement Policy
-
-Suppose `x` is on GPU, but an operation only has a CPU implementation:
-
-```text
-x on GPU
-   |
-   | CPU-only operation
-   v
-Requires GPU -> CPU transfer
-```
-
-`strict_device_placement` controls how MAX reports that implicit transfer:
-
-```python
-from max.graph import DevicePlacementPolicy
-
-Graph(
-    ...,
-    strict_device_placement=DevicePlacementPolicy.Warn,
-)
-```
-
-| Policy | Behavior |
-|---|---|
-| `Ignore` | Allow the operation-specific transfer without warning |
-| `Warn` | Allow the transfer and emit a warning; this is the default |
-
-Internally, CPU-only operations may do something like:
-
-```python
-_check_device_placement("ops.some_cpu_only_op")
-cpu_x = ops.transfer_to(x, DeviceRef.CPU())
-```
-
-With `Error`, `_check_device_placement()` raises before inserting the transfer.
-
-Important:
-
-```text
-strict_device_placement
-    does not select the device
-    does not copy runtime buffers itself
-    does not automatically fix arbitrary CPU/GPU mismatches
-```
-
-The device is selected separately through `TensorType.device`, operation
-`device=`, and explicit `ops.transfer_to()` calls.
-
-```text
+|
+|   +-- self.name = name
+|   |   |
+|   |   +-- Stores the graph identifier
+|   |   +-- name = "add_one_demo"
+|   |   +-- It becomes the graph/model symbol, approximately:
+|   |       mo.graph @add_one_demo
+|   |
+|   +-- self.strict_device_placement = strict_device_placement
+|       |
+|       +-- Stores the policy for handling operations that cannot run on
+|       |   the tensor's current device
+|       |
+|       +-- Device Placement
+|       |   |
+|       |   +-- Describes where a tensor resides and where an operation executes
+|       |   |
+|       |   +-- TensorType(..., device=DeviceRef.GPU(0))
+|       |   |   +-- Tensor data must reside on GPU:0
+|       |   |
+|       |   +-- ops.custom(..., device=DeviceRef.GPU(0))
+|       |       +-- Custom operation executes on GPU:0
+|       |
+|       +-- Strict Placement Policy
+|           |
+|           +-- Suppose x is on GPU, but an operation only has a CPU implementation
+|           |
+|           |   x on GPU
+|           |      |
+|           |      | CPU-only operation
+|           |      v
+|           |   Requires GPU -> CPU transfer
+|           |
+|           +-- strict_device_placement controls how MAX reports that transfer
+|           |
+|           |   from max.graph import DevicePlacementPolicy
+|           |
+|           |   Graph(
+|           |       ...,
+|           |       strict_device_placement=DevicePlacementPolicy.Warn,
+|           |   )
+|           |
+|           +-- Policy behavior
+|           |   +-- Ignore: allow the operation-specific transfer without warning
+|           |   +-- Warn: allow the transfer and emit a warning; default behavior
+|           |
+|           +-- Internally, a CPU-only operation may perform:
+|           |
+|           |   _check_device_placement("ops.some_cpu_only_op")
+|           |   cpu_x = ops.transfer_to(x, DeviceRef.CPU())
+|           |
+|           +-- With Error, _check_device_placement() raises before the transfer
+|           |
+|           +-- Important
+|           |   +-- strict_device_placement does not select the device
+|           |   +-- strict_device_placement does not copy runtime buffers itself
+|           |   +-- It does not automatically fix arbitrary CPU/GPU mismatches
+|           |
+|           +-- Device selection is expressed separately through:
+|               +-- TensorType.device
+|               +-- operation device=
+|               +-- explicit ops.transfer_to() calls
 |
 +-- 2. Optional path-based loading
 |   |
