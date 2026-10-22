@@ -105,29 +105,261 @@ if __name__ == "__main__":
 
 Execution inside `main()` is:
 
-1. Find the Mojo kernel directory:
+<details>
+<summary><strong>Step 1: Find the Mojo kernel directory</strong></summary>
 
 ```python
 mojo_kernels = Path(__file__).parent / "kernels"
 ```
 
-2. Create the hardcoded NumPy input.
+</details>
 
-3. Select CPU or accelerator.
+<details>
+<summary><strong>Step 2: Create the hardcoded NumPy input</strong></summary>
 
-4. Construct the MAX graph containing:
+The program creates the `float32` NumPy array stored in `input_values`.
+
+</details>
+
+<details>
+<summary><strong>Step 3: Select CPU or accelerator</strong></summary>
+
+The program uses `CPU()` when no accelerator is available; otherwise it uses `Accelerator()`.
+
+</details>
+
+<details>
+<summary><strong>Step 4: Construct The MAX Graph</strong></summary>
 
 ```python
 ops.custom(name="demo_add_one", ...)
 ```
 
-5. Supply the custom Mojo sources:
+**Evidence:** `SOURCE`
+
+### 4.1 `Graph`
+
+```python
+graph = Graph(...)
+```
+
+`Graph` is a **Python class**, defined in [graph.py](../../../../max/python/max/graph/graph.py#L682).
+
+It is not a Python struct or Mojo struct. It constructs an internal MLIR/MAX computation graph.
+
+The Mojo struct in this example is `DemoAddOne` in [add_one.mojo](kernels/add_one.mojo#L22).
+
+### 4.2 `forward` And `lambda`
+
+```python
+forward=lambda x: (...)
+```
+
+`forward` tells MAX how graph inputs are transformed into graph outputs.
+
+`lambda` is an anonymous Python function. This:
+
+```python
+forward=lambda x: ops.custom(...)[0].tensor
+```
+
+is equivalent to:
+
+```python
+def forward(x):
+    outputs = ops.custom(...)
+    return outputs[0].tensor
+```
+
+The function is called while constructing the graph. It describes operations; it does not process the NumPy input immediately.
+
+### 4.3 Where Does `x` Come From?
+
+It comes from:
+
+```python
+input_types=[
+    TensorType(...)
+]
+```
+
+MAX creates one symbolic graph input for each `TensorType`. Internally, the constructor effectively calls:
+
+```python
+result = forward(*self.inputs)
+```
+
+Because there is one input type:
+
+```text
+self.inputs = [symbolic_input]
+                     |
+                     v
+               lambda x
+```
+
+Therefore, `x` is a symbolic `TensorValue` describing:
+
+```text
+dtype  = float32
+shape  = [2, 4]
+device = cpu:0 or gpu:0
+```
+
+It is not yet the actual NumPy array.
+
+Later:
+
+```python
+model.execute(input_tensor)
+```
+
+binds the real `input_tensor` buffer to symbolic graph input `x`.
+
+### 4.4 `values=[x]`
+
+```python
+values=[x]
+```
+
+Passes symbolic input `x` as the first argument to the custom operation.
+
+At runtime, that corresponds to the Mojo kernel argument:
+
+```mojo
+x: InputTensor[...]
+```
+
+The flow is:
+
+```text
+input_tensor
+    |
+    | model.execute(input_tensor)
+    v
+symbolic graph input x
+    |
+    | values=[x]
+    v
+DemoAddOne.execute(..., x, ...)
+```
+
+### 4.5 `out_types`
+
+```python
+out_types=[
+    TensorType(
+        dtype=x.dtype,
+        shape=x.tensor.shape,
+        device=device_ref,
+    )
+]
+```
+
+This declares the expected custom-operation output:
+
+```text
+same dtype as x
+same shape as x
+located on device_ref
+```
+
+It does not allocate or calculate the output at this point. It gives the graph compiler the output type information it needs.
+
+### 4.6 `ops.custom(...)[0].tensor`
+
+[`ops.custom()`](../../../../max/python/max/graph/ops/custom.py#L58) returns a list of symbolic output values:
+
+```python
+list[Value]
+```
+
+There is one `out_types` entry, so there is one output:
+
+```text
+ops.custom(...)           -> [output_value]
+ops.custom(...)[0]        -> output_value
+ops.custom(...)[0].tensor -> output as TensorValue
+```
+
+`.tensor` verifies that the selected output is a tensor and returns its `TensorValue` representation. It does not extract concrete tensor data.
+
+### 4.7 `device=device_ref`
+
+`device_ref` is a symbolic device identifier such as:
+
+```text
+cpu:0
+```
+
+or:
+
+```text
+gpu:0
+```
+
+In the input `TensorType`, it declares where the graph expects that input tensor to reside.
+
+In `ops.custom`, it assigns the custom operation to that device. It also becomes the Mojo kernel's compile-time `target` parameter.
+
+It does not move data by itself. This line performs the actual transfer:
+
+```python
+input_tensor = Buffer.from_numpy(input_values).to(device)
+```
+
+### 4.8 `custom_extensions`
 
 ```python
 custom_extensions=[mojo_kernels]
 ```
 
-6. Compile the graph:
+`mojo_kernels` points to:
+
+```text
+max_kernel_lib/kernels/
+```
+
+That directory contains `add_one.mojo`, which registers:
+
+```mojo
+@extensibility.register("demo_add_one")
+```
+
+The registration name matches:
+
+```python
+ops.custom(name="demo_add_one", ...)
+```
+
+During `Graph(...)` construction, MAX:
+
+```text
+loads the kernels/ directory
+    -> compiles the Mojo source package
+    -> discovers registered "demo_add_one"
+    -> verifies ops.custom(name="demo_add_one")
+```
+
+Then `session.compile(graph)` compiles the complete MAX graph using that custom kernel.
+
+Without `custom_extensions=[mojo_kernels]`, MAX would not know where the implementation of `"demo_add_one"` is located.
+
+</details>
+
+<details>
+<summary><strong>Step 5: Supply the custom Mojo sources</strong></summary>
+
+```python
+custom_extensions=[mojo_kernels]
+```
+
+This gives `Graph(...)` the path to the source package containing the registered `demo_add_one` operation.
+
+</details>
+
+<details>
+<summary><strong>Step 6: Compile the complete graph</strong></summary>
 
 ```python
 compiled = session.compile(graph)
@@ -135,22 +367,40 @@ compiled = session.compile(graph)
 
 At this point MAX compiles the complete graph. The custom Mojo source package was already loaded and registered while `Graph(...)` was being constructed through `custom_extensions=[mojo_kernels]`.
 
-7. Initialize and execute the compiled graph:
+</details>
+
+<details>
+<summary><strong>Step 7: Initialize and execute the compiled graph</strong></summary>
 
 ```python
 model = session.init(compiled)
 result = model.execute(input_tensor)[0]
 ```
 
-8. The Mojo kernel adds `1` to every element.
+</details>
 
-9. NumPy verifies the result:
+<details>
+<summary><strong>Step 8: Execute the Mojo add-one kernel</strong></summary>
+
+The Mojo kernel adds `1` to every element.
+
+</details>
+
+<details>
+<summary><strong>Step 9: Verify the result with NumPy</strong></summary>
 
 ```python
 np.testing.assert_allclose(result_values, expected)
 ```
 
-10. The program prints the input, result, and expected values.
+</details>
+
+<details>
+<summary><strong>Step 10: Print the input, result, and expected values</strong></summary>
+
+The program prints the input, graph result, and expected output arrays.
+
+</details>
 
 </details>
 
@@ -241,222 +491,5 @@ bazel test
   -> verify result
   -> report PASSED or FAILED
 ```
-
-</details>
-
-<details>
-<summary><strong>Step 4: Construct The MAX Graph</strong></summary>
-
-## Step 4: Construct The MAX Graph
-
-**Evidence:** `SOURCE`
-
-### 1. `Graph`
-
-```python
-graph = Graph(...)
-```
-
-`Graph` is a **Python class**, defined in [graph.py](../../../../max/python/max/graph/graph.py#L682).
-
-It is not a Python struct or Mojo struct. It constructs an internal MLIR/MAX computation graph.
-
-The Mojo struct in this example is `DemoAddOne` in [add_one.mojo](kernels/add_one.mojo#L22).
-
-### 2. `forward` And `lambda`
-
-```python
-forward=lambda x: (...)
-```
-
-`forward` tells MAX how graph inputs are transformed into graph outputs.
-
-`lambda` is an anonymous Python function. This:
-
-```python
-forward=lambda x: ops.custom(...)[0].tensor
-```
-
-is equivalent to:
-
-```python
-def forward(x):
-    outputs = ops.custom(...)
-    return outputs[0].tensor
-```
-
-The function is called while constructing the graph. It describes operations; it does not process the NumPy input immediately.
-
-### 3. Where Does `x` Come From?
-
-It comes from:
-
-```python
-input_types=[
-    TensorType(...)
-]
-```
-
-MAX creates one symbolic graph input for each `TensorType`. Internally, the constructor effectively calls:
-
-```python
-result = forward(*self.inputs)
-```
-
-Because there is one input type:
-
-```text
-self.inputs = [symbolic_input]
-                     |
-                     v
-               lambda x
-```
-
-Therefore, `x` is a symbolic `TensorValue` describing:
-
-```text
-dtype  = float32
-shape  = [2, 4]
-device = cpu:0 or gpu:0
-```
-
-It is not yet the actual NumPy array.
-
-Later:
-
-```python
-model.execute(input_tensor)
-```
-
-binds the real `input_tensor` buffer to symbolic graph input `x`.
-
-### 4. `values=[x]`
-
-```python
-values=[x]
-```
-
-Passes symbolic input `x` as the first argument to the custom operation.
-
-At runtime, that corresponds to the Mojo kernel argument:
-
-```mojo
-x: InputTensor[...]
-```
-
-The flow is:
-
-```text
-input_tensor
-    |
-    | model.execute(input_tensor)
-    v
-symbolic graph input x
-    |
-    | values=[x]
-    v
-DemoAddOne.execute(..., x, ...)
-```
-
-### 5. `out_types`
-
-```python
-out_types=[
-    TensorType(
-        dtype=x.dtype,
-        shape=x.tensor.shape,
-        device=device_ref,
-    )
-]
-```
-
-This declares the expected custom-operation output:
-
-```text
-same dtype as x
-same shape as x
-located on device_ref
-```
-
-It does not allocate or calculate the output at this point. It gives the graph compiler the output type information it needs.
-
-### 6. `ops.custom(...)[0].tensor`
-
-[`ops.custom()`](../../../../max/python/max/graph/ops/custom.py#L58) returns a list of symbolic output values:
-
-```python
-list[Value]
-```
-
-There is one `out_types` entry, so there is one output:
-
-```text
-ops.custom(...)           -> [output_value]
-ops.custom(...)[0]        -> output_value
-ops.custom(...)[0].tensor -> output as TensorValue
-```
-
-`.tensor` verifies that the selected output is a tensor and returns its `TensorValue` representation. It does not extract concrete tensor data.
-
-### 7. `device=device_ref`
-
-`device_ref` is a symbolic device identifier such as:
-
-```text
-cpu:0
-```
-
-or:
-
-```text
-gpu:0
-```
-
-In the input `TensorType`, it declares where the graph expects that input tensor to reside.
-
-In `ops.custom`, it assigns the custom operation to that device. It also becomes the Mojo kernel's compile-time `target` parameter.
-
-It does not move data by itself. This line performs the actual transfer:
-
-```python
-input_tensor = Buffer.from_numpy(input_values).to(device)
-```
-
-### 8. `custom_extensions`
-
-```python
-custom_extensions=[mojo_kernels]
-```
-
-`mojo_kernels` points to:
-
-```text
-max_kernel_lib/kernels/
-```
-
-That directory contains `add_one.mojo`, which registers:
-
-```mojo
-@extensibility.register("demo_add_one")
-```
-
-The registration name matches:
-
-```python
-ops.custom(name="demo_add_one", ...)
-```
-
-During `Graph(...)` construction, MAX:
-
-```text
-loads the kernels/ directory
-    -> compiles the Mojo source package
-    -> discovers registered "demo_add_one"
-    -> verifies ops.custom(name="demo_add_one")
-```
-
-Then `session.compile(graph)` compiles the complete MAX graph using that custom kernel.
-
-Without `custom_extensions=[mojo_kernels]`, MAX would not know where the implementation of `"demo_add_one"` is located.
 
 </details>

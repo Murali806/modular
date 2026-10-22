@@ -182,6 +182,29 @@
       padding-bottom: 0;
     }
 
+    details.step-cell {
+      margin: 10px 0;
+      border-left: 3px solid #7f8fa4;
+      background: var(--surface);
+      padding: 0 14px 14px;
+    }
+
+    details.step-cell > summary {
+      cursor: pointer;
+      padding: 12px 0;
+      color: #344054;
+      font-weight: 700;
+    }
+
+    details.step-cell[open] > summary {
+      border-bottom: 1px solid var(--border);
+    }
+
+    details.step-cell > summary:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
     .evidence {
       display: inline-block;
       margin: 0 0 14px;
@@ -330,38 +353,161 @@
     <span class="fn">main</span>()</code></pre>
 
         <p>Execution inside <code>main()</code> is:</p>
-        <ol>
-          <li>
-            Find the Mojo kernel directory:
-            <pre><code><span class="name">mojo_kernels</span> = <span class="fn">Path</span>(<span class="name">__file__</span>).parent / <span class="str">"kernels"</span></code></pre>
-          </li>
-          <li>Create the hardcoded NumPy input.</li>
-          <li>Select CPU or accelerator.</li>
-          <li>
-            Construct the MAX graph containing:
-            <pre><code><span class="name">ops</span>.<span class="fn">custom</span>(<span class="arg">name</span>=<span class="str">"demo_add_one"</span>, <span class="comment">...</span>)</code></pre>
-          </li>
-          <li>
-            Supply the custom Mojo sources:
-            <pre><code><span class="arg">custom_extensions</span>=[<span class="name">mojo_kernels</span>]</code></pre>
-          </li>
-          <li>
-            Compile the graph:
-            <pre><code><span class="name">compiled</span> = <span class="name">session</span>.<span class="fn">compile</span>(<span class="name">graph</span>)</code></pre>
-            <p>At this point MAX compiles the complete graph. The custom Mojo source package was already loaded and registered while <code>Graph(...)</code> was being constructed through <code>custom_extensions=[mojo_kernels]</code>.</p>
-          </li>
-          <li>
-            Initialize and execute the compiled graph:
-            <pre><code><span class="name">model</span> = <span class="name">session</span>.<span class="fn">init</span>(<span class="name">compiled</span>)
+
+        <details class="step-cell">
+          <summary>Step 1: Find the Mojo kernel directory</summary>
+          <pre><code><span class="name">mojo_kernels</span> = <span class="fn">Path</span>(<span class="name">__file__</span>).parent / <span class="str">"kernels"</span></code></pre>
+        </details>
+
+        <details class="step-cell">
+          <summary>Step 2: Create the hardcoded NumPy input</summary>
+          <p>The program creates the <code>float32</code> NumPy array stored in <code>input_values</code>.</p>
+        </details>
+
+        <details class="step-cell">
+          <summary>Step 3: Select CPU or accelerator</summary>
+          <p>The program uses <code>CPU()</code> when no accelerator is available; otherwise it uses <code>Accelerator()</code>.</p>
+        </details>
+
+        <details class="step-cell">
+          <summary>Step 4: Construct The MAX Graph</summary>
+          <pre><code><span class="name">ops</span>.<span class="fn">custom</span>(<span class="arg">name</span>=<span class="str">"demo_add_one"</span>, <span class="comment">...</span>)</code></pre>
+          <span class="evidence">SOURCE</span>
+
+          <h3>4.1 <code>Graph</code></h3>
+          <pre><code><span class="name">graph</span> = <span class="fn">Graph</span>(<span class="comment">...</span>)</code></pre>
+          <p><code>Graph</code> is a <strong>Python class</strong>, defined in <a href="../../../../max/python/max/graph/graph.py#L682">graph.py</a>.</p>
+          <p>It is not a Python struct or Mojo struct. It constructs an internal MLIR/MAX computation graph.</p>
+          <p>The Mojo struct in this example is <code>DemoAddOne</code> in <a href="kernels/add_one.mojo#L22">add_one.mojo</a>.</p>
+
+          <h3>4.2 <code>forward</code> And <code>lambda</code></h3>
+          <pre><code><span class="arg">forward</span>=<span class="kw">lambda</span> <span class="name">x</span>: (<span class="comment">...</span>)</code></pre>
+          <p><code>forward</code> tells MAX how graph inputs are transformed into graph outputs.</p>
+          <p><code>lambda</code> is an anonymous Python function. This:</p>
+          <pre><code><span class="arg">forward</span>=<span class="kw">lambda</span> <span class="name">x</span>: <span class="name">ops</span>.<span class="fn">custom</span>(<span class="comment">...</span>)[0].tensor</code></pre>
+
+          <p>is equivalent to:</p>
+          <pre><code><span class="kw">def</span> <span class="fn">forward</span>(<span class="name">x</span>):
+    <span class="name">outputs</span> = <span class="name">ops</span>.<span class="fn">custom</span>(<span class="comment">...</span>)
+    <span class="kw">return</span> <span class="name">outputs</span>[0].tensor</code></pre>
+          <p>The function is called while constructing the graph. It describes operations; it does not process the NumPy input immediately.</p>
+
+          <h3>4.3 Where Does <code>x</code> Come From?</h3>
+          <p>It comes from:</p>
+          <pre><code><span class="arg">input_types</span>=[
+    <span class="fn">TensorType</span>(<span class="comment">...</span>)
+]</code></pre>
+          <p>MAX creates one symbolic graph input for each <code>TensorType</code>. Internally, the constructor effectively calls:</p>
+          <pre><code><span class="name">result</span> = <span class="fn">forward</span>(*<span class="name">self</span>.inputs)</code></pre>
+          <p>Because there is one input type:</p>
+          <pre><code>self.inputs = [symbolic_input]
+                     |
+                     v
+               lambda x</code></pre>
+          <p>Therefore, <code>x</code> is a symbolic <code>TensorValue</code> describing:</p>
+          <pre><code>dtype  = float32
+shape  = [2, 4]
+device = cpu:0 or gpu:0</code></pre>
+          <p>It is not yet the actual NumPy array.</p>
+          <p>Later:</p>
+          <pre><code><span class="name">model</span>.<span class="fn">execute</span>(<span class="name">input_tensor</span>)</code></pre>
+          <p>binds the real <code>input_tensor</code> buffer to symbolic graph input <code>x</code>.</p>
+
+          <h3>4.4 <code>values=[x]</code></h3>
+          <pre><code><span class="arg">values</span>=[<span class="name">x</span>]</code></pre>
+          <p>Passes symbolic input <code>x</code> as the first argument to the custom operation.</p>
+          <p>At runtime, that corresponds to the Mojo kernel argument:</p>
+          <pre><code><span class="name">x</span>: <span class="fn">InputTensor</span>[<span class="comment">...</span>]</code></pre>
+          <p>The flow is:</p>
+          <pre><code>input_tensor
+    |
+    | model.execute(input_tensor)
+    v
+symbolic graph input x
+    |
+    | values=[x]
+    v
+DemoAddOne.execute(..., x, ...)</code></pre>
+
+          <h3>4.5 <code>out_types</code></h3>
+          <pre><code><span class="arg">out_types</span>=[
+    <span class="fn">TensorType</span>(
+        <span class="arg">dtype</span>=<span class="name">x</span>.dtype,
+        <span class="arg">shape</span>=<span class="name">x</span>.tensor.shape,
+        <span class="arg">device</span>=<span class="name">device_ref</span>,
+    )
+]</code></pre>
+          <p>This declares the expected custom-operation output:</p>
+          <pre><code>same dtype as x
+same shape as x
+located on device_ref</code></pre>
+          <p>It does not allocate or calculate the output at this point. It gives the graph compiler the output type information it needs.</p>
+
+          <h3>4.6 <code>ops.custom(...)[0].tensor</code></h3>
+          <p><a href="../../../../max/python/max/graph/ops/custom.py#L58"><code>ops.custom()</code></a> returns a list of symbolic output values:</p>
+          <pre><code><span class="name">list</span>[<span class="name">Value</span>]</code></pre>
+          <p>There is one <code>out_types</code> entry, so there is one output:</p>
+          <pre><code><span class="name">ops</span>.<span class="fn">custom</span>(<span class="comment">...</span>)           -&gt; [output_value]
+<span class="name">ops</span>.<span class="fn">custom</span>(<span class="comment">...</span>)[0]        -&gt; output_value
+<span class="name">ops</span>.<span class="fn">custom</span>(<span class="comment">...</span>)[0].tensor -&gt; output as TensorValue</code></pre>
+          <p><code>.tensor</code> verifies that the selected output is a tensor and returns its <code>TensorValue</code> representation. It does not extract concrete tensor data.</p>
+
+          <h3>4.7 <code>device=device_ref</code></h3>
+          <p><code>device_ref</code> is a symbolic device identifier such as <code>cpu:0</code> or <code>gpu:0</code>.</p>
+          <p>In the input <code>TensorType</code>, it declares where the graph expects that input tensor to reside.</p>
+          <p>In <code>ops.custom</code>, it assigns the custom operation to that device. It also becomes the Mojo kernel's compile-time <code>target</code> parameter.</p>
+          <p>It does not move data by itself. This line performs the actual transfer:</p>
+          <pre><code><span class="name">input_tensor</span> = <span class="fn">Buffer.from_numpy</span>(<span class="name">input_values</span>).<span class="fn">to</span>(<span class="name">device</span>)</code></pre>
+
+          <h3>4.8 <code>custom_extensions</code></h3>
+          <pre><code><span class="arg">custom_extensions</span>=[<span class="name">mojo_kernels</span>]</code></pre>
+          <p><code>mojo_kernels</code> points to:</p>
+          <pre><code>max_kernel_lib/kernels/</code></pre>
+          <p>That directory contains <code>add_one.mojo</code>, which registers:</p>
+          <pre><code><span class="name">@extensibility</span>.<span class="fn">register</span>(<span class="str">"demo_add_one"</span>)</code></pre>
+          <p>The registration name matches:</p>
+          <pre><code><span class="name">ops</span>.<span class="fn">custom</span>(<span class="arg">name</span>=<span class="str">"demo_add_one"</span>, <span class="comment">...</span>)</code></pre>
+          <p>During <code>Graph(...)</code> construction, MAX:</p>
+          <pre><code>loads the kernels/ directory
+    -&gt; compiles the Mojo source package
+    -&gt; discovers registered "demo_add_one"
+    -&gt; verifies ops.custom(name="demo_add_one")</code></pre>
+          <p>Then <code>session.compile(graph)</code> compiles the complete MAX graph using that custom kernel.</p>
+          <p>Without <code>custom_extensions=[mojo_kernels]</code>, MAX would not know where the implementation of <code>"demo_add_one"</code> is located.</p>
+        </details>
+
+        <details class="step-cell">
+          <summary>Step 5: Supply the custom Mojo sources</summary>
+          <pre><code><span class="arg">custom_extensions</span>=[<span class="name">mojo_kernels</span>]</code></pre>
+          <p>This gives <code>Graph(...)</code> the path to the source package containing the registered <code>demo_add_one</code> operation.</p>
+        </details>
+
+        <details class="step-cell">
+          <summary>Step 6: Compile the complete graph</summary>
+          <pre><code><span class="name">compiled</span> = <span class="name">session</span>.<span class="fn">compile</span>(<span class="name">graph</span>)</code></pre>
+          <p>At this point MAX compiles the complete graph. The custom Mojo source package was already loaded and registered while <code>Graph(...)</code> was being constructed through <code>custom_extensions=[mojo_kernels]</code>.</p>
+        </details>
+
+        <details class="step-cell">
+          <summary>Step 7: Initialize and execute the compiled graph</summary>
+          <pre><code><span class="name">model</span> = <span class="name">session</span>.<span class="fn">init</span>(<span class="name">compiled</span>)
 <span class="name">result</span> = <span class="name">model</span>.<span class="fn">execute</span>(<span class="name">input_tensor</span>)[0]</code></pre>
-          </li>
-          <li>The Mojo kernel adds <code>1</code> to every element.</li>
-          <li>
-            NumPy verifies the result:
-            <pre><code><span class="name">np</span>.testing.<span class="fn">assert_allclose</span>(<span class="name">result_values</span>, <span class="name">expected</span>)</code></pre>
-          </li>
-          <li>The program prints the input, result, and expected values.</li>
-        </ol>
+        </details>
+
+        <details class="step-cell">
+          <summary>Step 8: Execute the Mojo add-one kernel</summary>
+          <p>The Mojo kernel adds <code>1</code> to every element.</p>
+        </details>
+
+        <details class="step-cell">
+          <summary>Step 9: Verify the result with NumPy</summary>
+          <pre><code><span class="name">np</span>.testing.<span class="fn">assert_allclose</span>(<span class="name">result_values</span>, <span class="name">expected</span>)</code></pre>
+        </details>
+
+        <details class="step-cell">
+          <summary>Step 10: Print the input, result, and expected values</summary>
+          <p>The program prints the input, graph result, and expected output arrays.</p>
+        </details>
     </section>
     </details>
 
@@ -440,115 +586,6 @@ Bazel result = <span class="status-fail">FAILED</span></code></pre>
     </section>
     </details>
 
-    <details class="cell">
-      <summary>Step 4: Construct The MAX Graph</summary>
-
-    <section id="graph-construction">
-      <h2>Step 4: Construct The MAX Graph</h2>
-      <span class="evidence">SOURCE</span>
-
-      <h3>1. <code>Graph</code></h3>
-      <pre><code><span class="name">graph</span> = <span class="fn">Graph</span>(<span class="comment">...</span>)</code></pre>
-      <p><code>Graph</code> is a <strong>Python class</strong>, defined in <a href="../../../../max/python/max/graph/graph.py#L682">graph.py</a>.</p>
-      <p>It is not a Python struct or Mojo struct. It constructs an internal MLIR/MAX computation graph.</p>
-      <p>The Mojo struct in this example is <code>DemoAddOne</code> in <a href="kernels/add_one.mojo#L22">add_one.mojo</a>.</p>
-
-      <h3>2. <code>forward</code> And <code>lambda</code></h3>
-      <pre><code><span class="arg">forward</span>=<span class="kw">lambda</span> <span class="name">x</span>: (<span class="comment">...</span>)</code></pre>
-      <p><code>forward</code> tells MAX how graph inputs are transformed into graph outputs.</p>
-      <p><code>lambda</code> is an anonymous Python function. This:</p>
-      <pre><code><span class="arg">forward</span>=<span class="kw">lambda</span> <span class="name">x</span>: <span class="name">ops</span>.<span class="fn">custom</span>(<span class="comment">...</span>)[0].tensor</code></pre>
-
-      <p>is equivalent to:</p>
-      <pre><code><span class="kw">def</span> <span class="fn">forward</span>(<span class="name">x</span>):
-    <span class="name">outputs</span> = <span class="name">ops</span>.<span class="fn">custom</span>(<span class="comment">...</span>)
-    <span class="kw">return</span> <span class="name">outputs</span>[0].tensor</code></pre>
-      <p>The function is called while constructing the graph. It describes operations; it does not process the NumPy input immediately.</p>
-
-      <h3>3. Where Does <code>x</code> Come From?</h3>
-      <p>It comes from:</p>
-      <pre><code><span class="arg">input_types</span>=[
-    <span class="fn">TensorType</span>(<span class="comment">...</span>)
-]</code></pre>
-      <p>MAX creates one symbolic graph input for each <code>TensorType</code>. Internally, the constructor effectively calls:</p>
-      <pre><code><span class="name">result</span> = <span class="fn">forward</span>(*<span class="name">self</span>.inputs)</code></pre>
-      <p>Because there is one input type:</p>
-      <pre><code>self.inputs = [symbolic_input]
-                     |
-                     v
-               lambda x</code></pre>
-      <p>Therefore, <code>x</code> is a symbolic <code>TensorValue</code> describing:</p>
-      <pre><code>dtype  = float32
-shape  = [2, 4]
-device = cpu:0 or gpu:0</code></pre>
-      <p>It is not yet the actual NumPy array.</p>
-      <p>Later:</p>
-      <pre><code><span class="name">model</span>.<span class="fn">execute</span>(<span class="name">input_tensor</span>)</code></pre>
-      <p>binds the real <code>input_tensor</code> buffer to symbolic graph input <code>x</code>.</p>
-
-      <h3>4. <code>values=[x]</code></h3>
-      <pre><code><span class="arg">values</span>=[<span class="name">x</span>]</code></pre>
-      <p>Passes symbolic input <code>x</code> as the first argument to the custom operation.</p>
-      <p>At runtime, that corresponds to the Mojo kernel argument:</p>
-      <pre><code><span class="name">x</span>: <span class="fn">InputTensor</span>[<span class="comment">...</span>]</code></pre>
-      <p>The flow is:</p>
-      <pre><code>input_tensor
-    |
-    | model.execute(input_tensor)
-    v
-symbolic graph input x
-    |
-    | values=[x]
-    v
-DemoAddOne.execute(..., x, ...)</code></pre>
-
-      <h3>5. <code>out_types</code></h3>
-      <pre><code><span class="arg">out_types</span>=[
-    <span class="fn">TensorType</span>(
-        <span class="arg">dtype</span>=<span class="name">x</span>.dtype,
-        <span class="arg">shape</span>=<span class="name">x</span>.tensor.shape,
-        <span class="arg">device</span>=<span class="name">device_ref</span>,
-    )
-]</code></pre>
-      <p>This declares the expected custom-operation output:</p>
-      <pre><code>same dtype as x
-same shape as x
-located on device_ref</code></pre>
-      <p>It does not allocate or calculate the output at this point. It gives the graph compiler the output type information it needs.</p>
-
-      <h3>6. <code>ops.custom(...)[0].tensor</code></h3>
-      <p><a href="../../../../max/python/max/graph/ops/custom.py#L58"><code>ops.custom()</code></a> returns a list of symbolic output values:</p>
-      <pre><code><span class="name">list</span>[<span class="name">Value</span>]</code></pre>
-      <p>There is one <code>out_types</code> entry, so there is one output:</p>
-      <pre><code><span class="name">ops</span>.<span class="fn">custom</span>(<span class="comment">...</span>)           -&gt; [output_value]
-<span class="name">ops</span>.<span class="fn">custom</span>(<span class="comment">...</span>)[0]        -&gt; output_value
-<span class="name">ops</span>.<span class="fn">custom</span>(<span class="comment">...</span>)[0].tensor -&gt; output as TensorValue</code></pre>
-      <p><code>.tensor</code> verifies that the selected output is a tensor and returns its <code>TensorValue</code> representation. It does not extract concrete tensor data.</p>
-
-      <h3>7. <code>device=device_ref</code></h3>
-      <p><code>device_ref</code> is a symbolic device identifier such as <code>cpu:0</code> or <code>gpu:0</code>.</p>
-      <p>In the input <code>TensorType</code>, it declares where the graph expects that input tensor to reside.</p>
-      <p>In <code>ops.custom</code>, it assigns the custom operation to that device. It also becomes the Mojo kernel's compile-time <code>target</code> parameter.</p>
-      <p>It does not move data by itself. This line performs the actual transfer:</p>
-      <pre><code><span class="name">input_tensor</span> = <span class="fn">Buffer.from_numpy</span>(<span class="name">input_values</span>).<span class="fn">to</span>(<span class="name">device</span>)</code></pre>
-
-      <h3>8. <code>custom_extensions</code></h3>
-      <pre><code><span class="arg">custom_extensions</span>=[<span class="name">mojo_kernels</span>]</code></pre>
-      <p><code>mojo_kernels</code> points to:</p>
-      <pre><code>max_kernel_lib/kernels/</code></pre>
-      <p>That directory contains <code>add_one.mojo</code>, which registers:</p>
-      <pre><code><span class="name">@extensibility</span>.<span class="fn">register</span>(<span class="str">"demo_add_one"</span>)</code></pre>
-      <p>The registration name matches:</p>
-      <pre><code><span class="name">ops</span>.<span class="fn">custom</span>(<span class="arg">name</span>=<span class="str">"demo_add_one"</span>, <span class="comment">...</span>)</code></pre>
-      <p>During <code>Graph(...)</code> construction, MAX:</p>
-      <pre><code>loads the kernels/ directory
-    -&gt; compiles the Mojo source package
-    -&gt; discovers registered "demo_add_one"
-    -&gt; verifies ops.custom(name="demo_add_one")</code></pre>
-      <p>Then <code>session.compile(graph)</code> compiles the complete MAX graph using that custom kernel.</p>
-      <p>Without <code>custom_extensions=[mojo_kernels]</code>, MAX would not know where the implementation of <code>"demo_add_one"</code> is located.</p>
-    </section>
-    </details>
   </main>
 </body>
 </html>
