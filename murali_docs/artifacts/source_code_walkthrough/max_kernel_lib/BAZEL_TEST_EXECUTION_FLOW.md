@@ -1,3 +1,8 @@
+<details>
+<summary><strong>Overview Through Test Phase: expand or collapse the complete runtime sequence</strong></summary>
+
+**Overview**
+
 `bazel test` automatically performs two major operations:
 
 ```text
@@ -79,8 +84,7 @@ Also, the custom `add_one.mojo` kernel is not compiled through the separate `:ke
 
 If any required build action fails, Bazel stops and does not run the test.
 
-<details>
-<summary><strong>Test Phase</strong></summary>
+**Test Phase**
 
 After the build succeeds, Bazel starts the `:add_one_demo_test` test process.
 
@@ -149,6 +153,9 @@ np.testing.assert_allclose(result_values, expected)
 10. The program prints the input, result, and expected values.
 
 </details>
+
+<details>
+<summary><strong>Pass Or Fail Through Flag Roles</strong></summary>
 
 **Pass Or Fail**
 
@@ -234,6 +241,11 @@ bazel test
   -> verify result
   -> report PASSED or FAILED
 ```
+
+</details>
+
+<details>
+<summary><strong>Step 4: Construct The MAX Graph</strong></summary>
 
 ## Step 4: Construct The MAX Graph
 
@@ -446,3 +458,5 @@ loads the kernels/ directory
 Then `session.compile(graph)` compiles the complete MAX graph using that custom kernel.
 
 Without `custom_extensions=[mojo_kernels]`, MAX would not know where the implementation of `"demo_add_one"` is located.
+
+</details>
