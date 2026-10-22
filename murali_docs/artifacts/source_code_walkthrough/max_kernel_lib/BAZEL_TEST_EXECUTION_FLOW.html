@@ -144,6 +144,22 @@
 
     details.step-cell[open] > summary { border-bottom: 1px solid var(--border); }
 
+    details.nested-cell {
+      margin: 18px 0 0;
+      border-left: 3px solid #5681a8;
+      background: #f5f9fd;
+      padding: 0 14px 14px;
+    }
+
+    details.nested-cell > summary {
+      cursor: pointer;
+      padding: 12px 0;
+      color: #244d70;
+      font-weight: 700;
+    }
+
+    details.nested-cell[open] > summary { border-bottom: 1px solid #bfd0df; }
+
     details.qa-cell {
       margin: 18px 0 0;
       border-left: 3px solid #3d8b5f;
@@ -343,6 +359,8 @@ device -&gt; DeviceRef.from_device(device) -&gt; <span class="result">device_ref
 
         <details class="step-cell">
           <summary>Step 4: Construct The MAX Graph</summary>
+          <details class="nested-cell">
+            <summary>Exact Source And Sections 4.1-4.8</summary>
           <p>Exact source: <a href="add_one_demo.py#L27">add_one_demo.py</a></p>
           <pre><code><span class="name">graph</span> = <span class="fn">Graph</span>(
     <span class="str">"add_one_demo"</span>,
@@ -464,6 +482,7 @@ verify <span class="name">ops</span>.<span class="fn">custom</span>(<span class=
              |
              v
 <span class="result">attach kernel library to graph</span></code></pre>
+          </details>
 
           <details class="qa-cell">
             <summary>Q&amp;A: What Does <code>Graph</code> Create And Manage?</summary>

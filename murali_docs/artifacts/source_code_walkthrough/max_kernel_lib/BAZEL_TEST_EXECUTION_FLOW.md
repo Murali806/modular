@@ -154,6 +154,9 @@ identity, such as `cpu:0` or `gpu:0`.
 <details>
 <summary><strong>Step 4: Construct The MAX Graph</strong></summary>
 
+<details>
+<summary><strong>Exact Source And Sections 4.1-4.8</strong></summary>
+
 Exact source: [add_one_demo.py](add_one_demo.py#L27)
 
 ```python
@@ -319,6 +322,8 @@ attach kernel library to graph
 
 Without `custom_extensions`, the graph cannot find the `demo_add_one`
 implementation.
+
+</details>
 
 <details>
 <summary><strong>Q&amp;A: What Does <code>Graph</code> Create And Manage?</strong></summary>
