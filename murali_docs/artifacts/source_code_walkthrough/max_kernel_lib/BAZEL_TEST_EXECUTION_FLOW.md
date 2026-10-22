@@ -1,112 +1,110 @@
 <details>
 <summary><strong>Overview Through Test Phase: expand or collapse the complete runtime sequence</strong></summary>
 
-**Overview**
+**Evidence:** `SOURCE`
 
-`bazel test` automatically performs two major operations:
+## One-Screen Flow
 
 ```text
-1. Build the test and all dependencies
-2. Run the resulting test executable
+run.sh
+  |
+  v
+./bazelw test ...:add_one_demo_test
+  |
+  +-- BUILD ---------------------------------------------------------+
+  |   create Python launcher + runfiles + Mojo/MAX environment       |
+  |                                                                 |
+  +-- RUN -----------------------------------------------------------+
+      test wrapper
+        -> add_one_demo.py::main()
+        -> Graph(...)
+             -> load kernels/add_one.mojo
+             -> create symbolic graph
+        -> session.compile(graph)
+        -> model.execute(input_tensor)
+        -> demo_add_one kernel
+        -> np.testing.assert_allclose(...)
+        -> PASSED or FAILED
 ```
 
-**Command Start**
+> `:kernels` is a separate build-check target. This test loads the raw
+> `kernels/` directory through `custom_extensions`.
 
-```sh
+## Command Start
+
+```text
 cd "${repo_root}"
-```
-
-Moves to the repository root because `./bazelw` and Bazel labels are resolved from there.
-
-```sh
+        |
+        v
 exec ./bazelw ...
+        |
+        +-- replaces the shell process
+        +-- starts the repository-selected Bazel
 ```
 
-`exec` replaces the current shell process with `bazelw`. `bazelw` then launches the repository’s expected Bazel version.
-
-**Build Phase**
-
-Bazel loads:
-
-[BUILD.bazel](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/murali_docs/artifacts/source_code_walkthrough/max_kernel_lib/BUILD.bazel:1)
-
-The requested target is:
+## Build Phase
 
 ```text
-//murali_docs/artifacts/source_code_walkthrough/max_kernel_lib:add_one_demo_test
+//.../max_kernel_lib:add_one_demo_test
+                  |
+                  v
+       modular_run_binary_test
+                  |
+                  v
+            :add_one_demo
+                  |
+       +----------+-------------------+------------------+
+       |                              |                  |
+ add_one_demo.py              kernels/*.mojo       declared deps
+ Python entry file             runtime data        MAX + NumPy + Mojo
 ```
-
-Bazel discovers this dependency chain:
 
 ```text
-:add_one_demo_test
-    depends on :add_one_demo
-        depends on add_one_demo.py
-        depends on kernels/add_one.mojo as runtime data
-        depends on MAX Python packages
-        depends on NumPy
-        depends on Mojo packages and runtime tools
+Bazel action required?
+        |
+   +----+----+
+   |         |
+  NO        YES
+   |         |
+cache hit   create launcher, runfiles, environment
+   |         |
+   +----+----+
+        |
+        v
+test executable ready
 ```
 
-Specifically:
+Python remains Python source. Bazel assembles the executable environment; it
+does not turn `add_one_demo.py` into a native machine-code binary.
 
-```python
-modular_run_binary_test(
-    name = "add_one_demo_test",
-    binary = "add_one_demo",
-)
-```
-
-means `:add_one_demo_test` cannot be built until `:add_one_demo` is available.
-
-Then:
-
-```python
-modular_py_binary(
-    name = "add_one_demo",
-    srcs = ["add_one_demo.py"],
-    ...
-)
-```
-
-causes Bazel to:
-
-1. Prepare a Python executable launcher.
-2. Locate the declared Python dependencies.
-3. Prepare the Mojo compiler/runtime environment.
-4. Place `kernels/add_one.mojo` into the runfiles directory.
-5. Create the test wrapper and runfiles links.
-6. Reuse anything already available in the disk cache.
-
-Python itself is not compiled into native machine code. Bazel prepares an executable launcher, Python sources, libraries, tools, environment variables, and runtime files.
-
-Also, the custom `add_one.mojo` kernel is not compiled through the separate `:kernels` target here. `Graph(...)` loads the source directory through `custom_extensions`, builds it into a precompiled Mojo package, and registers the custom operation before the full graph is compiled.
-
-If any required build action fails, Bazel stops and does not run the test.
-
-**Test Phase**
-
-After the build succeeds, Bazel starts the `:add_one_demo_test` test process.
-
-The test wrapper launches:
+## Test Phase
 
 ```text
-:add_one_demo
-    -> Python launcher
-        -> add_one_demo.py
+BAZEL        PYTHON             GRAPH/MAX          MOJO           NUMPY
+  |             |                  |                 |               |
+  | run test    |                  |                 |               |
+  |-----------> | main()           |                 |               |
+  |             |----------------> | Graph(...)      |               |
+  |             |                  |---------------> | load/register |
+  |             |----------------> | compile graph   |               |
+  |             |----------------> | execute         | add one       |
+  |             |                  | <---------------|               |
+  |             |--------------------------------------------------> | compare
+  | <-----------| exit 0 or nonzero|                 |               |
 ```
-
-Python reaches:
-
-```python
-if __name__ == "__main__":
-    main()
-```
-
-Execution inside `main()` is:
 
 <details>
 <summary><strong>Step 1: Find the Mojo kernel directory</strong></summary>
+
+```text
+__file__
+  = .../max_kernel_lib/add_one_demo.py
+                 |
+                 | Path(__file__).parent / "kernels"
+                 v
+mojo_kernels
+  = .../max_kernel_lib/kernels/
+```
 
 ```python
 mojo_kernels = Path(__file__).parent / "kernels"
@@ -117,53 +115,89 @@ mojo_kernels = Path(__file__).parent / "kernels"
 <details>
 <summary><strong>Step 2: Create the hardcoded NumPy input</strong></summary>
 
-The program creates the `float32` NumPy array stored in `input_values`.
+```text
+input_values: float32[2, 4]
+
++-----+-----+-----+-----+
+| 0.0 | 1.5 | 2.0 | 3.5 |
++-----+-----+-----+-----+
+| 4.0 | 5.5 | 6.0 | 7.5 |
++-----+-----+-----+-----+
+
+rows = 2       columns = 4       dtype = float32
+```
 
 </details>
 
 <details>
 <summary><strong>Step 3: Select CPU or accelerator</strong></summary>
 
-The program uses `CPU()` when no accelerator is available; otherwise it uses `Accelerator()`.
+```text
+accelerator_count() == 0 ?
+          |
+     +----+----+
+    YES        NO
+     |          |
+   CPU()   Accelerator()
+     |          |
+     +----+-----+
+          |
+          v
+device -> DeviceRef.from_device(device) -> device_ref
+```
+
+`device` is concrete runtime hardware. `device_ref` is its symbolic graph
+identity, such as `cpu:0` or `gpu:0`.
 
 </details>
 
 <details>
 <summary><strong>Step 4: Construct The MAX Graph</strong></summary>
 
-```python
-ops.custom(name="demo_add_one", ...)
+```text
+Graph(
+  name="add_one_demo",
+  forward=<symbolic computation>,
+  input_types=[float32[2,4] on device_ref],
+  custom_extensions=[kernels/],
+)
 ```
 
-**Evidence:** `SOURCE`
+### 4.1 What Is `Graph`?
 
-### 4.1 `Graph`
-
-```python
-graph = Graph(...)
+```text
+Python Graph object
+        |
+        | records operations and tensor edges
+        v
+internal MLIR/MAX graph
+        |
+        v
+compiled executable model
 ```
 
-`Graph` is a **Python class**, defined in [graph.py](../../../../max/python/max/graph/graph.py#L682).
+`Graph` is a Python class, not a Mojo struct. Source:
+[graph.py](../../../../max/python/max/graph/graph.py#L682).
 
-It is not a Python struct or Mojo struct. It constructs an internal MLIR/MAX computation graph.
+The kernel implementation `DemoAddOne` is a Mojo struct:
+[add_one.mojo](kernels/add_one.mojo#L22).
 
-The Mojo struct in this example is `DemoAddOne` in [add_one.mojo](kernels/add_one.mojo#L22).
+### 4.2 `forward`, `lambda`, And `x`
 
-### 4.2 `forward` And `lambda`
-
-```python
-forward=lambda x: (...)
+```text
+input_types has one TensorType
+              |
+              v
+self.inputs = [symbolic TensorValue]
+              |
+              | forward(*self.inputs)
+              v
+lambda x: ops.custom(...)[0].tensor
+       ^
+       +-- x is the symbolic graph input
 ```
 
-`forward` tells MAX how graph inputs are transformed into graph outputs.
-
-`lambda` is an anonymous Python function. This:
-
-```python
-forward=lambda x: ops.custom(...)[0].tensor
-```
-
-is equivalent to:
+Equivalent Python:
 
 ```python
 def forward(x):
@@ -171,210 +205,139 @@ def forward(x):
     return outputs[0].tensor
 ```
 
-The function is called while constructing the graph. It describes operations; it does not process the NumPy input immediately.
-
-### 4.3 Where Does `x` Come From?
-
-It comes from:
-
-```python
-input_types=[
-    TensorType(...)
-]
-```
-
-MAX creates one symbolic graph input for each `TensorType`. Internally, the constructor effectively calls:
-
-```python
-result = forward(*self.inputs)
-```
-
-Because there is one input type:
+### 4.3 Symbolic `x` Versus Runtime Data
 
 ```text
-self.inputs = [symbolic_input]
-                     |
-                     v
-               lambda x
+GRAPH CONSTRUCTION                     MODEL EXECUTION
+------------------                     ---------------
+x: symbolic TensorValue                input_tensor: real Buffer
+dtype  = float32                              |
+shape  = [2, 4]                               | model.execute(...)
+device = device_ref                           v
+        |                               binds to graph input x
+        +---------- no array data ------------+
 ```
 
-Therefore, `x` is a symbolic `TensorValue` describing:
+### 4.4 Custom-Op Input
 
 ```text
-dtype  = float32
-shape  = [2, 4]
-device = cpu:0 or gpu:0
-```
-
-It is not yet the actual NumPy array.
-
-Later:
-
-```python
-model.execute(input_tensor)
-```
-
-binds the real `input_tensor` buffer to symbolic graph input `x`.
-
-### 4.4 `values=[x]`
-
-```python
-values=[x]
-```
-
-Passes symbolic input `x` as the first argument to the custom operation.
-
-At runtime, that corresponds to the Mojo kernel argument:
-
-```mojo
-x: InputTensor[...]
-```
-
-The flow is:
-
-```text
-input_tensor
-    |
-    | model.execute(input_tensor)
-    v
-symbolic graph input x
+symbolic x
     |
     | values=[x]
     v
-DemoAddOne.execute(..., x, ...)
+ops.custom(name="demo_add_one")
+    |
+    | runtime binding
+    v
+DemoAddOne.execute(..., x: InputTensor, ...)
 ```
 
-### 4.5 `out_types`
-
-```python
-out_types=[
-    TensorType(
-        dtype=x.dtype,
-        shape=x.tensor.shape,
-        device=device_ref,
-    )
-]
-```
-
-This declares the expected custom-operation output:
+### 4.5 Output Contract
 
 ```text
-same dtype as x
-same shape as x
-located on device_ref
+INPUT x                        DECLARED OUTPUT
+--------------------------     --------------------------
+dtype  = x.dtype          ---> dtype  = x.dtype
+shape  = x.tensor.shape   ---> shape  = x.tensor.shape
+device = device_ref       ---> device = device_ref
 ```
 
-It does not allocate or calculate the output at this point. It gives the graph compiler the output type information it needs.
+`TensorType` describes the output. It does not allocate or calculate it.
 
 ### 4.6 `ops.custom(...)[0].tensor`
 
-[`ops.custom()`](../../../../max/python/max/graph/ops/custom.py#L58) returns a list of symbolic output values:
-
-```python
-list[Value]
+```text
+out_types = [TensorType(...)]
+                 |
+                 v
+ops.custom(...) returns [output_value]
+                         |
+                         | [0]
+                         v
+                    output_value
+                         |
+                         | .tensor
+                         v
+                    TensorValue
 ```
 
-There is one `out_types` entry, so there is one output:
+Source: [`ops.custom()`](../../../../max/python/max/graph/ops/custom.py#L58).
+
+### 4.7 Device Placement
 
 ```text
-ops.custom(...)           -> [output_value]
-ops.custom(...)[0]        -> output_value
-ops.custom(...)[0].tensor -> output as TensorValue
+device_ref in TensorType       -> expected tensor location
+device_ref in ops.custom       -> custom-op execution target
+Buffer(...).to(device)         -> actual data movement
 ```
 
-`.tensor` verifies that the selected output is a tensor and returns its `TensorValue` representation. It does not extract concrete tensor data.
+`device_ref` declares placement; `.to(device)` moves the buffer.
 
-### 4.7 `device=device_ref`
-
-`device_ref` is a symbolic device identifier such as:
+### 4.8 Custom Extension Registration
 
 ```text
-cpu:0
+custom_extensions=[kernels/]
+             |
+             v
+compile Mojo source package
+             |
+             v
+find @extensibility.register("demo_add_one")
+             |
+             v
+verify ops.custom(name="demo_add_one")
+             |
+             v
+attach kernel library to graph
 ```
 
-or:
-
-```text
-gpu:0
-```
-
-In the input `TensorType`, it declares where the graph expects that input tensor to reside.
-
-In `ops.custom`, it assigns the custom operation to that device. It also becomes the Mojo kernel's compile-time `target` parameter.
-
-It does not move data by itself. This line performs the actual transfer:
-
-```python
-input_tensor = Buffer.from_numpy(input_values).to(device)
-```
-
-### 4.8 `custom_extensions`
-
-```python
-custom_extensions=[mojo_kernels]
-```
-
-`mojo_kernels` points to:
-
-```text
-max_kernel_lib/kernels/
-```
-
-That directory contains `add_one.mojo`, which registers:
-
-```mojo
-@extensibility.register("demo_add_one")
-```
-
-The registration name matches:
-
-```python
-ops.custom(name="demo_add_one", ...)
-```
-
-During `Graph(...)` construction, MAX:
-
-```text
-loads the kernels/ directory
-    -> compiles the Mojo source package
-    -> discovers registered "demo_add_one"
-    -> verifies ops.custom(name="demo_add_one")
-```
-
-Then `session.compile(graph)` compiles the complete MAX graph using that custom kernel.
-
-Without `custom_extensions=[mojo_kernels]`, MAX would not know where the implementation of `"demo_add_one"` is located.
+Without `custom_extensions`, the graph cannot find the `demo_add_one`
+implementation.
 
 </details>
 
 <details>
 <summary><strong>Step 5: Supply the custom Mojo sources</strong></summary>
 
-```python
+```text
+mojo_kernels Path
+      |
+      v
 custom_extensions=[mojo_kernels]
+      |
+      v
+kernels/add_one.mojo available to Graph
 ```
-
-This gives `Graph(...)` the path to the source package containing the registered `demo_add_one` operation.
 
 </details>
 
 <details>
 <summary><strong>Step 6: Compile the complete graph</strong></summary>
 
-```python
-compiled = session.compile(graph)
+```text
+symbolic Graph + registered custom kernel
+                    |
+                    | session.compile(graph)
+                    v
+                 compiled
 ```
 
-At this point MAX compiles the complete graph. The custom Mojo source package was already loaded and registered while `Graph(...)` was being constructed through `custom_extensions=[mojo_kernels]`.
+The Mojo source package is loaded during `Graph(...)`; this step compiles the
+complete graph.
 
 </details>
 
 <details>
-<summary><strong>Step 7: Initialize and execute the compiled graph</strong></summary>
+<summary><strong>Step 7: Initialize and execute</strong></summary>
 
-```python
-model = session.init(compiled)
-result = model.execute(input_tensor)[0]
+```text
+compiled
+   | session.init(compiled)
+   v
+ model
+   | model.execute(input_tensor)
+   v
+[result Buffer]
 ```
 
 </details>
@@ -382,23 +345,44 @@ result = model.execute(input_tensor)[0]
 <details>
 <summary><strong>Step 8: Execute the Mojo add-one kernel</strong></summary>
 
-The Mojo kernel adds `1` to every element.
+```text
+INPUT                              OUTPUT
++-----+-----+-----+-----+          +-----+-----+-----+-----+
+| 0.0 | 1.5 | 2.0 | 3.5 |          | 1.0 | 2.5 | 3.0 | 4.5 |
++-----+-----+-----+-----+   +1     +-----+-----+-----+-----+
+| 4.0 | 5.5 | 6.0 | 7.5 | ------> | 5.0 | 6.5 | 7.0 | 8.5 |
++-----+-----+-----+-----+          +-----+-----+-----+-----+
+```
 
 </details>
 
 <details>
 <summary><strong>Step 9: Verify the result with NumPy</strong></summary>
 
-```python
-np.testing.assert_allclose(result_values, expected)
+```text
+result_values -------------------+
+                                  | np.testing.assert_allclose
+expected = input_values + 1.0 ---+
+                                  |
+                           +------+------+
+                           |             |
+                         equal       mismatch
+                           |             |
+                          pass      AssertionError
 ```
 
 </details>
 
 <details>
-<summary><strong>Step 10: Print the input, result, and expected values</strong></summary>
+<summary><strong>Step 10: Print the values</strong></summary>
 
-The program prints the input, graph result, and expected output arrays.
+```text
+stdout
+  +-- Device
+  +-- Input
+  +-- Graph result
+  +-- Expected
+```
 
 </details>
 
@@ -407,89 +391,36 @@ The program prints the input, graph result, and expected output arrays.
 <details>
 <summary><strong>Pass Or Fail Through Flag Roles</strong></summary>
 
-**Pass Or Fail**
-
-If `main()` completes normally:
+## Pass Or Fail
 
 ```text
-Python exit code = 0
-Bazel result = PASSED
+main() completed?
+       |
+  +----+----+
+ YES       NO
+  |         |
+exit 0   exception / assertion / compile failure
+  |         |
+PASSED    nonzero exit
+            |
+          FAILED
 ```
 
-If compilation, execution, or assertion fails:
+`--test_output=all` prints the program output and failure details.
 
-```text
-Python exit code != 0
-Bazel result = FAILED
-```
+## Flag Roles
 
-`--test_output=all` tells Bazel to display all printed output.
-
-**Flag Roles**
-
-```text
---output_user_root=...
-```
-
-Stores Bazel’s working state and generated output inside the selected directory.
-
-```text
---disk_cache=...
-```
-
-Caches build results so unchanged work can be reused.
-
-```text
---repo_contents_cache=
-```
-
-Disables Bazel’s repository-content cache.
-
-```text
---config=prebuilt-mojo
-```
-
-Uses the repository configuration for prebuilt Mojo tooling.
-
-```text
---config=disable-lint
-```
-
-Disables lint-related build configuration.
-
-```text
---aspects=
---output_groups=default
-```
-
-Clears configured aspects and requests normal build outputs.
-
-```text
---enable_runfiles=true
---build_runfile_links=true
-```
-
-Creates the runtime file tree needed by the Python executable.
-
-```text
---remote_download_outputs=all
-```
-
-Downloads all remote build outputs when remote caching/execution is configured.
-
-The condensed flow is:
-
-```text
-bazel test
-  -> load and analyze BUILD.bazel
-  -> build :add_one_demo and its dependencies
-  -> create :add_one_demo_test wrapper
-  -> run add_one_demo.py
-  -> construct the graph and load add_one.mojo
-  -> compile the complete MAX graph
-  -> execute kernel
-  -> verify result
-  -> report PASSED or FAILED
-```
+| Flag | Effect |
+|---|---|
+| `--output_user_root=...` | Bazel state and generated outputs |
+| `--disk_cache=...` | Reuse cached build actions |
+| `--repo_contents_cache=` | Disable repository-content cache |
+| `--config=prebuilt-mojo` | Use prebuilt Mojo configuration |
+| `--config=disable-lint` | Disable lint configuration |
+| `--aspects=` | Clear configured aspects |
+| `--output_groups=default` | Request normal outputs |
+| `--enable_runfiles=true` | Enable runtime file trees |
+| `--build_runfile_links=true` | Create runfile links |
+| `--remote_download_outputs=all` | Download all remote outputs |
 
 </details>
