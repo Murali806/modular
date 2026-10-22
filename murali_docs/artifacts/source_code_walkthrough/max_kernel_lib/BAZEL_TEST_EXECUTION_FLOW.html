@@ -495,26 +495,64 @@ verify <span class="name">ops</span>.<span class="fn">custom</span>(<span class=
             <p>Source: <a href="../../../../max/python/max/graph/graph.py#L793"><code>Graph.__init__</code></a></p>
             <pre><code><span class="stage">Graph(...)</span>
 |
-+-- 1. Save graph identity and placement policy
-|   |
-|   |   self.name = name
-|   |   self.strict_device_placement = strict_device_placement
-|   |       |
-|   |       +-- Device placement means:
-|   |       |   +-- where a symbolic tensor resides: CPU:0, GPU:0, ...
-|   |       |   +-- where an operation is assigned to execute
-|   |       |
-|   |       +-- This policy controls CPU-only operation fallbacks:
-|   |       |   +-- Ignore: allow the operation-specific transfer silently
-|   |       |   +-- Warn: allow the transfer and emit a warning
-|   |       |   +-- Error: stop graph construction with ValueError
-|   |       |
-|   |       +-- It does not select a device, insert arbitrary transfers,
-|   |           or copy runtime buffers by itself
-|   |
-|   +-- name = <span class="str">"add_one_demo"</span>
-|   +-- placement policy defaults to Warn
-|
++-- 1. Save graph identity and placement policy</code></pre>
+
+            <p><strong><code>self.name = name</code></strong></p>
+            <p>Stores the graph identifier:</p>
+            <pre><code><span class="name">name</span> = <span class="str">"add_one_demo"</span></code></pre>
+            <p>It becomes the graph/model symbol, approximately:</p>
+            <pre><code><span class="fn">mo.graph @add_one_demo</span></code></pre>
+
+            <hr>
+
+            <p><strong><code>self.strict_device_placement = strict_device_placement</code></strong></p>
+            <p>Stores the policy for handling operations that cannot run on the tensor's current device.</p>
+
+            <h3>Device Placement</h3>
+            <p>Device placement describes where a tensor resides and where an operation executes:</p>
+            <pre><code>TensorType(..., <span class="arg">device</span>=DeviceRef.GPU(0))</code></pre>
+            <pre><code>Tensor data must reside on <span class="data">GPU:0</span></code></pre>
+            <pre><code>ops.custom(..., <span class="arg">device</span>=DeviceRef.GPU(0))</code></pre>
+            <pre><code>Custom operation executes on <span class="data">GPU:0</span></code></pre>
+
+            <h3>Strict Placement Policy</h3>
+            <p>Suppose <code>x</code> is on GPU, but an operation only has a CPU implementation:</p>
+            <pre><code>x on GPU
+   |
+   | CPU-only operation
+   v
+Requires <span class="data">GPU -&gt; CPU</span> transfer</code></pre>
+            <p><code>strict_device_placement</code> controls how MAX reports that implicit transfer:</p>
+            <pre><code><span class="kw">from</span> max.graph <span class="kw">import</span> DevicePlacementPolicy
+
+Graph(
+    ...,
+    <span class="arg">strict_device_placement</span>=DevicePlacementPolicy.Warn,
+)</code></pre>
+
+            <table>
+              <thead>
+                <tr><th>Policy</th><th>Behavior</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>Ignore</code></td><td>Allow the operation-specific transfer without warning</td></tr>
+                <tr><td><code>Warn</code></td><td>Allow the transfer and emit a warning; this is the default</td></tr>
+              </tbody>
+            </table>
+
+            <p>Internally, CPU-only operations may do something like:</p>
+            <pre><code>_check_device_placement(<span class="str">"ops.some_cpu_only_op"</span>)
+cpu_x = ops.transfer_to(x, DeviceRef.CPU())</code></pre>
+            <p>With <code>Error</code>, <code>_check_device_placement()</code> raises before inserting the transfer.</p>
+
+            <p><strong>Important:</strong></p>
+            <pre><code>strict_device_placement
+    does not select the device
+    does not copy runtime buffers itself
+    does not automatically fix arbitrary CPU/GPU mismatches</code></pre>
+            <p>The device is selected separately through <code>TensorType.device</code>, operation <code>device=</code>, and explicit <code>ops.transfer_to()</code> calls.</p>
+
+            <pre><code>|
 +-- 2. Optional path-based loading
 |   |
 |   |   if path is not None:

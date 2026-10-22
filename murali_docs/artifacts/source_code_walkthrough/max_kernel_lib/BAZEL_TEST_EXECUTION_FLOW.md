@@ -341,24 +341,100 @@ Source: [`Graph.__init__`](../../../../max/python/max/graph/graph.py#L793)
 Graph(...)
 |
 +-- 1. Save graph identity and placement policy
-|   |
-|   |   self.name = name
-|   |   self.strict_device_placement = strict_device_placement
-|   |       |
-|   |       +-- Device placement means:
-|   |       |   +-- where a symbolic tensor resides: CPU:0, GPU:0, ...
-|   |       |   +-- where an operation is assigned to execute
-|   |       |
-|   |       +-- This policy controls CPU-only operation fallbacks:
-|   |       |   +-- Ignore: allow the operation-specific transfer silently
-|   |       |   +-- Warn: allow the transfer and emit a warning
-|   |       |   +-- Error: stop graph construction with ValueError
-|   |       |
-|   |       +-- It does not select a device, insert arbitrary transfers,
-|   |           or copy runtime buffers by itself
-|   |
-|   +-- name = "add_one_demo"
-|   +-- placement policy defaults to Warn
+```
+
+- `self.name = name`
+
+  Stores the graph identifier:
+
+  ```python
+  name = "add_one_demo"
+  ```
+
+  It becomes the graph/model symbol, approximately:
+
+  ```text
+  mo.graph @add_one_demo
+  ```
+
+---
+
+`self.strict_device_placement = strict_device_placement`
+
+Stores the policy for handling operations that cannot run on the tensor's
+current device.
+
+### Device Placement
+
+Device placement describes where a tensor resides and where an operation
+executes:
+
+```python
+TensorType(..., device=DeviceRef.GPU(0))
+```
+
+```text
+Tensor data must reside on GPU:0
+```
+
+```python
+ops.custom(..., device=DeviceRef.GPU(0))
+```
+
+```text
+Custom operation executes on GPU:0
+```
+
+### Strict Placement Policy
+
+Suppose `x` is on GPU, but an operation only has a CPU implementation:
+
+```text
+x on GPU
+   |
+   | CPU-only operation
+   v
+Requires GPU -> CPU transfer
+```
+
+`strict_device_placement` controls how MAX reports that implicit transfer:
+
+```python
+from max.graph import DevicePlacementPolicy
+
+Graph(
+    ...,
+    strict_device_placement=DevicePlacementPolicy.Warn,
+)
+```
+
+| Policy | Behavior |
+|---|---|
+| `Ignore` | Allow the operation-specific transfer without warning |
+| `Warn` | Allow the transfer and emit a warning; this is the default |
+
+Internally, CPU-only operations may do something like:
+
+```python
+_check_device_placement("ops.some_cpu_only_op")
+cpu_x = ops.transfer_to(x, DeviceRef.CPU())
+```
+
+With `Error`, `_check_device_placement()` raises before inserting the transfer.
+
+Important:
+
+```text
+strict_device_placement
+    does not select the device
+    does not copy runtime buffers itself
+    does not automatically fix arbitrary CPU/GPU mismatches
+```
+
+The device is selected separately through `TensorType.device`, operation
+`device=`, and explicit `ops.transfer_to()` calls.
+
+```text
 |
 +-- 2. Optional path-based loading
 |   |
