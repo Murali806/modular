@@ -79,7 +79,8 @@ Also, the custom `add_one.mojo` kernel is not compiled through the separate `:ke
 
 If any required build action fails, Bazel stops and does not run the test.
 
-**Test Phase**
+<details>
+<summary><strong>Test Phase</strong></summary>
 
 After the build succeeds, Bazel starts the `:add_one_demo_test` test process.
 
@@ -146,6 +147,8 @@ np.testing.assert_allclose(result_values, expected)
 ```
 
 10. The program prints the input, result, and expected values.
+
+</details>
 
 **Pass Or Fail**
 
