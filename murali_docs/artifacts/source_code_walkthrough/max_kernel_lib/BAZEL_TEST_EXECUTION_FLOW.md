@@ -1892,6 +1892,233 @@ model.execute(input_tensor)
 
 </details>
 
+<details>
+<summary><strong>Step 6.3: <code>_compile_module()</code>: Native Compilation Handoff</strong></summary>
+
+**Evidence:** `SOURCE`
+
+Source paths:
+
+- `_compile_module()`: `max/python/max/engine/api.py:1262`
+- `_derive_pipeline_name()`: `max/python/max/engine/api.py:351`
+- Global compilation lock: `max/python/max/engine/api.py:94`
+
+Call site:
+
+```python
+# Start native compilation of the prepared MLIR module.
+handle = self._compile_module(
+    module,
+    custom_extensions_final,
+    tile_based_fusion,
+)
+```
+
+Argument meanings:
+
+```text
+_compile_module(
+    module,
+    custom_extensions_final,
+    tile_based_fusion,
+)
+|
++-- module
+|   +-- max.graph.Module Python wrapper
+|   +-- Owns the prepared MLIR builtin.module
+|   +-- For this example, contains mo.graph @add_one_demo
+|
++-- custom_extensions_final
+|   +-- Processed custom-kernel paths passed to native MAX
+|   +-- Includes paths collected from graph.kernel_libraries_paths
+|   +-- Makes demo_add_one available to the compiler
+|
++-- tile_based_fusion
+    +-- False in this example
+    +-- False -> use the normal graph compilation mode
+    +-- True  -> request the tile-based programming model
+```
+
+Exact Python implementation with comments:
+
+```python
+def _compile_module(
+    self,
+    module: Module,
+    custom_extensions_final: list[CustomExtensionType],
+    tile_based_fusion: bool = False,
+) -> _AsyncValue[_CompiledModels]:
+    # Only one Graph/Module compilation may be active process-wide.
+    _COMPILATION_LOCK.acquire()
+
+    try:
+        # Enter the compiled/native MAX engine.
+        handle = self._impl.compile(
+            # Opaque native pointer to the MLIR builtin.module.
+            module.mlir_module._CAPIPtr,
+
+            # Processed .mojoc/.mojo custom-extension paths.
+            custom_extensions_final,
+
+            # Diagnostic name derived from top-level mo.graph symbols.
+            _derive_pipeline_name(module),
+
+            # Select normal or tile-based graph compilation.
+            tile_based_fusion,
+        )
+    except Exception as error:
+        # Native compilation could not even be scheduled.
+        _COMPILATION_LOCK.release()
+        raise RuntimeError(self._compile_failure_message()) from error
+
+    # Native compilation continues asynchronously. The runtime worker that
+    # resolves the handle releases the lock, even when compilation fails.
+    handle.add_done_callback(lambda _: _COMPILATION_LOCK.release())
+    return handle
+```
+
+Detailed execution flow:
+
+```text
+Python thread
+|
++-- _COMPILATION_LOCK.acquire()
+|   |
+|   +-- Prevent another Graph/Module compilation from starting
+|   +-- The lock is shared across every InferenceSession in this process
+|
++-- Prepare native compile arguments
+|   |
+|   +-- MLIR pointer
+|   |   module.mlir_module._CAPIPtr
+|   |
+|   +-- Custom extensions
+|   |   custom_extensions_final
+|   |
+|   +-- Pipeline name
+|   |   _derive_pipeline_name(module)
+|   |
+|   +-- Compilation mode
+|       tile_based_fusion
+|
++-- self._impl.compile(...)
+|   |
+|   +-- Crosses from Python into the compiled max._core engine
+|   +-- Schedules native MAX graph compilation
+|   +-- Returns _AsyncValue[_CompiledModels]
+|
++-- Register completion callback
+|   |
+|   +-- Success or failure resolves the handle
+|   +-- Runtime worker calls _COMPILATION_LOCK.release()
+|
++-- Return handle to compile_async()
+    |
+    +-- compile_async() wraps it in CompiledModel
+    +-- compile() calls handle.wait()
+```
+
+Why `_CAPIPtr` is passed:
+
+```text
+module                         module.mlir_module._CAPIPtr
+Python max.graph.Module        Opaque native MLIR operation pointer
+          |                                  |
+          | wrapper access                   | native API argument
+          v                                  v
+Typed MLIR ModuleOp ----------> Native MAX compiler
+```
+
+`_CAPIPtr` is not a text serialization or Python-level copy. It exposes the
+underlying native MLIR object to the compiled engine; the native binding/runtime
+must retain everything required by the asynchronous compilation.
+
+Pipeline-name derivation:
+
+```python
+def _derive_pipeline_name(module: Module) -> str:
+    return "+".join(module.top_level_graph_names())
+```
+
+```text
+One top-level graph:
+  ["add_one_demo"] -> "add_one_demo"
+
+Multiple top-level graphs:
+  ["encoder", "decoder"] -> "encoder+decoder"
+```
+
+The pipeline name identifies the compilation in diagnostics. It does not rename
+the `mo.graph` operations or choose the target CPU/GPU.
+
+Asynchronous timeline:
+
+```text
+Python compile()          Native/runtime worker          Global lock
+      |                           |                         |
+      | acquire -----------------------------------------> HELD
+      |                           |                         |
+      | self._impl.compile() ---->| schedule compilation   |
+      |<---- async handle --------|                         |
+      | add_done_callback()       |                         |
+      | return handle             | compile MLIR/kernels    |
+      | handle.wait()             |                         |
+      |                           | finish success/failure  |
+      |                           | release callback ------> FREE
+      |<---- handle resolves -----|                         |
+      | inspect exception         |                         |
+      v                           v                         v
+ return CompiledModel
+```
+
+Two failure paths:
+
+```text
+Synchronous setup failure
+  self._impl.compile(...) raises immediately
+      -> release lock in except block
+      -> raise RuntimeError with MAX diagnostic guidance
+
+Asynchronous compilation failure
+  native worker stores exception in handle
+      -> completion callback releases lock
+      -> compile() unblocks from handle.wait()
+      -> compile() reads handle.exception() and raises
+```
+
+Values for this example:
+
+```text
+module
+  -> builtin.module containing mo.graph @add_one_demo
+
+custom_extensions_final
+  -> processed kernel-library paths containing demo_add_one
+
+_derive_pipeline_name(module)
+  -> "add_one_demo"
+
+tile_based_fusion
+  -> False
+
+return value
+  -> pending _AsyncValue[_CompiledModels]
+```
+
+Important boundary:
+
+```text
+_compile_module()
+  +-- Starts native compilation
+  +-- Controls compilation serialization and lifetime handoff
+  +-- Returns an asynchronous handle
+  +-- Does not wait for completion itself
+  +-- Does not create runtime input buffers
+  +-- Does not execute the compiled model
+```
+
+</details>
+
 </details>
 
 <details>
