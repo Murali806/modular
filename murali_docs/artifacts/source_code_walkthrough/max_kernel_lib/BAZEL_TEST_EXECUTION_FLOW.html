@@ -327,23 +327,27 @@ device -&gt; DeviceRef.from_device(device) -&gt; <span class="result">device_ref
 
         <details class="step-cell">
           <summary>Step 4: Construct The MAX Graph</summary>
-          <p>Exact source: <a href="add_one_demo.py#L26">add_one_demo.py</a></p>
+          <p>Exact source: <a href="add_one_demo.py#L27">add_one_demo.py</a></p>
           <pre><code><span class="name">graph</span> = <span class="fn">Graph</span>(
     <span class="str">"add_one_demo"</span>,
     <span class="arg">forward</span>=<span class="kw">lambda</span> <span class="name">x</span>: (
+        <span class="comment"># x is the symbolic input created from input_types below.</span>
         <span class="name">ops</span>.<span class="fn">custom</span>(
             <span class="arg">name</span>=<span class="str">"demo_add_one"</span>,
+            <span class="comment"># Execute the custom operation on the selected CPU/GPU.</span>
             <span class="arg">device</span>=<span class="name">device_ref</span>,
             <span class="arg">values</span>=[<span class="name">x</span>],
             <span class="arg">out_types</span>=[
+                <span class="comment"># The output resides on device_ref; no input copy occurs here.</span>
                 <span class="fn">TensorType</span>(
                     <span class="arg">dtype</span>=<span class="name">x</span>.dtype,
                     <span class="arg">shape</span>=<span class="name">x</span>.tensor.shape,
                     <span class="arg">device</span>=<span class="name">device_ref</span>,
                 )
             ],
-        )[0].tensor
+        )[0].tensor  <span class="comment"># Return the first symbolic output as a TensorValue.</span>
     ),
+    <span class="comment"># model.execute() must receive its input buffer on device_ref.</span>
     <span class="arg">input_types</span>=[
         <span class="fn">TensorType</span>(
             <span class="name">dtype</span>,
@@ -351,6 +355,7 @@ device -&gt; DeviceRef.from_device(device) -&gt; <span class="result">device_ref
             <span class="arg">device</span>=<span class="name">device_ref</span>,
         ),
     ],
+    <span class="comment"># Load and register demo_add_one from the Mojo source directory.</span>
     <span class="arg">custom_extensions</span>=[<span class="name">mojo_kernels</span>],
 )</code></pre>
 

@@ -154,25 +154,29 @@ identity, such as `cpu:0` or `gpu:0`.
 <details>
 <summary><strong>Step 4: Construct The MAX Graph</strong></summary>
 
-Exact source: [add_one_demo.py](add_one_demo.py#L26)
+Exact source: [add_one_demo.py](add_one_demo.py#L27)
 
 ```python
 graph = Graph(
     "add_one_demo",
     forward=lambda x: (
+        # x is the symbolic input created from input_types below.
         ops.custom(
             name="demo_add_one",
+            # Execute the custom operation on the selected CPU/GPU.
             device=device_ref,
             values=[x],
             out_types=[
+                # The output resides on device_ref; no input copy occurs here.
                 TensorType(
                     dtype=x.dtype,
                     shape=x.tensor.shape,
                     device=device_ref,
                 )
             ],
-        )[0].tensor
+        )[0].tensor  # Return the first symbolic output as a TensorValue.
     ),
+    # model.execute() must receive its input buffer on device_ref.
     input_types=[
         TensorType(
             dtype,
@@ -180,6 +184,7 @@ graph = Graph(
             device=device_ref,
         ),
     ],
+    # Load and register demo_add_one from the Mojo source directory.
     custom_extensions=[mojo_kernels],
 )
 ```
