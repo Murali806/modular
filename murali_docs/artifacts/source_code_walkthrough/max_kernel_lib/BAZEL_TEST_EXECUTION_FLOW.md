@@ -1,6 +1,9 @@
 <details>
 <summary><strong>Overview Through Test Phase: expand or collapse the complete runtime sequence</strong></summary>
 
+<details>
+<summary><strong>One-Screen Flow Through Test Phase</strong></summary>
+
 **Evidence:** `SOURCE`
 
 ## One-Screen Flow
@@ -92,6 +95,8 @@ BAZEL        PYTHON             GRAPH/MAX          MOJO           NUMPY
   |             |--------------------------------------------------> | compare
   | <-----------| exit 0 or nonzero|                 |               |
 ```
+
+</details>
 
 <details>
 <summary><strong>Step 1: Find the Mojo kernel directory</strong></summary>
