@@ -1479,7 +1479,7 @@ The Mojo source package is loaded during `Graph(...)`; this step compiles the
 complete graph.
 
 <details>
-<summary><strong>InferenceSession: MAX Python Class, Constructor, And Usage</strong></summary>
+<summary><strong>Step 6.1: InferenceSession: MAX Python Class, Constructor, And Usage</strong></summary>
 
 **Evidence:** `SOURCE`
 
