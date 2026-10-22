@@ -1478,6 +1478,214 @@ symbolic Graph + registered custom kernel
 The Mojo source package is loaded during `Graph(...)`; this step compiles the
 complete graph.
 
+<details>
+<summary><strong>InferenceSession: MAX Python Class, Constructor, And Usage</strong></summary>
+
+**Evidence:** `SOURCE`
+
+Source paths:
+
+- Class: `max/python/max/engine/api.py:546`
+- Constructor: `max/python/max/engine/api.py:650`
+- Public re-export: `max/python/max/engine/__init__.py:25`
+- Native implementation import: `max/python/max/engine/api.py:32`
+
+```text
+InferenceSession
+|
++-- Is it a MAX-defined Python class?
+|   |
+|   +-- YES
+|   +-- Public import: from max.engine import InferenceSession
+|   +-- Python implementation: max/python/max/engine/api.py
+|   +-- It is not a generic Python or machine-learning class
+|   |
+|   +-- Python wrapper
+|       |
+|       +-- Validates and normalizes user configuration
+|       +-- Creates the native MAX session in self._impl
+|       +-- Exposes compile(), init(), load(), and runtime controls
+|
++-- Why is it called a session?
+|   |
+|   +-- It is the long-lived MAX compiler/runtime environment
+|   +-- It owns the selected device set and runtime configuration
+|   +-- Graphs are compiled and initialized through this environment
+|   +-- It is NOT the Graph, CompiledModel, executable Model, or input Buffer
+|
++-- Python and native layers
+    |
+    |   from max._core.engine import InferenceSession as _InferenceSession
+    |
+    |   class InferenceSession:
+    |       ...
+    |       self._impl = _InferenceSession(...)
+    |
+    +-- InferenceSession -> public MAX Python API
+    +-- _InferenceSession -> native MAX engine binding
+```
+
+Constructor signature and operational core:
+
+```python
+def __init__(
+    self,
+    devices: Iterable[Device] = (),
+    num_threads: int | None = None,
+    *,
+    custom_extensions: CustomExtensionsType | None = None,
+    precompiled_mefs: str | Path | Iterable[str | Path] | None = None,
+    export_mefs: str | Path | None = None,
+) -> None:
+    # A session cannot import and export precompiled artifacts simultaneously.
+    if precompiled_mefs is not None and export_mefs is not None:
+        raise ValueError(...)
+
+    # Configure optional compiled-artifact reuse or export.
+    self._mef_store: MefStore | None = None
+    if precompiled_mefs is not None:
+        self._mef_store = MefStore.for_import(precompiled_mefs)
+    elif export_mefs is not None:
+        self._mef_store = MefStore.for_export(export_mefs)
+
+    self.num_threads = num_threads
+
+    # Remove duplicate devices while preserving their order.
+    final_devices: list[Device] = []
+    seen_devices: set[Device] = set()
+    for device in devices:
+        if device not in seen_devices:
+            final_devices.append(device)
+            seen_devices.add(device)
+
+    # The host CPU is always available for orchestration.
+    host_cpu = CPU()
+    if host_cpu not in seen_devices:
+        final_devices.append(host_cpu)
+        seen_devices.add(host_cpu)
+
+    # Convert Python custom-extension inputs for the native API.
+    custom_extensions_final = []
+    if custom_extensions:
+        custom_extensions_final = _process_custom_extensions_objects(
+            custom_extensions
+        )
+
+    # Construct the native MAX compiler/runtime session.
+    self._impl = _InferenceSession(
+        final_devices,
+        custom_extensions_final,
+        num_threads or 0,
+    )
+
+    # The remaining constructor code installs crash-stack handling and applies
+    # MAX debug, logging, assertion, and uninitialized-read configuration.
+```
+
+```text
+InferenceSession(devices=[device])
+|
++-- 1. Validate MEF import/export options
+|
++-- 2. Store num_threads
+|
++-- 3. Deduplicate requested devices
+|   |
+|   +-- [GPU:0, GPU:0] -> [GPU:0]
+|
++-- 4. Add the host CPU when absent
+|   |
+|   +-- devices=[Accelerator(0)]
+|       -> final_devices=[Accelerator(0), CPU()]
+|
++-- 5. Process session-level custom extensions
+|
++-- 6. Create the native engine session
+|   |
+|   +-- self._impl = _InferenceSession(...)
+|
++-- 7. Apply diagnostics and debug configuration
+|
++-- Constructor returns the Python session object
+    |
+    +-- No graph has been compiled yet
+    +-- No executable Model has been initialized yet
+    +-- No input tensor has been copied or executed yet
+```
+
+Constructor arguments:
+
+```text
+devices
+  Requested CPU/accelerator devices. MAX automatically adds the host CPU.
+
+num_threads
+  Host execution-thread count. None becomes 0 for native automatic selection.
+
+custom_extensions
+  Session-level Mojo custom-operation packages or source inputs.
+
+precompiled_mefs
+  Reuse previously compiled MEF artifacts instead of compiling matching graphs.
+
+export_mefs
+  Write compiled graph artifacts for reuse by a later session.
+
+precompiled_mefs and export_mefs are mutually exclusive.
+```
+
+Usage 1: this add-one example, using the recommended split workflow:
+
+```python
+device = Accelerator() if accelerator_count() > 0 else CPU()
+
+session = InferenceSession(devices=[device])
+compiled = session.compile(graph)       # Graph -> CompiledModel
+model = session.init(compiled)          # CompiledModel -> executable Model
+result = model.execute(input_tensor)[0] # Execute with a real Buffer
+```
+
+```text
+session
+  |
+  +-- compile(graph) -> compiled artifact
+  |
+  +-- init(compiled) -> executable model bound to runtime resources
+  |
+  +-- model.execute(input_tensor) -> result buffer
+```
+
+Usage 2: CPU-only session:
+
+```python
+# With no explicit devices, the constructor still adds CPU().
+session = InferenceSession()
+compiled = session.compile(graph)
+model = session.init(compiled)
+```
+
+Usage 3: accelerator session; CPU is still added automatically:
+
+```python
+gpu = Accelerator(0)
+session = InferenceSession(devices=[gpu])
+
+# Conceptual native device list:
+# [Accelerator(0), CPU()]
+```
+
+Usage 4: convenience API:
+
+```python
+session = InferenceSession(devices=[device])
+model = session.load(graph)  # Roughly compile(graph) + init(compiled)
+```
+
+New code should prefer separate `compile()` and `init()` calls because the
+compiled artifact can then be reused or exported independently.
+
+</details>
+
 </details>
 
 <details>
