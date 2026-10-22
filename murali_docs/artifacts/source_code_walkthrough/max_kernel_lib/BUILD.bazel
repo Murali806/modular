@@ -1,53 +1,97 @@
+# Import repository-specific Bazel helpers from //bazel:api.bzl.
 load(
+    # The Starlark file that exports the four helper symbols below.
     "//bazel:api.bzl",
+    # Creates a Python executable with the MAX and Mojo runtime environment.
     "modular_py_binary",
+    # Wraps an executable target so `bazel test` can run it as a test.
     "modular_run_binary_test",
+    # Precompiles one or more Mojo source files into a Mojo package.
     "mojo_library",
+    # Converts a Python package name into its Bazel dependency label.
     "requirement",
 )
 
+# Allow targets in any Bazel package to depend on targets defined here.
 package(default_visibility = ["//visibility:public"])
 
+# Collect the Mojo custom-op sources under one reusable Bazel label:
+# //murali_docs/artifacts/source_code_walkthrough/max_kernel_lib:kernel_sources
 filegroup(
+    # The local shorthand for this target is :kernel_sources.
     name = "kernel_sources",
+    # Find every .mojo file directly inside kernels/ at BUILD evaluation time.
     srcs = glob(["kernels/*.mojo"]),
 )
 
+# Build the Python program that constructs and executes the MAX graph.
 modular_py_binary(
+    # Defines the target label :add_one_demo.
     name = "add_one_demo",
+    # This is the program's Python source and, for this target, its entry file.
     srcs = ["add_one_demo.py"],
+    # Put the raw Mojo package files in the executable's runtime runfiles.
+    # add_one_demo.py passes this directory to Graph(custom_extensions=...).
     data = [
+        # A colon means another target in this same Bazel package.
         ":kernel_sources",
     ],
+    # Add this Bazel package directory to the executable's Python import path.
     imports = ["."],
+    # Mojo packages required when MAX compiles the custom op at runtime.
     mojo_deps = [
+        # Provides @extensibility.register, InputTensor, OutputTensor, foreach.
         "//max:extensibility",
+        # Provides MAX tensor-layout types used by the extensibility package.
         "//max:layout",
+        # Provides the Mojo standard library from the external @mojo repository.
         "@mojo//:std",
     ],
+    # Python targets required by imports in add_one_demo.py.
     deps = [
+        # Provides CPU, Accelerator, Buffer, and accelerator_count.
         "//max/python/max/driver",
+        # Provides the DType enum used to select float32.
         "//max/python/max/dtype",
+        # Provides InferenceSession for graph compilation and execution.
         "//max/python/max/engine",
+        # Provides Graph, TensorType, DeviceRef, and graph operations.
         "//max/python/max/graph",
+        # Provides NumPy through the repository's locked Python dependencies.
         requirement("numpy"),
     ],
 )
 
+# Expose the Python executable as a Bazel test.
+# Execution flow: :add_one_demo_test -> :add_one_demo -> add_one_demo.py main().
 modular_run_binary_test(
+    # Defines the target selected by `bazel test ...:add_one_demo_test`.
     name = "add_one_demo_test",
+    # Run the :add_one_demo executable; its exit code becomes the test result.
     binary = "add_one_demo",
+    # Select Bazel's "large" test timeout and scheduling classification.
     size = "large",
 )
 
+# Provide a standalone build target that precompiles the Mojo kernel package.
+# This supports `bazel build ...:kernels`; the Python demo still loads the raw
+# source directory through custom_extensions so MAX can compile the custom op.
 mojo_library(
+    # Defines the target label :kernels.
     name = "kernels",
+    # Compile the files collected by the :kernel_sources filegroup.
     srcs = [":kernel_sources"],
+    # This instructional package does not require public-API docstrings.
     validate_missing_docs = False,
+    # Mojo packages required to compile kernels/add_one.mojo.
     deps = [
+        # Provides the MAX custom-operation registration and tensor interfaces.
         "//max:extensibility",
+        # Provides MAX layout abstractions required by custom-op tensor support.
         "//max:layout",
+        # Provides MAX's core Mojo APIs, including max.gpu.host.DeviceContext.
         "//max:max_mojo",
+        # Provides Mojo standard-library types such as Coord and SIMD.
         "@mojo//:std",
     ],
 )
