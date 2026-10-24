@@ -128,6 +128,11 @@ trait Iterable:
         ...
 
 
+trait Sized:
+    def __len__(self) -> Int:
+        ...
+
+
 # Implement the 'Some' and 'SomeTypeList' helper.
 comptime __SomeImpl[Trait: type_of(AnyType), T: Trait] = T
 comptime Some[Trait: type_of(AnyType)] = __SomeImpl[Trait, ...]
@@ -721,6 +726,17 @@ struct Slice(TrivialRegisterPassable):
         pass
 
 
+struct ContiguousSlice(TrivialRegisterPassable):
+    def __init__(
+        out self,
+        start: Optional[Int],
+        end: Optional[Int],
+        stride: NoneType,
+        __slice_literal__: NoneType = None,
+    ):
+        pass
+
+
 @fieldwise_init
 struct _ListIter[
     mut: Bool,
@@ -748,7 +764,7 @@ struct _ListIter[
         abort()
 
 
-struct List[T: Copyable](Copyable, Iterable):
+struct List[T: Copyable](Copyable, Iterable, Sized):
     def __init__(out self):
         pass
 
@@ -765,6 +781,11 @@ struct List[T: Copyable](Copyable, Iterable):
     def __getitem__(
         ref self, idx: Int
     ) -> ref[origin_of(self)._get_owned_interior["element"]] Self.T:
+        abort()
+
+    def __getitem__(
+        ref self, slice: ContiguousSlice
+    ) -> Span[Self.T, origin_of(self)._get_owned_interior["element"]]:
         abort()
 
     comptime IteratorType[
@@ -808,7 +829,7 @@ struct _ArrayIter[
         abort()
 
 
-struct Array[T: AnyType, length: Int](Copyable, Iterable):
+struct Array[T: AnyType, length: Int](Copyable, Iterable, Sized):
     def __init__[
         *, __literal_size__: Int
     ](
@@ -827,8 +848,9 @@ struct Array[T: AnyType, length: Int](Copyable, Iterable):
     def __iter__(ref self) -> Self.IteratorType[origin_of(self)]:
         abort()
 
+    @inline(.always)
     def __len__(self) -> Int:
-        return 0
+        return Self.length
 
 
 struct Set[T: AnyType]:
@@ -955,7 +977,7 @@ trait EnumLike:
 struct ParameterList[type: AnyType, //, values: _MLIR.KGENParamListType[type]](
     TrivialRegisterPassable
 ):
-    comptime size: Int = Int(
+    comptime length: Int = Int(
         mlir_value=__mlir_attr[
             `#kgen.param_list.size<:`,
             type_of(Self.values),
@@ -1145,7 +1167,6 @@ struct TypeList[
 
     comptime tabulate[
         Trait: type_of(AnyType),
-        ToT: Trait,
         //,
         count: Int,
         Mapper: __generator_type[Idx: Int] Trait,
@@ -1155,7 +1176,7 @@ struct TypeList[
             `#kgen.param_list.tabulate<`,
             count.__mlir_index__(),
             `,`,
-            _IndexToIntTypeTabulateWrap[Trait=Trait, ToT=ToT, Mapper, ...],
+            _IndexToIntTypeTabulateWrap[Trait=Trait, Mapper, ...],
             `> : `,
             _MLIR.KGENParamListType[Trait],
         ],
@@ -1168,7 +1189,7 @@ struct TypeList[
     comptime splat[
         Trait: type_of(AnyType), //, count: Int, type: Trait
     ] = TypeList.tabulate[
-        Trait=Trait, ToT=type, count, Self._SplatTypeTabulator[Trait, type, _]
+        Trait=Trait, count, Self._SplatTypeTabulator[Trait, type, _]
     ]
 
     comptime _MapTabulator[
@@ -1190,7 +1211,6 @@ struct TypeList[
 
 comptime _IndexToIntTypeTabulateWrap[
     Trait: type_of(AnyType),
-    ToT: Trait,
     //,
     ToWrap: __generator_type[Idx: Int] Trait,
     idx: __mlir_type.index,
@@ -1363,7 +1383,7 @@ struct AddressSpace(EnumLike, TrivialRegisterPassable):
     comptime _enum_case_types: _MLIR.KGENParamListType[
         AnyType
     ] = TypeList.splat[
-        ParameterList[Self._enum_case_names].size, NoneType
+        ParameterList[Self._enum_case_names].length, NoneType
     ].values
     comptime _enum_is_exhaustive = False
 
@@ -1378,6 +1398,12 @@ struct AddressSpace(EnumLike, TrivialRegisterPassable):
     @always_inline("builtin")
     def __mlir_index__(self) -> __mlir_type.index:
         return self._value.__mlir_index__()
+
+    @always_inline("builtin")
+    def __eq__(self, other: Self) -> Bool:
+        return __mlir_op.`index.cmp`[
+            pred=__mlir_attr.`#index.cmp_predicate<eq>`
+        ](self.__mlir_index__(), other.__mlir_index__())
 
 
 struct Pointer[
@@ -1489,10 +1515,16 @@ struct Pointer[
         )
 
     @always_inline
-    def unsafe_take_pointee[
-        U: Movable, //
-    ](self: Pointer[U, _]) -> U where type_of(self).mut:
-        return __get_address_as_owned_value(self._mlir_value)
+    def unsafe_take_pointee(
+        self,
+    ) -> Self.T where (
+        Self.mut
+        and Self.address_space == .GENERIC
+        and conforms_to(Self.T, Movable)
+    ):
+        return __get_address_as_owned_value(
+            self.unsafe_address_space_cast[.GENERIC]()._mlir_value
+        )
 
     @always_inline("builtin")
     def unsafe_bitcast[
@@ -1501,6 +1533,16 @@ struct Pointer[
         return __mlir_op.`pop.pointer.bitcast`[
             _type=Pointer[
                 U, Self.origin, address_space=Self.address_space
+            ]._mlir_type,
+        ](self._mlir_value)
+
+    @always_inline("builtin")
+    def unsafe_address_space_cast[
+        target_address_space: AddressSpace = Self.address_space,
+    ](self) -> Pointer[Self.T, Self.origin, address_space=target_address_space]:
+        return __mlir_op.`pop.pointer.bitcast`[
+            _type=Pointer[
+                Self.T, Self.origin, address_space=target_address_space
             ]._mlir_type,
         ](self._mlir_value)
 
@@ -1572,17 +1614,21 @@ struct Tuple[*element_types: Movable](ImplicitlyCopyable):
     var _mlir_value: Self._mlir_type
 
     def __init__(out self: Tuple[]):
-        pass
+        while True:
+            pass
 
     @implicit
     def __init__(out self, *args: *Self.element_types):
-        pass
+        while True:
+            pass
 
     def __init__(out self, *, copy: Self):
-        pass
+        while True:
+            pass
 
     def __init__(out self, *, deinit move: Self):
-        pass
+        while True:
+            pass
 
     def __getitem_param__[i: Int](ref self) -> ref[self] Self.element_types[i]:
         while True:
@@ -1597,6 +1643,8 @@ comptime MutOpaquePointer[
 
 
 struct _StridedRangeIterator(Iterator, TrivialRegisterPassable):
+    comptime Element = Int
+
     var start: Int
     var end: Int
     var step: Int
@@ -1634,8 +1682,19 @@ struct ListLengthError(ErrorConversionTrait, TrivialRegisterPassable):
     pass
 
 
-def check_list_length(actual: Int, expected: Int) raises ListLengthError:
-    if actual != expected:
+def list_length_matches[
+    T: Sized
+](value: T, minimum_length: Int, is_exact: Bool) -> Bool:
+    var actual_length = value.__len__()
+    if is_exact:
+        return actual_length == minimum_length
+    return actual_length >= minimum_length
+
+
+def check_list_length[
+    T: Sized
+](value: T, minimum_length: Int, is_exact: Bool) raises ListLengthError:
+    if not list_length_matches(value, minimum_length, is_exact):
         raise ListLengthError()
 
 
@@ -1829,6 +1888,9 @@ struct DType(TrivialRegisterPassable):
     )
     comptime uint32 = DType(
         mlir_value=__mlir_attr.`#kgen.dtype.constant<ui32> : !kgen.dtype`
+    )
+    comptime float4_e2m1fn = DType(
+        mlir_value=__mlir_attr.`#kgen.dtype.constant<f4e2m1fn> : !kgen.dtype`
     )
 
     @always_inline("builtin")

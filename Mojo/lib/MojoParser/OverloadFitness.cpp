@@ -19,6 +19,7 @@
 #include "ClosureEmitter.h"
 #include "ExprNodes.h"
 #include "IREmitter.h"
+#include "Mojo/KGENDialect/KGENAttrs.h"
 #include "Mojo/MojoParser/ASTDecl.h"
 #include "Mojo/MojoParser/DeclResolver.h"
 #include "MojoUtils.h"
@@ -245,18 +246,12 @@ bool OverloadFitness::isBetter(const OverloadFitness &other) const {
 }
 
 OverloadFitness OverloadFitness::evaluate(ASTDecl *candidate,
-                                          const OverloadSet &callable,
-                                          PValue selfPValue) {
-  DeclResolver &resolver = *callable.getShared().declResolver;
-  FnTypeGeneratorType signature = candidate->getDeclFullSignature();
+                                          const OverloadSet &callable) {
+  FnTypeGeneratorType signature =
+      candidate->getDeclFullSignature(callable.contextualType);
 
-  if (auto witness = candidate->getIfWitness(); witness && selfPValue) {
-    // TODO(MOCO-1259): Support static methods with associated aliases
-    signature = substituteTraitAliasesIntoSignature(
-        resolver, witness->traitSymbol, signature, selfPValue);
-  }
-
-  ParamInf inference(callable.paramBindings, signature.getInputParamTypes(),
+  ParamBindings paramBindings = callable.getParamBindings();
+  ParamInf inference(paramBindings, signature.getInputParamTypes(),
                      signature.getParamListAttrs(),
                      /*allowImplicitConversions=*/true, candidate,
                      /*discardError=*/true,
@@ -314,21 +309,6 @@ OverloadFitness OverloadFitness::evaluate(FnTypeGeneratorType signature,
     return std::move(diag);
   }
 
-  if (!operands.empty() && funcIfDirect) {
-    if (auto selfCValue = operands[0].ir.getIfCValue()) {
-      if (auto selfPValue = PValue(selfCValue.getRValueType().mlirType)) {
-        // TODO(MOCO-1259): Support static methods with associated aliases
-        if (WitnessDecl *witness = funcIfDirect->getIfWitness();
-            witness &&
-            isa<FnTypeGeneratorType>(witness->getWitnessEntry().witnessType)) {
-          signature = substituteTraitAliasesIntoSignature(
-              *shared.declResolver, witness->traitSymbol, signature,
-              selfPValue);
-        }
-      }
-    }
-  }
-
   // If a variadic keyword arg is expected, we collect the unknown kw operands.
   PogListAttr argListAttr = signature.getArgListAttrs();
   CallOperands::PogAssignment pogAssignment;
@@ -344,8 +324,9 @@ OverloadFitness OverloadFitness::evaluate(FnTypeGeneratorType signature,
 
   // Check that the signature can be rebound with this set of bindings.
   OperandsNeedingOriginsList operandsNeedingOrigins;
+  ParamBindings paramBindings = callable.getParamBindings();
   CallParamInf inference(
-      callable.paramBindings, signature.getInputParamTypes(),
+      paramBindings, signature.getInputParamTypes(),
       signature.getParamListAttrs(), allowImplicitConversions, funcIfDirect,
       /*discardError=*/false, signature, operands, pogAssignment,
       operandsNeedingOrigins, callable.additionalAssumptions);
@@ -363,6 +344,21 @@ OverloadFitness OverloadFitness::evaluate(FnTypeGeneratorType signature,
   signature =
       cast<GeneratorType>(verifiedBindings.specializeGeneratorType(signature));
 
+  if (callable.contextualType) {
+    if (auto genAttr =
+            sugarDynCast<GeneratorAttr>(PValue(callable.contextualType));
+        genAttr && sugarIsa<StructType>(ASTType(genAttr.getBody()))) {
+      auto genNumParams = genAttr.getInputParamTypes().size();
+      ArrayRef binding = verifiedBindings.getValues().take_front(genNumParams);
+      auto bound = BindParamsAttr::get(genAttr.getContext(), genAttr, binding,
+                                       &shared.getEvaluationContext());
+      SmallVector<TypedAttr> remappedBinding(ASTType(bound).getParamBindings());
+      llvm::append_range(remappedBinding,
+                         verifiedBindings.getValues().drop_front(genNumParams));
+      verifiedBindings.setBindings(
+          ParameterExprArrayAttr::get(genAttr.getContext(), remappedBinding));
+    }
+  }
   // This is the result we will return if we succeed.
   OverloadFitness result(std::move(verifiedBindings),
                          std::move(operandsNeedingOrigins));
@@ -395,14 +391,17 @@ OverloadFitness OverloadFitness::evaluate(FnTypeGeneratorType signature,
     for (auto [paramIdx, actual, expected] : llvm::enumerate(
              resultType.getParamBindings(),
              result.getParamBindings().getValues().take_front(numBindings))) {
+      // Neither `isEqualCanon` nor the mismatch diagnostic below guards
+      // against a null, and both dereference it.
+      if (!actual || !expected) {
+        llvm::reportFatalInternalError(
+            Twine("return type ") + resultType.getAsString(&shared) +
+            " parameter " + Twine(paramIdx) + " is unbound");
+      }
+
       if (!isEqualCanon(actual, expected)) {
         DeclResolver::DiagnosticDeclContextChanger x(funcIfDirect);
-        assert(resultType.getDecl(shared) &&
-               "result type should have an associated decl");
-        assert(resultType.getDecl(shared)->getIfOperation() &&
-               "result type decl should have an operation");
-        auto declOp =
-            cast<StructDeclOp>(resultType.getDecl(shared)->getIfOperation());
+        auto declOp = cast<StructASTDecl>(resultType.getDecl(shared))->getOp();
         auto paramType = declOp.getSignature().getInputParamTypes()[paramIdx];
         MojoInflightDiag resultTypeDiag = shared.emitError(callLoc);
         resultTypeDiag << "return type " << resultType << " parameter "

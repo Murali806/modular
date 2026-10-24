@@ -16,9 +16,7 @@ from std.sys import argv, size_of
 import linalg.matmul.vendor.blas as vendor_blas
 from max.gpu.host import DeviceContext
 from max.gpu.host.nvidia.tma import TensorMapSwizzle
-from std.memory import alloc
 from internal_utils import assert_almost_equal
-from linalg.utils import elementwise_epilogue_type
 from std.random import rand
 from layout import TileTensor, Coord, CoordLike, row_major, Idx
 from linalg.matmul.gpu.sm100_structured.default.matmul import (
@@ -71,9 +69,9 @@ def test_blackwell_matmul_tma_umma_warp_specialized[
     comptime assert not (
         normal_epilogue and compute_epilogue
     ), "normal_epilogue and compute_epilogue are mutually exclusive"
-    var M = Int(m.value())
-    var N = Int(n.value())
-    var K = Int(k.value())
+    var M = Int(m)
+    var N = Int(n)
+    var K = Int(k)
 
     if not benchmark:
         print(
@@ -82,22 +80,16 @@ def test_blackwell_matmul_tma_umma_warp_specialized[
             t" mma_shape={mma_shape} block_tile_shape={block_tile_shape} swapAB={swapAB} k_group_size={k_group_size}"
         )
 
-    var a_shape = row_major(Coord(m, Idx[KType.static_value]))
+    var a_shape = row_major(m, Idx[KType.static_value])
     var b_shape = row_major(
-        Coord(
-            Idx[NType.static_value if transpose_b else KType.static_value],
-            Idx[KType.static_value if transpose_b else NType.static_value],
-        )
+        Idx[NType.static_value if transpose_b else KType.static_value],
+        Idx[KType.static_value if transpose_b else NType.static_value],
     )
-    var c_shape = row_major(Coord(m, Idx[NType.static_value]))
+    var c_shape = row_major(m, Idx[NType.static_value])
 
-    var a_size = Int(m.value()) * Int(k.value())
-    var b_size = (
-        Int(n.value())
-        * Int(k.value()) if transpose_b else Int(k.value())
-        * Int(n.value())
-    )
-    var c_size = Int(m.value()) * Int(n.value())
+    var a_size = Int(m) * Int(k)
+    var b_size = Int(n) * Int(k) if transpose_b else Int(k) * Int(n)
+    var c_size = Int(m) * Int(n)
 
     # Host allocations
     var a_host_ptr = ctx.enqueue_create_host_buffer[a_type](a_size)
@@ -161,25 +153,24 @@ def test_blackwell_matmul_tma_umma_warp_specialized[
         k_group_size=k_group_size,
     )
 
-    # Normal epilogue: store the matmul result unchanged (exercises the lambda
+    # Normal epilogue: store the matmul result unchanged (exercises the closure
     # store path; reference is plain vendor BLAS).
-    @__parameter
-    @inline(.always)
-    @__copy_capture(c_tensor)
     def epilogue_fn[
-        _dtype: DType, width: SIMDLength, *, alignment: Int = 1
-    ](idx: IndexList[2], val: SIMD[_dtype, width]) capturing -> None:
+        _dtype: DType, width: SIMDLength, *, alignment: Int
+    ](idx: Coord, val: SIMD[_dtype, width]) {var c_tensor}:
+        comptime assert idx.rank == 2, "the matmul epilogue contract is rank 2"
         c_tensor.store[alignment=alignment * size_of[c_type]()](
-            Coord(idx), rebind[SIMD[c_type, width]](val)
+            idx, rebind[SIMD[c_type, width]](val)
         )
 
     # Compute epilogue: out = matmul * C_initial (also checks the coordinate).
     @inline(.always)
     def compute_fn[
         _dtype: DType, width: SIMDLength, *, alignment: Int
-    ](
-        idx: IndexList[2], val: SIMD[_dtype, width], c_val: SIMD[_dtype, width]
-    ) -> SIMD[_dtype, width]:
+    ](idx: Coord, val: SIMD[_dtype, width], c_val: SIMD[_dtype, width]) -> SIMD[
+        _dtype, width
+    ]:
+        comptime assert idx.rank == 2, "the matmul epilogue contract is rank 2"
         return val * c_val
 
     comptime if compute_epilogue:
@@ -187,15 +178,21 @@ def test_blackwell_matmul_tma_umma_warp_specialized[
             transpose_b=transpose_b,
             config=matmul_config,
         ](c_tensor, a_tensor, b_tensor, compute_fn, ctx)
-    else:
-        comptime epi = Optional[elementwise_epilogue_type](
-            epilogue_fn
-        ) if normal_epilogue else None
-
+    elif normal_epilogue:
         blackwell_matmul_tma_umma_warp_specialized[
             transpose_b=transpose_b,
             config=matmul_config,
-            elementwise_lambda_fn=epi,
+        ](
+            IndexList[2](Int(c_tensor.dim[0]()), Int(c_tensor.dim[1]())),
+            a_tensor,
+            b_tensor,
+            epilogue_fn,
+            ctx,
+        )
+    else:
+        blackwell_matmul_tma_umma_warp_specialized[
+            transpose_b=transpose_b,
+            config=matmul_config,
         ](
             c_tensor,
             a_tensor,

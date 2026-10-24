@@ -41,9 +41,8 @@ Two arms (parameter `use_native_mn`):
 B200-only (SM100). Single CTA, single elected thread issues the MMA.
 """
 
-from std.math import sqrt
 from std.memory import bitcast
-from std.sys import size_of, has_nvidia_gpu_accelerator
+from std.sys import size_of
 
 from max.gpu import (
     WARP_SIZE,
@@ -53,9 +52,16 @@ from max.gpu import (
 )
 from max.gpu.sync import barrier
 from max.gpu import block_idx
-from max.gpu.primitives.cluster import block_rank_in_cluster
-from max.gpu.host import DeviceBuffer, DeviceContext, FuncAttribute
-from max.gpu.host.nvidia.tma import TensorMapSwizzle, create_tma_descriptor
+from max.gpu.host import (
+    DeviceBuffer,
+    DeviceContext,
+    FuncAttribute,
+    default_accelerator,
+)
+from max.gpu.host.nvidia.tma import (
+    TensorMapSwizzle,
+    create_tma_descriptor,
+)
 from max.gpu.memory import external_memory
 from max.gpu.compute.arch.mma_nvidia_sm100 import *
 from max.gpu.compute.arch.tcgen05 import *
@@ -67,6 +73,7 @@ from layout import (
     RowMajorLayout,
     TensorLayout,
     TileTensor,
+    coord,
     row_major,
 )
 from layout._fillers import arange
@@ -85,7 +92,6 @@ from layout.tma_async import (
 from std.testing import assert_almost_equal
 from std.utils.index import Index, IndexList
 from std.utils.numerics import get_accum_type
-from std.utils.static_tuple import StaticTuple
 
 
 # Core-matrix row count for the WGMMA/UMMA descriptor canonical layout. Matches
@@ -189,12 +195,10 @@ def cpu_pv_naive[
 def pv_mma_kernel[
     ab_type: DType,
     c_type: DType,
-    p_tile_rank: Int,
-    p_tile_shape: IndexList[p_tile_rank],
-    p_desc_shape: IndexList[p_tile_rank],
-    v_tile_rank: Int,
-    v_tile_shape: IndexList[v_tile_rank],
-    v_desc_shape: IndexList[v_tile_rank],
+    p_tile_shape: Coord,
+    p_desc_shape: Coord,
+    v_tile_shape: Coord,
+    v_desc_shape: Coord,
     c_layout: TensorLayout,
     block_tile_shape: IndexList[3],
     mma_shape: IndexList[3],
@@ -202,10 +206,9 @@ def pv_mma_kernel[
     use_native_mn: Bool,
     num_threads: Int = 128,
 ](
-    p_tma_op: TMATensorTile[ab_type, p_tile_rank, p_tile_shape, p_desc_shape],
+    p_tma_op: TMATensorTile[ab_type, p_tile_shape, p_desc_shape],
     v_tma_op: TMATensorTile[
         ab_type,
-        v_tile_rank,
         v_tile_shape,
         v_desc_shape,
         is_k_major=not use_native_mn,
@@ -262,12 +265,12 @@ def pv_mma_kernel[
     comptime v_size = BN * BK
     comptime assert ((p_size * size_of[ab_type]()) % 128) == 0
     comptime assert ((v_size * size_of[ab_type]()) % 16) == 0
-    var v_smem = (p_smem + p_size).bitcast[Scalar[ab_type]]()
+    var v_smem = p_smem.unsafe_offset(p_size).unsafe_bitcast[Scalar[ab_type]]()
 
     var p_smem_tile = TileTensor(p_smem, p_smem_layout)
     var v_smem_tile = TileTensor(v_smem, v_smem_layout)
 
-    var ptr_tmem_addr = (v_smem + v_size).bitcast[UInt32]()
+    var ptr_tmem_addr = v_smem.unsafe_offset(v_size).unsafe_bitcast[UInt32]()
 
     comptime accum_type = get_accum_type[ab_type]()
     comptime c_frag_size = MMA_M * MMA_N // num_threads
@@ -277,8 +280,10 @@ def pv_mma_kernel[
     comptime v_expected_bytes = v_size * size_of[ab_type]()
     comptime expected_bytes = p_expected_bytes + v_expected_bytes
 
-    var tma_mbar = (ptr_tmem_addr + 2).bitcast[SharedMemBarrier]()
-    var mma_mbar = tma_mbar + 1
+    var tma_mbar = ptr_tmem_addr.unsafe_offset(2).unsafe_bitcast[
+        SharedMemBarrier
+    ]()
+    var mma_mbar = tma_mbar.unsafe_offset(1)
 
     if thread_idx.x == 0:
         tma_mbar[0].init()
@@ -327,8 +332,8 @@ def pv_mma_kernel[
     for i in range(num_iters):
         if elect_one_thread:
             tma_mbar[0].expect_bytes(Int32(expected_bytes))
-            var m = Int(block_idx.y) * BM
-            var n = Int(block_idx.x) * BN
+            var m = block_idx.y * BM
+            var n = block_idx.x * BN
             var k = i * BK
             # A=P : (k, m).   B=V mn-major (transpose_b=False) : (n, k).
             p_tma_op.async_copy(p_smem_tile, tma_mbar[0], (k, m))
@@ -387,7 +392,7 @@ def pv_mma_kernel[
     comptime num_warps = num_threads // WARP_SIZE
     var warp_id = get_warp_id()
 
-    var ctile = c.tile[BM, BN](Int(block_idx.y), Int(block_idx.x))
+    var ctile = c.tile[BM, BN](block_idx.y, block_idx.x)
 
     comptime for m_mma in range(num_m_mmas):
         comptime for n_mma in range(num_n_mmas):
@@ -460,12 +465,15 @@ def run_pv_spike[
     v.to_device()
 
     # A=P k-major tile (BM,BK); B=V mn-major tile (BK,BN) -> transpose_b=False.
-    var p_tma_op = create_tensor_tile[Index(BM, BK), swizzle_mode=swizzle_mode](
+    var p_tma_op = create_tensor_tile[coord[BM, BK], swizzle_mode=swizzle_mode](
         ctx, p.device_tensor()
     )
     comptime block_dim = 128
     comptime smem_use = (BM + BN) * size_of[ab_type]() * BK + 64
-    comptime native_box = Index(_CM_NUM_ROWS, gran)
+    comptime native_box = coord[_CM_NUM_ROWS, gran]
+    # `create_tma_descriptor` still takes IndexList for shared_mem_shape (low-level
+    # TMA-builder API); only the high-level TMATensorTile uses Coord.
+    comptime native_box_idx = Index(_CM_NUM_ROWS, gran)
 
     # The kernel + enqueue is duplicated in each comptime-if arm (rather than
     # factored into a shared closure) because the two arms produce V tiles with
@@ -484,24 +492,22 @@ def run_pv_spike[
         var v_desc = create_tma_descriptor[ab_type, 2, swizzle_mode](
             DeviceBuffer(
                 ctx,
-                v_ptr.unsafe_mut_cast[True]().address_space_cast[.GENERIC](),
+                v_ptr,
                 1,
                 owning=False,
             ),
             Index(K, N),  # gmem [seq_k, head_v], row-major
             Index(N, 1),  # head_v contiguous
-            native_box,  # (_CM_NUM_ROWS, gran) core-matrix box
+            native_box_idx,  # (_CM_NUM_ROWS, gran) core-matrix box
         )
         var v_tma_op = TMATensorTile[
-            ab_type, 2, Index(BK, BN), native_box, is_k_major=False
+            ab_type, coord[BK, BN], native_box, is_k_major=False
         ](v_desc)
         comptime kernel = pv_mma_kernel[
             ab_type,
             c_type,
-            type_of(p_tma_op).rank,
             type_of(p_tma_op).tile_shape,
             type_of(p_tma_op).desc_shape,
-            type_of(v_tma_op).rank,
             type_of(v_tma_op).tile_shape,
             type_of(v_tma_op).desc_shape,
             type_of(o).LayoutType,
@@ -525,15 +531,13 @@ def run_pv_spike[
         )
     else:
         var v_tma_op = create_tensor_tile[
-            Index(BK, BN), swizzle_mode=swizzle_mode
+            coord[BK, BN], swizzle_mode=swizzle_mode
         ](ctx, v.device_tensor())
         comptime kernel = pv_mma_kernel[
             ab_type,
             c_type,
-            type_of(p_tma_op).rank,
             type_of(p_tma_op).tile_shape,
             type_of(p_tma_op).desc_shape,
-            type_of(v_tma_op).rank,
             type_of(v_tma_op).tile_shape,
             type_of(v_tma_op).desc_shape,
             type_of(o).LayoutType,
@@ -571,7 +575,7 @@ def run_pv_spike[
                     o_host_ref[m, n],
                     atol=0.05,
                     rtol=0.05,
-                    msg=String(m) + "," + String(n),
+                    msg=String(t"{m},{n}"),
                 )
             except e:
                 if mismatches < 8:
@@ -589,7 +593,7 @@ def run_pv_spike[
     if mismatches == 0:
         print("  PASS")
     else:
-        print("  FAIL: " + String(mismatches) + " mismatches")
+        print(t"  FAIL: {mismatches} mismatches")
         raise Error(
             "pv_mnmajor_spike (native="
             + String(use_native_mn)
@@ -634,7 +638,7 @@ def _print_layouts[mn: Int, k: Int]():
 
 
 def main() raises:
-    comptime if not has_nvidia_gpu_accelerator():
+    comptime if not default_accelerator().is_nvidia_gpu():
         return
     with DeviceContext() as ctx:
         _print_layouts[mn=128, k=128]()

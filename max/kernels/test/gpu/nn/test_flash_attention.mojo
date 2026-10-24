@@ -23,23 +23,14 @@ from max.gpu.host.info import (
     GPUInfo,
     _is_sm10x_gpu,
 )
-from layout import (
-    Idx,
-    Layout,
-    LayoutTensor,
-    RuntimeLayout,
-    TileTensor,
-    UNKNOWN_VALUE,
-    row_major,
-)
+from layout import Idx, TileTensor, row_major
 from nn.attention.gpu.mha import (
     flash_attention,
     mha_gpu_naive,
 )
 from nn.attention.mha_mask import NullMask
+from nn.attention.gpu.nvidia.common import immut_tile_tensor_1d
 from std.testing import assert_almost_equal
-
-from std.utils.index import Index
 
 
 def is_benchmark() -> Bool:
@@ -73,7 +64,7 @@ def test[
         "batch_size:",
         batch_size,
         "num_partitions:",
-        num_partitions.value() if num_partitions else -1,
+        num_partitions.or_else(-1),
         "num_heads:",
         num_heads,
         "seq_len:",
@@ -223,7 +214,7 @@ def test[
     ctx.synchronize()
 
     def get_rtol() -> Float64:
-        return 2e-2 if num_partitions and num_partitions.value() >= 4 else 1e-2
+        return 2e-2 if num_partitions.or_else(0) >= 4 else 1e-2
 
     var rtol = get_rtol()
     for h in range(num_heads):
@@ -413,9 +404,7 @@ def test_decoding[
         ](1, 11, ctx, use_index_input=use_index_input)
 
         comptime if (
-            not is_sm8(ctx.default_device_info)
-            or num_partitions
-            and num_partitions.value() == 1
+            not is_sm8(ctx.default_device_info) or num_partitions == Optional(1)
         ):
             test[
                 qkv_type,
@@ -560,11 +549,7 @@ def test_flash_attention_sink_kernel(ctx: DeviceContext, seq_len: Int) raises:
         out_dev,
         row_major((batch_size, seq_len, Idx[num_heads], Idx[depth])),
     )
-    comptime sinks_layout = Layout.row_major(UNKNOWN_VALUE)
-    var sinks_device = LayoutTensor[qkv_type, sinks_layout](
-        sinks_dev.unsafe_ptr(),
-        RuntimeLayout[sinks_layout].row_major(Index(num_heads)),
-    )
+    var sinks_device = immut_tile_tensor_1d(sinks_dev.unsafe_ptr(), num_heads)
 
     @inline(.always)
     def launch(ctx: DeviceContext) raises {imm}:
@@ -577,7 +562,7 @@ def test_flash_attention_sink_kernel(ctx: DeviceContext, seq_len: Int) raises:
             scale,  # 0.0 -> all QK logits are exactly zero
             ctx,
             None,
-            sink_weights=sinks_device.as_imm().as_unsafe_any_origin(),
+            sink_weights=sinks_device,
         )
 
     launch(ctx)

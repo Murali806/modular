@@ -12,7 +12,7 @@
 # ===----------------------------------------------------------------------=== #
 """End-to-end correctness test for the Apple M5 MMA prefill kernels on PAGED KV.
 
-Apple silicon GPU (Metal 4, `compute_capability == 5`) only.
+Apple silicon GPU (Metal 4, `compute_capability >= 5`).
 
 Validates the paged-KV path of BOTH prefill kernels: a `PagedKVCacheCollection`
 (`page_size > 0`) wrapped in `KVCacheMHAOperand`, run through the ragged prefill
@@ -33,10 +33,9 @@ page (`num_keys` not a multiple of `page_size`). Plus ragged (mixed seq lens),
 GQA, NullMask/CausalMask/SlidingWindowCausalMask, fp16/bf16, and depth 64/128.
 """
 
-from max.gpu.host import DeviceContext
+from max.gpu.host import DeviceContext, default_accelerator
 from std.math import ceildiv, exp, sqrt
 from std.random import seed, shuffle
-from std.sys import has_apple_gpu_accelerator
 
 from kv_cache.types import KVCacheStaticParams, PagedKVCacheCollection
 
@@ -227,7 +226,7 @@ def _run[
 
     # ---- ragged Q device tensor [total_tokens, num_q_heads, depth] ----- #
     var q_managed = HostDeviceTileTensor[qkv_type](
-        row_major(Coord(total_length, num_q_heads, depth)), ctx
+        row_major(total_length, num_q_heads, depth), ctx
     )
     var q_host = q_managed.host_tensor()
     for t in range(total_length):
@@ -239,12 +238,12 @@ def _run[
 
     # ---- ragged output tensor ------------------------------------------ #
     var o_managed = HostDeviceTileTensor[qkv_type](
-        row_major(Coord(total_length, num_q_heads, depth)), ctx
+        row_major(total_length, num_q_heads, depth), ctx
     )
 
     # ---- input_row_offsets [batch+1] ----------------------------------- #
     var ro_managed = HostDeviceTileTensor[.uint32](
-        row_major(Coord(batch_size + 1)), ctx
+        row_major(batch_size + 1), ctx
     )
     var ro_host = ro_managed.host_tensor()
     for i in range(batch_size + 1):
@@ -467,12 +466,12 @@ def test_apple_fa_prefill_paged(ctx: DeviceContext) raises:
 
 
 def main() raises:
-    comptime if not has_apple_gpu_accelerator():
+    comptime if not default_accelerator().is_apple_gpu():
         print("SKIP: fa_prefill_apple paged targets Apple silicon GPUs only")
         return
     seed(42)
     with DeviceContext() as ctx:
-        if ctx.compute_capability() != 5:
+        if ctx.compute_capability() < 5:
             print("SKIP: Apple M5 required (16x16 simdgroup MMA)")
             return
         test_apple_fa_prefill_paged(ctx)

@@ -24,7 +24,6 @@ import linalg.matmul.vendor.blas as vendor_blas
 from max.gpu.host import DeviceContext
 from max.gpu.host.nvidia.tma import TensorMapSwizzle
 from max.gpu.primitives.grid_controls import PDLLevel
-from linalg.utils import elementwise_epilogue_type
 
 from internal_utils import assert_almost_equal
 from std.random import rand
@@ -64,9 +63,9 @@ def test_blackwell_matmul_with_weight_prefetch[
     pdl_level: PDLLevel = PDLLevel.OVERLAP_AT_END,
     prefetch_tiles_n: Int = 2,
 ](ctx: DeviceContext, m: MType, n: NType, k: KType) raises:
-    var M = Int(m.value())
-    var N = Int(n.value())
-    var K = Int(k.value())
+    var M = Int(m)
+    var N = Int(n)
+    var K = Int(k)
 
     print(
         t"weight prefetch: dtype={a_type} shape=({M}, {N}, {K})"
@@ -75,22 +74,16 @@ def test_blackwell_matmul_with_weight_prefetch[
         t" prefetch_tiles_n={prefetch_tiles_n}"
     )
 
-    var a_shape = row_major(Coord(m, Idx[KType.static_value]))
+    var a_shape = row_major(m, Idx[KType.static_value])
     var b_shape = row_major(
-        Coord(
-            Idx[NType.static_value if transpose_b else KType.static_value],
-            Idx[KType.static_value if transpose_b else NType.static_value],
-        )
+        Idx[NType.static_value if transpose_b else KType.static_value],
+        Idx[KType.static_value if transpose_b else NType.static_value],
     )
-    var c_shape = row_major(Coord(m, Idx[NType.static_value]))
+    var c_shape = row_major(m, Idx[NType.static_value])
 
-    var a_size = Int(m.value()) * Int(k.value())
-    var b_size = (
-        Int(n.value())
-        * Int(k.value()) if transpose_b else Int(k.value())
-        * Int(n.value())
-    )
-    var c_size = Int(m.value()) * Int(n.value())
+    var a_size = Int(m) * Int(k)
+    var b_size = Int(n) * Int(k) if transpose_b else Int(k) * Int(n)
+    var c_size = Int(m) * Int(n)
 
     var a_host_ptr = ctx.enqueue_create_host_buffer[a_type](a_size)
     var a_host = TileTensor(a_host_ptr, a_shape)
@@ -196,9 +189,9 @@ def test_rmsnorm_then_matmul[
     pdl_level: PDLLevel = PDLLevel(),
     prefetch_tiles_n: Int = 0,
 ](ctx: DeviceContext, m: MType, n: NType, k: KType) raises:
-    var M = Int(m.value())
-    var N = Int(n.value())
-    var K = Int(k.value())
+    var M = Int(m)
+    var N = Int(n)
+    var K = Int(k)
 
     print(
         t"rmsnorm->matmul: dtype={a_type} shape=({M}, {N}, {K})"
@@ -207,14 +200,12 @@ def test_rmsnorm_then_matmul[
         t" prefetch_tiles_n={prefetch_tiles_n}"
     )
 
-    var ak_shape = row_major(Coord(m, Idx[KType.static_value]))
+    var ak_shape = row_major(m, Idx[KType.static_value])
     var b_shape = row_major(
-        Coord(
-            Idx[NType.static_value if transpose_b else KType.static_value],
-            Idx[KType.static_value if transpose_b else NType.static_value],
-        )
+        Idx[NType.static_value if transpose_b else KType.static_value],
+        Idx[KType.static_value if transpose_b else NType.static_value],
     )
-    var c_shape = row_major(Coord(m, Idx[NType.static_value]))
+    var c_shape = row_major(m, Idx[NType.static_value])
 
     var a_size = M * K
     var b_size = N * K
@@ -258,29 +249,30 @@ def test_rmsnorm_then_matmul[
     ctx.enqueue_copy(b_device, b_host_ptr)
     ctx.enqueue_copy(gamma_device, gamma_host_ptr)
 
-    var epsilon = Float32(0.001)
-    var weight_offset = Scalar[a_type](0.0)
+    comptime epsilon = Float32(0.001)
+    comptime weight_offset = Float32(0.0)
     var norm_shape = Index(M, K)
 
     @inline(.always)
-    @__copy_capture(a_raw_tensor)
-    @__parameter
-    def input_fn[width: Int](coords: Coord) -> SIMD[a_type, width]:
-        return a_raw_tensor.raw_load[width=width](a_raw_tensor.layout(coords))
+    def input_fn[
+        width: Int
+    ](coords: Coord) {var a_raw_tensor} -> SIMD[a_type, width]:
+        return a_raw_tensor.load[width=width](coords)
 
     @inline(.always)
-    @__copy_capture(a_normed_vendor_tensor)
-    @__parameter
     def output_fn_vendor[
         width: SIMDLength, alignment: Int
-    ](coords: Coord, val: SIMD[a_type, width]) -> None:
-        a_normed_vendor_tensor.raw_store[width=width, alignment=alignment](
-            a_normed_vendor_tensor.layout(coords), val
-        )
+    ](coords: Coord, val: SIMD[a_type, width]) {
+        var a_normed_vendor_tensor
+    } -> None:
+        a_normed_vendor_tensor.store[alignment=alignment](coords, val)
 
-    rms_norm_gpu[2, input_fn, output_fn_vendor, multiply_before_cast=True](
-        Coord(norm_shape), gamma_tensor, epsilon, weight_offset, ctx
-    )
+    rms_norm_gpu[
+        2,
+        epsilon=epsilon,
+        weight_offset=weight_offset,
+        multiply_before_cast=True,
+    ](input_fn, output_fn_vendor, Coord(norm_shape), gamma_tensor, ctx)
 
     vendor_blas.matmul(
         ctx,
@@ -292,18 +284,19 @@ def test_rmsnorm_then_matmul[
     )
 
     @inline(.always)
-    @__copy_capture(a_normed_ours_tensor)
-    @__parameter
     def output_fn_ours[
         width: SIMDLength, alignment: Int
-    ](coords: Coord, val: SIMD[a_type, width]) -> None:
-        a_normed_ours_tensor.raw_store[width=width, alignment=alignment](
-            a_normed_ours_tensor.layout(coords), val
-        )
+    ](coords: Coord, val: SIMD[a_type, width]) {
+        var a_normed_ours_tensor
+    } -> None:
+        a_normed_ours_tensor.store[alignment=alignment](coords, val)
 
-    rms_norm_gpu[2, input_fn, output_fn_ours, multiply_before_cast=True](
-        Coord(norm_shape), gamma_tensor, epsilon, weight_offset, ctx
-    )
+    rms_norm_gpu[
+        2,
+        epsilon=epsilon,
+        weight_offset=weight_offset,
+        multiply_before_cast=True,
+    ](input_fn, output_fn_ours, Coord(norm_shape), gamma_tensor, ctx)
 
     comptime matmul_config = MatmulConfig[a_type, b_type, c_type, transpose_b](
         cluster_shape=Index(
@@ -317,30 +310,27 @@ def test_rmsnorm_then_matmul[
         prefetch_tiles_n=prefetch_tiles_n,
     )
 
-    @__parameter
-    @inline(.always)
-    @__copy_capture(c_ours_tensor)
-    def epilogue_fn[
-        _dtype: DType,
-        width: SIMDLength,
-        *,
-        alignment: Int = 1,
-    ](idx: IndexList[2], val: SIMD[_dtype, width]) capturing -> None:
-        c_ours_tensor.raw_store[
-            width=width, alignment=alignment * size_of[c_type]()
-        ](c_ours_tensor.layout(Coord(idx)), rebind[SIMD[c_type, width]](val))
+    var out_shape = IndexList[2](
+        Int(c_ours_tensor.dim[0]()), Int(c_ours_tensor.dim[1]())
+    )
 
-    comptime epi = Optional[elementwise_epilogue_type](epilogue_fn)
+    def epilogue_fn[
+        _dtype: DType, width: SIMDLength, *, alignment: Int
+    ](idx: Coord, val: SIMD[_dtype, width]) {var c_ours_tensor}:
+        comptime assert idx.rank == 2, "the matmul epilogue contract is rank 2"
+        c_ours_tensor.store[alignment=alignment * size_of[c_type]()](
+            idx, rebind[SIMD[c_type, width]](val)
+        )
 
     blackwell_matmul_tma_umma_warp_specialized[
         transpose_b=transpose_b,
         config=matmul_config,
-        elementwise_lambda_fn=epi,
         pdl_level=pdl_level,
     ](
-        c_ours_tensor,
+        out_shape,
         a_normed_ours_tensor,
         b_tensor,
+        epilogue_fn,
         ctx,
     )
 

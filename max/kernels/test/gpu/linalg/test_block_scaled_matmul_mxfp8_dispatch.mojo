@@ -25,15 +25,26 @@ reference:
   * a heuristic-covered shape (M <= 8192) that hits the Mojo kernel, and
   * the KERN-3024 large-M shape that must now fall back to the vendor
     (cuBLASLt) MXFP8 block-scaled matmul.
+
+It also runs every decode shape with tuning-table rows at M values inside
+and at the edges of each row.
 """
 
 from std.math import ceildiv, align_up
 from std.random import rand, random_ui64
 from max.gpu.host import DeviceContext
+from max.gpu.primitives.grid_controls import PDLLevel
 from max.gpu.compute.arch.mma_nvidia_sm100 import UMMAKind
 
 from internal_utils import assert_almost_equal
-from layout import CoordLike, Coord, Idx, TileTensor, row_major
+from layout import (
+    Coord,
+    CoordLike,
+    Idx,
+    TileTensor,
+    row_major,
+)
+from std.testing import assert_equal
 
 from linalg.block_scaled_quantization import (
     block_scaled_matmul,
@@ -47,6 +58,11 @@ from linalg.fp4_utils import (
     MXFP8_SF_DTYPE,
     set_scale_factor,
 )
+from linalg.matmul.gpu.sm100.block_scaled_dispatch import (
+    DISPATCH_HIT,
+    heuristic_and_outliers_dispatch,
+)
+from linalg.utils import _as_compute_fn
 
 
 def test_mxfp8_dispatch[
@@ -55,13 +71,24 @@ def test_mxfp8_dispatch[
     //,
     input_type: DType,
     output_type: DType,
-](ctx: DeviceContext, m: Int, n: NType, k: KType) raises:
+    pdl_level: PDLLevel = PDLLevel.OFF,
+](
+    ctx: DeviceContext,
+    m: Int,
+    n: NType,
+    k: KType,
+    expect_heuristic_hit: Bool,
+) raises:
     """Run the high-level `block_scaled_matmul` for an MXFP8 shape and compare
     against the naive reference. N and K are static; M is dynamic (matching the
-    dynamic token dimension of the failing op)."""
+    dynamic token dimension of the failing op).
+
+    When `expect_heuristic_hit` is set, also runs
+    `heuristic_and_outliers_dispatch` with an epilogue closure and with a
+    compute closure, each against the same reference."""
     var M = m
-    var N = Int(n.value())
-    var K = Int(k.value())
+    var N = Int(n)
+    var K = Int(k)
 
     comptime scales_type = MXFP8_SF_DTYPE
     comptime SF_VECTOR_SIZE = MXFP8_SF_VECTOR_SIZE
@@ -71,29 +98,23 @@ def test_mxfp8_dispatch[
         t" shape=(M={M}, N={N}, K={K})"
     )
 
-    var a_shape = row_major(Coord(M, Idx[KType.static_value]))
-    var b_shape = row_major(
-        Coord(Idx[NType.static_value], Idx[KType.static_value])
-    )
-    var c_shape = row_major(Coord(M, Idx[NType.static_value]))
+    var a_shape = row_major(M, Idx[KType.static_value])
+    var b_shape = row_major(Idx[NType.static_value], Idx[KType.static_value])
+    var c_shape = row_major(M, Idx[NType.static_value])
 
     var a_scales_shape = row_major(
-        Coord(
-            ceildiv(M, SF_MN_GROUP_SIZE),
-            Idx[ceildiv(KType.static_value, SF_VECTOR_SIZE * SF_ATOM_K)],
-            Idx[SF_ATOM_M[0]],
-            Idx[SF_ATOM_M[1]],
-            Idx[SF_ATOM_K],
-        )
+        ceildiv(M, SF_MN_GROUP_SIZE),
+        Idx[ceildiv(KType.static_value, SF_VECTOR_SIZE * SF_ATOM_K)],
+        Idx[SF_ATOM_M[0]],
+        Idx[SF_ATOM_M[1]],
+        Idx[SF_ATOM_K],
     )
     var b_scales_shape = row_major(
-        Coord(
-            Idx[ceildiv(NType.static_value, SF_MN_GROUP_SIZE)],
-            Idx[ceildiv(KType.static_value, SF_VECTOR_SIZE * SF_ATOM_K)],
-            Idx[SF_ATOM_M[0]],
-            Idx[SF_ATOM_M[1]],
-            Idx[SF_ATOM_K],
-        )
+        Idx[ceildiv(NType.static_value, SF_MN_GROUP_SIZE)],
+        Idx[ceildiv(KType.static_value, SF_VECTOR_SIZE * SF_ATOM_K)],
+        Idx[SF_ATOM_M[0]],
+        Idx[SF_ATOM_M[1]],
+        Idx[SF_ATOM_K],
     )
 
     var a_size = M * K
@@ -179,6 +200,7 @@ def test_mxfp8_dispatch[
     block_scaled_matmul[
         SF_VECTOR_SIZE=SF_VECTOR_SIZE,
         transpose_b=True,
+        pdl_level=pdl_level,
         target="gpu",
     ](c, a, b, a_scales, b_scales, Float32(1.0), ctx)
 
@@ -208,6 +230,58 @@ def test_mxfp8_dispatch[
     )
     print("  -> PASSED")
 
+    if expect_heuristic_hit:
+
+        def store_fn[
+            _dtype: DType, width: SIMDLength, *, alignment: Int
+        ](idx: Coord, val: SIMD[_dtype, width]) {var c}:
+            comptime assert (
+                idx.rank == 2
+            ), "the matmul epilogue contract is rank 2"
+            c.store(idx, rebind[SIMD[output_type, width]](val))
+
+        def identity_fn[
+            _dtype: DType, width: SIMDLength, *, alignment: Int
+        ](idx: Coord, val: SIMD[_dtype, width]) -> SIMD[_dtype, width]:
+            comptime assert (
+                idx.rank == 2
+            ), "the matmul epilogue contract is rank 2"
+            return val
+
+        comptime for use_compute in [False, True]:
+            c_device.enqueue_fill(Scalar[output_type](0))
+            var status: Int
+            comptime if use_compute:
+                status = heuristic_and_outliers_dispatch[
+                    SF_VECTOR_SIZE=SF_VECTOR_SIZE
+                ](
+                    c,
+                    a,
+                    b,
+                    a_scales,
+                    b_scales,
+                    Float32(1.0),
+                    _as_compute_fn(identity_fn),
+                    ctx,
+                )
+            else:
+                # `store_fn` owns `c`; the reference is already on the host, so
+                # `c_ref` carries the output shape.
+                status = heuristic_and_outliers_dispatch[
+                    SF_VECTOR_SIZE=SF_VECTOR_SIZE
+                ](c_ref, a, b, a_scales, b_scales, Float32(1.0), store_fn, ctx)
+            assert_equal(status, DISPATCH_HIT)
+            ctx.enqueue_copy(c_host_ptr, c_device)
+            ctx.synchronize()
+            assert_almost_equal(
+                c_host_ptr.unsafe_ptr(),
+                c_host_ref_ptr.unsafe_ptr(),
+                c_size,
+                atol=1e-2,
+                rtol=1e-2,
+            )
+            print("  -> PASSED (heuristic dispatch, compute=", use_compute, ")")
+
     _ = a_device^
     _ = b_device^
     _ = c_device^
@@ -216,19 +290,59 @@ def test_mxfp8_dispatch[
     _ = b_scales_device^
 
 
+def test_tuned_decode_shape[N: Int, K: Int](ctx: DeviceContext) raises:
+    # M inside and at the edges of the shape's tuning-table rows, plus one
+    # past the last row. PDL on turns on the rows' weight prefetch.
+    for m in [17, 61, 96, 127, 129, 151, 191, 193]:
+        test_mxfp8_dispatch[.float8_e4m3fn, .bfloat16](
+            ctx, m, Idx[N], Idx[K], expect_heuristic_hit=True
+        )
+        test_mxfp8_dispatch[.float8_e4m3fn, .bfloat16, PDLLevel.ON](
+            ctx, m, Idx[N], Idx[K], expect_heuristic_hit=False
+        )
+
+
 def main() raises:
     with DeviceContext() as ctx:
+        test_tuned_decode_shape[1792, 5120](ctx)
+        test_tuned_decode_shape[4096, 1280](ctx)
+        test_tuned_decode_shape[4608, 5120](ctx)
+        test_tuned_decode_shape[5120, 2304](ctx)
+        test_tuned_decode_shape[5120, 8192](ctx)
+        test_tuned_decode_shape[32768, 1280](ctx)
+
         # Heuristic-covered shape (M <= 8192): exercises the Mojo block-scaled
         # kernel path and guards against a regression there.
         test_mxfp8_dispatch[.float8_e4m3fn, .bfloat16](
-            ctx, 4096, Idx[128], Idx[6144]
+            ctx, 4096, Idx[128], Idx[6144], expect_heuristic_hit=True
+        )
+
+        # Small-M decode regime: the heuristic routes to the small-BN kernel.
+        test_mxfp8_dispatch[.float8_e4m3fn, .bfloat16](
+            ctx, 16, Idx[128], Idx[6144], expect_heuristic_hit=True
+        )
+
+        # Decode-regime dense shapes (M3.1 shared expert and fused QKV). At
+        # these M compute closures run separately except on small-BN; store
+        # redirects stay fused. Check both against the same reference.
+        for m in [8, 16, 36, 130]:
+            test_mxfp8_dispatch[.float8_e4m3fn, .bfloat16](
+                ctx, m, Idx[3072], Idx[6144], expect_heuristic_hit=True
+            )
+        test_mxfp8_dispatch[.float8_e4m3fn, .bfloat16](
+            ctx, 36, Idx[6144], Idx[3072], expect_heuristic_hit=True
+        )
+        # m in (8, 16] with N past one wave of SM tiles skips the small-BN
+        # kernel.
+        test_mxfp8_dispatch[.float8_e4m3fn, .bfloat16](
+            ctx, 12, Idx[9856], Idx[6144], expect_heuristic_hit=True
         )
 
         # KERN-3024: 30k-token prefill. The heuristic has no config for this
         # M, so the dispatcher must fall back to the vendor (cuBLASLt) MXFP8
         # block-scaled matmul instead of raising.
         test_mxfp8_dispatch[.float8_e4m3fn, .bfloat16](
-            ctx, 30000, Idx[128], Idx[6144]
+            ctx, 30000, Idx[128], Idx[6144], expect_heuristic_hit=False
         )
 
     print("\n=== ALL TESTS PASSED ===\n")

@@ -35,7 +35,7 @@ from std.memory import bitcast
 from std.random import random_ui64, seed
 
 from internal_utils import assert_almost_equal
-from layout import Coord, Idx, TileTensor, row_major
+from layout import Idx, TileTensor, row_major
 from linalg.fp4_utils import MXFP4_SF_VECTOR_SIZE
 from linalg.matmul.gpu.amd import (
     PreShuffledBGroupedGEMM,
@@ -176,7 +176,7 @@ def test_expert_offset_beyond_int32[
             Shuffler[1].preshuffle_scale_4d[MN=N, K_SCALES=SCALE_K](
                 TileTensor(
                     b_scale_slice_host.unsafe_ptr(),
-                    row_major(Coord(Idx[1], Idx[N], Idx[SCALE_K])),
+                    row_major(Idx[1], Idx[N], Idx[SCALE_K]),
                 ),
                 b_scale_pre_host,
             )
@@ -230,16 +230,14 @@ def test_expert_offset_beyond_int32[
     comptime if preshuffled:
         Shuffler[1].preshuffle_grouped_scale_4d_gpu[K_SCALES=SCALE_K](
             TileTensor(
-                a_scales_dev.unsafe_ptr().bitcast[UInt8](),
-                row_major(Coord(total_tokens, Idx[SCALE_K])),
+                a_scales_dev.unsafe_ptr().unsafe_bitcast[UInt8](),
+                row_major(total_tokens, Idx[SCALE_K]),
             ).as_imm(),
             TileTensor(
                 a_scales_pre_dev,
-                row_major(Coord(num_active * max_padded_M, Idx[SCALE_K])),
+                row_major(num_active * max_padded_M, Idx[SCALE_K]),
             ),
-            TileTensor(
-                a_offsets_dev, row_major(Coord(num_active + 1))
-            ).as_imm(),
+            TileTensor(a_offsets_dev, row_major(num_active + 1)).as_imm(),
             num_active,
             tokens_per_expert,
             ctx.default_device_info.sm_count * 2,
@@ -251,25 +249,26 @@ def test_expert_offset_beyond_int32[
         var token_start = slot * tokens_per_expert
 
         var a_expert_tt = TileTensor(
-            a_dev.unsafe_ptr() + token_start * PACKED_K,
-            row_major(Coord(tokens_per_expert, Idx[PACKED_K])),
+            a_dev.unsafe_ptr().unsafe_offset(token_start * PACKED_K),
+            row_major(tokens_per_expert, Idx[PACKED_K]),
         ).as_imm()
         var b_expert_tt = TileTensor(
-            b_routed_dev.unsafe_ptr() + slot * BYTES_PER_EXPERT,
+            b_routed_dev.unsafe_ptr().unsafe_offset(slot * BYTES_PER_EXPERT),
             row_major[N, PACKED_K](),
         ).as_imm()
         var sfa_expert_tt = TileTensor(
-            a_scales_dev.unsafe_ptr() + token_start * SCALE_K,
-            row_major(Coord(tokens_per_expert, Idx[SCALE_K])),
+            a_scales_dev.unsafe_ptr().unsafe_offset(token_start * SCALE_K),
+            row_major(tokens_per_expert, Idx[SCALE_K]),
         ).as_imm()
         var sfb_expert_tt = TileTensor(
-            b_scales_routed_dev.unsafe_ptr().bitcast[Float8_e8m0fnu]()
-            + slot * SCALES_PER_EXPERT,
+            b_scales_routed_dev.unsafe_ptr()
+            .unsafe_bitcast[Float8_e8m0fnu]()
+            .unsafe_offset(slot * SCALES_PER_EXPERT),
             row_major[N, SCALE_K](),
         ).as_imm()
         var c_expert_tt = TileTensor(
-            c_ref_dev.unsafe_ptr() + token_start * N,
-            row_major(Coord(tokens_per_expert, Idx[N])),
+            c_ref_dev.unsafe_ptr().unsafe_offset(token_start * N),
+            row_major(tokens_per_expert, Idx[N]),
         )
 
         block_scaled_matmul_amd(
@@ -284,25 +283,23 @@ def test_expert_offset_beyond_int32[
 
     # --- The grouped kernel under test ---
     var a_tt = TileTensor(
-        a_dev, row_major(Coord(total_tokens, Idx[PACKED_K]))
+        a_dev, row_major(total_tokens, Idx[PACKED_K])
     ).as_imm()
     var b_scales_tt = TileTensor(
-        b_scales_dev.unsafe_ptr().bitcast[Float8_e8m0fnu](),
+        b_scales_dev.unsafe_ptr().unsafe_bitcast[Float8_e8m0fnu](),
         row_major[NUM_EXPERTS, N, SCALE_K](),
     ).as_imm()
-    var a_offsets_tt = TileTensor(
-        a_offsets_dev, row_major(Coord(num_active + 1))
-    )
-    var expert_ids_tt = TileTensor(expert_ids_dev, row_major(Coord(num_active)))
-    var c_tt = TileTensor(c_dev, row_major(Coord(total_tokens, Idx[N])))
+    var a_offsets_tt = TileTensor(a_offsets_dev, row_major(num_active + 1))
+    var expert_ids_tt = TileTensor(expert_ids_dev, row_major(num_active))
+    var c_tt = TileTensor(c_dev, row_major(total_tokens, Idx[N]))
 
     comptime if preshuffled:
         var b_pre_tt = TileTensor(
             b_dev, row_major[NUM_EXPERTS, N * PACKED_K]()
         ).as_imm()
         var a_scales_pre_tt = TileTensor(
-            a_scales_pre_dev.unsafe_ptr().bitcast[Float8_e8m0fnu](),
-            row_major(Coord(num_active * max_padded_M, Idx[SCALE_K])),
+            a_scales_pre_dev.unsafe_ptr().unsafe_bitcast[Float8_e8m0fnu](),
+            row_major(num_active * max_padded_M, Idx[SCALE_K]),
         ).as_imm()
         # The dispatcher's fallback tile for this shape, launched directly so
         # that a tuned band added for it later cannot move coverage off either
@@ -327,7 +324,7 @@ def test_expert_offset_beyond_int32[
             b_dev, row_major[NUM_EXPERTS, N, PACKED_K]()
         ).as_imm()
         var a_scales_tt = TileTensor(
-            a_scales_dev, row_major(Coord(total_tokens, Idx[SCALE_K]))
+            a_scales_dev, row_major(total_tokens, Idx[SCALE_K])
         ).as_imm()
         block_scaled_grouped_matmul_amd(
             c_tt,

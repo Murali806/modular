@@ -12,11 +12,12 @@
 # ===----------------------------------------------------------------------=== #
 
 from std.sys import size_of
-from std.sys.info import CompilationTarget, Endian, is_64bit
+from std.sys.info import Endian, is_64bit
 
 from std.bit import count_leading_zeros
-from std.memory import alloc, dealloc, ThinAllocation, Layout
+from std.memory import alloc, Layout
 from std.memory.unsafe import bitcast
+from std.benchmark import black_box
 from std.builtin._format_float import _write_float
 from std.simd import _modf
 from std.itertools import product
@@ -428,17 +429,15 @@ def test_issue_1625() raises:
 
 
 def test_issue_20421() raises:
-    var a_layout = Layout[UInt8, alignment=.of_bytes[64]()](count=16 * 64)
-    var ptr = alloc(a_layout).unsafe_leak()
+    var a_layout = Layout[UInt8, alignment=.of_bytes[64]()](length=16 * 64)
+    var allocation = alloc(a_layout).into_managed()
+    var ptr = allocation.unsafe_ptr()
     for i in range(16 * 64):
         ptr[unsafe_offset=i] = UInt8(i & 255)
     var av16 = (
         ptr.unsafe_offset(128 + 64 + 4)
         .unsafe_bitcast[Int32]()
         .unsafe_load[width=4, alignment=1]()
-    )
-    dealloc(
-        ThinAllocation[UInt8](unsafe_owned_ptr=ptr).unsafe_with_layout(a_layout)
     )
     assert_equal(
         av16,
@@ -1286,6 +1285,21 @@ def test_insert() raises:
         SIMD[.uint, 8](9, 6, 3, 7, 5, 6, 7, 8),
     )
 
+    assert_equal(
+        SIMD[.int64, 2](1, 2).insert[offset=1](Scalar[.int64](99)),
+        SIMD[.int64, 2](1, 99),
+    )
+
+    assert_equal(
+        SIMD[.int64, 2](1, 2).insert[offset=0](Scalar[.int64](99)),
+        SIMD[.int64, 2](99, 2),
+    )
+
+    assert_equal(
+        SIMD[.float32, 4](0, 1, 2, 3).insert[offset=3](Float32(9)),
+        SIMD[.float32, 4](0, 1, 2, 9),
+    )
+
 
 def test_join() raises:
     comptime I2 = SIMD[.int32, 2]
@@ -1915,6 +1929,30 @@ def test_powf() raises:
     )
 
 
+def test_powf_large_whole_exponent() raises:
+    # Whole exponents too large for an Int32, and infinite ones.
+    comptime inf = FloatLiteral.infinity
+    assert_equal(Float64(0.5) ** Float64(4294967296.0), 0.0)
+    assert_equal(Float64(2.0) ** Float64(4294967296.0), inf)
+    assert_equal(Float64(2.0) ** Float64(-2147483648.0), 0.0)
+    assert_equal(Float64(-2.0) ** Float64(4294967297.0), -inf)
+    assert_equal(Float64(-1.0) ** Float64(4294967297.0), -1.0)
+    assert_equal(Float32(0.5) ** Float32(1e10), 0.0)
+    assert_equal(Float64(0.5) ** Float64(inf), 0.0)
+    assert_equal(Float64(2.0) ** Float64(-inf), 0.0)
+    assert_equal(Float64(1.0) ** Float64(inf), 1.0)
+    assert_almost_equal(
+        Float64(1.0000001) ** Float64(3e9), 1.9423975992963885e130, rtol=1e-8
+    )
+
+    # `-0.0` keeps its sign for odd exponents, like the `_powi` path.
+    comptime neg_zero = FloatLiteral.negative_zero
+    assert_equal(String(Float64(neg_zero) ** Float64(4294967297.0)), "-0.0")
+    assert_equal(String(Float64(neg_zero) ** Float64(4294967296.0)), "0.0")
+    assert_equal(Float64(neg_zero) ** Float64(-4294967297.0), -inf)
+    assert_equal(Float64(neg_zero) ** Float64(-4294967296.0), inf)
+
+
 def test_rpow() raises:
     comptime F32x4 = SIMD[.float32, 4]
     comptime I32x4 = SIMD[.int32, 4]
@@ -2194,6 +2232,17 @@ def test_comparison() raises:
     test_dtype[.bfloat16]()
 
 
+def test_nan_comparison() raises:
+    var n = black_box(nan[DType.float64]())
+    var v = black_box(SIMD[DType.float64, 4](1.0, 2.0, n, 4.0))
+    var lit = black_box(SIMD[DType.float64, 4](2.0))
+
+    assert_equal(v.ne(lit), ~v.eq(lit))
+    assert_true(v.ne(lit)[2])
+    assert_true(n.ne(2.0))
+    assert_true(Bool(n))
+
+
 def test_float_conversion() raises:
     assert_almost_equal(Float64(Int32(45)), 45.0)
     assert_almost_equal(Float64(Float32(34.32)), 34.32)
@@ -2330,6 +2379,82 @@ def test_vector_from_bytes_as_bytes() raises:
         True, True, False, True, False, True, True, True
     )
     assert_equal(v8_bool, SIMD[.bool, 8].from_bytes(v8_bool.as_bytes()))
+
+
+def test_to_endian() raises:
+    # Literal expected bytes, so the checks hold on a target of either order.
+    var big = UInt16(0x1234).to_endian[.big]().as_bytes()
+    assert_equal(big[0], 0x12)
+    assert_equal(big[1], 0x34)
+    var little = UInt16(0x1234).to_endian[.little]().as_bytes()
+    assert_equal(little[0], 0x34)
+    assert_equal(little[1], 0x12)
+
+    # Each element is encoded separately, in element order.
+    var vector = SIMD[.uint32, 2](0x01020304, 0x05060708).to_endian[.big]()
+    var vector_bytes = vector.as_bytes()
+    for i in range(8):
+        assert_equal(vector_bytes[i], UInt8(i + 1))
+
+    assert_equal(Int32(0x01020304).to_endian[.native()](), 0x01020304)
+    assert_equal(UInt8(0xAB).to_endian[.big](), 0xAB)
+    assert_equal(UInt8(0xAB).to_endian[.little](), 0xAB)
+
+    def matches_as_bytes[endian: Endian, dtype: DType](x: Scalar[dtype]) raises:
+        var via_to_endian = x.to_endian[endian]().as_bytes()
+        var via_as_bytes = x.as_bytes[endian=endian]()
+        for i in range(size_of[Scalar[dtype]]()):
+            assert_equal(via_to_endian[i], via_as_bytes[i])
+
+    def matches_as_bytes_in_every_order[dtype: DType](x: Scalar[dtype]) raises:
+        matches_as_bytes[.native()](x)
+        matches_as_bytes[.big](x)
+        matches_as_bytes[.little](x)
+
+    matches_as_bytes_in_every_order(Int16(-2))
+    matches_as_bytes_in_every_order(UInt16(0xBEEF))
+    matches_as_bytes_in_every_order(Int32(-123456789))
+    matches_as_bytes_in_every_order(UInt32(0xDEADBEEF))
+    matches_as_bytes_in_every_order(Int64(-0x0102030405060708))
+    matches_as_bytes_in_every_order(UInt64(0x0102030405060708))
+
+
+def test_from_endian() raises:
+    # Bytes as they arrive off the wire, read into a native value first.
+    assert_equal(
+        UInt16.from_endian[.big](UInt16.from_bytes([0x1F, 0x90])), 8080
+    )
+    assert_equal(
+        UInt16.from_endian[.little](UInt16.from_bytes([0x90, 0x1F])), 8080
+    )
+    assert_equal(
+        Int32.from_endian[.big](Int32.from_bytes([0xFF, 0xFF, 0xFF, 0xFE])),
+        -2,
+    )
+
+    def roundtrip[endian: Endian, dtype: DType](x: Scalar[dtype]) raises:
+        assert_equal(
+            Scalar[dtype].from_endian[endian](x.to_endian[endian]()), x
+        )
+
+    def roundtrip_in_every_order[dtype: DType](x: Scalar[dtype]) raises:
+        roundtrip[.native()](x)
+        roundtrip[.big](x)
+        roundtrip[.little](x)
+
+    roundtrip_in_every_order(UInt8(0x7F))
+    roundtrip_in_every_order(Int16(-1000))
+    roundtrip_in_every_order(UInt32(0x12345678))
+    roundtrip_in_every_order(Int64(-0x0102030405060708))
+
+    var vector = SIMD[.int64, 4](1, -2, 3, -4)
+    assert_equal(
+        SIMD[.int64, 4].from_endian[.big](vector.to_endian[.big]()), vector
+    )
+    assert_equal(
+        SIMD[.int64, 4].from_endian[.little](vector.to_endian[.little]()),
+        vector,
+    )
 
 
 def test_native_endian_is_target_order() raises:
@@ -2506,6 +2631,38 @@ def test_slice() raises:
     var slice1_5 = simd8.slice[1, offset=5]()
     var expected1_5 = Int32(6)
     assert_equal(slice1_5, expected1_5)
+
+
+def test_slice_aligned_offsets() raises:
+    # `llvm.vector.extract` takes any offset that is a multiple of the output
+    # width, whatever the target's native vector width happens to be.
+    var f8 = SIMD[DType.float32, 8](1, 2, 3, 4, 5, 6, 7, 8)
+    assert_equal(f8.slice[4, offset=4](), SIMD[DType.float32, 4](5, 6, 7, 8))
+    assert_equal(f8.slice[2, offset=6](), SIMD[DType.float32, 2](7, 8))
+    assert_equal(f8.slice[8, offset=0](), f8)
+
+    var lo, hi = f8.split()
+
+    comptime for i in range(4):
+        assert_equal(lo[i], Float32(i + 1))
+        assert_equal(hi[i], Float32(i + 5))
+
+    # Wider than any native vector, at an offset that is not a multiple of the
+    # output width. The old check compared against the native width, so this
+    # reached the intrinsic with an index it rejects.
+    var f32 = SIMD[DType.float32, 32]()
+
+    comptime for i in range(32):
+        f32[i] = Float32(i)
+
+    var wide = f32.slice[16, offset=8]()
+
+    comptime for i in range(16):
+        assert_equal(wide[i], Float32(i + 8))
+
+    # Unaligned offsets still take the element-wise path.
+    assert_equal(f8.slice[4, offset=3](), SIMD[DType.float32, 4](4, 5, 6, 7))
+    assert_equal(f8.slice[2, offset=5](), SIMD[DType.float32, 2](6, 7))
 
 
 def test_hash() raises:

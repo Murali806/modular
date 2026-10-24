@@ -11,7 +11,6 @@
 # limitations under the License.
 # ===----------------------------------------------------------------------=== #
 
-from std.builtin._closure import __ownership_keepalive
 from std.math import ceildiv
 from std.sys import argv, size_of
 
@@ -27,7 +26,7 @@ from max.gpu.compute.arch.tcgen05 import *
 
 # Additional imports for testing
 from internal_utils import assert_almost_equal
-from layout import Coord, Idx, TensorLayout, TileTensor, row_major
+from layout import Coord, Idx, TensorLayout, TileTensor, coord, row_major
 from layout._host_device_tile_tensor import HostDeviceTileTensor
 from layout.tensor_core_async import tile_layout_k_major_typed
 from layout.tma_async import (
@@ -55,13 +54,11 @@ def kernel_3[
     a_type: DType,
     b_type: DType,
     c_type: DType,
-    a_tma_rank: Int,
-    b_tma_rank: Int,
-    a_tile_shape: IndexList[a_tma_rank],
-    b_tile_shape: IndexList[b_tma_rank],
+    a_tile_shape: Coord,
+    b_tile_shape: Coord,
     c_layout: TensorLayout,
-    a_desc_shape: IndexList[a_tma_rank],
-    b_desc_shape: IndexList[b_tma_rank],
+    a_desc_shape: Coord,
+    b_desc_shape: Coord,
     block_tile_shape: IndexList[3],
     mma_shape: IndexList[3],
     transpose_b: Bool = True,
@@ -70,8 +67,8 @@ def kernel_3[
     b_swizzle: TensorMapSwizzle = TensorMapSwizzle.SWIZZLE_NONE,
     num_threads: Int = 128,
 ](
-    a_tma_op: TMATensorTile[a_type, a_tma_rank, a_tile_shape, a_desc_shape],
-    b_tma_op: TMATensorTile[b_type, b_tma_rank, b_tile_shape, b_desc_shape],
+    a_tma_op: TMATensorTile[a_type, a_tile_shape, a_desc_shape],
+    b_tma_op: TMATensorTile[b_type, b_tile_shape, b_desc_shape],
     c: TileTensor[c_type, c_layout, MutAnyOrigin],
     num_iters_dev: Int32,
 ):
@@ -124,7 +121,7 @@ def kernel_3[
     comptime assert (
         (b_size * size_of[b_type]()) % 16
     ) == 0, "preserve alignment"
-    var b_smem = (a_smem + a_size).bitcast[Scalar[b_type]]()
+    var b_smem = a_smem.unsafe_offset(a_size).unsafe_bitcast[Scalar[b_type]]()
 
     var a_smem_tile = TileTensor(a_smem, a_smem_layout)
     var b_smem_tile = TileTensor(b_smem, b_smem_layout)
@@ -140,10 +137,12 @@ def kernel_3[
     comptime b_expected_bytes = b_size * size_of[b_type]()
     comptime expected_bytes = a_expected_bytes + b_expected_bytes
 
-    var tma_mbar = (b_smem + b_size).bitcast[SharedMemBarrier]()
-    var mma_mbar = tma_mbar + 1
+    var tma_mbar = b_smem.unsafe_offset(b_size).unsafe_bitcast[
+        SharedMemBarrier
+    ]()
+    var mma_mbar = tma_mbar.unsafe_offset(1)
     # Shared memory pointer to hold tensor memory address, after last smem pointer and expected smem size
-    var ptr_tmem_addr = (mma_mbar + 1).bitcast[UInt32]()
+    var ptr_tmem_addr = mma_mbar.unsafe_offset(1).unsafe_bitcast[UInt32]()
 
     if thread_idx.x == 0:
         tma_mbar[0].init()
@@ -207,7 +206,7 @@ def kernel_3[
                 comptime assert ((a_offset * size_of[a_type]()) % 128) == 0
                 comptime assert ((b_offset * size_of[b_type]()) % 128) == 0
                 var sub_a_smem_tile = TileTensor(
-                    a_smem + a_offset, sub_a_smem_layout
+                    a_smem.unsafe_offset(a_offset), sub_a_smem_layout
                 )
                 # the answer to the above comment. # The descriptor layout i.e. data per copy can be smaller than the shared memory
                 # tile shape due to WGMMA requirement. E.g. k-major no swizzle WGMMA BM x 16B to be
@@ -219,7 +218,7 @@ def kernel_3[
                     (i * BK + k, block_idx.y * BM),
                 )
                 var sub_b_smem_tile = TileTensor(
-                    b_smem + b_offset, sub_b_smem_layout
+                    b_smem.unsafe_offset(b_offset), sub_b_smem_layout
                 )
                 b_tma_op.async_copy(
                     sub_b_smem_tile,
@@ -280,7 +279,7 @@ def kernel_3[
 
     comptime num_warps = num_threads // WARP_SIZE
 
-    var ctile = c.tile[BM, BN](Int(block_idx.y), Int(block_idx.x))
+    var ctile = c.tile[BM, BN](block_idx.y, block_idx.x)
 
     comptime for m_mma in range(num_m_mmas):
         comptime for n_mma in range(num_n_mmas):
@@ -339,11 +338,11 @@ def kernel_2[
     # hard coded 64 for BK
 
     # equivalent of cutlass tma atom a, it is a handle that is passed to async_copy, to accurately tell the TMA engine how to copy from global tensor a into smem tile A
-    var a_tma_op = create_tensor_tile[Index(BM, 64), swizzle_mode=a_swizzle](
+    var a_tma_op = create_tensor_tile[coord[BM, 64], swizzle_mode=a_swizzle](
         ctx, a
     )
     var b_tma_op = create_tensor_tile[
-        Index(BN, 64) if transpose_b else Index(64, BN),
+        coord[BN, 64],
         swizzle_mode=b_swizzle,
     ](ctx, b)
 
@@ -357,8 +356,6 @@ def kernel_2[
         a_type,
         b_type,
         c_type,
-        type_of(a_tma_op).rank,
-        type_of(b_tma_op).rank,
         type_of(a_tma_op).tile_shape,
         type_of(b_tma_op).tile_shape,
         type_of(c).LayoutType,
@@ -557,9 +554,8 @@ def test_kernel_2[
         c_ref.to_host()
         comptime rtol = 1e-2
         assert_almost_equal(
-            c_host.unsafe_ptr(),
-            c_host_ref.unsafe_ptr(),
-            M * N,
+            c_host.as_span(),
+            c_host_ref.as_span(),
             atol=0.0001,
             rtol=rtol,
         )

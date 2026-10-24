@@ -175,12 +175,10 @@ def bench_concat[
             var out_coords = coord_to_index_list(coords)
             out_coords[axis] += offset
             var out_coord = Coord(out_coords)
-            if output_host.load[width=1](out_coord) != input.load[width=1](
-                coords
-            ):
+            if output_host[out_coord] != input[coords]:
                 abort(String("mismatch at coords ", out_coords))
 
-        elementwise[1](check, Coord(input_shape), ctx)
+        elementwise[1](check, Coord(input_shape), DeviceContext(api="cpu"))
         offset += input_shape[axis]
 
     _ = input0_device_buffer
@@ -188,7 +186,7 @@ def bench_concat[
     _ = output_device_buffer
 
 
-# A/B arm for the FusedConcatSlice static-divisor fold. Benches
+# A/B arm for the fused concat static-divisor fold. Benches
 # `_concat_inner_most_single_dim` (the inner-most-single-dim concat kernel that
 # carries the per-thread row -> n-D `divmod`) twice on identical work: with a
 # fully static output layout (`row_major[...]()`, all `ComptimeInt` dims, so the
@@ -262,7 +260,7 @@ def bench_concat_inner_most_single_dim[
                 ctx.enqueue_function[kernel](
                     output.as_unsafe_any_origin(),
                     inputs,
-                    host_arg=_no_epilogue,
+                    host_args=(_no_epilogue,),
                     grid_dim=(ceildiv(n_rows, B_SIZE)),
                     block_dim=(B_SIZE),
                 )
@@ -304,7 +302,7 @@ def bench_concat_inner_most_single_dim[
                 ctx.enqueue_function[kernel](
                     output.as_unsafe_any_origin(),
                     inputs,
-                    host_arg=_no_epilogue,
+                    host_args=(_no_epilogue,),
                     grid_dim=(ceildiv(n_rows, B_SIZE)),
                     block_dim=(B_SIZE),
                 )
@@ -348,7 +346,7 @@ def main() raises:
             axis=axis,
         )
 
-        # FusedConcatSlice static-divisor fold A/B: rank-5 dims with non-trivial
+        # Fused concat static-divisor fold A/B: rank-5 dims with non-trivial
         # outer dims (rank-2 would hit the no-divide fast path) so dims 1..rank-2
         # actually decompose. Shape is sized to the instruction-bound regime
         # (~65K rows): small enough that the per-thread divide is on the critical

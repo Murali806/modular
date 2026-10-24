@@ -1,4 +1,5 @@
-load("//bazel:api.bzl", "driver_option_tablegen", "modular_cc_binary", "modular_cc_library", "pkg_files", "td_library")
+load("//bazel:api.bzl", "modular_cc_binary", "modular_cc_library", "pkg_files")
+load("//bazel:tablegen.bzl", "driver_option_tablegen", "td_library")
 
 package(default_visibility = ["//Mojo:consumers"])
 
@@ -24,16 +25,6 @@ package(default_visibility = ["//Mojo:consumers"])
         "Run",
     ]
 ]
-
-# A thin wrapper around Doc.inc_files that adds includes = ["."] so that
-# external tools (e.g. kgen-doc) can access the generated option headers via
-# short paths like "Doc/DocOptions.inc" rather than the full workspace-root
-# path.
-modular_cc_library(
-    name = "DocIncFiles",
-    includes = ["."],
-    deps = [":Doc.inc_files"],
-)
 
 td_library(
     name = "MojoDescriptionTdFiles",
@@ -139,6 +130,7 @@ modular_cc_library(
         "//Mojo:MojoTooling",
         "//Mojo:ObjectCompiler",
         "//Mojo:POPDialect",
+        "//Mojo:Precompile",
         "//Mojo:Support",
         "//Mojo:SupportForceLinkMLIRC",
         "//Mojo:TargetBackend.headers",

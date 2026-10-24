@@ -29,6 +29,7 @@
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Support/DebugStringHelper.h"
 #include "llvm/ADT/TypeSwitch.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/xxhash.h"
 
 using namespace M;
@@ -90,7 +91,9 @@ LLVMDataLayout::getTypeABIAlignAndType(Type type) const {
   assert(LLVM::isCompatibleType(type) && "expected an LLVM type");
 
   if (auto ptrType = dyn_cast<LLVM::LLVMPointerType>(type))
-    return {target.getDataLayout().getPointerABIAlign(), ptrType};
+    return {
+        target.getDataLayout().getPointerABIAlign(ptrType.getAddressSpace()),
+        ptrType};
   // Use the natural alignment for vector to be conservative
   if (auto vecType = dyn_cast<VectorType>(type))
     return getTypeABIAlignAndType(vecType.getElementType());
@@ -770,10 +773,12 @@ static void materializeVectorStores(int64_t idx, int64_t size, Value ptr,
   Value gep =
       LLVM::GEPOp::create(b, ptrType, b.getI8Type(), ptr, LLVM::GEPArg(idx),
                           LLVM::GEPNoWrapFlags::inbounds);
+  uint64_t storeAlign = llvm::MinAlign(align, idx);
   // Emit a scalar store.
   if (size == 1) {
-    LLVM::StoreOp::create(
-        b, LLVM::ConstantOp::create(b, b.getI8Type(), data[idx]), gep, align);
+    LLVM::StoreOp::create(b,
+                          LLVM::ConstantOp::create(b, b.getI8Type(), data[idx]),
+                          gep, storeAlign);
     return;
   }
 
@@ -784,7 +789,7 @@ static void materializeVectorStores(int64_t idx, int64_t size, Value ptr,
   ArrayRef<uint8_t> slice((const uint8_t *)data + idx, curSize);
   auto value =
       ArrayElementsAttr::get(slice, VectorType::get(curSize, b.getI8Type()));
-  LLVM::StoreOp::create(b, LLVM::ConstantOp::create(b, value), gep, align);
+  LLVM::StoreOp::create(b, LLVM::ConstantOp::create(b, value), gep, storeAlign);
   materializeVectorStores(idx + curSize, remaining, ptr, data, b, ptrType,
                           align);
 }
@@ -969,7 +974,7 @@ InterpreterMemoryConverter::MaterializationScope::getOrMaterialize(
         auto [_, index, offset] = *ptrIt++;
         LLVM::StoreOp::create(
             b, getBlobPointer(b, ptrType, materialized[index], index, offset),
-            gep, hdl.getAlign());
+            gep, llvm::MinAlign(hdl.getAlign(), i));
         i += pointerSize;
         continue;
       }

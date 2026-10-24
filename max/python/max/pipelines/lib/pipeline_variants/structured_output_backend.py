@@ -242,7 +242,7 @@ class GrammarBackend(Protocol):
     def create_matcher(self, grammar: Any) -> GrammarMatcher:
         """Build a matcher from a compiled grammar handle or grammar string.
 
-        The string form is a raw serialized grammar (e.g. a tool-call grammar).
+        The string form is a raw serialized grammar (such as a tool-call grammar).
         """
         ...
 
@@ -514,10 +514,11 @@ def build_xgrammar_tool_grammar(
     tool_choice: str | dict[str, Any],
     response_format_schema: dict[str, Any] | None = None,
     reject_unsupported: bool = False,
+    **format_options: Any,
 ) -> str:
     """Build a serialized xgrammar tool-call grammar (StructuralTag JSON).
 
-    Uses xgrammar's built-in per-model tool-call format (e.g. ``"kimi"``),
+    Uses xgrammar's built-in per-model tool-call format (such as ``"kimi"``),
     which frames the model's tool-call envelope and constrains each call's
     arguments to that tool's JSON schema. The returned JSON string is passed
     as a grammar to :meth:`XgrammarBackend.create_matcher`.
@@ -527,7 +528,7 @@ def build_xgrammar_tool_grammar(
     ``tool_calls | json_response`` alternation).
 
     Args:
-        model_format: xgrammar model-format key (e.g. ``"kimi"``).
+        model_format: xgrammar model-format key (such as ``"kimi"``).
         tools: OpenAI-style tool dicts (``{"type": "function", "function": ...}``).
         tool_choice: ``"auto"``, ``"required"``, or a named choice.
         response_format_schema: Optional JSON schema for a ``response_format``
@@ -536,6 +537,8 @@ def build_xgrammar_tool_grammar(
         reject_unsupported: Whether to raise an error during grammar compilation
             when a tool's schema cannot be enforced. Otherwise, the schema is
             enforced best-effort.
+        **format_options: Format-specific options, forwarded unchanged to the
+            model format's structural-tag builder.
 
     Returns:
         The StructuralTag serialized as a JSON string.
@@ -554,6 +557,7 @@ def build_xgrammar_tool_grammar(
         tool_choice=effective_tool_choice,
         reasoning=False,
         reject_unsupported=reject_unsupported,
+        **format_options,
     )
     if response_format_schema is not None:
         json_branch: Format = JSONSchemaFormat(

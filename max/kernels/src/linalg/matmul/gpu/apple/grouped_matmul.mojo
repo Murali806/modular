@@ -13,7 +13,7 @@
 """Apple M5 grouped (MoE) matmul for bf16 or fp16 operands: a grouped GEMV for
 decode and a grouped simdgroup-MMA GEMM for prefill.
 
-Target: Apple M5 (`compute_capability == 5`, Metal 4).
+Target: Apple M5 (`compute_capability >= 5`, Metal 4).
 
 For each expert group `z`, `C[a_offsets[z]:a_offsets[z+1]] =
 A[a_offsets[z]:a_offsets[z+1]] @ b[expert_ids[z]]^T`, with `b` the weight
@@ -49,13 +49,20 @@ import max.gpu.primitives.warp as warp
 
 from layout import Coord, Idx, TensorEngine, TileTensor
 from layout.tile_layout import Layout, TensorLayout, row_major
+from std.utils import IndexList
 
 from linalg.arch.apple.mma import ConvIm2colParams
-from linalg.matmul.gpu.apple.matmul2d_fp4 import _require_apple_m5
+from linalg.matmul.gpu.apple.matmul2d_fp4 import _require_apple_m5_or_newer
 from linalg.matmul.gpu.apple.matmul_kernel import (
     AppleM5MatMul,
     DenseALoader,
     DenseWeightLoader,
+)
+from linalg.utils import (
+    ElementwiseComputeFn,
+    ElementwiseEpilogueFn,
+    no_compute_fn,
+    no_epilogue_fn,
 )
 
 
@@ -89,6 +96,10 @@ def grouped_gemv_kernel[
     b_engine: TensorEngine,
     ao_engine: TensorEngine,
     ei_engine: TensorEngine,
+    EpilogueFnType: ElementwiseEpilogueFn,
+    has_epilogue_fn: Bool,
+    ComputeFnType: ElementwiseComputeFn,
+    has_compute_fn: Bool,
 ](
     c: TileTensor[c_type, c_layout, MutAnyOrigin, Engine=c_engine],
     a: TileTensor[a_type, a_layout, ImmutAnyOrigin, Engine=a_engine],
@@ -99,6 +110,8 @@ def grouped_gemv_kernel[
     expert_ids: TileTensor[
         mut=False, .int32, ei_layout, MutAnyOrigin, Engine=ei_engine
     ],
+    epilogue_fn: EpilogueFnType,
+    compute_fn: ComputeFnType,
 ):
     """Grouped GEMV: one simdgroup per `rows_per_sg` output columns of a
     group.
@@ -107,7 +120,9 @@ def grouped_gemv_kernel[
     the group are processed `tokens_per_pass` at a time; the weight chunk is
     loaded once per step and reused by every token of the pass.
     `expert_ids[group] == -1` writes zeros, matching
-    `naive_grouped_matmul_kernel`.
+    `naive_grouped_matmul_kernel`. With `has_epilogue_fn`, each output goes
+    to `epilogue_fn` at its `(row, col)` in `c` instead. With
+    `has_compute_fn`, `compute_fn` maps each output before it is stored.
     """
     # 8 16-bit elements = 16 bytes per lane per load. The vector load needs
     # its 16-byte alignment stated: `<8 x half>` at 2-byte alignment does not
@@ -121,15 +136,15 @@ def grouped_gemv_kernel[
     comptime A_ALIGN = align_of[Scalar[a_type]]() * (VW if K % VW == 0 else 1)
     comptime B_ALIGN = align_of[Scalar[b_type]]() * (VW if K % VW == 0 else 1)
 
-    var group = Int(block_idx.z)
+    var group = block_idx.z
     var a_start = Int(a_offsets[group])
     var m = Int(a_offsets[group + 1]) - a_start
     if m <= 0:
         return
 
-    var sg = Int(thread_idx.x) // WARP_SIZE
+    var sg = thread_idx.x // WARP_SIZE
     var lid = Int(lane_id())
-    var n0 = (Int(block_idx.x) * num_sg + sg) * rows_per_sg
+    var n0 = (block_idx.x * num_sg + sg) * rows_per_sg
     if n0 >= N:
         return
 
@@ -170,11 +185,11 @@ def grouped_gemv_kernel[
                 var x = Array[SIMD[.float32, VW], tokens_per_pass](fill=0)
                 comptime for t in range(tokens_per_pass):
                     x[t] = a_pass.load[width=VW, alignment=A_ALIGN](
-                        Coord(t_rows[t], k0)
+                        (t_rows[t], k0)
                     ).cast[.float32]()
                 comptime for r in range(rows_per_sg):
                     var w = b_e.load[width=VW, alignment=B_ALIGN](
-                        Coord(w_rows[r], k0)
+                        (w_rows[r], k0)
                     ).cast[.float32]()
                     comptime for t in range(tokens_per_pass):
                         acc[r * tokens_per_pass + t] += (w * x[t]).reduce_add[
@@ -185,13 +200,13 @@ def grouped_gemv_kernel[
                 var kt = K_VEC + lid
                 while kt < K:
                     comptime for r in range(rows_per_sg):
-                        var w = b_e.load[width=1](Coord(w_rows[r], kt)).cast[
+                        var w = b_e.load[width=1]((w_rows[r], kt)).cast[
                             .float32
                         ]()
                         comptime for t in range(tokens_per_pass):
-                            var xv = a_pass.load[width=1](
-                                Coord(t_rows[t], kt)
-                            ).cast[.float32]()
+                            var xv = a_pass.load[width=1]((t_rows[t], kt)).cast[
+                                .float32
+                            ]()
                             acc[r * tokens_per_pass + t][0] += (w * xv)[0]
                     kt += WARP_SIZE
 
@@ -202,10 +217,14 @@ def grouped_gemv_kernel[
             comptime for r in range(rows_per_sg):
                 sums[r] = warp.sum(acc[r * tokens_per_pass + t].reduce_add())
             if lid < rows_per_sg and n0 + lid < N and t < pass_rows:
-                c_pass.store(
-                    Coord(t, n0 + lid),
-                    SIMD[c_type, 1](sums[lid].cast[c_type]()),
-                )
+                var out = SIMD[c_type, 1](sums[lid].cast[c_type]())
+                var idx = Coord(a_start + t0 + t, n0 + lid)
+                comptime if has_epilogue_fn:
+                    epilogue_fn[c_type, 1, alignment=1](idx, out)
+                else:
+                    comptime if has_compute_fn:
+                        out = compute_fn[c_type, 1, alignment=1](idx, out)
+                    c_pass.store((t, n0 + lid), out)
         t0 += tokens_per_pass
 
 
@@ -229,6 +248,10 @@ def grouped_matmul_mma_kernel[
     b_engine: TensorEngine,
     ao_engine: TensorEngine,
     ei_engine: TensorEngine,
+    EpilogueFnType: ElementwiseEpilogueFn,
+    has_epilogue_fn: Bool,
+    ComputeFnType: ElementwiseComputeFn,
+    has_compute_fn: Bool,
 ](
     c: TileTensor[c_type, c_layout, MutAnyOrigin, Engine=c_engine],
     a: TileTensor[a_type, a_layout, ImmutAnyOrigin, Engine=a_engine],
@@ -242,6 +265,8 @@ def grouped_matmul_mma_kernel[
     first_group: UInt32,
     log2_grid_m: UInt32,
     log2_grid_n: UInt32,
+    epilogue_fn: EpilogueFnType,
+    compute_fn: ComputeFnType,
 ):
     """Grouped GEMM: the dense `AppleM5MatMul` body on group
     `first_group + block_idx.z`.
@@ -249,23 +274,26 @@ def grouped_matmul_mma_kernel[
     Grid `((1 << log2_grid_m) * (1 << log2_grid_n), 1, groups)`, with the M
     extent sized for the largest group; tiles past a smaller group's rows
     early-return in the body. This is `AppleM5MatMul.run` with per-group views
-    in place of the whole-matrix operands.
+    in place of the whole-matrix operands. With `has_epilogue_fn`, each output
+    goes to `epilogue_fn` at its `(row, col)` in `c` instead. With
+    `has_compute_fn`, `compute_fn` maps each output before it is stored.
     """
     comptime MM = _GroupedMma[a_type, b_type, c_type, linear_idx_type]
 
-    var group = Int(first_group) + Int(block_idx.z)
+    var group = Int(first_group) + block_idx.z
     var a_start = Int(a_offsets[group])
     var m = Int(a_offsets[group + 1]) - a_start
     if m <= 0:
         return
     var expert = Int(expert_ids[group])
     # An inactive group (`expert_ids == -1`) runs with K = 0: no K strips, so
-    # the zero accumulator is stored, matching `naive_grouped_matmul_kernel`.
+    # the zero accumulator is stored (or passed to the epilogue), matching
+    # `naive_grouped_matmul_kernel`.
     var k = K if expert != -1 else 0
 
-    var c_g = c.tile[1, N](a_start, 0).reshape(row_major(Coord(m, Idx[N])))
+    var c_g = c.tile[1, N](a_start, 0).reshape(row_major(m, Idx[N]))
     var b_e = b.tile[1, N, K](max(expert, 0), 0, 0).reshape(
-        row_major(Coord(Idx[N], k))
+        row_major(Idx[N], k)
     )
 
     # Pre-tile this simdgroup's A slab outside the K-loop, as `run` does,
@@ -286,7 +314,35 @@ def grouped_matmul_mma_kernel[
         b_dtype=b_type,
     ](a_slab)
 
-    MM._run_gemm_body[W=DenseWeightLoader[b_type, DType.float32]](
+    # The body indexes this group's rows from 0; the epilogues take rows of
+    # all of `c`.
+    var c_ptr = c.ptr
+
+    @inline(.always)
+    def group_epilogue_fn[
+        dtype: DType, width: SIMDLength, *, alignment: Int
+    ](idx: Coord, val: SIMD[dtype, width]) {
+        var epilogue_fn, var compute_fn, var c_ptr, var a_start
+    }:
+        comptime assert idx.rank == 2, "the matmul epilogue contract is rank 2"
+        var row = a_start + Int(idx[0])
+        var col = Int(idx[1])
+        var row_idx = Coord(row, col)
+        comptime if has_compute_fn:
+            c_ptr.unsafe_offset(row * N).unsafe_offset(col).unsafe_store[
+                alignment=alignment
+            ](
+                rebind[SIMD[c_type, width]](
+                    compute_fn[dtype, width, alignment=alignment](row_idx, val)
+                )
+            )
+        else:
+            epilogue_fn[dtype, width, alignment=alignment](row_idx, val)
+
+    MM._run_gemm_body[
+        W=DenseWeightLoader[b_type, DType.float32],
+        has_epilogue_fn=has_epilogue_fn or has_compute_fn,
+    ](
         loader,
         c_g,
         b_e.as_imm(),
@@ -294,6 +350,8 @@ def grouped_matmul_mma_kernel[
         ConvIm2colParams(),
         log2_grid_m,
         log2_grid_n,
+        epilogue_fn=group_epilogue_fn,
+        compute_fn=no_compute_fn,
     )
 
 
@@ -328,11 +386,16 @@ def _assert_supported_types[c_type: DType, a_type: DType, b_type: DType]():
 
 @inline(.always)
 def enqueue_apple_grouped_gemv[
+    EpilogueFnType: ElementwiseEpilogueFn = type_of(no_epilogue_fn),
+    ComputeFnType: ElementwiseComputeFn = type_of(no_compute_fn),
+    //,
     *,
     rows_per_sg: Int = 2,
     tokens_per_pass: Int = 1,
     num_sg: Int = 8,
     acc_width: Int = 8,
+    has_epilogue_fn: Bool = False,
+    has_compute_fn: Bool = False,
 ](
     c: TileTensor[mut=True, ...],
     a: TileTensor[...],
@@ -341,6 +404,8 @@ def enqueue_apple_grouped_gemv[
     expert_ids: TileTensor[mut=False, .int32, ...],
     num_active_experts: Int,
     ctx: DeviceContext,
+    epilogue_fn: EpilogueFnType = no_epilogue_fn,
+    compute_fn: ComputeFnType = no_compute_fn,
 ) raises:
     """Enqueues the grouped GEMV.
 
@@ -358,6 +423,10 @@ def enqueue_apple_grouped_gemv[
         num_sg: Simdgroups per threadgroup.
         acc_width: Fp32 lanes kept per accumulator (1 to 8); narrower trades
             adds for registers when `rows_per_sg * tokens_per_pass` is large.
+        has_epilogue_fn: Whether `epilogue_fn` stores each output at its
+            `(row, col)` in `c`.
+        has_compute_fn: Whether `compute_fn` maps each output before it is
+            stored.
     """
     _assert_supported_types[c.dtype, a.dtype, b.dtype]()
     comptime N = type_of(b).static_shape[1]
@@ -385,6 +454,10 @@ def enqueue_apple_grouped_gemv[
         type_of(b).Engine,
         type_of(a_offsets).Engine,
         type_of(expert_ids).Engine,
+        EpilogueFnType,
+        has_epilogue_fn,
+        ComputeFnType,
+        has_compute_fn,
     ]
     ctx.enqueue_function[kernel](
         c,
@@ -392,6 +465,7 @@ def enqueue_apple_grouped_gemv[
         b.as_imm(),
         a_offsets,
         expert_ids,
+        host_args=(epilogue_fn, compute_fn),
         grid_dim=(ceildiv(N, rows_per_sg * num_sg), 1, num_active_experts),
         block_dim=(num_sg * WARP_SIZE),
     )
@@ -399,8 +473,13 @@ def enqueue_apple_grouped_gemv[
 
 @inline(.always)
 def enqueue_apple_grouped_mma[
+    EpilogueFnType: ElementwiseEpilogueFn = type_of(no_epilogue_fn),
+    ComputeFnType: ElementwiseComputeFn = type_of(no_compute_fn),
+    //,
     *,
     groups_per_launch: Int = 4,
+    has_epilogue_fn: Bool = False,
+    has_compute_fn: Bool = False,
 ](
     c: TileTensor[mut=True, ...],
     a: TileTensor[...],
@@ -410,6 +489,8 @@ def enqueue_apple_grouped_mma[
     max_num_tokens_per_expert: Int,
     num_active_experts: Int,
     ctx: DeviceContext,
+    epilogue_fn: EpilogueFnType = no_epilogue_fn,
+    compute_fn: ComputeFnType = no_compute_fn,
 ) raises:
     """Enqueues the grouped simdgroup-MMA GEMM (any token count).
 
@@ -425,6 +506,10 @@ def enqueue_apple_grouped_mma[
 
     Parameters:
         groups_per_launch: Expert groups per kernel dispatch.
+        has_epilogue_fn: Whether `epilogue_fn` stores each output at its
+            `(row, col)` in `c`.
+        has_compute_fn: Whether `compute_fn` maps each output before it is
+            stored.
     """
     comptime c_type = c.dtype
     comptime a_type = a.dtype
@@ -473,6 +558,10 @@ def enqueue_apple_grouped_mma[
                     type_of(b).Engine,
                     type_of(a_offsets).Engine,
                     type_of(expert_ids).Engine,
+                    EpilogueFnType,
+                    has_epilogue_fn,
+                    ComputeFnType,
+                    has_compute_fn,
                 ]
                 ctx.enqueue_function[kernel](
                     c,
@@ -483,6 +572,7 @@ def enqueue_apple_grouped_mma[
                     UInt32(g0),
                     log2_m,
                     log2_n,
+                    host_args=(epilogue_fn, compute_fn),
                     grid_dim=((1 << Int(log2_m)) * (1 << Int(log2_n)), 1, ng),
                     block_dim=(MM.THREADS_PER_BLOCK),
                 )
@@ -490,7 +580,14 @@ def enqueue_apple_grouped_mma[
 
 
 @inline(.always)
-def enqueue_apple_grouped_matmul(
+def enqueue_apple_grouped_matmul[
+    EpilogueFnType: ElementwiseEpilogueFn = type_of(no_epilogue_fn),
+    ComputeFnType: ElementwiseComputeFn = type_of(no_compute_fn),
+    //,
+    *,
+    has_epilogue_fn: Bool = False,
+    has_compute_fn: Bool = False,
+](
     c: TileTensor[mut=True, ...],
     a: TileTensor[...],
     b: TileTensor[...],
@@ -499,37 +596,82 @@ def enqueue_apple_grouped_matmul(
     max_num_tokens_per_expert: Int,
     num_active_experts: Int,
     ctx: DeviceContext,
+    epilogue_fn: EpilogueFnType = no_epilogue_fn,
+    compute_fn: ComputeFnType = no_compute_fn,
 ) raises:
     """Enqueues the Apple M5 grouped matmul `C = A @ b[expert]^T`.
 
     Routes on the largest group: up to `APPLE_GROUPED_GEMV_MAX_TOKENS` tokens
     per expert takes the GEMV (decode), anything larger the MMA GEMM
     (prefill). `b` is `[num_experts, N, K]` with static `N` and `K`; the
-    operand types are those of `enqueue_apple_grouped_gemv`.
+    operand types and epilogues are those of `enqueue_apple_grouped_gemv`.
 
     Raises:
-        If the attached GPU is not Apple M5 (`compute_capability == 5`).
+        If the attached GPU is older than Apple M5 (`compute_capability >= 5`).
     """
-    _require_apple_m5(ctx)
+    _require_apple_m5_or_newer(ctx)
 
     # GEMV tilings measured best at 3072-6144-wide expert dims (M5 Max):
     # the tokens of a group share one read of the weight; more rows per
     # simdgroup only pay off when the accumulators are narrow enough to
     # stay in registers.
     if max_num_tokens_per_expert <= 1:
-        enqueue_apple_grouped_gemv[rows_per_sg=2, tokens_per_pass=1](
-            c, a, b, a_offsets, expert_ids, num_active_experts, ctx
+        enqueue_apple_grouped_gemv[
+            rows_per_sg=2,
+            tokens_per_pass=1,
+            has_epilogue_fn=has_epilogue_fn,
+            has_compute_fn=has_compute_fn,
+        ](
+            c,
+            a,
+            b,
+            a_offsets,
+            expert_ids,
+            num_active_experts,
+            ctx,
+            epilogue_fn,
+            compute_fn,
         )
     elif max_num_tokens_per_expert <= 4:
-        enqueue_apple_grouped_gemv[rows_per_sg=1, tokens_per_pass=4](
-            c, a, b, a_offsets, expert_ids, num_active_experts, ctx
+        enqueue_apple_grouped_gemv[
+            rows_per_sg=1,
+            tokens_per_pass=4,
+            has_epilogue_fn=has_epilogue_fn,
+            has_compute_fn=has_compute_fn,
+        ](
+            c,
+            a,
+            b,
+            a_offsets,
+            expert_ids,
+            num_active_experts,
+            ctx,
+            epilogue_fn,
+            compute_fn,
         )
     elif max_num_tokens_per_expert <= APPLE_GROUPED_GEMV_MAX_TOKENS:
         enqueue_apple_grouped_gemv[
-            rows_per_sg=2, tokens_per_pass=8, acc_width=1
-        ](c, a, b, a_offsets, expert_ids, num_active_experts, ctx)
+            rows_per_sg=2,
+            tokens_per_pass=8,
+            acc_width=1,
+            has_epilogue_fn=has_epilogue_fn,
+            has_compute_fn=has_compute_fn,
+        ](
+            c,
+            a,
+            b,
+            a_offsets,
+            expert_ids,
+            num_active_experts,
+            ctx,
+            epilogue_fn,
+            compute_fn,
+        )
     else:
-        enqueue_apple_grouped_mma(
+        enqueue_apple_grouped_mma[
+            has_epilogue_fn=has_epilogue_fn,
+            has_compute_fn=has_compute_fn,
+        ](
             c,
             a,
             b,
@@ -538,4 +680,6 @@ def enqueue_apple_grouped_matmul(
             max_num_tokens_per_expert,
             num_active_experts,
             ctx,
+            epilogue_fn,
+            compute_fn,
         )

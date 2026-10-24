@@ -52,10 +52,9 @@ gather/scatter loop.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from typing import NamedTuple
 
 import numpy as np
-from max.driver import accelerator_api
+from max.driver import accelerator_api, accelerator_architecture_name
 from max.dtype import DType
 from max.graph import (
     BufferValue,
@@ -73,43 +72,31 @@ from max.nn.norm import RMSNorm
 from max.nn.quant_config import QuantConfig
 from max.nn.stacked_linear import StackedLinear
 from max.nn.state_space import (
+    GatedDeltaReplayInputs,
     gated_delta_conv1d_fwd,
     gated_delta_conv1d_verify_fwd,
     gated_delta_recurrence_fwd,
     gated_delta_recurrence_verify_ring_fwd,
     kda_chunk,
+    kda_chunk_is_registered,
     kda_chunk_supports_head_dims,
 )
 
 from ..state_cache import GatedDeltaRingAccess
 
+_CHUNK_MIN_COMPUTE_CAPABILITY = 100
+"""Lowest NVIDIA compute capability (``sm_100`` -> 100) the fused chunk kernel supports."""
 
-class GatedDeltaReplayInputs(NamedTuple):
-    """One layer's per-token inputs to the two state kernels.
 
-    Speculative decoding runs the verify pass over K+1 positions and then has
-    to land the pools on the accepted prefix instead. Every op feeding these
-    tensors is causal or pointwise, so re-running the two kernels over the
-    accepted rows from the pre-verify state reproduces the state the verify
-    pass held at that length. Captured only when the caller asks for it; see
-    ``mach/docs/qwen38_27b/mtp-serving.md``.
+def _nvidia_compute_capability() -> int:
+    """Returns the current accelerator's compute capability, for example, 86 for ``sm_86``.
+
+    Returns 0 when the architecture name is not of the form ``sm_<digits>[a-z]``
+    (non-NVIDIA or no accelerator), which keeps callers on the portable path.
     """
-
-    qkv: TensorValue
-    """``[total_seq_len, conv_dim]`` float32 conv input."""
-    conv_weight: TensorValue
-    """``[conv_dim, kernel_size]`` float32 depthwise weights."""
-    decay: TensorValue
-    """``[total_seq_len, num_value_heads]`` float32 decays."""
-    beta: TensorValue
-    """``[total_seq_len, num_value_heads]`` float32 beta gates."""
-    conv_output: TensorValue
-    """``[total_seq_len, conv_dim]`` float32 activated conv output.
-
-    The conv is causal and a verify reads the window as it was before it
-    ran, so a replay of the recurrence reads its rows here instead of running
-    the conv again.
-    """
+    name = accelerator_architecture_name()
+    digits = name.removeprefix("sm_").rstrip("abcdefghijklmnopqrstuvwxyz")
+    return int(digits) if name.startswith("sm_") and digits.isdigit() else 0
 
 
 def _projection(stack: StackedLinear, name: str) -> Linear:
@@ -541,6 +528,7 @@ class GatedDeltaNet(Module, Shardable):
         rec_slot_uint32 = ops.cast(recurrent_row_id, DType.uint32)
         rec_slot_int32 = ops.cast(recurrent_row_id, DType.int32)
 
+        qkv_window: TensorValue | None = None
         if verify_width is None:
             conv_output_ragged = gated_delta_conv1d_fwd(
                 qkv_input_ragged=qkv_f32,
@@ -550,7 +538,7 @@ class GatedDeltaNet(Module, Shardable):
                 input_row_offsets=offsets_uint32,
             )
         else:
-            conv_output_ragged = gated_delta_conv1d_verify_fwd(
+            conv_output_ragged, qkv_window = gated_delta_conv1d_verify_fwd(
                 qkv_input_ragged=qkv_f32,
                 conv_weight=conv_weight_flat,
                 conv_state=conv_pool,
@@ -569,6 +557,7 @@ class GatedDeltaNet(Module, Shardable):
                     decay=decay,
                     beta=beta,
                     conv_output=conv_output_ragged,
+                    qkv_window=qkv_window,
                 )
             )
 
@@ -660,9 +649,19 @@ class GatedDeltaNet(Module, Shardable):
         # thing.
         # The chunk op's kernels are written for NVIDIA GPUs: on any other
         # accelerator even the scan fallback fails to instantiate, so the
-        # decision has to happen here rather than inside the launcher.
-        chunk_servable = accelerator_api() == "cuda" and (
-            kda_chunk_supports_head_dims(self.key_head_dim, self.value_head_dim)
+        # decision has to happen here rather than inside the launcher. The
+        # fused prefill kernel also issues tcgen05 MMAs and 1D TMA copies, so
+        # it only instantiates on SM100+; older NVIDIA GPUs (e.g. A10G, sm_86)
+        # take the sequential recurrence for prefill, as do builds without the
+        # closed-source kernel packages, where kda_chunk isn't registered.
+        # TODO(KERN-3635): drop this gate once kda_chunk compiles below SM100.
+        chunk_servable = (
+            accelerator_api() == "cuda"
+            and _nvidia_compute_capability() >= _CHUNK_MIN_COMPUTE_CAPABILITY
+            and kda_chunk_supports_head_dims(
+                self.key_head_dim, self.value_head_dim
+            )
+            and kda_chunk_is_registered()
         )
         output_types = [
             TensorType(DType.float32, [x.shape[0], self.value_dim], device)

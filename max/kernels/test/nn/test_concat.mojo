@@ -12,11 +12,16 @@
 # ===----------------------------------------------------------------------=== #
 
 
-from layout import Coord, Idx, TensorLayout, TileTensor, row_major
+from layout import (
+    Coord,
+    TensorLayout,
+    TileTensor,
+    row_major,
+)
 from max.gpu.host import DeviceContext
 from nn.concat import _concat_parallel, _concat_serial, concat
 
-from std.utils import IndexList, StaticTuple
+from std.utils import StaticTuple
 
 
 def _tuple_to_list[
@@ -70,11 +75,10 @@ def test_concat() raises:
 
     @inline(.always)
     def epilogue_plus_one[
-        c_type: DType, _rank: Int, width: SIMDLength, *, alignment: Int
-    ](indices: IndexList[_rank], val: SIMD[c_type, width]) {var output}:
-        var coord = Coord(indices)
+        c_type: DType, width: SIMDLength, *, alignment: Int
+    ](coord: Coord, val: SIMD[c_type, width]) {var output}:
         comptime assert output.flat_rank >= coord.flat_rank
-        output.store[width=width](
+        output.store(
             coord,
             rebind[SIMD[dtype, width]](val + 1),
         )
@@ -99,10 +103,10 @@ def test_concat() raises:
     # CHECK-COUNT-6: 3.0
     var output_flat = TileTensor(
         output._storage,
-        row_major(Coord(output.num_elements())),
+        row_major(output.num_elements()),
     )
     for i in range(output.layout.product()):
-        print(output_flat.load[1]((i,)))
+        print(output_flat[i])
 
 
 def test_concat_parallel() raises:
@@ -141,11 +145,10 @@ def test_concat_parallel() raises:
 
     @inline(.always)
     def epilogue_plus_one[
-        c_type: DType, _rank: Int, width: SIMDLength, *, alignment: Int
-    ](indices: IndexList[_rank], val: SIMD[c_type, width]) {var output}:
-        var coord = Coord(indices)
+        c_type: DType, width: SIMDLength, *, alignment: Int
+    ](coord: Coord, val: SIMD[c_type, width]) {var output}:
         comptime assert output.flat_rank >= coord.flat_rank
-        output.store[width=width](
+        output.store(
             coord,
             rebind[SIMD[dtype, width]](val + 1),
         )
@@ -170,10 +173,10 @@ def test_concat_parallel() raises:
     # CHECK-COUNT-6: 3.0
     var output_flat = TileTensor(
         output._storage,
-        row_major(Coord(output.num_elements())),
+        row_major(output.num_elements()),
     )
     for i in range(output.layout.product()):
-        print(output_flat.load[1]((i,)))
+        print(output_flat[i])
 
 
 # CHECK-LABEL: test_concat_inner
@@ -215,11 +218,10 @@ def test_concat_inner() raises:
 
     @inline(.always)
     def epilogue_plus_one[
-        c_type: DType, _rank: Int, width: SIMDLength, *, alignment: Int
-    ](indices: IndexList[_rank], val: SIMD[c_type, width]) {var output}:
-        var coord = Coord(indices)
+        c_type: DType, width: SIMDLength, *, alignment: Int
+    ](coord: Coord, val: SIMD[c_type, width]) {var output}:
         comptime assert output.flat_rank >= coord.flat_rank
-        output.store[width=width](
+        output.store(
             coord,
             rebind[SIMD[dtype, width]](val + 1),
         )
@@ -236,10 +238,10 @@ def test_concat_inner() raises:
     # CHECK-COUNT-12: 3.0
     var output_flat = TileTensor(
         output._storage,
-        row_major(Coord(output.num_elements())),
+        row_major(output.num_elements()),
     )
     for i in range(output.layout.product()):
-        print(output_flat.load[1]((i,)))
+        print(output_flat[i])
 
 
 def main() raises:

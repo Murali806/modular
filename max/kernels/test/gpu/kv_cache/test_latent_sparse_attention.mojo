@@ -16,7 +16,9 @@ Two paged leaves of one shared latent head -- a window leaf paged by token and
 a compressed leaf paged by entry -- read by the GPU kernel and by a plain
 full-softmax reference on the host built from the same host-side cache views.
 Covers a ragged prefill batch, a decode batch with non-zero cache lengths,
-`-1` padding in the compressed list, and an empty compressed list.
+a multi-token extend, `-1` holes and padding in the compressed list, and an
+empty compressed list. The float32 cases run the portable kernel; the bfloat16
+cases take the SM100 sparse MLA decode route on B200.
 """
 
 from std.math import ceildiv, exp
@@ -26,7 +28,7 @@ from std.utils.numerics import min_or_neg_inf
 
 from max.gpu.host import DeviceContext
 from kv_cache.types import KVCacheStaticParams, PagedKVCacheCollection
-from layout import Coord, Idx, TileTensor, row_major
+from layout import Idx, TileTensor, row_major
 from layout._host_device_tile_tensor import HostDeviceTileTensor
 from nn.attention.latent_sparse_attention import (
     latent_sparse_attention_ragged_paged,
@@ -34,9 +36,7 @@ from nn.attention.latent_sparse_attention import (
 
 from kv_cache_test_utils import CacheLengthsTable, PagedLookupTable
 
-comptime dtype = DType.float32
 comptime HEAD_DIM = 512
-comptime NUM_HEADS = 64
 comptime WINDOW = 128
 comptime PAGE_SIZE = 128
 comptime COMP_SLOTS = 32
@@ -44,7 +44,7 @@ comptime NUM_LAYERS = 2
 comptime kv_params = KVCacheStaticParams(
     num_heads=1, head_size=HEAD_DIM, is_mla=True
 )
-comptime Collection[page_size: Int] = PagedKVCacheCollection[
+comptime Collection[dtype: DType, page_size: Int] = PagedKVCacheCollection[
     dtype,
     kv_params,
     page_size,
@@ -56,19 +56,22 @@ comptime Collection[page_size: Int] = PagedKVCacheCollection[
 
 
 def _fill_random(tensor: TileTensor[mut=True, ...]):
+    var flat = tensor.reshape(row_major(tensor.num_elements()))
     for i in range(tensor.num_elements()):
-        tensor.unsafe_ptr().unsafe_store(
-            i, Scalar[tensor.dtype](randn_float64())
-        )
+        flat.store((i,), Scalar[tensor.dtype](randn_float64()))
 
 
-def run_case(
+def run_case[
+    dtype: DType, num_heads: Int, split_k: Bool
+](
     ctx: DeviceContext,
     prompt_lens: List[Int],
     cache_lens: List[Int],
     num_comp: Int,
     layer_swa: Int,
     layer_comp: Int,
+    rtol: Float64,
+    atol: Float64,
 ) raises:
     seed(0x5EED)
     var batch_size = len(prompt_lens)
@@ -82,14 +85,12 @@ def run_case(
     )
     var swa_blocks = HostDeviceTileTensor[dtype](
         row_major(
-            Coord(
-                Int64(swa_pages),
-                Idx[1],
-                Int64(NUM_LAYERS),
-                Idx[PAGE_SIZE],
-                Idx[1],
-                Idx[HEAD_DIM],
-            )
+            Int64(swa_pages),
+            Idx[1],
+            Int64(NUM_LAYERS),
+            Idx[PAGE_SIZE],
+            Idx[1],
+            Idx[HEAD_DIM],
         ),
         ctx,
     )
@@ -118,14 +119,12 @@ def run_case(
     )
     var comp_blocks = HostDeviceTileTensor[dtype](
         row_major(
-            Coord(
-                Int64(comp_pages),
-                Idx[1],
-                Int64(NUM_LAYERS),
-                Idx[COMP_SLOTS],
-                Idx[1],
-                Idx[HEAD_DIM],
-            )
+            Int64(comp_pages),
+            Idx[1],
+            Int64(NUM_LAYERS),
+            Idx[COMP_SLOTS],
+            Idx[1],
+            Idx[HEAD_DIM],
         ),
         ctx,
     )
@@ -140,9 +139,7 @@ def run_case(
     )
 
     # --- q, sink, compressed indices -------------------------------------
-    var q_layout = row_major(
-        Coord(Int64(total_rows), Idx[NUM_HEADS], Idx[HEAD_DIM])
-    )
+    var q_layout = row_major(Int64(total_rows), Idx[num_heads], Idx[HEAD_DIM])
     var q = HostDeviceTileTensor[dtype](q_layout, ctx)
     _fill_random(q.host_tensor())
     q.to_device()
@@ -150,13 +147,13 @@ def run_case(
     _ = out.host_tensor().fill(0)
     out.to_device()
 
-    var sink = HostDeviceTileTensor[.float32](row_major[NUM_HEADS](), ctx)
+    var sink = HostDeviceTileTensor[.float32](row_major[num_heads](), ctx)
     _fill_random(sink.host_tensor())
     sink.to_device()
 
     var idx_cols = max(num_comp, 1)
     var idx = HostDeviceTileTensor[.int32](
-        row_major(Coord(Int64(total_rows), Int64(idx_cols))), ctx
+        row_major(Int64(total_rows), Int64(idx_cols)), ctx
     )
     var idx_host = idx.host_tensor()
     var row_offsets_host = swa_lengths.input_row_offsets.host_tile_tensor()
@@ -166,33 +163,28 @@ def run_case(
             b += 1
         for j in range(idx_cols):
             # Cycle through this sequence's entries; every other row drops
-            # its last slot to exercise the -1 skip.
+            # its last slot and every third a middle one, to exercise the -1
+            # skip at the tail and inside the list.
             var take = num_comp - (t % 2)
-            if j < take and j < comp_total[b]:
+            var hole = t % 3 == 0 and j == 1
+            if j < take and j < comp_total[b] and not hole:
                 idx_host[t, j] = Int32((t * 7 + j * 3) % comp_total[b])
             else:
                 idx_host[t, j] = Int32(-1)
     idx.to_device()
 
     # --- device run --------------------------------------------------------
-    # The collections spell their block strides symbolically in `kv_params`,
-    # which the compiler cannot fold against `row_major`'s; the two layouts
-    # are structurally identical.
-    comptime SwaCollection = Collection[PAGE_SIZE]
-    comptime CompCollection = Collection[COMP_SLOTS]
+    comptime SwaCollection = Collection[dtype, PAGE_SIZE]
+    comptime CompCollection = Collection[dtype, COMP_SLOTS]
     var swa_dev = SwaCollection(
-        rebind[SwaCollection.blocks_tt_type](
-            swa_blocks.device_tensor().as_unsafe_any_origin()
-        ),
+        swa_blocks.device_tensor().as_unsafe_any_origin(),
         swa_lengths.cache_lengths.device_tile_tensor(),
         swa_lut.device_tile_tensor(),
         UInt32(swa_lengths.max_seq_length_batch),
         UInt32(swa_lengths.max_full_context_length),
     )
     var comp_dev = CompCollection(
-        rebind[CompCollection.blocks_tt_type](
-            comp_blocks.device_tensor().as_unsafe_any_origin()
-        ),
+        comp_blocks.device_tensor().as_unsafe_any_origin(),
         comp_lengths.cache_lengths.device_tile_tensor(),
         comp_lut.device_tile_tensor(),
         UInt32(comp_lengths.max_seq_length_batch),
@@ -200,7 +192,9 @@ def run_case(
     )
     # With num_comp == 0 the single column is all -1, so nothing is read
     # from the compressed leaf; the graph-level test covers a true [rows, 0].
-    latent_sparse_attention_ragged_paged[target="gpu", window=WINDOW](
+    latent_sparse_attention_ragged_paged[
+        target="gpu", window=WINDOW, split_k=split_k
+    ](
         out.device_tensor(),
         q.device_tensor(),
         swa_lengths.input_row_offsets.device_tile_tensor(),
@@ -216,18 +210,14 @@ def run_case(
 
     # --- host reference: plain two-pass softmax ------------------------------
     var swa_host = SwaCollection(
-        rebind[SwaCollection.blocks_tt_type](
-            swa_blocks.host_tensor().as_unsafe_any_origin()
-        ),
+        swa_blocks.host_tensor().as_unsafe_any_origin(),
         swa_lengths.cache_lengths.host_tile_tensor(),
         swa_lut.host_tile_tensor(),
         UInt32(swa_lengths.max_seq_length_batch),
         UInt32(swa_lengths.max_full_context_length),
     ).get_key_cache(layer_swa)
     var comp_host = CompCollection(
-        rebind[CompCollection.blocks_tt_type](
-            comp_blocks.host_tensor().as_unsafe_any_origin()
-        ),
+        comp_blocks.host_tensor().as_unsafe_any_origin(),
         comp_lengths.cache_lengths.host_tile_tensor(),
         comp_lut.host_tile_tensor(),
         UInt32(comp_lengths.max_seq_length_batch),
@@ -245,7 +235,7 @@ def run_case(
             b += 1
         var pos = cache_lens[b] + t - Int(row_offsets_host[b])
         var start = max(pos - WINDOW + 1, 0)
-        for h in range(NUM_HEADS):
+        for h in range(num_heads):
             scores.clear()
             var m = Float64(min_or_neg_inf[DType.float64]())
             # scores over window keys then compressed keys
@@ -292,8 +282,8 @@ def run_case(
                 assert_almost_equal(
                     Float64(out_host[t, h, d]),
                     o / den,
-                    rtol=1e-4,
-                    atol=1e-5,
+                    rtol=rtol,
+                    atol=atol,
                     msg="row "
                     + String(t)
                     + " head "
@@ -311,12 +301,35 @@ def run_case(
     _ = comp_lut^
 
 
+def run_cases[
+    dtype: DType, num_heads: Int, split_k: Bool = True
+](ctx: DeviceContext, rtol: Float64, atol: Float64) raises:
+    # Ragged prefill from empty caches: one row past the window, one under.
+    run_case[dtype, num_heads, split_k](
+        ctx, [200, 40], [0, 0], 16, 1, 0, rtol, atol
+    )
+    # Decode: one row per sequence, non-zero cache lengths.
+    run_case[dtype, num_heads, split_k](
+        ctx, [1, 1, 1], [300, 5, 130], 48, 0, 1, rtol, atol
+    )
+    # Multi-token extend with a compressed list that is not a tile multiple.
+    run_case[dtype, num_heads, split_k](
+        ctx, [2, 3], [300, 129], 100, 1, 0, rtol, atol
+    )
+    # Chunked extend with no compressed entries at all.
+    run_case[dtype, num_heads, split_k](
+        ctx, [64, 10], [70, 500], 0, 1, 1, rtol, atol
+    )
+
+
 def main() raises:
     with DeviceContext() as ctx:
-        # Ragged prefill from empty caches: one row past the window, one under.
-        run_case(ctx, [200, 40], [0, 0], 16, 1, 0)
-        # Decode: one row per sequence, non-zero cache lengths.
-        run_case(ctx, [1, 1, 1], [300, 5, 130], 48, 0, 1)
-        # Chunked extend with no compressed entries at all.
-        run_case(ctx, [64, 10], [70, 500], 0, 1, 1)
+        run_cases[DType.float32, 64](ctx, 1e-4, 1e-5)
+        # P and the split-K partial outputs are rounded to bfloat16 and the
+        # sink adds a term outside them, so these compare at the tolerance
+        # the SM100 sparse decode's own sink test uses.
+        run_cases[DType.bfloat16, 64](ctx, 2e-2, 2e-2)
+        run_cases[DType.bfloat16, 32](ctx, 2e-2, 2e-2)
+        run_cases[DType.bfloat16, 64, split_k=False](ctx, 2e-2, 2e-2)
+        run_cases[DType.bfloat16, 32, split_k=False](ctx, 2e-2, 2e-2)
     print("OK")

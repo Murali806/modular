@@ -51,12 +51,7 @@ from max.nn.kernels import (
 )
 from max.nn.linear import Linear
 from max.nn.quant_config import (
-    InputScaleSpec,
     QuantConfig,
-    QuantFormat,
-    ScaleGranularity,
-    ScaleOrigin,
-    WeightScaleSpec,
 )
 
 if TYPE_CHECKING:
@@ -279,22 +274,11 @@ def fp8_block_quant_config(
             f"DeepSeek-V4 expects weight_block_size {_WEIGHT_BLOCK_SIZE}, got "
             f"{block_size!r}"
         )
-    layers = set(range(num_layers))
-    return QuantConfig(
-        input_scale=InputScaleSpec(
-            granularity=ScaleGranularity.BLOCK,
-            origin=ScaleOrigin.DYNAMIC,
-            dtype=DType.float32,
-            block_size=(1, LINEAR_QUANT_BLOCK),
-        ),
-        weight_scale=WeightScaleSpec(
-            granularity=ScaleGranularity.BLOCK,
-            dtype=DType.float32,
-            block_size=(LINEAR_QUANT_BLOCK, LINEAR_QUANT_BLOCK),
-        ),
+    layers = range(num_layers)
+    return QuantConfig.blockscaled_fp8(
         mlp_quantized_layers=layers,
         attn_quantized_layers=layers,
-        format=QuantFormat.BLOCKSCALED_FP8,
+        block_size=LINEAR_QUANT_BLOCK,
     )
 
 
@@ -389,6 +373,26 @@ class DeepseekV4Fp8Linear(Linear):
         )
         out = ops.cast(out, x.dtype)
         return ops.reshape(out, leading + [out.shape[-1]])
+
+
+def dequantize_fp8_blocks(
+    weight: TensorValue, scale: TensorValue, dtype: DType
+) -> TensorValue:
+    """An fp8 weight times its ``[N / 128, K / 128]`` block scale, in ``dtype``.
+
+    Exact in bfloat16 for this checkpoint's power-of-two scales: an e4m3
+    value (3 mantissa bits) times a power of two fits bf16's 7 mantissa bits.
+    """
+    rows, cols = (int(d) for d in weight.shape)
+    block = LINEAR_QUANT_BLOCK
+    values = ops.reshape(
+        ops.cast(weight, DType.float32),
+        [rows // block, block, cols // block, block],
+    )
+    scales = ops.reshape(
+        scale.to(weight.device), [rows // block, 1, cols // block, 1]
+    )
+    return ops.cast(ops.reshape(values * scales, [rows, cols]), dtype)
 
 
 def linear_for(

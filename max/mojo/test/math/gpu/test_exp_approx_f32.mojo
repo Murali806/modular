@@ -14,9 +14,8 @@ from std.math.fast import exp_approx_f32
 from std.math import exp as ref_exp
 from max.algorithm.functional import elementwise
 from max.gpu import *
-from max.gpu.host import DeviceContext, get_gpu_target
+from max.gpu.host import DeviceContext
 from std.testing import *
-from std.utils import Index, IndexList
 from std.utils.coord import Coord
 
 
@@ -43,7 +42,7 @@ def run_exp_approx_test[
     def func[
         simd_width: Int, alignment: Int = 1
     ](idx0: Coord) {var out_buffer, var in_buffer}:
-        var idx = Int(idx0[0].value())
+        var idx = Int(idx0[0])
         var v = in_buffer.unsafe_ptr().unsafe_load[width=simd_width](idx)
         out_buffer.unsafe_ptr().unsafe_store[width=simd_width](
             idx, exp_approx_f32[simd_width](v)

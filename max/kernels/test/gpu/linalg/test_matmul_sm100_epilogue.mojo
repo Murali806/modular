@@ -10,19 +10,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ===----------------------------------------------------------------------=== #
-from std.collections import Optional
 from std.random import random_float64
 from std.sys import align_of, size_of, get_defined_bool
 
 import linalg.matmul.vendor.blas as vendor_blas
 from max.gpu.host import DeviceContext
 from max.gpu.host.nvidia.tma import TensorMapSwizzle
-from std.memory import alloc
 from internal_utils import assert_almost_equal
 from std.random import rand
 from layout import (
-    TileTensor,
     Coord,
+    TileTensor,
     CoordLike,
     row_major,
     Idx,
@@ -69,11 +67,11 @@ def test_matmul_sm100_epilogue[
             c_type,
             ") ",
             " problem shape=(",
-            Int(m.value()),
+            Int(m),
             ", ",
-            Int(n.value()),
+            Int(n),
             ", ",
-            Int(k.value()),
+            Int(k),
             ") ",
             "mma_shape=",
             mma_shape,
@@ -88,22 +86,16 @@ def test_matmul_sm100_epilogue[
         )
     )
 
-    var a_shape = row_major(Coord(m, Idx[KType.static_value]))
+    var a_shape = row_major(m, Idx[KType.static_value])
     var b_shape = row_major(
-        Coord(
-            Idx[NType.static_value if transpose_b else KType.static_value],
-            Idx[KType.static_value if transpose_b else NType.static_value],
-        )
+        Idx[NType.static_value if transpose_b else KType.static_value],
+        Idx[KType.static_value if transpose_b else NType.static_value],
     )
-    var c_shape = row_major(Coord(m, Idx[NType.static_value]))
+    var c_shape = row_major(m, Idx[NType.static_value])
 
-    var a_size = Int(m.value()) * Int(k.value())
-    var b_size = (
-        Int(n.value())
-        * Int(k.value()) if transpose_b else Int(k.value())
-        * Int(n.value())
-    )
-    var c_size = Int(m.value()) * Int(n.value())
+    var a_size = Int(m) * Int(k)
+    var b_size = Int(n) * Int(k) if transpose_b else Int(k) * Int(n)
+    var c_size = Int(m) * Int(n)
 
     var a_host_ptr = ctx.enqueue_create_host_buffer[a_type](a_size)
     var a_host = TileTensor(a_host_ptr, a_shape)
@@ -128,9 +120,10 @@ def test_matmul_sm100_epilogue[
     @inline(.always)
     def test_lambda_add_coords_summ[
         _dtype: DType, width: SIMDLength, *, alignment: Int
-    ](
-        idx: IndexList[2], val: SIMD[_dtype, width], c_val: SIMD[_dtype, width]
-    ) -> SIMD[_dtype, width]:
+    ](idx: Coord, val: SIMD[_dtype, width], c_val: SIMD[_dtype, width]) -> SIMD[
+        _dtype, width
+    ]:
+        comptime assert idx.rank == 2, "the matmul epilogue contract is rank 2"
         # this function helps us determine if the provided indexes are correct
         # while also testing arithmetic operations
         return val + c_val
@@ -138,8 +131,8 @@ def test_matmul_sm100_epilogue[
     rand(a_host.as_span())
     rand(b_host.as_span())
 
-    for i in range(Int(m.value())):
-        for j in range(Int(n.value())):
+    for i in range(Int(m)):
+        for j in range(Int(n)):
             comptime assert c_host.flat_rank == 2
             c_host[i, j] = Scalar[c_type](random_float64(-1, 1))
             c_host_copy[i, j] = c_host[i, j]
@@ -202,23 +195,27 @@ def test_matmul_sm100_epilogue[
     ctx.enqueue_copy(c_host_ref_ptr, c_device_ref)
     ctx.synchronize()
 
-    var c_tensor_host_lt = c_host_copy.to_layout_tensor()
-
     @inline(.always)
     def test_lambda_add_coords_summ_local[
         _dtype: DType, width: SIMDLength
-    ](idx: IndexList[2], val: SIMD[_dtype, width]) {
-        var c_tensor_host_lt
-    } -> SIMD[_dtype, width]:
-        return val + c_tensor_host_lt.load[width=width](idx).cast[_dtype]()
+    ](idx: Coord, val: SIMD[_dtype, width]) {var c_host_copy} -> SIMD[
+        _dtype, width
+    ]:
+        comptime assert idx.rank == 2, "the matmul epilogue contract is rank 2"
+        return (
+            val
+            + c_host_copy.load[width=width, alignment=align_of[c_type]()](
+                idx
+            ).cast[_dtype]()
+        )
 
     comptime if test_lambda_fn:
         # Apply the compute lambda directly on the reference tensor
-        for i in range(Int(m.value())):
-            for j in range(Int(n.value())):
+        for i in range(Int(m)):
+            for j in range(Int(n)):
                 comptime assert c_host_ref.flat_rank == 2
                 c_host_ref[i, j] = test_lambda_add_coords_summ_local(
-                    IndexList[2](i, j), c_host_ref[i, j]
+                    Coord(i, j), c_host_ref[i, j]
                 )
 
     comptime rtol = 1e-2

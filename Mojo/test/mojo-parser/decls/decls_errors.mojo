@@ -52,6 +52,16 @@ def callsWith():
   testAsyncVoid() # expected-warning {{'Coroutine[None, {}]' value is not awaited; use '__await' to get its result}}
   testAsyncInt() # expected-warning {{'Coroutine[Int, {}]' value is not awaited; use '__await' to get its result}}
 
+# expected-warning @+1 {{async/await support in Mojo is experimental and unstable, there are many known issues. Please do not use it in production and do not expect correctness. To suppress this warning, use '__async' and '__await' keywords. That does not make the feature stable, it merely suppresses the warning.}}
+async def testUnprefixedAsync() -> Int: return 1
+
+__async def testUnprefixedAwait() -> Int:
+  # expected-warning @+1 {{async/await support in Mojo is experimental and unstable}}
+  return await testUnprefixedAsync()
+
+# expected-warning @+1 {{async/await support in Mojo is experimental and unstable}}
+def testUnprefixedAsyncFnType(f: async def() thin -> Int): pass
+
 
 struct ThingWithStaticMethod(Movable where False):
    @staticmethod
@@ -71,7 +81,7 @@ def use_non_copyable_type(a: ThingWithStaticMethod) raises:
   pass
 
 def test_use_non_copyable_type(var b: ThingWithStaticMethod) raises:
-  use_non_copyable_type(b^)
+  use_non_copyable_type(b)
 
 
 @fieldwise_init
@@ -316,7 +326,7 @@ def badPackCalls(value: Int):
   first_and_rest(value)
 
 struct TestPackErrorMessage[*Ts: AnyType](Movable where False):
-    # expected-error @+3 {{'self' argument must have type 'TestPackErrorMessage[Ts]', but actually has type 'VariadicPack[False, Ts]'}}
+    # expected-error @+3 {{'self' argument must have type 'TestPackErrorMessage[*Ts]', but actually has type 'VariadicPack[False, *Ts]'}}
     # expected-error @+2 {{__init__ method must return Self type with 'out' argument}}
     @__allow_legacy_custom_self_type
     def __init__(*args: *Self.Ts):
@@ -1010,10 +1020,11 @@ struct OnlyCopyableField[T: Copyable & Deinitable](ImplicitlyCopyable where conf
 
 # MOCO-2186: Initializer syntax should reject incorrect result type
 struct StructWithSpecificInit[X: Int](Movable where False):
+    # expected-note @+1 {{constraint declared here evaluated to False, expected 'identical(X, Int(4))': Self type 'StructWithSpecificInit[X]' is not identical to the declared type 'StructWithSpecificInit[Int(4)]'}}
     def __init__(out self: StructWithSpecificInit[4]): # expected-note {{function declared here}}
         pass
 def testStructWithSpecificInit() raises:
-    # expected-error @+1 {{invalid initialization: return type 'StructWithSpecificInit[Int(4)]' parameter 'X' value 'Int(4)' doesn't match expected value 'Int(1)'}}
+    # expected-error @+1 {{invalid initialization: violated constraint}}
     var a = StructWithSpecificInit[1]()  # Infers to A[4]
 
     # This is ok.
@@ -1060,7 +1071,8 @@ struct ShapeContainer(Movable where False):
 
 # MSTDL-2267: Structs with "AnyOrigin" fields stop keeping things alive when passed to a function
 struct SwallowAnyOrigin(Movable where False):
-    # expected-error @below {{struct fields cannot expose AnyOrigin in their type; foo has type 'Pointer[Int, MutAnyOrigin]'}}
+    # expected-error @below {{struct fields cannot expose AnyOrigin in their type; foo has type 'UnsafePointer[Int, MutAnyOrigin]'}}
+    # expected-note @below {{'UnsafePointer[Int, MutAnyOrigin]' is aka 'Pointer[Int, MutAnyOrigin]'}}
     # expected-note @below {{consider parameterizing enclosing struct with an Origin}}
     # expected-note @below {{alternatively, use UntrackedOrigin if lifetime is managed explicitly}}
     var foo: UnsafePointer[Int, MutAnyOrigin]

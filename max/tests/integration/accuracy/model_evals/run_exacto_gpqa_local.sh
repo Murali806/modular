@@ -35,7 +35,14 @@
 #     GLM-5.3 the chat template renders a missing effort as "Max", so leaving
 #     it unset asks for longer reasoning than the harness does;
 #   * no client timeout and no output-token cap, so a repetition loop runs to
-#     the server's max_length and scores 0 at any serving speed.
+#     the server's max_length and scores 0 at any serving speed. A Mach engine
+#     caps a request without max_tokens at its --max-new-tokens (256 unless
+#     set), so serve it with that raised to the max length;
+#   * streamed responses, as the harness always streams. A non-streaming request
+#     is silent until it finishes, so a proxy idle timeout on the path would cut
+#     exactly the long answers and Inspect would re-sample them instead of
+#     scoring them. A stream that closes without a finish_reason is retried
+#     rather than scored as a short answer.
 # The requests go to chat completions rather than the Responses API. OpenRouter
 # translates Responses into each provider's own API, so that is the request a
 # provider receives.
@@ -63,6 +70,12 @@
 #                       smoke run. A limited run's denominator differs from the
 #                       published one, so it is reported PARTIAL and never
 #                       "passes".
+#   --smoke            Fixed 32-question subset, one pass, 32768 output tokens
+#                       per question and a 900-second generation budget. Writes
+#                       smoke-summary.json with unfinished questions included
+#                       in the denominator; not a full GPQA score. Defaults to
+#                       8 connections. Cannot combine with sampling, epoch,
+#                       limit, reference-range, or streaming overrides.
 #   --max-connections N  Concurrent requests (default: 32).
 #   --temperature F    Override sampling temperature. Defaults to unset, which
 #                       leaves the harness's 0.5 in place — changing it breaks
@@ -85,6 +98,9 @@
 #                       score you cannot attribute to a config is not
 #                       evidence.
 #   --out-dir DIR      Results directory (default: /tmp/exacto-gpqa-results).
+#   --no-stream        Send non-streaming requests (Inspect's stock openai-api
+#                       provider). Fine against a local server; differs from
+#                       the harness, which always streams.
 #   --refresh          Rebuild the harness venv from scratch.
 #   -h, --help         Show this help.
 #
@@ -102,7 +118,9 @@
 #   ./bazelw run //max/tests/integration/accuracy/model_evals:exacto_gpqa_local -- \
 #     --url https://<endpoint> --api-key "$MY_KEY" --model zai-org/GLM-5.3-Flash
 #
-# Env overrides: EXACTO_CACHE, EXACTO_OPENBENCH_VERSION, EXACTO_API_KEY.
+# Env overrides: EXACTO_CACHE, EXACTO_OPENBENCH_VERSION, EXACTO_API_KEY, and
+# GPQA_DATASET_FILE, a local copy of the dataset's gpqa_diamond.csv to read
+# instead of downloading it from HuggingFace (checked against its SHA-256).
 
 set -euo pipefail
 
@@ -135,7 +153,7 @@ api_key="${EXACTO_API_KEY:-${OPENAI_API_KEY:-}}"
 model=""
 epochs=10
 limit=""
-max_connections=32
+max_connections=""
 temperature=""
 reasoning_effort="$EXPECTED_REASONING_EFFORT"
 reference_range=""
@@ -143,28 +161,47 @@ reference_source=""
 serve_config=""
 out_dir="/tmp/exacto-gpqa-results"
 refresh=0
+stream=1
+smoke=0
+smoke_conflicts=()
 
-usage() { sed -n '15,106p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '/^# GPQA-Diamond/,/^set -euo/{ /^set -euo/d; s/^# \{0,1\}//; p; }' "${BASH_SOURCE[0]}"; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --url) url="$2"; shift 2 ;;
     --api-key) api_key="$2"; shift 2 ;;
     --model) model="$2"; shift 2 ;;
-    --epochs) epochs="$2"; shift 2 ;;
-    --limit) limit="$2"; shift 2 ;;
+    --epochs) smoke_conflicts+=("$1"); epochs="$2"; shift 2 ;;
+    --limit) smoke_conflicts+=("$1"); limit="$2"; shift 2 ;;
+    --smoke) smoke=1; shift ;;
     --max-connections) max_connections="$2"; shift 2 ;;
-    --temperature) temperature="$2"; shift 2 ;;
-    --reasoning-effort) reasoning_effort="$2"; shift 2 ;;
-    --reference-range) reference_range="$2"; shift 2 ;;
-    --reference-source) reference_source="$2"; shift 2 ;;
+    --temperature) smoke_conflicts+=("$1"); temperature="$2"; shift 2 ;;
+    --reasoning-effort) smoke_conflicts+=("$1"); reasoning_effort="$2"; shift 2 ;;
+    --reference-range) smoke_conflicts+=("$1"); reference_range="$2"; shift 2 ;;
+    --reference-source) smoke_conflicts+=("$1"); reference_source="$2"; shift 2 ;;
     --serve-config) serve_config="$2"; shift 2 ;;
     --out-dir) out_dir="$2"; shift 2 ;;
     --refresh) refresh=1; shift ;;
+    --no-stream) smoke_conflicts+=("$1"); stream=0; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "error: unknown option: $1" >&2; echo "try --help" >&2; exit 1 ;;
   esac
 done
+
+if [[ "$smoke" == 1 && ${#smoke_conflicts[@]} -gt 0 ]]; then
+  echo "ERROR: --smoke cannot combine with ${smoke_conflicts[*]}" >&2
+  exit 1
+fi
+if [[ "$smoke" == 1 ]]; then
+  max_connections="${max_connections:-8}"
+  if [[ -e "$out_dir" ]]; then
+    echo "ERROR: --smoke requires a fresh --out-dir: $out_dir" >&2
+    exit 1
+  fi
+else
+  max_connections="${max_connections:-32}"
+fi
 
 # External endpoints are usually quoted with /v1 already attached, while the
 # harness appends its own; normalize so either form works.
@@ -199,13 +236,15 @@ find_module() {
   exit 1
 }
 REPORT="$(find_module exacto_report.py)"
-# The task imports exacto_gpqa_openrouter from its own directory, so both must
+# The task imports its sibling modules from its own directory, so they must all
 # resolve to the same place.
 TASK="$(find_module exacto_gpqa_task.py)"
-[[ -f "$(dirname "$TASK")/exacto_gpqa_openrouter.py" ]] || {
-  echo "ERROR: exacto_gpqa_openrouter.py is not next to $TASK" >&2
-  exit 1
-}
+for sibling in exacto_gpqa_openrouter.py exacto_streaming.py; do
+  [[ -f "$(dirname "$TASK")/$sibling" ]] || {
+    echo "ERROR: $sibling is not next to $TASK" >&2
+    exit 1
+  }
+done
 
 ensure_venv() {
   local uv; uv="$(find_uv)"
@@ -251,10 +290,10 @@ print("\n".join(str(m.get("id")) for m in data if m.get("id")))
     cat >&2 <<MSG
 ERROR: could not auto-detect a model from $url/v1/models.
 
-       The list came back empty, which has two usual causes: the credential
-       is missing or rejected (the endpoint 401s and the list reads empty),
-       or this is a mach engine behind the Mammoth orchestrator, which never
-       populates the list. Either way, pass --model with the served name.
+       The list came back empty, which usually means the credential is
+       missing or rejected (the endpoint 401s and the list reads empty), or
+       the server does not list what it serves. Either way, pass --model with
+       the served name.
 MSG
     exit 1
   fi
@@ -357,15 +396,28 @@ ensure_venv
 detect_model
 preflight_endpoint
 
+if [[ "$smoke" == 1 ]]; then
+  SMOKE="$(find_module exacto_gpqa_smoke.py)"
+  env -u PYTHONPATH -u PYTHONHOME LOCAL_API_KEY="${api_key:-dummy}" \
+    "$VENV/bin/python" "$SMOKE" --url "$url" --model "$model" \
+    --output "$out_dir" --max-connections "$max_connections"
+  capture_endpoint_meta "$out_dir/endpoint.json"
+  echo "[exacto] bounded smoke results: $out_dir/smoke-summary.json"
+  exit 0
+fi
+
 mkdir -p "$out_dir"
 # Clear the log dir first: reusing an --out-dir would otherwise leave a previous
 # run's log here, and the score picked up below would silently be the stale one.
 LOG_DIR="$out_dir/logs"
 rm -rf "$LOG_DIR"
 
+provider="openai-stream"
+[[ "$stream" == 0 ]] && provider="openai-api"
+
 args=(
   eval "$TASK@gpqa_diamond"
-  --model "openai-api/local/$model"
+  --model "$provider/local/$model"
   --epochs "$epochs"
   --max-connections "$max_connections"
   --log-format json
@@ -386,16 +438,26 @@ args=(
 [[ -n "$temperature" ]] && args+=(--temperature "$temperature")
 [[ "$reasoning_effort" != unset ]] && args+=(--reasoning-effort "$reasoning_effort")
 
-echo "[exacto] running gpqa_diamond: epochs=$epochs limit=${limit:-198(all)} temp=${temperature:-$EXPECTED_TEMPERATURE} reasoning_effort=$reasoning_effort"
+echo "[exacto] running gpqa_diamond: epochs=$epochs limit=${limit:-198(all)} temp=${temperature:-$EXPECTED_TEMPERATURE} reasoning_effort=$reasoning_effort provider=$provider"
 (
   cd "$out_dir"
   # Inspect resolves the endpoint from <SERVICE>_BASE_URL / <SERVICE>_API_KEY,
-  # where SERVICE is the middle segment of openai-api/<service>/<model>. It
+  # where SERVICE is the middle segment of <provider>/<service>/<model>. It
   # strips that segment before sending, so the server receives the bare id.
+  # Inspect resolves --model before it imports the task file, so the
+  # openai-stream provider is registered by importing exacto_streaming ahead
+  # of the CLI rather than from the task.
   env -u PYTHONPATH -u PYTHONHOME \
     LOCAL_BASE_URL="$url/v1" \
     LOCAL_API_KEY="${api_key:-dummy}" \
-    "$VENV/bin/inspect" "${args[@]}"
+    "$VENV/bin/python" -c '
+import sys
+sys.path.insert(0, sys.argv[1])
+import exacto_streaming
+from inspect_ai._cli.main import main
+sys.argv = ["inspect"] + sys.argv[2:]
+sys.exit(main())
+' "$(dirname "$TASK")" "${args[@]}"
 )
 
 # Newest json under the (freshly cleared) log dir, so the exact filename

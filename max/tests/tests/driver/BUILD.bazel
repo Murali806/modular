@@ -34,6 +34,7 @@ modular_py_test(
         requirement("hypothesis"),
         requirement("numpy"),
         requirement("torch"),
+        requirement("ml-dtypes"),
     ],
 )
 
@@ -79,6 +80,22 @@ modular_py_test(
         "//max/python/max:_core",
         "//max/python/max/driver",
         "//max/python/max/dtype",
+        requirement("numpy"),
+    ],
+)
+
+modular_py_test(
+    name = "symmetric_pool_tests",
+    srcs = ["accelerator_tests/test_symmetric_pool.py"],
+    gpu_constraints = ["//:has_multi_gpu"] + select({
+        "//:apple_gpu": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),  # FIXME: MOCO-2411
+    tags = ["gpu"],
+    deps = [
+        "//max/python/max/driver",
+        "//max/python/max/dtype",
+        "//max/python/max/nn",
         requirement("numpy"),
     ],
 )

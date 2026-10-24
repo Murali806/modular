@@ -65,8 +65,11 @@ the tensor itself.
 """
 
 from ._auto_reshard import auto_reshard
-from .action import ActionSet, AxisAssignment
-from .cost import build_action_set, force_replicated_action_set
+from .action import (
+    AxisAssignment,
+    match_operand_placement,
+    replicated_rows,
+)
 from .mappings import ConversionError, DeviceMapping, NamedMapping
 from .mesh import DeviceMesh
 from .placements import (
@@ -81,11 +84,11 @@ from .placements import (
     Unknown,
 )
 from .types import BufferLayout, TensorLayout
+from .visualize import visualize
 
 __all__ = [
     "ALL_TRANSITIONS",
     "DEFAULT_TRANSITIONS",
-    "ActionSet",
     "AxisAssignment",
     "BufferLayout",
     "ConversionError",
@@ -101,6 +104,7 @@ __all__ = [
     "Transition",
     "Unknown",
     "auto_reshard",
-    "build_action_set",
-    "force_replicated_action_set",
+    "match_operand_placement",
+    "replicated_rows",
+    "visualize",
 ]

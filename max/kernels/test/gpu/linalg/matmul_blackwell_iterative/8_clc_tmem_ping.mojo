@@ -11,8 +11,7 @@
 # limitations under the License.
 # ===----------------------------------------------------------------------=== #
 
-from std.builtin._closure import __ownership_keepalive
-from std.hashlib import default_comp_time_hasher
+from std.hash import default_comp_time_hasher
 from std.math import align_up, ceildiv
 from std.math.uutils import udivmod
 from std.memory import bitcast
@@ -47,7 +46,7 @@ from max.gpu.sync import (
 )
 from max.gpu.compute.arch.tcgen05 import *
 from internal_utils import assert_almost_equal
-from layout import TileTensor, row_major
+from layout import Coord, TileTensor, coord, row_major
 from layout._host_device_tile_tensor import HostDeviceTileTensor
 from layout.swizzle import Swizzle, make_swizzle
 from layout.tensor_core_async import tile_layout_k_major_typed
@@ -124,12 +123,10 @@ struct WarpRole(TrivialRegisterPassable):
 def load_AB[
     a_type: DType,
     b_type: DType,
-    a_tma_rank: Int,
-    b_tma_rank: Int,
-    a_tile_shape: IndexList[a_tma_rank],
-    b_tile_shape: IndexList[b_tma_rank],
-    a_desc_shape: IndexList[a_tma_rank],
-    b_desc_shape: IndexList[b_tma_rank],
+    a_tile_shape: Coord,
+    b_tile_shape: Coord,
+    a_desc_shape: Coord,
+    b_desc_shape: Coord,
     num_pipeline_stages: Int,
     /,
     *,
@@ -137,8 +134,8 @@ def load_AB[
     mma_shape: IndexList[3],
     cta_group: Int = 1,
 ](
-    a_tma_op: TMATensorTile[a_type, a_tma_rank, a_tile_shape, a_desc_shape],
-    b_tma_op: TMATensorTile[b_type, b_tma_rank, b_tile_shape, b_desc_shape],
+    a_tma_op: TMATensorTile[a_type, a_tile_shape, a_desc_shape],
+    b_tma_op: TMATensorTile[b_type, b_tile_shape, b_desc_shape],
     a_smem: SMemTileArray[a_type, _, _, num_pipeline_stages],
     b_smem: SMemTileArray[b_type, _, _, num_pipeline_stages],
     mma_mbar: MutPointer[SharedMemBarrier, address_space=.SHARED, _],
@@ -163,10 +160,10 @@ def load_AB[
     # Leader CTAs expect SMEM from itself and their peers
     comptime expected_bytes = cta_group * (a_expected_bytes + b_expected_bytes)
 
-    comptime a_tma_load_size = _idx_product[a_tma_rank, a_desc_shape]()
-    comptime b_tma_load_size = _idx_product[b_tma_rank, b_desc_shape]()
-    comptime a_tma_rows = a_desc_shape[0]
-    comptime b_tma_rows = b_desc_shape[0]
+    comptime a_tma_load_size = _idx_product[a_desc_shape]()
+    comptime b_tma_load_size = _idx_product[b_desc_shape]()
+    comptime a_tma_rows = a_desc_shape.element_types[0].static_value
+    comptime b_tma_rows = b_desc_shape.element_types[0].static_value
 
     var stage = producer_phase.index()
     var phase = producer_phase.phase()
@@ -185,11 +182,15 @@ def load_AB[
     var b_smem_tile = b_smem[stage]
 
     var a_smem_slice = TileTensor(
-        a_smem_tile.unsafe_ptr() + peer_cta_coord[2] * a_tma_load_size,
+        a_smem_tile.unsafe_ptr().unsafe_offset(
+            peer_cta_coord[2] * a_tma_load_size
+        ),
         a_smem_tile.layout,
     )
     var b_smem_slice = TileTensor(
-        b_smem_tile.unsafe_ptr() + peer_cta_coord[1] * b_tma_load_size,
+        b_smem_tile.unsafe_ptr().unsafe_offset(
+            peer_cta_coord[1] * b_tma_load_size
+        ),
         b_smem_tile.layout,
     )
 
@@ -267,7 +268,7 @@ def consumer_main_loop[
             init_c=(iter_idx == 0),  # Initialize C on first iteration
         )
 
-        mma_op.commit(mma_mbar + stage)
+        mma_op.commit(mma_mbar.unsafe_offset(stage))
 
 
 @inline(.always)
@@ -308,16 +309,15 @@ def stsm_helper[
             v[2 * k] = casted[0]
             v[2 * k + 1] = casted[1]
         st_matrix[simd_width=4](
-            dst.unsafe_ptr() + offset, bitcast[.float32, 4](v)
+            dst.unsafe_ptr().unsafe_offset(offset), bitcast[.float32, 4](v)
         )
 
 
 @inline(.always)
 def multi_stage_store_C[
     c_type: DType,
-    c_tma_rank: Int,
-    c_tile_shape: IndexList[c_tma_rank],
-    c_desc_shape: IndexList[c_tma_rank],
+    c_tile_shape: Coord,
+    c_desc_shape: Coord,
     num_accum_pipeline_stages: Int,
     /,
     *,
@@ -331,7 +331,7 @@ def multi_stage_store_C[
     max_tmem_cols: Int = 512,
 ](
     c_iter: SMemTileArray[c_type, _, _, _],
-    c_tma_op: TMATensorTile[c_type, c_tma_rank, c_tile_shape, c_desc_shape],
+    c_tma_op: TMATensorTile[c_type, c_tile_shape, c_desc_shape],
     accum_pipeline_consumer_state: PipelineState[num_accum_pipeline_stages],
     accum_full_mbar: MutPointer[SharedMemBarrier, address_space=.SHARED, _],
     accum_empty_mbar: MutPointer[SharedMemBarrier, address_space=.SHARED, _],
@@ -406,7 +406,7 @@ def multi_stage_store_C[
         tcgen05_load_wait()
 
         comptime if stage == num_stages - 1:
-            umma_arrive_leader_cta(accum_empty_mbar + index)
+            umma_arrive_leader_cta(accum_empty_mbar.unsafe_offset(index))
 
         # Assume double-buffer for shared memory packing
         var c_smem_tile = c_iter[stage % 2]
@@ -459,15 +459,12 @@ def kernel_8[
     a_type: DType,
     b_type: DType,
     c_type: DType,
-    a_tma_rank: Int,
-    b_tma_rank: Int,
-    c_tma_rank: Int,
-    a_tile_shape: IndexList[a_tma_rank],
-    b_tile_shape: IndexList[b_tma_rank],
-    c_tile_shape: IndexList[c_tma_rank],
-    a_desc_shape: IndexList[a_tma_rank],
-    b_desc_shape: IndexList[b_tma_rank],
-    c_desc_shape: IndexList[c_tma_rank],
+    a_tile_shape: Coord,
+    b_tile_shape: Coord,
+    c_tile_shape: Coord,
+    a_desc_shape: Coord,
+    b_desc_shape: Coord,
+    c_desc_shape: Coord,
     block_tile_shape: IndexList[3],
     mma_shape: IndexList[3],
     cluster_shape: StaticTuple[Int32, 3],
@@ -475,16 +472,16 @@ def kernel_8[
     num_clc_pipeline_stages: Int,
     num_accum_pipeline_stages: Int,
     num_output_stages: Int = 2,
-    output_tile_shape: IndexList[2] = Index(128, 32),
+    output_tile_shape: Coord = coord[128, 32],
     transpose_b: Bool = True,
     a_swizzle: TensorMapSwizzle = TensorMapSwizzle.SWIZZLE_128B,
     b_swizzle: TensorMapSwizzle = TensorMapSwizzle.SWIZZLE_128B,
     c_swizzle: TensorMapSwizzle = TensorMapSwizzle.SWIZZLE_128B,
     cta_group: Int = 2,
 ](
-    a_tma_op: TMATensorTile[a_type, a_tma_rank, a_tile_shape, a_desc_shape],
-    b_tma_op: TMATensorTile[b_type, b_tma_rank, b_tile_shape, b_desc_shape],
-    c_tma_op: TMATensorTile[c_type, c_tma_rank, c_tile_shape, c_desc_shape],
+    a_tma_op: TMATensorTile[a_type, a_tile_shape, a_desc_shape],
+    b_tma_op: TMATensorTile[b_type, b_tile_shape, b_desc_shape],
+    c_tma_op: TMATensorTile[c_type, c_tile_shape, c_desc_shape],
     cluster_dim: StaticTuple[Int32, 3],
     num_iters_dev: Int32,
 ):
@@ -527,10 +524,10 @@ def kernel_8[
     comptime CLUSTER_M = Int(cluster_shape[0])
     comptime CLUSTER_N = Int(cluster_shape[1])
 
-    comptime a_tma_load_size = _idx_product[a_tma_rank, a_desc_shape]()
-    comptime b_tma_load_size = _idx_product[b_tma_rank, b_desc_shape]()
-    comptime a_tma_rows = a_desc_shape[0]
-    comptime b_tma_rows = b_desc_shape[0]
+    comptime a_tma_load_size = _idx_product[a_desc_shape]()
+    comptime b_tma_load_size = _idx_product[b_desc_shape]()
+    comptime a_tma_rows = a_desc_shape.element_types[0].static_value
+    comptime b_tma_rows = b_desc_shape.element_types[0].static_value
     comptime assert transpose_b, "Only support transposed B"
     comptime a_smem_layout = tile_layout_k_major_typed[
         a_type, BM, BK, a_swizzle
@@ -551,7 +548,8 @@ def kernel_8[
         num_pipeline_stages,
     ]
     comptime c_stage_layout = row_major[
-        output_tile_shape[0], output_tile_shape[1]
+        output_tile_shape.element_types[0].static_value,
+        output_tile_shape.element_types[1].static_value,
     ]()
     comptime CTileArray = SMemTileArray[
         c_type,
@@ -568,56 +566,76 @@ def kernel_8[
 
     comptime a_smem_size = BM * BK * num_pipeline_stages
     comptime b_smem_size = BN * BK * num_pipeline_stages
-    comptime c_smem_size = output_tile_shape[0] * output_tile_shape[
+    comptime c_smem_size = output_tile_shape.element_types[
+        0
+    ].static_value * output_tile_shape.element_types[
         1
-    ] * num_output_stages
+    ].static_value * num_output_stages
 
     var a_smem_base = base_ptr_smem
-    var b_smem_base = (a_smem_base + a_smem_size).bitcast[Scalar[b_type]]()
-    var c_smem_base = (b_smem_base + b_smem_size).bitcast[Scalar[c_type]]()
+    var b_smem_base = a_smem_base.unsafe_offset(a_smem_size).unsafe_bitcast[
+        Scalar[b_type]
+    ]()
+    var c_smem_base = b_smem_base.unsafe_offset(b_smem_size).unsafe_bitcast[
+        Scalar[c_type]
+    ]()
 
     var a_smem = ATileArray(a_smem_base)
     var b_smem = BTileArray(b_smem_base)
     var c_smem_iter = CTileArray(c_smem_base)
 
-    var smem_pool = (c_smem_base + c_smem_size).bitcast[Int64]()
+    var smem_pool = c_smem_base.unsafe_offset(c_smem_size).unsafe_bitcast[
+        Int64
+    ]()
 
     var tma_mbar_ptr = smem_pool
-    var mma_mbar_ptr = tma_mbar_ptr + num_pipeline_stages
-    var accum_full_mbar_ptr = mma_mbar_ptr + num_pipeline_stages
-    var accum_empty_mbar_ptr = accum_full_mbar_ptr + num_accum_pipeline_stages
-
-    var clc_full_mbar_ptr = accum_empty_mbar_ptr + num_accum_pipeline_stages
-    var clc_empty_mbar_ptr = clc_full_mbar_ptr + num_clc_pipeline_stages
-    var clc_throttle_full_mbar_ptr = (
-        clc_empty_mbar_ptr + num_clc_pipeline_stages
+    var mma_mbar_ptr = tma_mbar_ptr.unsafe_offset(num_pipeline_stages)
+    var accum_full_mbar_ptr = mma_mbar_ptr.unsafe_offset(num_pipeline_stages)
+    var accum_empty_mbar_ptr = accum_full_mbar_ptr.unsafe_offset(
+        num_accum_pipeline_stages
     )
-    var clc_throttle_empty_mbar_ptr = (
-        clc_throttle_full_mbar_ptr + num_clc_pipeline_stages
+
+    var clc_full_mbar_ptr = accum_empty_mbar_ptr.unsafe_offset(
+        num_accum_pipeline_stages
+    )
+    var clc_empty_mbar_ptr = clc_full_mbar_ptr.unsafe_offset(
+        num_clc_pipeline_stages
+    )
+    var clc_throttle_full_mbar_ptr = clc_empty_mbar_ptr.unsafe_offset(
+        num_clc_pipeline_stages
+    )
+    var clc_throttle_empty_mbar_ptr = clc_throttle_full_mbar_ptr.unsafe_offset(
+        num_clc_pipeline_stages
     )
 
     var clc_response_ptr = (
-        clc_throttle_empty_mbar_ptr + num_clc_pipeline_stages
-    ).bitcast[Int128]()
+        clc_throttle_empty_mbar_ptr.unsafe_offset(num_clc_pipeline_stages)
+    ).unsafe_bitcast[Int128]()
 
     var tmem_dealloc_mbar_ptr = (
-        clc_response_ptr + num_clc_pipeline_stages
-    ).bitcast[Int64]()
+        clc_response_ptr.unsafe_offset(num_clc_pipeline_stages)
+    ).unsafe_bitcast[Int64]()
 
-    var ptr_tmem_addr = (tmem_dealloc_mbar_ptr + 1).bitcast[UInt32]()
+    var ptr_tmem_addr = tmem_dealloc_mbar_ptr.unsafe_offset(1).unsafe_bitcast[
+        UInt32
+    ]()
 
-    var tma_mbar = tma_mbar_ptr.bitcast[SharedMemBarrier]()
-    var mma_mbar = mma_mbar_ptr.bitcast[SharedMemBarrier]()
-    var accum_full_mbar = accum_full_mbar_ptr.bitcast[SharedMemBarrier]()
-    var accum_empty_mbar = accum_empty_mbar_ptr.bitcast[SharedMemBarrier]()
-    var clc_response = clc_response_ptr.bitcast[UInt128]()
-    var clc_full_mbar = clc_full_mbar_ptr.bitcast[SharedMemBarrier]()
-    var clc_empty_mbar = clc_empty_mbar_ptr.bitcast[SharedMemBarrier]()
-    var tmem_dealloc_mbar = tmem_dealloc_mbar_ptr.bitcast[SharedMemBarrier]()
-    var clc_throttle_full_mbar = clc_throttle_full_mbar_ptr.bitcast[
+    var tma_mbar = tma_mbar_ptr.unsafe_bitcast[SharedMemBarrier]()
+    var mma_mbar = mma_mbar_ptr.unsafe_bitcast[SharedMemBarrier]()
+    var accum_full_mbar = accum_full_mbar_ptr.unsafe_bitcast[SharedMemBarrier]()
+    var accum_empty_mbar = accum_empty_mbar_ptr.unsafe_bitcast[
         SharedMemBarrier
     ]()
-    var clc_throttle_empty_mbar = clc_throttle_empty_mbar_ptr.bitcast[
+    var clc_response = clc_response_ptr.unsafe_bitcast[UInt128]()
+    var clc_full_mbar = clc_full_mbar_ptr.unsafe_bitcast[SharedMemBarrier]()
+    var clc_empty_mbar = clc_empty_mbar_ptr.unsafe_bitcast[SharedMemBarrier]()
+    var tmem_dealloc_mbar = tmem_dealloc_mbar_ptr.unsafe_bitcast[
+        SharedMemBarrier
+    ]()
+    var clc_throttle_full_mbar = clc_throttle_full_mbar_ptr.unsafe_bitcast[
+        SharedMemBarrier
+    ]()
+    var clc_throttle_empty_mbar = clc_throttle_empty_mbar_ptr.unsafe_bitcast[
         SharedMemBarrier
     ]()
 
@@ -860,7 +878,7 @@ def kernel_8[
                 # mma arrive multicast will track completion of all mma prior to this barrier.
                 if elect_one_sync():
                     mma_arrive_multicast[cta_group](
-                        accum_full_mbar + accum_index,
+                        accum_full_mbar.unsafe_offset(accum_index),
                         UInt16(mma_complete_mask),
                     )
                 accum_pipeline_producer_state.step()
@@ -945,19 +963,15 @@ def blackwell_kernel_8[
     comptime MMA_K = umma_shape[2]
 
     var a_tma_op = create_tensor_tile[
-        Index(Int32(BM) // cluster_shape[1], BK), swizzle_mode=a_swizzle
+        coord[Int(BM) // Int(cluster_shape[1]), BK], swizzle_mode=a_swizzle
     ](ctx, a)
 
     var b_tma_op = create_tensor_tile[
-        Index(
-            Int32(BN) // (cluster_shape[0] // Int32(cta_group)), BK
-        ) if transpose_b else Index(
-            BK, Int32(BN) // (cluster_shape[0] // Int32(cta_group))
-        ),
+        coord[Int(BN) // (Int(cluster_shape[0]) // Int(cta_group)), BK],
         swizzle_mode=b_swizzle,
     ](ctx, b)
 
-    comptime output_tile_shape = Index(BM, 32)
+    comptime output_tile_shape = coord[BM, 32]
     comptime c_swizzle = TensorMapSwizzle.SWIZZLE_64B
     var c_tma_op = create_tensor_tile[
         output_tile_shape, swizzle_mode=c_swizzle
@@ -972,9 +986,13 @@ def blackwell_kernel_8[
     # Support double-buffer for output stages.
     comptime num_output_stages = 2
 
-    comptime c_smem_bytes = output_tile_shape[0] * output_tile_shape[
+    comptime c_smem_bytes = output_tile_shape.element_types[
+        0
+    ].static_value * output_tile_shape.element_types[
         1
-    ] * num_output_stages * size_of[c_type]()
+    ].static_value * num_output_stages * size_of[
+        c_type
+    ]()
 
     comptime MBAR_BYTES = size_of[Int64]()  # 8 bytes per barrier
     comptime CLC_RESPONSE_BYTES = size_of[Int128]()  # 16 bytes per response
@@ -1030,9 +1048,6 @@ def blackwell_kernel_8[
         a_type,
         b_type,
         c_type,
-        type_of(a_tma_op).rank,
-        type_of(b_tma_op).rank,
-        type_of(c_tma_op).rank,
         type_of(a_tma_op).tile_shape,
         type_of(b_tma_op).tile_shape,
         type_of(c_tma_op).tile_shape,
@@ -1212,9 +1227,8 @@ def test_blackwell_kernel_8[
 
         comptime rtol = 1e-2
         assert_almost_equal(
-            c_host.unsafe_ptr(),
-            c_host_ref.unsafe_ptr(),
-            M * N,
+            c_host.as_span(),
+            c_host_ref.as_span(),
             atol=0.0001,
             rtol=rtol,
         )
@@ -1249,7 +1263,9 @@ def benchmark_blackwell_matmul(ctx: DeviceContext) raises:
         comptime block_tile_shape = Index(128, 64, BK)
         comptime MMA_K = 16
         comptime umma_shape = Index(
-            block_tile_shape[0] * 2, block_tile_shape[1] * 2, MMA_K
+            block_tile_shape[0] * 2,
+            block_tile_shape[1] * 2,
+            MMA_K,
         )
 
         comptime c_type = DType.bfloat16

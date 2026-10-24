@@ -572,7 +572,7 @@ ParseResult KGEN::parseI1Flag(AsmParser &p, TypedAttr &value,
     value = p.getBuilder().getBoolAttr(false);
     return success();
   }
-  if (failed(p.parseLess())) {
+  if (failed(p.parseOptionalLess())) {
     value = p.getBuilder().getBoolAttr(true);
     return success();
   }
@@ -2284,6 +2284,26 @@ ErrorOr<int64_t> KGEN::getScalarIndexValue(TypedAttr value) {
     return values.front().getIndexVal();
   }
   return Error("expected an integer or scalar SIMD");
+}
+
+ErrorOr<int64_t> KGEN::getScalarIntegerValue(TypedAttr value) {
+  if (auto intAttr = dyn_cast_if_present<IntegerAttr>(value))
+    return intAttr.getInt();
+  auto simdAttr = dyn_cast_if_present<SIMDAttr>(value);
+  if (!simdAttr)
+    return Error("expected an integer or scalar SIMD");
+  ArrayRef<DTypeValue> values = simdAttr.getValues();
+  if (values.size() != 1)
+    return Error("expected a scalar SIMD value");
+  const DTypeValue &scalar = values.front();
+  KGENDType dtype = scalar.getDType();
+  if (dtype.isIndex() || dtype.isUIndex())
+    return scalar.getIndexVal();
+  if (!dtype.isInt())
+    return Error("expected an integer-typed SIMD value");
+  if (std::optional<int64_t> extValue = scalar.getIntVal().tryExtValue())
+    return *extValue;
+  return Error("integer value does not fit in 64 bits");
 }
 
 std::optional<int64_t> KGEN::inlineLevelValueOf(TypedAttr spec) {

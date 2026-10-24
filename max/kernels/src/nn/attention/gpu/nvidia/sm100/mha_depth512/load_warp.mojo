@@ -38,9 +38,9 @@ decisions. If one CTA skips a tile and the other doesn't, barriers desync.
 
 from std.math import ceildiv
 from std.sys import size_of
-from layout import TileTensor
+from layout import Coord, TileTensor
 from layout.tile_layout import row_major as tt_row_major
-from layout.tma_async import SharedMemBarrier
+from layout.tma_async import TMATensorTile
 from .config import Depth512SM100Config
 from .smem import Depth512AttentionSMem
 from .barriers import Depth512MBars
@@ -51,14 +51,12 @@ from nn.attention.gpu.nvidia.sm100.attention_utils import (
     StagedPipeline,
     PagedRowIndices,
     kv_sub_tile_rows,
-    kv_num_sub_tiles,
     kv_tma_fold_chunks,
 )
 from nn.attention.gpu.nvidia.common import (
     KVTMATile,
     MHAPosition,
     OptionalPointer,
-    QTMATile,
 )
 from nn.attention.mha_mask import MHAMask, TileMaskStatus
 from nn.attention.mha_operand import MHAOperand
@@ -69,11 +67,15 @@ from std.utils.index import Index
 
 @inline(.always)
 def depth512_load[
+    q_tile_shape: Coord,
+    q_desc_shape: Coord,
     KVLUTType: MHAOperand,
     MaskType: MHAMask,
     qkv_dtype: DType,
     config: Depth512SM100Config[qkv_dtype],
+    //,
     ValidLengthType: OptionalPointer,
+    *,
     _is_cache_length_accurate: Bool,
     MaxSeqLenType: OptionallyStaticInt,
     is_leader: Bool,
@@ -84,16 +86,7 @@ def depth512_load[
     seq_info: SeqInfo,
     max_seq_len: MaxSeqLenType,
     mask: MaskType,
-    q_tma_op: QTMATile[
-        KVLUTType.dtype,
-        config.swizzle_mode,
-        BM=config.BM,
-        depth=config.qk_depth,
-        group=config.group,
-        decoding=False,
-        fuse_gqa=config.fuse_gqa,
-        num_qk_stages=config.num_qk_stages,
-    ],
+    q_tma_op: TMATensorTile[KVLUTType.dtype, q_tile_shape, q_desc_shape],
     k_tma_op: KVTMATile[
         KVLUTType.dtype,
         config.swizzle_mode,
@@ -216,9 +209,15 @@ def depth512_load[
     # ---- TileTensor types for TMA destinations ------------------------------
     # TMA only uses .ptr — flat row_major TileTensor is sufficient.
 
-    comptime q_elems = type_of(q_tma_op).tile_shape[0] * type_of(
+    comptime q_elems = type_of(q_tma_op).tile_shape.element_types[
+        0
+    ].static_value * type_of(q_tma_op).tile_shape.element_types[
+        1
+    ].static_value * type_of(
         q_tma_op
-    ).tile_shape[1] * type_of(q_tma_op).tile_shape[2]
+    ).tile_shape.element_types[
+        2
+    ].static_value
     comptime QType = TileTensor[
         KVLUTType.dtype,
         type_of(tt_row_major[q_elems]()),
@@ -441,7 +440,7 @@ def depth512_load[
             fold_chunks=v_fold_chunks,
         ](
             v_tma_op,
-            kv_smem + kv_pipeline.state.index() * UInt32(kv_elems),
+            kv_smem.unsafe_offset(kv_pipeline.state.index() * UInt32(kv_elems)),
             mbar[],
             kv_head_idx=kv_head_idx,
             elect=e,
@@ -509,7 +508,7 @@ def depth512_load[
             fold_chunks=k_fold_chunks,
         ](
             k_tma_op,
-            kv_smem + kv_pipeline.state.index() * UInt32(kv_elems),
+            kv_smem.unsafe_offset(kv_pipeline.state.index() * UInt32(kv_elems)),
             mbar[],
             kv_head_idx=kv_head_idx,
             elect=e,
@@ -549,7 +548,7 @@ def depth512_load[
         comptime if fuse_gqa:
             q_tma_op.async_copy_4d_elect[cta_group=cta_group](
                 QType(
-                    q_smem + q_stage_elements * qk_stage,
+                    q_smem.unsafe_offset(q_stage_elements * qk_stage),
                     tt_row_major[q_elems](),
                 ),
                 mbar[],
@@ -559,7 +558,7 @@ def depth512_load[
         else:
             q_tma_op.async_copy_3d_elect[cta_group=cta_group](
                 QType(
-                    q_smem + q_stage_elements * qk_stage,
+                    q_smem.unsafe_offset(q_stage_elements * qk_stage),
                     tt_row_major[q_elems](),
                 ),
                 mbar[],
@@ -612,8 +611,8 @@ def depth512_load[
             if (
                 mask.status(
                     seq_info.prompt_idx,
-                    Index[dtype=DType.int32](Int(score_row), Int(kv_row)),
-                    Index[dtype=DType.int32](PairBM_mask, BN),
+                    Index[dtype=.int32](Int(score_row), Int(kv_row)),
+                    Index[dtype=.int32](PairBM_mask, BN),
                 )
                 == TileMaskStatus.FULL_MASK
             ):
@@ -671,8 +670,8 @@ def depth512_load[
                 if (
                     mask.status(
                         seq_info.prompt_idx,
-                        Index[dtype=DType.int32](Int(score_row), Int(kv_row)),
-                        Index[dtype=DType.int32](PairBM_mask, BN),
+                        Index[dtype=.int32](Int(score_row), Int(kv_row)),
+                        Index[dtype=.int32](PairBM_mask, BN),
                     )
                     == TileMaskStatus.FULL_MASK
                 ):

@@ -17,27 +17,39 @@ the accepted token followed by ``K - 1`` mask tokens, and reads every proposal
 out of that single pass. That makes it the structural complement of the
 sequential drafts in :mod:`.driver`: no per-step loop, so no carried hidden
 state, no per-step cache advance, no token shift and no stack at the end.
+
+Like :class:`~.driver.SequentialDriver`, this driver runs on graph values, but
+nothing outside it has to. A caller may pass experimental
+:class:`~max.experimental.tensor.Tensor` inputs, one per device, and gets
+``Tensor`` outputs back; an adapter that subclasses
+:class:`~.driver.TensorAdapter` reads and returns ``Tensor`` values too. Both
+convert at the boundary, so a ModuleV3 model never reaches for the graph API.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import Any, Generic, Literal, Protocol, TypeVar
 
+from max import tree
 from max.dtype import DType
+from max.experimental.nn import Module as ModuleV3
+from max.experimental.realization_context import current_realization_context
+from max.experimental.tensor import Tensor
 from max.graph import (
     BufferType,
     BufferValue,
     DeviceRef,
     Dim,
+    DimLike,
     TensorType,
     TensorValue,
     Value,
     ops,
 )
 from max.nn.kernels import topk_fused_sampling_with_dist
-from max.nn.kv_cache import PagedCacheValues
+from max.nn.kv_cache import KVCacheInputsPerDevice, PagedCacheValues
 from max.nn.layer import Module
 from max.nn.sampling.rejection_sampler import (
     AcceptanceSampler,
@@ -45,7 +57,17 @@ from max.nn.sampling.rejection_sampler import (
 )
 from typing_extensions import override
 
+from ._tensor_compat import as_graph_values, as_tensors
 from .config import MAGIC_DRAFT_TOKEN_ID, SpeculativeConfig
+from .driver import (
+    _B,
+    _T,
+    _V,
+    BufferLike,
+    TensorLike,
+    _for_adapter,
+    _from_adapter,
+)
 from .ragged_token_merger import (
     RaggedTokenMerger,
     _shape_to_scalar,
@@ -55,7 +77,8 @@ from .spec_input_types import (
     SpecDecodeGraphSignature,
     SpecDecodeInputTypeSpec,
 )
-from .spec_target import SpecDecodeTarget
+from .spec_target import Verified
+from .spec_width_policy import declares_skippable_draft
 from .unified_graph_ops import apply_overlap_bitmask, broadcast_per_device
 
 __all__ = [
@@ -142,7 +165,7 @@ def local_row_offsets(
 _TargetHiddenT = TypeVar("_TargetHiddenT", contravariant=True)
 """The target's captured-hidden payload, opaque to the driver.
 
-Handed from :meth:`SpecDecodeTarget.verify` straight to
+Handed from the verify callable straight to
 :meth:`BlockProposer.materialize`. Contravariant because it is only ever
 consumed here -- nothing on this side hands it back out.
 """
@@ -155,50 +178,53 @@ Handed from :meth:`BlockProposer.forward_block` straight to
 """
 
 
-@dataclass(frozen=True)
-class BlockBatch:
+@tree.dataclass(frozen=True)
+class BlockBatch(Generic[_T, _B, _V]):
     """One block spec-decode iteration's graph inputs, merged.
 
-    Mirrors :class:`~.driver.SequentialBatch` for the block shape. The optional
-    fields are the ones a ``distributed=False`` signature does not declare;
-    the single-device DFlash graphs leave them unset.
+    Mirrors :class:`~.driver.SequentialBatch` for the block shape, including
+    the value types: graph values by default, single-device
+    :class:`~max.experimental.tensor.Tensor` values for the adapters that
+    subclass :class:`~.driver.TensorAdapter`. The optional fields are the
+    ones a ``distributed=False`` signature does not declare; the
+    single-device DFlash graphs leave them unset.
     """
 
-    tokens: TensorValue
-    input_row_offsets: TensorValue
-    draft_tokens: TensorValue
-    kv_collections: list[PagedCacheValues]
-    draft_kv_collections: list[PagedCacheValues]
-    passthrough_kv: Mapping[str, list[PagedCacheValues]]
+    tokens: _T
+    input_row_offsets: _T
+    draft_tokens: _T
+    kv_collections: list[KVCacheInputsPerDevice[_T, _B]]
+    draft_kv_collections: list[KVCacheInputsPerDevice[_T, _B]]
+    passthrough_kv: Mapping[str, list[KVCacheInputsPerDevice[_T, _B]]]
     """Target cache leaves past the primary one, keyed by the model's name.
 
     The primary leaf anchors the draft: its pre-iteration ``cache_lengths`` is
     where the draft materializes the target's context KV."""
-    return_n_logits: TensorValue
+    return_n_logits: _T
     devices: Sequence[DeviceRef]
-    signal_buffers: list[BufferValue]
-    ep_inputs: list[Value[Any]] | None
+    signal_buffers: list[_B]
+    ep_inputs: list[_V] | None
 
-    merged_tokens: TensorValue
-    merged_offsets: TensorValue
-    merged_offsets_per_dev: list[TensorValue]
+    merged_tokens: _T
+    merged_offsets: _T
+    merged_offsets_per_dev: list[_T]
 
-    host_merged_offsets: TensorValue | None
+    host_merged_offsets: _T | None
     """CPU mirror of :attr:`merged_offsets`, letting a sharded target size its
     collectives without waiting on the device."""
-    data_parallel_splits: TensorValue | None
+    data_parallel_splits: _T | None
     """Per-replica batch boundaries, ``None`` on a single-replica graph."""
     data_parallel_degree: int
-    batch_context_lengths: list[TensorValue]
+    batch_context_lengths: list[_T]
     """Per-device cache-length tensors, for a target with a sparse-attention
     budget to size."""
 
-    vision_embeddings: list[TensorValue]
+    vision_embeddings: list[_T]
     """Per-device merged vision embeddings, empty for a text-only target.
 
     A vision target scatters these into the merged sequence before running its
     stack."""
-    vision_scatter_indices: list[TensorValue]
+    vision_scatter_indices: list[_T]
     """Per-device merge positions for :attr:`vision_embeddings`."""
 
     extra: Mapping[str, Any]
@@ -208,13 +234,45 @@ class BlockBatch:
     them from its adapters through here, rather than the driver growing a
     field per model for values none of its phases understand."""
 
-    num_accepted: TensorValue | None
+    num_accepted: _T | None
     """How many draft tokens each request accepted, ``None`` before the accept.
 
     Set for the phases that run after the accept, so a target carrying state
     no length pointer can rewind -- a linear-attention recurrence, say -- can
     roll that state onto the accepted prefix without the driver knowing what
     the state is."""
+
+    draft_slot_ids: TensorValue | None = None
+    """Which block rows this step drafts, ``None`` on a graph that always
+    drafts. Its extent is the row count: ``batch_size * K`` to draft, zero to
+    skip. See :attr:`SpecDecodeInputTypeSpec.include_skippable_draft`."""
+
+    draft_block_offsets: TensorValue | None = None
+    """Runtime replacement for the block's fixed-``K``-stride row offsets,
+    ``None`` on a graph that always drafts."""
+
+    block_size: int = 0
+    """``K``, so a phase can turn :attr:`draft_slot_ids`' extent into a
+    sequence count. Zero only on a batch built before the driver knew it."""
+
+    @property
+    def drafts_all_rows(self) -> bool:
+        """Whether every row in the batch drafts, as it always did."""
+        return self.draft_slot_ids is None
+
+    @property
+    def num_draft_seqs(self) -> Dim:
+        """How many sequences this step drafts for: ``batch_size``, or zero.
+
+        Symbolic, so the graph carries one row count through the block rather
+        than branching on which of the two it is.
+        """
+        if self.draft_slot_ids is None:
+            return Dim("batch_size")
+        assert self.block_size > 0, (
+            "a skippable-draft batch must carry its block size"
+        )
+        return self.draft_slot_ids.shape[0] // self.block_size
 
     @property
     def devices_per_replica(self) -> int:
@@ -243,7 +301,7 @@ class BlockBatch:
         return self.draft_tokens.shape[1]
 
 
-@dataclass(frozen=True)
+@tree.dataclass(frozen=True)
 class Accepted:
     """What the accept phase produced, corrected.
 
@@ -277,8 +335,13 @@ class BlockCaches:
     block: list[PagedCacheValues]
 
 
-class BlockProposer(Protocol[_TargetHiddenT, _BlockHiddenT]):
-    """A draft that emits all ``K - 1`` proposals from one parallel forward."""
+class BlockProposer(Protocol[_TargetHiddenT, _BlockHiddenT, _T, _B, _V]):
+    """A draft that emits all ``K - 1`` proposals from one parallel forward.
+
+    Runs on graph values unless it subclasses
+    :class:`~.driver.TensorAdapter`, in which case its type arguments are
+    ``Tensor``.
+    """
 
     block_size: int
     """``K``: the anchor slot plus the ``K - 1`` tokens drafted after it."""
@@ -291,43 +354,54 @@ class BlockProposer(Protocol[_TargetHiddenT, _BlockHiddenT]):
     and proposes ``K - 1``; the dense DSpark drafter reads all ``K``. The
     difference is the acceptance sampler's step count as well as the head's
     output width, which is why it is declared rather than inferred."""
+    supports_zero_draft_rows: bool
+    """Whether this draft runs on the runtime row count the driver hands it
+    rather than on ``batch_size``. That count is zero on a step whose drafts
+    nothing would verify. A draft without it drafts every row even where the
+    schedule skips.
+
+    TODO(SERVOPT-1610): Every draft is meant to support this. The field goes
+    away once each one is written against the draft row count."""
 
     def materialize(
         self,
-        batch: BlockBatch,
+        batch: BlockBatch[_T, _B, _V],
         target_hidden: _TargetHiddenT,
-        ctx_kv: list[PagedCacheValues],
+        ctx_kv: list[KVCacheInputsPerDevice[_T, _B]],
     ) -> None:
         """Writes the target's context KV into the draft's cache."""
         ...
 
     def embed_block(
-        self, batch: BlockBatch, block_ids: TensorValue
-    ) -> list[TensorValue]:
+        self, batch: BlockBatch[_T, _B, _V], block_ids: _T
+    ) -> list[_T]:
         """Embeds the flattened block token ids, per device."""
         ...
 
     def forward_block(
         self,
-        batch: BlockBatch,
-        embeds: list[TensorValue],
-        offsets: list[TensorValue],
-        block_kv: list[PagedCacheValues],
+        batch: BlockBatch[_T, _B, _V],
+        embeds: list[_T],
+        offsets: list[_T],
+        block_kv: list[KVCacheInputsPerDevice[_T, _B]],
     ) -> _BlockHiddenT:
         """Runs the draft over the whole block; returns its hidden states."""
         ...
 
     def head(
         self,
-        batch: BlockBatch,
+        batch: BlockBatch[_T, _B, _V],
         block_hs: _BlockHiddenT,
         accepted: Accepted,
         sampler: DraftSampler,
-    ) -> TensorValue:
+    ) -> _T:
         """Turns the block's hidden states into the next step's proposals.
 
-        ``[batch_size, K - 1]``, or ``[batch_size, num_speculative_tokens]``
-        when the driver verifies fewer proposals than the block holds.
+        ``[batch.num_draft_seqs, K - 1]``, or ``[batch.num_draft_seqs,
+        num_speculative_tokens]`` when the driver verifies fewer proposals than
+        the block holds. ``batch.num_draft_seqs`` is ``batch_size`` for every
+        proposer without :attr:`supports_zero_draft_rows`. The driver pads a
+        skipping step's empty result back out to the fixed output shape.
 
         Owns the head's scoring: which ``lm_head``, whether the anchor slot is
         sliced off before or after the projection, logit softcapping. The
@@ -386,7 +460,9 @@ class ArgmaxDraftSampler(DraftSampler):
 
     @override
     def sample_all(self, logits: TensorValue) -> TensorValue:
-        return ops.squeeze(ops.argmax(logits, axis=-1), axis=-1)
+        return ops.squeeze(
+            ops.argmax(as_graph_values(logits), axis=-1), axis=-1
+        )
 
     @override
     def sample_next(
@@ -396,7 +472,9 @@ class ArgmaxDraftSampler(DraftSampler):
         token_ids: TensorValue | None = None,
     ) -> TensorValue:
         del position, token_ids
-        return ops.squeeze(ops.argmax(logits, axis=-1), axis=-1)
+        return ops.squeeze(
+            ops.argmax(as_graph_values(logits), axis=-1), axis=-1
+        )
 
 
 class SampledDraftSampler(DraftSampler):
@@ -417,38 +495,43 @@ class SampledDraftSampler(DraftSampler):
         top_k: TensorValue,
         top_p: TensorValue,
         vocab_size: int,
+        rows: DimLike = "batch_size",
     ) -> None:
         self._seed = seed
         self._temperature = temperature
         self._top_k = top_k
         self._top_p = top_p
         self._vocab_size = vocab_size
+        # ``batch_size``, or the drafting sequences of a step that can skip.
+        # The per-row parameters carry the same count.
+        self._rows = rows
         self._all_dists: TensorValue | None = None
         self._next_dists: list[TensorValue] = []
 
     @override
     def sample_all(self, logits: TensorValue) -> TensorValue:
         assert self._all_dists is None and not self._next_dists
+        logits = as_graph_values(logits)
         n = int(logits.shape[1])
         vocab = logits.shape[2]
 
         def per_position(param: TensorValue) -> TensorValue:
             return ops.broadcast_to(
-                ops.unsqueeze(param, axis=1), ["batch_size", n]
+                ops.unsqueeze(param, axis=1), [self._rows, n]
             ).reshape((-1,))
 
         seeds = ops.stack(
             [_draft_step_seed(self._seed, i) for i in range(n)], axis=1
         ).reshape((-1,))
         tokens, dist = topk_fused_sampling_with_dist(
-            logits.rebind(["batch_size", n, vocab]).reshape((-1, vocab)),
+            logits.rebind([self._rows, n, vocab]).reshape((-1, vocab)),
             top_k=per_position(self._top_k),
             temperature=per_position(self._temperature),
             top_p=per_position(self._top_p),
             seed=seeds,
         )
-        self._all_dists = dist.reshape(("batch_size", n, vocab))
-        return tokens.reshape(("batch_size", n))
+        self._all_dists = dist.reshape((self._rows, n, vocab))
+        return tokens.reshape((self._rows, n))
 
     @override
     def sample_next(
@@ -461,8 +544,11 @@ class SampledDraftSampler(DraftSampler):
         assert position == len(self._next_dists), (
             "positions must be drawn in order"
         )
+        logits = as_graph_values(logits)
+        if token_ids is not None:
+            token_ids = as_graph_values(token_ids)
         index, dist = topk_fused_sampling_with_dist(
-            logits.rebind(["batch_size", logits.shape[1]]),
+            logits.rebind([self._rows, logits.shape[1]]),
             top_k=self._top_k,
             temperature=self._temperature,
             top_p=self._top_p,
@@ -474,10 +560,59 @@ class SampledDraftSampler(DraftSampler):
         return index
 
     def distributions(self) -> TensorValue:
-        """The ``[batch_size, n, vocab_size]`` distributions drawn from."""
+        """The ``[rows, n, vocab_size]`` distributions drawn from."""
         if self._all_dists is not None:
             return self._all_dists
         return ops.stack(self._next_dists, axis=1)
+
+    def split(
+        self,
+        select: Callable[[TensorValue], Sequence[TensorValue]],
+        rows: Sequence[DimLike],
+    ) -> list[SampledDraftSampler]:
+        """Returns samplers that each draw a subset of this one's rows.
+
+        A data-parallel head takes one per device, so each replica draws its
+        own rows. Every draw is keyed by its row's own seed and never by the
+        row's position in the batch, so a row draws the same token either way.
+
+        Args:
+            select: Maps a ``[rows]`` sampling parameter to its subsets, each
+                on the device that draws it.
+            rows: Each subset's row count.
+
+        Returns:
+            One sampler per subset. Their distributions come back through
+            :meth:`adopt_distributions`.
+        """
+        return [
+            SampledDraftSampler(
+                seed=seed,
+                temperature=temperature,
+                top_k=top_k,
+                top_p=top_p,
+                vocab_size=self._vocab_size,
+                rows=subset_rows,
+            )
+            for seed, temperature, top_k, top_p, subset_rows in zip(
+                select(self._seed),
+                select(self._temperature),
+                select(self._top_k),
+                select(self._top_p),
+                rows,
+                strict=True,
+            )
+        ]
+
+    def adopt_distributions(self, dists: TensorValue) -> None:
+        """Takes the distributions the :meth:`split` samplers drew.
+
+        Args:
+            dists: ``[rows, n, vocab_size]``, reassembled in this sampler's
+                row order on its device.
+        """
+        assert self._all_dists is None and not self._next_dists
+        self._all_dists = dists
 
 
 def _scatter_to_vocab(
@@ -497,21 +632,13 @@ def _scatter_to_vocab(
     Returns:
         ``[batch_size, vocab_size]`` float32 probabilities.
     """
-    device = dist.device
-    batch = dist.shape[0]
-    m = dist.shape[1]
-    rows = ops.broadcast_to(
-        ops.unsqueeze(
-            ops.range(0, batch, 1, batch, dtype=DType.int64, device=device),
-            axis=1,
-        ),
-        [batch, m],
-    )
-    indices = ops.stack([rows, token_ids.cast(DType.int64)], axis=-1)
     zeros = ops.broadcast_to(
-        ops.constant(0.0, DType.float32, device=device), [batch, vocab_size]
+        ops.constant(0.0, DType.float32, device=dist.device),
+        [dist.shape[0], vocab_size],
     )
-    return ops.scatter_nd(zeros, dist.cast(DType.float32), indices)
+    return ops.scatter(
+        zeros, dist.cast(DType.float32), token_ids.cast(DType.int64), axis=1
+    )
 
 
 class BlockDriver(
@@ -521,11 +648,12 @@ class BlockDriver(
 
     def __init__(
         self,
-        target: SpecDecodeTarget[BlockBatch, _TargetHiddenT],
-        proposer: BlockProposer[_TargetHiddenT, _BlockHiddenT],
+        verify: Callable[[BlockBatch], Verified[_TargetHiddenT]],
+        proposer: BlockProposer[_TargetHiddenT, _BlockHiddenT]
+        | BlockProposer[_TargetHiddenT, _BlockHiddenT, Tensor, Tensor, Tensor],
         *,
-        target_model: Module,
-        draft_model: Module,
+        target_model: Module | ModuleV3[..., Any],
+        draft_model: Module | ModuleV3[..., Any],
         input_spec: SpecDecodeInputTypeSpec,
         speculative_config: SpeculativeConfig,
         enable_structured_output: bool = False,
@@ -534,15 +662,32 @@ class BlockDriver(
         num_speculative_tokens: int | None = None,
         use_greedy_acceptance: bool = False,
         vocab_size: int | None = None,
+        ep_input_types: Sequence[TensorType | BufferType] = (),
+        trailing_input_types: Sequence[TensorType | BufferType] = (),
     ) -> None:
         super().__init__()
-        self._target = target
+        self._verify = verify
+        self._ep_input_types = tuple(ep_input_types)
+        self._trailing_input_types = tuple(trailing_input_types)
         self._proposer = proposer
         self._input_spec = replace(
-            input_spec, enable_structured_output=enable_structured_output
+            input_spec,
+            enable_structured_output=enable_structured_output,
+            include_skippable_draft=declares_skippable_draft(
+                speculative_config
+            ),
         )
         self.devices = self._input_spec.devices
         self.data_parallel_degree = self._input_spec.data_parallel_degree
+        # TODO(SERVOPT-1610): The runtime offsets arrive on one device with no
+        # host mirror, and data parallelism would have to re-split them per
+        # replica, so a multi-device block draft drafts every row until the
+        # block driver handles both.
+        self._skips_draft_rows = (
+            proposer.supports_zero_draft_rows
+            and len(self.devices) == 1
+            and self.data_parallel_degree == 1
+        )
         # Where the draft materializes the target's context KV; the two caches
         # normally advance together.
         self._ctx_at_draft_cache_length = ctx_at_draft_cache_length
@@ -631,6 +776,150 @@ class BlockDriver(
 
     def __call__(
         self,
+        tokens: TensorLike,
+        input_row_offsets: TensorLike,
+        draft_tokens: TensorLike,
+        kv_collections: Sequence[
+            KVCacheInputsPerDevice[TensorLike, BufferLike]
+        ],
+        draft_kv_collections: Sequence[
+            KVCacheInputsPerDevice[TensorLike, BufferLike]
+        ],
+        return_n_logits: TensorLike,
+        seed: TensorLike,
+        temperature: TensorLike,
+        top_k: TensorLike,
+        max_k: TensorLike,
+        top_p: TensorLike,
+        min_top_p: TensorLike,
+        signal_buffers: Sequence[BufferLike | BufferValue] | None = None,
+        passthrough_kv: Mapping[
+            str, Sequence[KVCacheInputsPerDevice[TensorLike, BufferLike]]
+        ]
+        | None = None,
+        in_thinking_phase: TensorLike | None = None,
+        ep_inputs: Sequence[Value[Any] | Tensor] | None = None,
+        host_input_row_offsets: TensorLike | None = None,
+        data_parallel_splits: TensorLike | None = None,
+        batch_context_lengths: Sequence[TensorLike] | None = None,
+        vision_embeddings: Sequence[TensorLike] | None = None,
+        vision_scatter_indices: Sequence[TensorLike] | None = None,
+        pinned_bitmask: TensorLike | None = None,
+        wait_payload: BufferLike | BufferValue | None = None,
+        device_bitmask_scratch: BufferLike | BufferValue | None = None,
+        draft_slot_ids: TensorLike | None = None,
+        draft_block_offsets: TensorLike | None = None,
+        extra: Mapping[str, Any] | None = None,
+        draft_probs_full: TensorLike | None = None,
+    ) -> tuple[TensorLike, ...]:
+        """Runs one block spec-decode iteration: verify K-1, propose K-1.
+
+        Takes either graph values or single-device experimental ``Tensor``
+        values, one per device wherever an argument is a list, and returns
+        the outputs as the same type.
+
+        Args:
+            tokens: 1-D ragged prompt token IDs ``[total_seq_len]``.
+            input_row_offsets: ``[batch + 1]`` exclusive prefix sum of the
+                per-request sequence lengths.
+            draft_tokens: ``[batch, K - 1]`` proposals from the previous
+                iteration, or ``[batch, 0]`` on a prefill.
+            kv_collections: Per-device target caches for the primary leaf.
+            draft_kv_collections: Per-device draft caches.
+            return_n_logits: How many tokens of logits the target returns.
+            seed: Per-row RNG seed for the acceptance sampler.
+            temperature: Per-row sampling temperature.
+            top_k: Per-row top-k cutoff.
+            max_k: The batch-wide maximum of ``top_k``, or ``-1`` if any
+                row has no top-k limit, on CPU.
+            top_p: Per-row nucleus cutoff.
+            min_top_p: The batch-wide minimum of ``top_p``, on CPU.
+            signal_buffers: One buffer per device; empty when not
+                distributed. A ``Tensor`` caller may omit them: the driver
+                then uses the current realization context's, which is where
+                a ModuleV3 trace keeps them.
+            passthrough_kv: Target cache leaves past the primary one.
+            in_thinking_phase: Per-row flag enabling relaxed acceptance.
+            ep_inputs: Expert-parallel collective inputs, or None.
+            host_input_row_offsets: CPU mirror of ``input_row_offsets``; None
+                unless the signature is distributed, as with the two below.
+            data_parallel_splits: Per-replica batch boundaries, on CPU.
+            batch_context_lengths: Per-device cache-length tensors.
+            vision_embeddings: Per-device merged vision embeddings; only a
+                vision target reads them.
+            vision_scatter_indices: Merge positions for the above.
+            pinned_bitmask: Structured-output bitmask staged on the host.
+            wait_payload: Host-side gate for the bitmask transfer.
+            device_bitmask_scratch: Device buffer the bitmask lands in.
+            draft_slot_ids: Which block rows to draft, as the tensor's
+                extent. An empty one skips the block entirely. Declared only
+                under ``include_skippable_draft``, and taken from
+                :meth:`decode_inputs` when not passed.
+            draft_block_offsets: Runtime row offsets for the block forward,
+                paired with ``draft_slot_ids``.
+            extra: This model's own graph inputs, reaching its adapters
+                through :attr:`BlockBatch.extra` untouched.
+            draft_probs_full: ``[batch, num_speculative_tokens, vocab_size]``
+                distributions the previous iteration's draft drew its
+                proposals from. Required iff ``draft_proposal="sampled"``.
+
+        Returns:
+            ``(num_accepted, next_tokens, next_draft_tokens)``, plus
+            ``next_draft_probs_full`` under ``draft_proposal="sampled"``.
+        """
+        takes_tensors = isinstance(tokens, Tensor)
+        signals: Sequence[BufferLike | BufferValue] | None = signal_buffers
+        if signals is None and takes_tensors:
+            # Read as the collective ops read it; not every context holds one.
+            signals = getattr(
+                current_realization_context(None), "signal_buffers", None
+            )
+        outputs = self._run(
+            **as_graph_values(
+                dict(
+                    tokens=tokens,
+                    input_row_offsets=input_row_offsets,
+                    draft_tokens=draft_tokens,
+                    kv_collections=list(kv_collections),
+                    draft_kv_collections=list(draft_kv_collections),
+                    return_n_logits=return_n_logits,
+                    seed=seed,
+                    temperature=temperature,
+                    top_k=top_k,
+                    max_k=max_k,
+                    top_p=top_p,
+                    min_top_p=min_top_p,
+                    signal_buffers=list(signals) if signals else None,
+                    passthrough_kv={
+                        name: list(leaf)
+                        for name, leaf in (passthrough_kv or {}).items()
+                    },
+                    in_thinking_phase=in_thinking_phase,
+                    ep_inputs=list(ep_inputs) if ep_inputs else None,
+                    host_input_row_offsets=host_input_row_offsets,
+                    data_parallel_splits=data_parallel_splits,
+                    batch_context_lengths=list(batch_context_lengths or []),
+                    vision_embeddings=list(vision_embeddings or []),
+                    vision_scatter_indices=list(vision_scatter_indices or []),
+                    pinned_bitmask=pinned_bitmask,
+                    wait_payload=wait_payload,
+                    device_bitmask_scratch=device_bitmask_scratch,
+                    draft_slot_ids=draft_slot_ids,
+                    draft_block_offsets=draft_block_offsets,
+                    extra=dict(extra or {}),
+                    draft_probs_full=draft_probs_full,
+                )
+            )
+        )
+        # Per-element Any: the constrained return type cannot narrow on the
+        # runtime check.
+        result: tuple[Any, ...] = (
+            as_tensors(outputs) if takes_tensors else outputs
+        )
+        return result
+
+    def _run(
+        self,
         tokens: TensorValue,
         input_row_offsets: TensorValue,
         draft_tokens: TensorValue,
@@ -655,55 +944,25 @@ class BlockDriver(
         pinned_bitmask: TensorValue | None = None,
         wait_payload: BufferValue | None = None,
         device_bitmask_scratch: BufferValue | None = None,
+        draft_slot_ids: TensorValue | None = None,
+        draft_block_offsets: TensorValue | None = None,
         extra: Mapping[str, Any] | None = None,
         draft_probs_full: TensorValue | None = None,
     ) -> tuple[TensorValue, ...]:
-        """Runs one block spec-decode iteration: verify K-1, propose K-1.
-
-        Args:
-            tokens: 1-D ragged prompt token IDs ``[total_seq_len]``.
-            input_row_offsets: ``[batch + 1]`` exclusive prefix sum of the
-                per-request sequence lengths.
-            draft_tokens: ``[batch, K - 1]`` proposals from the previous
-                iteration, or ``[batch, 0]`` on a prefill.
-            kv_collections: Per-device target caches for the primary leaf.
-            draft_kv_collections: Per-device draft caches.
-            return_n_logits: How many tokens of logits the target returns.
-            seed: Per-row RNG seed for the acceptance sampler.
-            temperature: Per-row sampling temperature.
-            top_k: Per-row top-k cutoff.
-            max_k: The batch-wide maximum of ``top_k``, on CPU.
-            top_p: Per-row nucleus cutoff.
-            min_top_p: The batch-wide minimum of ``top_p``, on CPU.
-            signal_buffers: One buffer per device; empty when not distributed.
-            passthrough_kv: Target cache leaves past the primary one.
-            in_thinking_phase: Per-row flag enabling relaxed acceptance.
-            ep_inputs: Expert-parallel collective inputs, or None.
-            host_input_row_offsets: CPU mirror of ``input_row_offsets``; None
-                unless the signature is distributed, as with the two below.
-            data_parallel_splits: Per-replica batch boundaries, on CPU.
-            batch_context_lengths: Per-device cache-length tensors.
-            vision_embeddings: Per-device merged vision embeddings; only a
-                vision target reads them.
-            vision_scatter_indices: Merge positions for the above.
-            pinned_bitmask: Structured-output bitmask staged on the host.
-            wait_payload: Host-side gate for the bitmask transfer.
-            device_bitmask_scratch: Device buffer the bitmask lands in.
-            extra: This model's own graph inputs, reaching its adapters
-                through :attr:`BlockBatch.extra` untouched.
-            draft_probs_full: ``[batch, num_speculative_tokens, vocab_size]``
-                distributions the previous iteration's draft drew its
-                proposals from. Required iff ``draft_proposal="sampled"``.
-
-        Returns:
-            ``(num_accepted, next_tokens, next_draft_tokens)``, plus
-            ``next_draft_probs_full`` under ``draft_proposal="sampled"``.
-        """
+        """Runs one block spec-decode iteration on graph values."""
         if (draft_probs_full is not None) != self._sampled:
             raise ValueError(
                 "draft_probs_full is required iff the driver was built with"
                 " draft_proposal='sampled'"
             )
+        draft_slot_ids, draft_block_offsets = self._draft_rows(
+            draft_slot_ids, draft_block_offsets
+        )
+        if not self._skips_draft_rows:
+            # The pipeline binds the row inputs whenever the schedule can
+            # skip, whatever the draft. This graph cannot run it on fewer
+            # rows, so it leaves them unread and drafts every row.
+            draft_slot_ids = draft_block_offsets = None
         signals = signal_buffers or []
         merged_tokens, merged_offsets = self.merger(
             tokens, input_row_offsets, draft_tokens
@@ -742,11 +1001,14 @@ class BlockDriver(
             vision_scatter_indices=vision_scatter_indices or [],
             extra=extra or {},
             num_accepted=None,
+            draft_slot_ids=draft_slot_ids,
+            draft_block_offsets=draft_block_offsets,
+            block_size=self.block_size,
         )
 
         pre_cache_lengths = self._pre_cache_lengths(batch)
 
-        verified = self._target.verify(batch)
+        verified = self._verify(batch)
         target_logits, target_hidden = verified.logits, verified.hidden
 
         effective_bitmasks = apply_overlap_bitmask(
@@ -774,44 +1036,94 @@ class BlockDriver(
         # Every phase below runs after the accept, so each sees the count
         # rather than re-deriving it.
         batch = replace(batch, num_accepted=accepted.num_accepted)
+        if verified.roll_forward is not None:
+            verified.roll_forward(batch)
 
         caches = self._block_caches(
             batch, pre_cache_lengths, accepted.commit_lengths
         )
-        self._proposer.materialize(batch, target_hidden, caches.ctx)
+        self._proposer.materialize(
+            _for_adapter(self._proposer, batch),
+            _for_adapter(self._proposer, target_hidden),
+            _for_adapter(self._proposer, caches.ctx),
+        )
 
         block_ids, block_offsets = self._build_block(batch, accepted)
-        embeds = self._proposer.embed_block(batch, block_ids)
-        block_hs = self._proposer.forward_block(
-            batch, embeds, block_offsets, caches.block
+        embeds = _from_adapter(
+            self._proposer,
+            self._proposer.embed_block(
+                _for_adapter(self._proposer, batch),
+                _for_adapter(self._proposer, block_ids),
+            ),
+        )
+        block_hs = _from_adapter(
+            self._proposer,
+            self._proposer.forward_block(
+                _for_adapter(self._proposer, batch),
+                _for_adapter(self._proposer, embeds),
+                _for_adapter(self._proposer, block_offsets),
+                _for_adapter(self._proposer, caches.block),
+            ),
         )
         if not self._sampled:
-            next_draft_tokens = self._proposer.head(
-                batch, block_hs, accepted, ArgmaxDraftSampler()
+            next_draft_tokens = _from_adapter(
+                self._proposer,
+                self._proposer.head(
+                    _for_adapter(self._proposer, batch),
+                    _for_adapter(self._proposer, block_hs),
+                    _for_adapter(self._proposer, accepted),
+                    ArgmaxDraftSampler(),
+                ),
             )
             return (
                 accepted.num_accepted,
                 accepted.next_tokens,
-                next_draft_tokens,
+                self._pad_skipped_rows(batch, next_draft_tokens),
             )
 
         assert self._vocab_size is not None
+        rows = batch.num_draft_seqs
+        if not batch.drafts_all_rows:
+            # A skippable step drafts for all of its sequences or none, so
+            # the drafting rows are a prefix and each row's sampling
+            # parameters shrink to it.
+            seq_ids = ops.range(
+                0, rows, 1, rows, dtype=DType.int64, device=batch.device0
+            )
+            seed, temperature, top_k, top_p = (
+                ops.gather(param, seq_ids, axis=0)
+                for param in (seed, temperature, top_k, top_p)
+            )
         sampler = SampledDraftSampler(
             seed=seed,
             temperature=temperature,
             top_k=top_k,
             top_p=top_p,
             vocab_size=self._vocab_size,
+            rows=rows,
         )
-        next_draft_tokens = self._proposer.head(
-            batch, block_hs, accepted, sampler
+        next_draft_tokens = _from_adapter(
+            self._proposer,
+            self._proposer.head(
+                _for_adapter(self._proposer, batch),
+                _for_adapter(self._proposer, block_hs),
+                _for_adapter(self._proposer, accepted),
+                sampler,
+            ),
         )
         n = self.num_speculative_tokens
         return (
             accepted.num_accepted,
             accepted.next_tokens,
-            next_draft_tokens.rebind(["batch_size", n]),
-            sampler.distributions().rebind(["batch_size", n, self._vocab_size]),
+            self._pad_skipped_rows(batch, next_draft_tokens.rebind([rows, n])),
+            # A skipped row proposes the invalid-draft sentinel, so it carries
+            # no distribution: the verdict reads ``q == 0`` as none and never
+            # divides by it.
+            self._pad_skipped_rows(
+                batch,
+                sampler.distributions().rebind([rows, n, self._vocab_size]),
+                fill=0,
+            ),
         )
 
     def _accept(
@@ -1011,6 +1323,23 @@ class BlockDriver(
             [ops.unsqueeze(accepted.next_tokens, axis=1), mask_tail], axis=1
         )
 
+        block_ids_flat = block_ids.reshape((-1,))
+        if not batch.drafts_all_rows:
+            assert batch.draft_slot_ids is not None
+            assert batch.draft_block_offsets is not None
+            # The selection's extent is the row count: ``arange(batch * K)``
+            # to draft, empty to skip. Taking the rows through a gather
+            # collapses the block, the draft forward and the draft lm_head to
+            # zero rows with no branch in the graph, and therefore none inside
+            # a device-graph capture either. The offsets go all-zero, which
+            # reads as ``batch_size`` sequences of zero query rows and so
+            # leaves cache_lengths and the lookup table aligned 1:1 with the
+            # ragged batch.
+            return (
+                ops.gather(block_ids_flat, batch.draft_slot_ids, axis=0),
+                [batch.draft_block_offsets],
+            )
+
         offsets = [
             ops.range(
                 start=0,
@@ -1031,7 +1360,36 @@ class BlockDriver(
                 )
                 for i, replica in enumerate(batch.replica_of)
             ]
-        return block_ids.reshape((-1,)), offsets
+        return block_ids_flat, offsets
+
+    def _pad_skipped_rows(
+        self,
+        batch: BlockBatch,
+        draft_values: TensorValue,
+        fill: int = MAGIC_DRAFT_TOKEN_ID,
+    ) -> TensorValue:
+        """Restores a draft output's ``batch_size`` leading dim after a skip.
+
+        The head returns one row per *drafting* sequence, which is zero of
+        them on a skipping step, but the graph's draft outputs are fixed at
+        ``batch_size`` rows, because device-graph capture records the output
+        shapes and replays into them. Proposals are filled with
+        :data:`MAGIC_DRAFT_TOKEN_ID`, which the next step's accept already
+        recognizes as "this row carried no proposal" and scores zero.
+        ``broadcast_to`` of a constant hoists out of the step, so the fill
+        costs nothing per iteration.
+        """
+        if batch.drafts_all_rows:
+            return draft_values
+        # The head may return fewer than ``K - 1`` columns when the driver
+        # verifies fewer proposals than the block holds.
+        trailing = list(draft_values.shape[1:])
+        skipped = ops.constant(
+            fill, draft_values.dtype, device=batch.device0
+        ).broadcast_to([Dim("batch_size") - batch.num_draft_seqs, *trailing])
+        return ops.concat([draft_values, skipped], axis=0).rebind(
+            ["batch_size", *trailing]
+        )
 
     @override
     @property
@@ -1040,4 +1398,8 @@ class BlockDriver(
 
     @override
     def ep_input_types(self) -> Sequence[TensorType | BufferType]:
-        return self._target.ep_input_types()
+        return self._ep_input_types
+
+    @override
+    def trailing_input_types(self) -> Sequence[TensorType | BufferType]:
+        return self._trailing_input_types

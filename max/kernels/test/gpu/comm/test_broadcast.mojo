@@ -15,11 +15,7 @@ from std.math import ceildiv
 from std.sys import size_of
 from std.itertools import product
 from max.gpu.host import DeviceBuffer, DeviceContext
-from layout import (
-    Idx,
-    TileTensor,
-    row_major,
-)
+from layout import TileTensor, row_major
 from std.testing import assert_true
 
 from comm import Signal
@@ -116,7 +112,10 @@ def broadcast_test[
         if root_self_copy and i == root:
             # Special case: root does an in-place copy
             out_dev_list.append(input_dev)
-            out_tiles[i] = OutputTileType(input_dev, row_major(length))
+            out_tiles[i] = OutputTileType(
+                input_dev.unsafe_ptr().as_unsafe_any_origin(),
+                row_major(length),
+            )
             continue
 
         var ctx = list_of_ctxs[i]

@@ -27,12 +27,11 @@ to indexing the block buffer by hand, on every target.
 from std.sys.info import CompilationTarget, simd_width_of
 
 from max.algorithm import elementwise
-from max.gpu.host import DeviceContext, get_gpu_target
+from max.gpu.host import DeviceContext
 from max.gpu.host.info import is_cpu
 
 from kv_cache.types import KVCacheT
 from layout import Coord, TileTensor
-from std.utils import IndexList
 
 from nn._ragged_utils import get_batch_from_row_offsets
 
@@ -86,17 +85,15 @@ def kv_cache_gather_rows_ragged[
 
     # Same closure form as `kv_cache_store_ragged`: a KV cache view cannot be
     # captured by a unified closure yet.
-    @__parameter
-    @__copy_capture(cache, row_offsets, output, slots)
-    def copy_row[width: Int, alignment: Int = 1](idx: Coord) capturing:
-        var r = Int(idx[0].value())
-        var j = Int(idx[1].value())
-        var d = Int(idx[2].value())
+    def copy_row[width: Int, alignment: Int = 1](idx: Coord) {var}:
+        var r = Int(idx[0])
+        var j = Int(idx[1])
+        var d = Int(idx[2])
         var b = get_batch_from_row_offsets(row_offsets, r)
         var slot = Int(slots[r, j])
         # `dtype == cache_t.dtype` is asserted above; the two are still
         # distinct symbols to the type checker.
-        output.store[width=width, alignment=alignment](
+        output.store[alignment=alignment](
             (r, j, d),
             rebind[SIMD[dtype, width]](cache.load[width=width](b, 0, slot, d)),
         )
@@ -105,13 +102,12 @@ def kv_cache_gather_rows_ragged[
         simd_width_of[
             cache_t.dtype, target=CompilationTarget.current()
         ]() if is_cpu[target]() else simd_width_of[
-            cache_t.dtype, target=get_gpu_target()
+            cache_t.dtype, target=ctx.target
         ]()
     )
 
     elementwise[
-        copy_row,
         simd_width,
         target=target,
         _trace_description="kv_cache_gather_rows_ragged",
-    ](Coord(IndexList[3](num_rows, num_slots, head_dim)), ctx)
+    ](copy_row, Coord(num_rows, num_slots, head_dim), ctx)

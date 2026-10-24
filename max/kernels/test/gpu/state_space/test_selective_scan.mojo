@@ -12,22 +12,15 @@
 # ===----------------------------------------------------------------------=== #
 
 from std.math import ceildiv
+from std.memory.alloc import unsafe_alloc
 from max.gpu.host import DeviceContext
-from layout import (
-    Idx,
-    TileTensor,
-    row_major,
-)
+from layout import TileTensor, row_major
 from std.random import rand
 from state_space.selective_scan import (
     selective_scan_fwd_cpu,
     selective_scan_fwd_gpu,
     selective_scan_update_cpu,
     selective_scan_update_gpu,
-    Strides1D,
-    Strides2D,
-    Strides3D,
-    Strides4D,
 )
 from std.testing import TestSuite, assert_almost_equal
 
@@ -57,16 +50,20 @@ def run_selective_scan_gpu[
 
     var group_size = dim // n_groups
     var chunk_size = 2048
-    var n_chunks = (seqlen + chunk_size - 1) // chunk_size
+    var n_chunks = ceildiv(seqlen, chunk_size)
 
     # Allocate host memory
 
-    var output_cpu_h = alloc[Scalar[dtype]](batch * dim * seqlen)
-    var output_gpu_h = alloc[Scalar[dtype]](batch * dim * seqlen)
-    var x_cpu_h = alloc[Scalar[dtype]](batch * dim * n_chunks * 2 * dstate)
-    var x_gpu_h = alloc[Scalar[dtype]](batch * dim * n_chunks * 2 * dstate)
-    var out_z_cpu_h = alloc[Scalar[dtype]](batch * dim * seqlen)
-    var out_z_gpu_h = alloc[Scalar[dtype]](batch * dim * seqlen)
+    var output_cpu_h = unsafe_alloc[Scalar[dtype]](batch * dim * seqlen)
+    var output_gpu_h = unsafe_alloc[Scalar[dtype]](batch * dim * seqlen)
+    var x_cpu_h = unsafe_alloc[Scalar[dtype]](
+        batch * dim * n_chunks * 2 * dstate
+    )
+    var x_gpu_h = unsafe_alloc[Scalar[dtype]](
+        batch * dim * n_chunks * 2 * dstate
+    )
+    var out_z_cpu_h = unsafe_alloc[Scalar[dtype]](batch * dim * seqlen)
+    var out_z_gpu_h = unsafe_alloc[Scalar[dtype]](batch * dim * seqlen)
 
     # Initialize output buffers to zero
     for i in range(batch * dim * seqlen):
@@ -77,17 +74,17 @@ def run_selective_scan_gpu[
     for i in range(batch * dim * n_chunks * 2 * dstate):
         x_cpu_h[i] = Scalar[dtype](0)
         x_gpu_h[i] = Scalar[dtype](0)
-    var u_h = alloc[Scalar[dtype]](batch * dim * seqlen)
-    var delta_h = alloc[Scalar[dtype]](batch * dim * seqlen)
-    var A_h = alloc[Scalar[dtype]](dim * dstate)
-    var B_h = alloc[Scalar[dtype]](batch * n_groups * dstate * seqlen)
-    var C_h = alloc[Scalar[dtype]](batch * n_groups * dstate * seqlen)
+    var u_h = unsafe_alloc[Scalar[dtype]](batch * dim * seqlen)
+    var delta_h = unsafe_alloc[Scalar[dtype]](batch * dim * seqlen)
+    var A_h = unsafe_alloc[Scalar[dtype]](dim * dstate)
+    var B_h = unsafe_alloc[Scalar[dtype]](batch * n_groups * dstate * seqlen)
+    var C_h = unsafe_alloc[Scalar[dtype]](batch * n_groups * dstate * seqlen)
     var D_size = dim if has_D else 0
-    var D_h = alloc[Scalar[dtype]](max(D_size, 1))
+    var D_h = unsafe_alloc[Scalar[dtype]](max(D_size, 1))
     var z_size = batch * dim * seqlen if has_z else 0
-    var z_h = alloc[Scalar[dtype]](max(z_size, 1))
+    var z_h = unsafe_alloc[Scalar[dtype]](max(z_size, 1))
     var delta_bias_size = dim if has_delta_bias else 0
-    var delta_bias_h = alloc[Scalar[dtype]](max(delta_bias_size, 1))
+    var delta_bias_h = unsafe_alloc[Scalar[dtype]](max(delta_bias_size, 1))
 
     # Initialize input data
     rand[dtype](u_h, batch * dim * seqlen)
@@ -104,13 +101,13 @@ def run_selective_scan_gpu[
 
     # Scale A to be negative for stability
     for i in range(dim * dstate):
-        var val = A_h.load(i)
-        A_h.store(i, Scalar[dtype](Float32(val) * -0.5))
+        var val = A_h.unsafe_load(i)
+        A_h.unsafe_store(i, Scalar[dtype](Float32(val) * -0.5))
 
     # Scale delta to be positive
     for i in range(batch * dim * seqlen):
-        var val = delta_h.load(i)
-        delta_h.store(i, Scalar[dtype](abs(Float32(val)) * 0.5))
+        var val = delta_h.unsafe_load(i)
+        delta_h.unsafe_store(i, Scalar[dtype](abs(Float32(val)) * 0.5))
 
     # Allocate device memory
     var output_cpu_d = ctx.enqueue_create_buffer[dtype](batch * dim * seqlen)
@@ -148,25 +145,6 @@ def run_selective_scan_gpu[
         ctx.enqueue_copy(z_d, z_h)
     if has_delta_bias:
         ctx.enqueue_copy(delta_bias_d, delta_bias_h)
-
-    # Strides for row-major layout
-    var output_strides = Strides3D(dim * seqlen, seqlen, 1)
-    var x_strides = Strides4D(
-        dim * n_chunks * 2 * dstate, n_chunks * 2 * dstate, 2 * dstate, 1
-    )
-    var out_z_strides = Strides3D(dim * seqlen, seqlen, 1)
-    var u_strides = Strides3D(dim * seqlen, seqlen, 1)
-    var delta_strides = Strides3D(dim * seqlen, seqlen, 1)
-    var A_strides = Strides2D(dstate, 1)
-    var B_strides = Strides4D(
-        n_groups * dstate * seqlen, dstate * seqlen, seqlen, 1
-    )
-    var C_strides = Strides4D(
-        n_groups * dstate * seqlen, dstate * seqlen, seqlen, 1
-    )
-    var D_strides = Strides1D(1)
-    var z_strides = Strides3D(dim * seqlen, seqlen, 1)
-    var delta_bias_strides = Strides1D(1)
 
     comptime delta_softplus_int8: Int8 = Int8(1) if delta_softplus else Int8(0)
 
@@ -232,17 +210,6 @@ def run_selective_scan_gpu[
         D_cpu_tt,
         z_cpu_tt,
         delta_bias_cpu_tt,
-        output_strides,
-        x_strides,
-        out_z_strides,
-        u_strides,
-        delta_strides,
-        A_strides,
-        B_strides,
-        C_strides,
-        D_strides,
-        z_strides,
-        delta_bias_strides,
     )
 
     # Create TileTensors for GPU kernel
@@ -304,8 +271,6 @@ def run_selective_scan_gpu[
     # Run GPU kernel
     var total_batch_dim = batch * dim
     comptime BLOCK_SIZE = 128
-    from std.math import ceildiv
-
     var num_blocks = ceildiv(total_batch_dim, BLOCK_SIZE)
 
     var compiled_kernel = ctx.compile_function[
@@ -345,17 +310,6 @@ def run_selective_scan_gpu[
         D_gpu_tt,
         z_gpu_tt,
         delta_bias_gpu_tt,
-        output_strides,
-        x_strides,
-        out_z_strides,
-        u_strides,
-        delta_strides,
-        A_strides,
-        B_strides,
-        C_strides,
-        D_strides,
-        z_strides,
-        delta_bias_strides,
         grid_dim=(num_blocks,),
         block_dim=(BLOCK_SIZE,),
     )
@@ -368,26 +322,26 @@ def run_selective_scan_gpu[
     var flattened_size = batch * dim * seqlen
     for i in range(flattened_size):
         assert_almost_equal(
-            output_cpu_h.load(i),
-            output_gpu_h.load(i),
+            output_cpu_h.unsafe_load(i),
+            output_gpu_h.unsafe_load(i),
             rtol=rtol,
         )
 
     # Cleanup
-    output_cpu_h.free()
-    output_gpu_h.free()
-    x_cpu_h.free()
-    x_gpu_h.free()
-    out_z_cpu_h.free()
-    out_z_gpu_h.free()
-    u_h.free()
-    delta_h.free()
-    A_h.free()
-    B_h.free()
-    C_h.free()
-    D_h.free()
-    z_h.free()
-    delta_bias_h.free()
+    output_cpu_h.unsafe_free()
+    output_gpu_h.unsafe_free()
+    x_cpu_h.unsafe_free()
+    x_gpu_h.unsafe_free()
+    out_z_cpu_h.unsafe_free()
+    out_z_gpu_h.unsafe_free()
+    u_h.unsafe_free()
+    delta_h.unsafe_free()
+    A_h.unsafe_free()
+    B_h.unsafe_free()
+    C_h.unsafe_free()
+    D_h.unsafe_free()
+    z_h.unsafe_free()
+    delta_bias_h.unsafe_free()
 
 
 def run_selective_scan_update_gpu[
@@ -412,22 +366,22 @@ def run_selective_scan_update_gpu[
 
     # Allocate host memory
 
-    var state_in_h = alloc[Scalar[dtype]](batch * dim * dstate)
-    var state_out_gpu_h = alloc[Scalar[dtype]](batch * dim * dstate)
-    var state_out_cpu_h = alloc[Scalar[dtype]](batch * dim * dstate)
-    var output_gpu_h = alloc[Scalar[dtype]](batch * dim)
-    var output_cpu_h = alloc[Scalar[dtype]](batch * dim)
-    var x_h = alloc[Scalar[dtype]](batch * dim)
-    var dt_h = alloc[Scalar[dtype]](batch * dim)
-    var A_h = alloc[Scalar[dtype]](dim * dstate)
-    var B_h = alloc[Scalar[dtype]](batch * n_groups * dstate)
-    var C_h = alloc[Scalar[dtype]](batch * n_groups * dstate)
+    var state_in_h = unsafe_alloc[Scalar[dtype]](batch * dim * dstate)
+    var state_out_gpu_h = unsafe_alloc[Scalar[dtype]](batch * dim * dstate)
+    var state_out_cpu_h = unsafe_alloc[Scalar[dtype]](batch * dim * dstate)
+    var output_gpu_h = unsafe_alloc[Scalar[dtype]](batch * dim)
+    var output_cpu_h = unsafe_alloc[Scalar[dtype]](batch * dim)
+    var x_h = unsafe_alloc[Scalar[dtype]](batch * dim)
+    var dt_h = unsafe_alloc[Scalar[dtype]](batch * dim)
+    var A_h = unsafe_alloc[Scalar[dtype]](dim * dstate)
+    var B_h = unsafe_alloc[Scalar[dtype]](batch * n_groups * dstate)
+    var C_h = unsafe_alloc[Scalar[dtype]](batch * n_groups * dstate)
     var D_size = dim if has_D else 0
-    var D_h = alloc[Scalar[dtype]](max(D_size, 1))
+    var D_h = unsafe_alloc[Scalar[dtype]](max(D_size, 1))
     var z_size = batch * dim if has_z else 0
-    var z_h = alloc[Scalar[dtype]](max(z_size, 1))
+    var z_h = unsafe_alloc[Scalar[dtype]](max(z_size, 1))
     var dt_bias_size = dim if has_delta_bias else 0
-    var dt_bias_h = alloc[Scalar[dtype]](max(dt_bias_size, 1))
+    var dt_bias_h = unsafe_alloc[Scalar[dtype]](max(dt_bias_size, 1))
 
     # Initialize output buffers to zero
     for i in range(batch * dim * dstate):
@@ -453,8 +407,8 @@ def run_selective_scan_update_gpu[
 
     # Scale A to be negative for stability
     for i in range(dim * dstate):
-        var val = A_h.load(i)
-        A_h.store(i, Scalar[dtype](Float32(val) * -0.5))
+        var val = A_h.unsafe_load(i)
+        A_h.unsafe_store(i, Scalar[dtype](Float32(val) * -0.5))
 
     # Copy state_in for CPU and GPU
     for i in range(batch * dim * dstate):
@@ -491,19 +445,6 @@ def run_selective_scan_update_gpu[
             ctx.enqueue_copy(dt_bias_device, dt_bias_h)
 
     # Create device tensors
-
-    # Strides for row-major layout
-    var state_out_strides = Strides3D(dim * dstate, dstate, 1)
-    var output_strides = Strides2D(dim, 1)
-    var state_in_strides = Strides3D(dim * dstate, dstate, 1)
-    var x_strides = Strides2D(dim, 1)
-    var dt_strides = Strides2D(dim, 1)
-    var A_strides = Strides2D(dstate, 1)
-    var B_strides = Strides3D(n_groups * dstate, dstate, 1)
-    var C_strides = Strides3D(n_groups * dstate, dstate, 1)
-    var D_strides = Strides1D(1)
-    var z_strides = Strides2D(dim, 1)
-    var dt_bias_strides = Strides1D(1)
 
     # Create TileTensors for GPU kernel
     var state_in_device_tt = TileTensor(
@@ -598,17 +539,6 @@ def run_selective_scan_update_gpu[
             D_device_tt,
             z_device_tt,
             dt_bias_device_tt,
-            state_out_strides,
-            output_strides,
-            state_in_strides,
-            x_strides,
-            dt_strides,
-            A_strides,
-            B_strides,
-            C_strides,
-            D_strides,
-            z_strides,
-            dt_bias_strides,
             grid_dim=(ceildiv(total_batch_dim, 256),),
             block_dim=(256,),
         )
@@ -672,17 +602,6 @@ def run_selective_scan_update_gpu[
         D_cpu_tt,
         z_cpu_tt,
         dt_bias_cpu_tt,
-        state_out_strides,
-        output_strides,
-        state_in_strides,
-        x_strides,
-        dt_strides,
-        A_strides,
-        B_strides,
-        C_strides,
-        D_strides,
-        z_strides,
-        dt_bias_strides,
     )
 
     # Compare results
@@ -703,19 +622,19 @@ def run_selective_scan_update_gpu[
         )
 
     # Cleanup
-    state_in_h.free()
-    state_out_gpu_h.free()
-    state_out_cpu_h.free()
-    output_gpu_h.free()
-    output_cpu_h.free()
-    x_h.free()
-    dt_h.free()
-    A_h.free()
-    B_h.free()
-    C_h.free()
-    D_h.free()
-    z_h.free()
-    dt_bias_h.free()
+    state_in_h.unsafe_free()
+    state_out_gpu_h.unsafe_free()
+    state_out_cpu_h.unsafe_free()
+    output_gpu_h.unsafe_free()
+    output_cpu_h.unsafe_free()
+    x_h.unsafe_free()
+    dt_h.unsafe_free()
+    A_h.unsafe_free()
+    B_h.unsafe_free()
+    C_h.unsafe_free()
+    D_h.unsafe_free()
+    z_h.unsafe_free()
+    dt_bias_h.unsafe_free()
 
 
 # =============================================================================

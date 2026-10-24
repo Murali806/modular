@@ -28,11 +28,15 @@ bazel+mypy complain about this import not being available even though it is part
 Explicitly importing //max/python/max/serve/schemas in the test's BUILD file hasn't worked either.
 """
 
+import base64
+import io
 import json
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+import av
+import numpy as np
 import pytest
 from max.pipelines.request.open_responses import (
     ReasoningEffortEnum,
@@ -40,6 +44,32 @@ from max.pipelines.request.open_responses import (
 )
 from max.serve.schemas.openai import CreateChatCompletionRequest
 from pydantic import AnyUrl, ValidationError
+
+
+def _mp4_data_uri(num_frames: int = 2) -> str:
+    """A tiny valid H.264 MP4 as a ``data:`` URI.
+
+    The router decodes a frame of every video to validate it, so a placeholder
+    payload is rejected before the assertions under test are reached.
+    """
+    buf = io.BytesIO()
+    container = av.open(buf, mode="w", format="mp4")
+    stream = container.add_stream("libx264", rate=24)
+    assert isinstance(stream, av.VideoStream)
+    stream.width = 32
+    stream.height = 32
+    stream.pix_fmt = "yuv420p"
+    for i in range(num_frames):
+        arr = np.full((32, 32, 3), fill_value=i * 30, dtype=np.uint8)
+        for packet in stream.encode(
+            av.VideoFrame.from_ndarray(arr, format="rgb24")
+        ):
+            container.mux(packet)
+    for packet in stream.encode():
+        container.mux(packet)
+    container.close()
+    encoded = base64.b64encode(buf.getvalue()).decode()
+    return "data:video/mp4;base64," + encoded
 
 
 @pytest.mark.skip
@@ -70,6 +100,7 @@ async def test_openai_extract_image_from_requests() -> None:
         images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(request, False, settings)
     assert len(messages) == 2
     assert len(images) == 0
@@ -82,6 +113,7 @@ async def test_openai_extract_image_from_requests() -> None:
         images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(request, True, settings)
     assert len(messages) == 2
     assert len(images) == 0
@@ -107,6 +139,7 @@ async def test_openai_extract_image_from_requests() -> None:
         images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(
         request,
         False,
@@ -125,6 +158,7 @@ async def test_openai_extract_image_from_requests() -> None:
         images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(
         request,
         True,
@@ -155,6 +189,7 @@ async def test_openai_extract_image_from_requests() -> None:
         images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(
         CreateChatCompletionRequest(
             model="test", messages=[system_message, user_message_image_two_urls]
@@ -189,6 +224,7 @@ async def test_openai_extract_image_from_requests() -> None:
         images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(request, False, settings)
     assert len(messages) == 1
     assert len(images) == 2
@@ -200,6 +236,7 @@ async def test_openai_extract_image_from_requests() -> None:
         images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(request, True, settings)
     assert len(messages) == 1
     assert len(images) == 2
@@ -226,6 +263,7 @@ async def test_openai_user_message_with_null_content() -> None:
         _images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(request, False, settings)
     assert len(messages) == 1
     assert messages[0].role == "user"
@@ -243,6 +281,7 @@ async def test_openai_user_message_with_null_content() -> None:
         _images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(request, False, settings)
     assert len(messages) == 1
     assert messages[0].role == "user"
@@ -274,6 +313,7 @@ async def test_openai_parse_normalizes_developer_role_to_system() -> None:
         _images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(
         request, wrap_content=False, settings=settings
     )
@@ -299,6 +339,22 @@ def test_openai_parse_rejects_unknown_role() -> None:
     }
     with pytest.raises(ValidationError):
         CreateChatCompletionRequest.model_validate(request_data)
+
+
+@pytest.mark.parametrize("field", ["max_tokens", "max_completion_tokens"])
+@pytest.mark.parametrize("value", [0, -1])
+def test_openai_chat_completion_rejects_non_positive_token_limit(
+    field: str, value: int
+) -> None:
+    """OpenAI rejects token limits below 1 rather than generating one token."""
+    with pytest.raises(ValidationError):
+        CreateChatCompletionRequest.model_validate(
+            {
+                "model": "test",
+                "messages": [{"role": "user", "content": "hi"}],
+                field: value,
+            }
+        )
 
 
 def test_openai_chat_completion_accepts_prompt_tokens() -> None:
@@ -362,6 +418,7 @@ async def test_openai_parse_forwards_tool_call_metadata() -> None:
         _images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(
         request, wrap_content=False, settings=settings
     )
@@ -412,6 +469,7 @@ async def test_openai_parse_drops_empty_tool_calls() -> None:
         _images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(
         request, wrap_content=False, settings=settings
     )
@@ -511,6 +569,7 @@ async def test_openai_parse_coerces_empty_tool_call_arguments() -> None:
         _images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(
         request, wrap_content=False, settings=settings
     )
@@ -838,7 +897,7 @@ def test_openai_image_url_accepts_non_string_sizing_hints() -> None:
                     {
                         "type": "video_url",
                         "video_url": {
-                            "url": "data:video/mp4;base64,AAAA",
+                            "url": _mp4_data_uri(),
                             "fps": 2.0,
                             "max_long_side_pixel": 1008,
                         },
@@ -882,7 +941,7 @@ async def test_openai_wrap_content_carries_detail_hint() -> None:
                         {
                             "type": "video_url",
                             "video_url": {
-                                "url": "data:video/mp4;base64,AAAA",
+                                "url": _mp4_data_uri(),
                                 "detail": "low",
                             },
                         },
@@ -920,6 +979,7 @@ async def test_openai_root_role_accepted_and_passed_through() -> None:
         _images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(request, False, settings)
     # ``root`` survives normalization unchanged and stays first.
     assert messages[0].role == "root"
@@ -1155,9 +1215,48 @@ def _chat_template_kwargs_for(payload: dict[str, Any]) -> dict[str, Any] | None:
             {
                 "enable_thinking": False,
                 "thinking": False,
-                "reasoning_effort": "high",
             },
-            id="openrouter_enabled_wins_over_effort",
+            id="openrouter_enabled_false_discards_effort_high",
+        ),
+        pytest.param(
+            {"reasoning": {"enabled": False, "effort": "medium"}},
+            {
+                "enable_thinking": False,
+                "thinking": False,
+            },
+            id="openrouter_enabled_false_discards_effort_medium",
+        ),
+        pytest.param(
+            {"reasoning": {"enabled": False, "effort": "minimal"}},
+            {
+                "enable_thinking": False,
+                "thinking": False,
+            },
+            id="openrouter_enabled_false_discards_effort_minimal",
+        ),
+        pytest.param(
+            {"reasoning": {"enabled": False, "effort": "max"}},
+            {
+                "enable_thinking": False,
+                "thinking": False,
+            },
+            id="openrouter_enabled_false_discards_effort_max",
+        ),
+        pytest.param(
+            {"reasoning": {"enabled": False, "effort": "none"}},
+            {
+                "enable_thinking": False,
+                "thinking": False,
+            },
+            id="openrouter_enabled_false_discards_effort_none",
+        ),
+        pytest.param(
+            {"reasoning": {"enabled": True, "effort": "none"}},
+            {
+                "enable_thinking": False,
+                "thinking": False,
+            },
+            id="openrouter_enabled_true_effort_none_is_off",
         ),
         pytest.param(
             {"reasoning_effort": "high", "reasoning": {"effort": "low"}},
@@ -1182,6 +1281,147 @@ def _chat_template_kwargs_for(payload: dict[str, Any]) -> dict[str, Any] | None:
                 "thinking": False,
             },
             id="client_kwargs_win",
+        ),
+        pytest.param(
+            {
+                "reasoning_effort": "low",
+                "chat_template_kwargs": {
+                    "enable_thinking": True,
+                    "thinking": False,
+                },
+            },
+            {
+                "reasoning_effort": "low",
+                "enable_thinking": True,
+                "thinking": False,
+            },
+            id="conflicting_flags_true_first_stay_as_written",
+        ),
+        pytest.param(
+            {
+                "reasoning_effort": "low",
+                "chat_template_kwargs": {
+                    "enable_thinking": False,
+                    "thinking": True,
+                },
+            },
+            {
+                "reasoning_effort": "low",
+                "enable_thinking": False,
+                "thinking": True,
+            },
+            id="conflicting_flags_false_first_stay_as_written",
+        ),
+        pytest.param(
+            {
+                "reasoning_effort": "high",
+                "chat_template_kwargs": {"reasoning_effort": None},
+            },
+            {"reasoning_effort": None},
+            id="kwargs_null_effort_overrides_top_level",
+        ),
+        pytest.param(
+            {
+                "reasoning_effort": "high",
+                "chat_template_kwargs": {"reasoning_effort": 0},
+            },
+            {"reasoning_effort": 0},
+            id="kwargs_zero_effort_overrides_top_level",
+        ),
+        pytest.param(
+            {
+                "reasoning_effort": "high",
+                "chat_template_kwargs": {"reasoning_effort": False},
+            },
+            {"reasoning_effort": False},
+            id="kwargs_false_effort_overrides_top_level",
+        ),
+        pytest.param(
+            {"chat_template_kwargs": {"reasoning_effort": 0}},
+            {"reasoning_effort": 0},
+            id="kwargs_zero_effort_alone_keeps_the_model_default",
+        ),
+        pytest.param(
+            {"chat_template_kwargs": {"reasoning_effort": False}},
+            {"reasoning_effort": False},
+            id="kwargs_false_effort_alone_keeps_the_model_default",
+        ),
+        pytest.param(
+            {
+                "reasoning": {"effort": "high"},
+                "chat_template_kwargs": {"reasoning_effort": 50},
+            },
+            {
+                "enable_thinking": True,
+                "thinking": True,
+                "reasoning_effort": 50,
+            },
+            id="kwargs_numeric_effort_overrides_openrouter",
+        ),
+        pytest.param(
+            {
+                "chat_template_kwargs": {
+                    "thinking_mode": "adaptive",
+                    "reasoning_effort": "low",
+                },
+            },
+            {
+                "thinking_mode": "adaptive",
+                "enable_thinking": True,
+                "thinking": True,
+                "reasoning_effort": "low",
+            },
+            id="unrelated_thinking_mode_stays_untouched",
+        ),
+        pytest.param(
+            {
+                "chat_template_kwargs": {"thinking": True},
+                "reasoning": {"effort": "none"},
+            },
+            {"thinking": True},
+            id="openrouter_none_ignores_explicit_flag",
+        ),
+        pytest.param(
+            {
+                "chat_template_kwargs": {"thinking": False},
+                "reasoning": {"enabled": True},
+            },
+            {"thinking": False},
+            id="openrouter_enabled_ignores_explicit_flag",
+        ),
+        pytest.param(
+            {
+                "chat_template_kwargs": {"thinking_mode": "adaptive"},
+                "reasoning": {"enabled": False},
+            },
+            {"thinking_mode": "adaptive"},
+            id="openrouter_ignores_explicit_thinking_mode",
+        ),
+        pytest.param(
+            {
+                "reasoning_effort": "high",
+                "chat_template_kwargs": {"reasoning_effort": None},
+                "reasoning": {"enabled": False},
+            },
+            {"reasoning_effort": None},
+            id="openrouter_ignores_explicit_null_effort",
+        ),
+        pytest.param(
+            {
+                "reasoning_effort": "high",
+                "reasoning": {"enabled": False},
+            },
+            {
+                "enable_thinking": True,
+                "thinking": True,
+                "reasoning_effort": "high",
+            },
+            id="top_level_effort_ignores_openrouter_enabled",
+        ),
+        pytest.param(
+            {"reasoning": {}},
+            None,
+            id="empty_reasoning_object_preserves_default",
         ),
     ],
 )
@@ -1465,6 +1705,7 @@ async def test_openai_accepts_complete_tool_call_replies() -> None:
         _images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(
         request, wrap_content=False, settings=Settings()
     )
@@ -1541,6 +1782,7 @@ async def test_openai_accepts_image_count_at_limit() -> None:
         images,
         _videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(
         request,
         wrap_content=True,
@@ -1565,6 +1807,7 @@ async def test_openai_accepts_64mb_request_body() -> None:
         images,
         videos,
         _decoded,
+        _max_decoded_bytes,
     ) = await openai_parse_chat_completion_request(
         request, wrap_content=True, settings=Settings()
     )

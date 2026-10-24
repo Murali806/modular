@@ -157,6 +157,7 @@ class VideoContentPart(_MessageContentPart):
 
 
 MessageContent = TextContentPart | ImageContentPart | VideoContentPart
+"""One part of a chat message: text, an image, or a video."""
 
 # ``root`` is a vendor role; supporting chat templates order it above ``system``.
 _MessageRole = Literal[
@@ -381,6 +382,19 @@ class TextGenerationRequest:
     An individual entry is ``None`` when the admission decode was skipped
     because the tokenizer already holds that image's preprocessed tensor --
     the same per-index fallback to :attr:`images` applies.
+    :func:`~max.pipelines.lib.generate.generate` also fills it, with each PIL
+    image its caller passed and ``None`` for each image passed as bytes.
+    """
+    max_decoded_bytes: int | None = None
+    """
+    Decoded (in-memory) bytes each of this request's videos may retain: an
+    equal share of the ``Settings.max_media_bytes`` budget left after every
+    encoded image and video and every decoded image is accounted for. A video
+    is decoded later, in the tokenizer, so the allowance travels with the
+    request to bound how many frames that decode may keep. Because the shares
+    sum to what remains, the videos cannot jointly exceed the budget.
+    API-process-only, like :attr:`decoded_images`.
+    ``None`` means unbounded (offline/test callers, or the limit disabled).
     """
     tools: list[TextGenerationRequestTool] | None = None
     """
@@ -445,8 +459,9 @@ class TextGenerationRequest:
 
     Combined with ``kv_cache_hash_seed`` via XOR to seed the block hash.
     Works under any ``kv_cache_hash_algo``: a cryptographic guarantee
-    under ``sha256``/``sha256_64``, best-effort under ``ahash64``. Capped
-    at 512 chars at the OpenAI schema layer.
+    under ``sha256`` (64-bit key separation on the dKV external tier),
+    best-effort under ``ahash64``. Capped at 512 chars at the OpenAI
+    schema layer.
     """
 
     def __str__(self) -> str:
@@ -465,7 +480,8 @@ class TextGenerationRequest:
         admission decode for an image whose preprocessed tensor the tokenizer
         already holds, leaving a ``None`` in that slot. Such an image is only
         decoded if the tokenizer actually needs its pixels, which a cache hit
-        means it does not.
+        means it does not. A ``None`` also marks an image that a
+        :func:`~max.pipelines.lib.generate.generate` caller passed as bytes.
         """
         if not self.decoded_images:
             return list(self.images)

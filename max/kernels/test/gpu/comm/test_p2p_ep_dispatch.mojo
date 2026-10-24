@@ -12,7 +12,6 @@
 # ===----------------------------------------------------------------------=== #
 
 from std.random import randint, randn, seed
-from std.sys import has_nvidia_gpu_accelerator, has_amd_gpu_accelerator
 
 from max.algorithm import sync_parallelize
 from max.benchmark import bencher_iter_custom
@@ -27,7 +26,7 @@ from std.benchmark import (
     ThroughputMeasure,
 )
 from comm.sync import enable_p2p
-from max.gpu.host import DeviceBuffer, DeviceContext
+from max.gpu.host import DeviceBuffer, DeviceContext, default_accelerator
 from layout import TileTensor, Idx, row_major
 from std.math import ceildiv
 from shmem.ep import (
@@ -48,6 +47,7 @@ from std.testing import assert_almost_equal, assert_equal
 
 from linalg.matmul.gpu.amd import Shuffler
 from std.math import align_up
+from std.memory.alloc import unsafe_alloc
 from linalg.fp4_utils import (
     E2M1_TO_FLOAT32,
     MXFP4_SF_VECTOR_SIZE,
@@ -64,7 +64,7 @@ def legalize_topk_ids[
     n_experts: Int, top_k: Int
 ](topk_ids: MutPointer[Int32, MutUntrackedOrigin], n_tokens: Int):
     for tok_id in range(n_tokens):
-        var topk_ids_for_token = topk_ids + tok_id * top_k
+        var topk_ids_for_token = topk_ids.unsafe_offset(tok_id * top_k)
 
         # The top-k ids for a token should be unique. If not, we will assign a
         # random id to the duplicate id.
@@ -77,7 +77,12 @@ def legalize_topk_ids[
 
         var duplicate_idx = is_duplicate()
         while duplicate_idx != -1:
-            randint(topk_ids_for_token + duplicate_idx, 1, 0, n_experts - 1)
+            randint(
+                topk_ids_for_token.unsafe_offset(duplicate_idx),
+                1,
+                0,
+                n_experts - 1,
+            )
             duplicate_idx = is_duplicate()
 
 
@@ -179,14 +184,14 @@ struct BF16DispatchTest[
                 )
             )
             self.host_output_bufs_list.append(
-                alloc[BFloat16](
+                unsafe_alloc[BFloat16](
                     Self.n_slots * Self.max_recv_num_tokens * Self.hidden_size
                 )
             )
 
     def __deinit__(deinit self):
         for i in range(Self.n_ranks):
-            self.host_output_bufs_list[i].free()
+            self.host_output_bufs_list[i].unsafe_free()
 
     @inline(.always)
     def get_token_handler(
@@ -197,8 +202,11 @@ struct BF16DispatchTest[
         out result: Self.TokenFormatType,
     ):
         var output_tensor = TileTensor(
-            ptr=self.device_output_bufs_list[dev_idx].unsafe_ptr()
-            + slot_idx * Self.max_recv_num_tokens * Self.hidden_size,
+            ptr=self.device_output_bufs_list[dev_idx]
+            .unsafe_ptr()
+            .unsafe_offset(
+                slot_idx * Self.max_recv_num_tokens * Self.hidden_size
+            ),
             layout=Self.output_layout,
         )
         result = Self.TokenFormatType(output_tensor)
@@ -320,12 +328,12 @@ struct BlockwiseFP8DispatchTest[
                 )
             )
             self.host_output_bufs_list.append(
-                alloc[Scalar[Self.fp8_dtype]](
+                unsafe_alloc[Scalar[Self.fp8_dtype]](
                     Self.n_slots * Self.max_recv_num_tokens * Self.hidden_size
                 )
             )
             self.host_output_scales_bufs_list.append(
-                alloc[Scalar[Self.scales_dtype]](
+                unsafe_alloc[Scalar[Self.scales_dtype]](
                     Self.n_slots
                     * Self.max_recv_num_tokens
                     * Self.hidden_size
@@ -335,8 +343,8 @@ struct BlockwiseFP8DispatchTest[
 
     def __deinit__(deinit self):
         for i in range(Self.n_ranks):
-            self.host_output_bufs_list[i].free()
-            self.host_output_scales_bufs_list[i].free()
+            self.host_output_bufs_list[i].unsafe_free()
+            self.host_output_scales_bufs_list[i].unsafe_free()
 
     @inline(.always)
     def get_token_handler(
@@ -347,16 +355,22 @@ struct BlockwiseFP8DispatchTest[
         out result: Self.TokenFormatType,
     ):
         var output_tensor = TileTensor(
-            ptr=self.device_output_bufs_list[dev_idx].unsafe_ptr()
-            + slot_idx * Self.max_recv_num_tokens * Self.hidden_size,
+            ptr=self.device_output_bufs_list[dev_idx]
+            .unsafe_ptr()
+            .unsafe_offset(
+                slot_idx * Self.max_recv_num_tokens * Self.hidden_size
+            ),
             layout=Self.output_layout,
         )
         var output_scales_tensor = TileTensor(
-            ptr=self.device_output_scales_bufs_list[dev_idx].unsafe_ptr()
-            + slot_idx
-            * Self.max_recv_num_tokens
-            * Self.hidden_size
-            // Self.group_size,
+            ptr=self.device_output_scales_bufs_list[dev_idx]
+            .unsafe_ptr()
+            .unsafe_offset(
+                slot_idx
+                * Self.max_recv_num_tokens
+                * Self.hidden_size
+                // Self.group_size
+            ),
             layout=Self.output_scales_layout,
         )
         result = Self.TokenFormatType(output_tensor, output_scales_tensor)
@@ -526,7 +540,9 @@ struct NVFP4DispatchTest[
                     )
                 )
                 self.host_output_rowwise_scales_bufs_list.append(
-                    alloc[BFloat16](Self.n_slots * Self.max_recv_num_tokens)
+                    unsafe_alloc[BFloat16](
+                        Self.n_slots * Self.max_recv_num_tokens
+                    )
                 )
             self.device_output_bufs_list.append(
                 list_of_ctx[i].enqueue_create_buffer[Self.fp4_dtype](
@@ -549,14 +565,14 @@ struct NVFP4DispatchTest[
                 )
             )
             self.host_output_bufs_list.append(
-                alloc[Scalar[Self.fp4_dtype]](
+                unsafe_alloc[Scalar[Self.fp4_dtype]](
                     Self.n_slots
                     * Self.max_recv_num_tokens
                     * Self.uint8_last_dim
                 )
             )
             self.host_output_scales_bufs_list.append(
-                alloc[Scalar[Self.scales_dtype]](
+                unsafe_alloc[Scalar[Self.scales_dtype]](
                     Self.n_slots
                     * Self.scales_padded_size
                     * Self.hidden_size
@@ -564,16 +580,18 @@ struct NVFP4DispatchTest[
                 )
             )
             self.host_output_scales_offset_bufs_list.append(
-                alloc[UInt32](Self.n_slots * (Self.n_experts // Self.n_ranks))
+                unsafe_alloc[UInt32](
+                    Self.n_slots * (Self.n_experts // Self.n_ranks)
+                )
             )
 
     def __deinit__(deinit self):
         for i in range(Self.n_ranks):
-            self.host_output_bufs_list[i].free()
-            self.host_output_scales_bufs_list[i].free()
-            self.host_output_scales_offset_bufs_list[i].free()
+            self.host_output_bufs_list[i].unsafe_free()
+            self.host_output_scales_bufs_list[i].unsafe_free()
+            self.host_output_scales_offset_bufs_list[i].unsafe_free()
         for ptr in self.host_output_rowwise_scales_bufs_list:
-            ptr.free()
+            ptr.unsafe_free()
 
     @inline(.always)
     def rowwise_scale(
@@ -598,28 +616,34 @@ struct NVFP4DispatchTest[
         comptime if Self.dyn_global_scales:
             output_rowwise_scales = MutPointer[BFloat16, MutAnyOrigin](
                 unsafe_from_address=Int(
-                    self.device_output_rowwise_scales_bufs_list[
-                        dev_idx
-                    ].unsafe_ptr()
-                    + slot_idx * Self.max_recv_num_tokens
+                    self.device_output_rowwise_scales_bufs_list[dev_idx]
+                    .unsafe_ptr()
+                    .unsafe_offset(slot_idx * Self.max_recv_num_tokens)
                 )
             )
         var output_tensor = TileTensor(
-            ptr=self.device_output_bufs_list[dev_idx].unsafe_ptr()
-            + slot_idx * Self.max_recv_num_tokens * Self.uint8_last_dim,
+            ptr=self.device_output_bufs_list[dev_idx]
+            .unsafe_ptr()
+            .unsafe_offset(
+                slot_idx * Self.max_recv_num_tokens * Self.uint8_last_dim
+            ),
             layout=Self.output_layout,
         )
         var output_scales_tensor = TileTensor(
-            ptr=self.device_output_scales_bufs_list[dev_idx].unsafe_ptr()
-            + slot_idx
-            * Self.scales_padded_size
-            * Self.hidden_size
-            // NVFP4_SF_VECTOR_SIZE,
+            ptr=self.device_output_scales_bufs_list[dev_idx]
+            .unsafe_ptr()
+            .unsafe_offset(
+                slot_idx
+                * Self.scales_padded_size
+                * Self.hidden_size
+                // NVFP4_SF_VECTOR_SIZE
+            ),
             layout=Self.output_scales_layout,
         )
         var output_scales_offset_tensor = TileTensor(
-            ptr=self.device_output_scales_offset_bufs_list[dev_idx].unsafe_ptr()
-            + slot_idx * (Self.n_experts // Self.n_ranks),
+            ptr=self.device_output_scales_offset_bufs_list[dev_idx]
+            .unsafe_ptr()
+            .unsafe_offset(slot_idx * (Self.n_experts // Self.n_ranks)),
             layout=Self.output_scales_offset_layout,
         )
 
@@ -672,11 +696,12 @@ struct NVFP4DispatchTest[
         )
 
         var host_scales_tensor = TileTensor(
-            ptr=self.host_output_scales_bufs_list[dev_idx]
-            + slot_idx
-            * Self.scales_padded_size
-            * Self.hidden_size
-            // NVFP4_SF_VECTOR_SIZE,
+            ptr=self.host_output_scales_bufs_list[dev_idx].unsafe_offset(
+                slot_idx
+                * Self.scales_padded_size
+                * Self.hidden_size
+                // NVFP4_SF_VECTOR_SIZE
+            ),
             layout=Self.output_scales_layout,
         )
 
@@ -769,9 +794,10 @@ struct NVFP4DispatchTest[
                 # The per-element tolerance scales with the row max, which a
                 # zero row does not have, so check its payload exactly. The
                 # zeroed inputs keep their signs, so both nibbles may be -0.
-                var row_bytes = (
-                    self.host_output_bufs_list[dev_idx]
-                    + (slot_idx * Self.max_recv_num_tokens + token_idx)
+                var row_bytes = self.host_output_bufs_list[
+                    dev_idx
+                ].unsafe_offset(
+                    (slot_idx * Self.max_recv_num_tokens + token_idx)
                     * Self.uint8_last_dim
                 )
                 for i in range(Self.uint8_last_dim):
@@ -798,10 +824,6 @@ struct MXDispatchTest[
     _n_ranks: Int,
     _n_slots: Int,
     _n_tokens_per_rank: Int,
-    # KS224 up-proj fold: `dispatch_wait` writes each token's E8M0 scale
-    # straight into the grouped matmul's per-expert `scale_4d` slot instead
-    # of a row-major scale row. AMD CDNA4 only.
-    _fuse_a_scale_preshuffle: Bool,
 ](DispatchTestT):
     comptime hidden_size = Self._hidden_size
     comptime top_k = Self._top_k
@@ -809,29 +831,16 @@ struct MXDispatchTest[
     comptime n_ranks = Self._n_ranks
     comptime n_slots = Self._n_slots
     comptime n_tokens_per_rank = Self._n_tokens_per_rank
-    comptime fuse_a_scale_preshuffle = Self._fuse_a_scale_preshuffle
     comptime max_recv_num_tokens = min(
         Self.n_experts, Self.n_ranks * Self.top_k
     ) * Self.n_tokens_per_rank
     comptime n_local_experts = Self.n_experts // Self.n_ranks
     comptime k_scales = Self.hidden_size // MXFP4_SF_VECTOR_SIZE
 
-    comptime scales_padded_size = Self.max_recv_num_tokens + Self.n_local_experts * SF_MN_GROUP_SIZE
-
-    # Per-expert `scale_4d` row capacity, mirroring the host-side
-    # `ep_mxfp4_down_slot_stride`: an expert can receive every token of every
-    # rank, and the slot stride rounds that up to the scale atom's MN block.
-    comptime max_padded_m = align_up(
-        Self.n_tokens_per_rank * Self.n_ranks, 32
-    ) if Self.fuse_a_scale_preshuffle else 0
-    comptime scales_rows = (
-        Self.n_local_experts * Self.max_padded_m
-    ) if Self.fuse_a_scale_preshuffle else Self.max_recv_num_tokens
-    comptime scales_per_slot = (
-        Self.n_local_experts * Self.max_padded_m * Self.k_scales
-    ) if Self.fuse_a_scale_preshuffle else (
-        Self.scales_padded_size * Self.k_scales
-    )
+    # Scales land in per-expert `scale_4d` slots sized for every rank's tokens.
+    comptime max_padded_m = align_up(Self.n_tokens_per_rank * Self.n_ranks, 32)
+    comptime scales_rows = Self.n_local_experts * Self.max_padded_m
+    comptime scales_per_slot = Self.scales_rows * Self.k_scales
 
     comptime is_fp4 = Self.quant_dtype == DType.uint8
     comptime quant_last_dim = (
@@ -851,7 +860,6 @@ struct MXDispatchTest[
         scales_layout=type_of(Self.output_scales_layout),
         Self.hidden_size,
         Self.top_k,
-        fuse_a_scale_preshuffle=Self.fuse_a_scale_preshuffle,
     ]
 
     var device_output_bufs_list: List[DeviceBuffer[Self.quant_dtype]]
@@ -890,22 +898,22 @@ struct MXDispatchTest[
                 )
             )
             self.host_output_bufs_list.append(
-                alloc[Scalar[Self.quant_dtype]](
+                unsafe_alloc[Scalar[Self.quant_dtype]](
                     Self.n_slots
                     * Self.max_recv_num_tokens
                     * Self.quant_last_dim
                 )
             )
             self.host_output_scales_bufs_list.append(
-                alloc[Scalar[Self.scales_dtype]](
+                unsafe_alloc[Scalar[Self.scales_dtype]](
                     Self.n_slots * Self.scales_per_slot
                 )
             )
 
     def __deinit__(deinit self):
         for i in range(Self.n_ranks):
-            self.host_output_bufs_list[i].free()
-            self.host_output_scales_bufs_list[i].free()
+            self.host_output_bufs_list[i].unsafe_free()
+            self.host_output_scales_bufs_list[i].unsafe_free()
 
     @inline(.always)
     def get_token_handler(
@@ -916,13 +924,17 @@ struct MXDispatchTest[
         out result: Self.TokenFormatType,
     ):
         var output_tensor = TileTensor(
-            ptr=self.device_output_bufs_list[dev_idx].unsafe_ptr()
-            + slot_idx * Self.max_recv_num_tokens * Self.quant_last_dim,
+            ptr=self.device_output_bufs_list[dev_idx]
+            .unsafe_ptr()
+            .unsafe_offset(
+                slot_idx * Self.max_recv_num_tokens * Self.quant_last_dim
+            ),
             layout=Self.output_layout,
         )
         var output_scales_tensor = TileTensor(
-            ptr=self.device_output_scales_bufs_list[dev_idx].unsafe_ptr()
-            + slot_idx * Self.scales_per_slot,
+            ptr=self.device_output_scales_bufs_list[dev_idx]
+            .unsafe_ptr()
+            .unsafe_offset(slot_idx * Self.scales_per_slot),
             layout=Self.output_scales_layout,
         )
 
@@ -963,31 +975,16 @@ struct MXDispatchTest[
 
         var quant_val = self.host_output_bufs_list[dev_idx][output_offset]
 
-        # The per-slot stride must be `scales_per_slot`: that is the stride
-        # `get_token_handler` offsets the device tensor with (and the
-        # allocation stride). Using the unpadded token count here reads the
-        # wrong slot region for every slot but the first.
-        var scale_offset: Int
-        comptime if Self.fuse_a_scale_preshuffle:
-            # Decode the `scale_4d` slot layout the fold wrote: this token's
-            # scale is addressed by (expert, row within expert, k) rather
-            # than by the flat receive-buffer row. Reproducing the offset
-            # here is what pins the producer to the layout the grouped
-            # matmul reads.
-            scale_offset = slot_idx * Self.scales_per_slot + Shuffler[
-                1
-            ].scale_4d_slot_byte_off[K_SCALES=Self.k_scales](
-                expert_idx,
-                expert_token_idx,
-                hid_dim_idx // MXFP4_SF_VECTOR_SIZE,
-                Self.max_padded_m,
-            )
-        else:
-            scale_offset = (
-                slot_idx * Self.scales_per_slot
-                + token_idx * Self.k_scales
-                + (hid_dim_idx // MXFP4_SF_VECTOR_SIZE)
-            )
+        # Read the scale where the grouped matmul does: by (expert, row within
+        # expert, k) in `scale_4d`, not by the flat receive row.
+        var scale_offset = slot_idx * Self.scales_per_slot + Shuffler[
+            1
+        ].scale_4d_slot_byte_off[K_SCALES=Self.k_scales](
+            expert_idx,
+            expert_token_idx,
+            hid_dim_idx // MXFP4_SF_VECTOR_SIZE,
+            Self.max_padded_m,
+        )
         var token_scale = self.host_output_scales_bufs_list[dev_idx][
             scale_offset
         ]
@@ -1100,8 +1097,8 @@ def test_dispatch_common[
         ctx.enqueue_memset(atomic_counters_list[i], Int32(0))
         ctx.enqueue_memset(recv_count_bufs_list[i], UInt64.MAX_FINITE)
 
-        host_topk_ids_list[i] = alloc[Int32](n_slots * n_tokens_per_rank * top_k)
-        host_input_tokens_list[i] = alloc[Scalar[input_type]](n_slots * n_tokens_per_rank * hidden_size)
+        host_topk_ids_list[i] = unsafe_alloc[Int32](n_slots * n_tokens_per_rank * top_k)
+        host_input_tokens_list[i] = unsafe_alloc[Scalar[input_type]](n_slots * n_tokens_per_rank * hidden_size)
 
         device_topk_bufs_list.append(ctx.enqueue_create_buffer[.int32](n_slots * n_tokens_per_rank * top_k))
         device_input_bufs_list.append(ctx.enqueue_create_buffer[input_type](n_slots * n_tokens_per_rank * hidden_size))
@@ -1172,7 +1169,9 @@ def test_dispatch_common[
                 ).cast[.bfloat16]()
                 if t % 17 == 0:
                     factor = 0
-                var row = host_input_tokens_list[dev_idx] + t * hidden_size
+                var row = host_input_tokens_list[dev_idx].unsafe_offset(
+                    t * hidden_size
+                )
                 for i in range(hidden_size):
                     row[i] *= factor
 
@@ -1184,74 +1183,64 @@ def test_dispatch_common[
         )
 
     # fmt: off
-    var send_ptrs_inputs = alloc[UInt64](n_slots * n_ranks)
-    var recv_ptrs_inputs = alloc[UInt64](n_slots * n_ranks)
-    var recv_count_ptrs_inputs = alloc[UInt64](n_slots * n_ranks)
+    var send_ptrs_inputs = unsafe_alloc[UInt64](n_slots * n_ranks)
+    var recv_ptrs_inputs = unsafe_alloc[UInt64](n_slots * n_ranks)
+    var recv_count_ptrs_inputs = unsafe_alloc[UInt64](n_slots * n_ranks)
 
     for slot_idx in range(n_slots):
         for dev_idx in range(n_ranks):
             var ptr_idx = slot_idx * n_ranks + dev_idx
             send_ptrs_inputs[ptr_idx] = UInt64(
-                Int(send_bufs_list[dev_idx].unsafe_ptr() + slot_idx * n_tokens_per_rank * msg_bytes)
+                Int(send_bufs_list[dev_idx].unsafe_ptr().unsafe_offset(slot_idx * n_tokens_per_rank * msg_bytes))
             )
             recv_ptrs_inputs[ptr_idx] = UInt64(
-                Int(recv_bufs_list[dev_idx].unsafe_ptr() + slot_idx * max_recv_num_tokens * msg_bytes)
+                Int(recv_bufs_list[dev_idx].unsafe_ptr().unsafe_offset(slot_idx * max_recv_num_tokens * msg_bytes))
             )
             recv_count_ptrs_inputs[ptr_idx] = UInt64(
-                Int(recv_count_bufs_list[dev_idx].unsafe_ptr() + slot_idx * n_experts)
+                Int(recv_count_bufs_list[dev_idx].unsafe_ptr().unsafe_offset(slot_idx * n_experts))
             )
 
     @inline(.always)
-    @__parameter
-    def get_send_ptrs_tensor(slot_idx: Int, out result: TileTensor[.uint64, type_of(ptrs_layout), ImmutAnyOrigin]) raises:
-        return type_of(result)(ptr=(send_ptrs_inputs + slot_idx * n_ranks).as_unsafe_any_origin(), layout=ptrs_layout)
+    def get_send_ptrs_tensor(slot_idx: Int, out result: TileTensor[.uint64, type_of(ptrs_layout), ImmutAnyOrigin]) raises {imm}:
+        return type_of(result)(ptr=send_ptrs_inputs.unsafe_offset(slot_idx * n_ranks).as_unsafe_any_origin(), layout=ptrs_layout)
 
     @inline(.always)
-    @__parameter
-    def get_recv_ptrs_tensor(slot_idx: Int, out result: TileTensor[.uint64, type_of(ptrs_layout), ImmutAnyOrigin]) raises:
-        return type_of(result)( ptr=(recv_ptrs_inputs + slot_idx * n_ranks).as_unsafe_any_origin(), layout=ptrs_layout)
+    def get_recv_ptrs_tensor(slot_idx: Int, out result: TileTensor[.uint64, type_of(ptrs_layout), ImmutAnyOrigin]) raises {imm}:
+        return type_of(result)( ptr=recv_ptrs_inputs.unsafe_offset(slot_idx * n_ranks).as_unsafe_any_origin(), layout=ptrs_layout)
 
     @inline(.always)
-    @__parameter
-    def get_recv_count_ptrs_tensor(slot_idx: Int, out result: TileTensor[.uint64, type_of(ptrs_layout), ImmutAnyOrigin]) raises:
-        return type_of(result)(ptr=(recv_count_ptrs_inputs + slot_idx * n_ranks).as_unsafe_any_origin(), layout=ptrs_layout)
+    def get_recv_count_ptrs_tensor(slot_idx: Int, out result: TileTensor[.uint64, type_of(ptrs_layout), ImmutAnyOrigin]) raises {imm}:
+        return type_of(result)(ptr=recv_count_ptrs_inputs.unsafe_offset(slot_idx * n_ranks).as_unsafe_any_origin(), layout=ptrs_layout)
 
     @inline(.always)
-    @__parameter
-    def get_atomic_counters_tensor( dev_idx: Int, slot_idx: Int, out result: TileTensor[.int32, type_of(counters_layout), MutAnyOrigin]) raises:
+    def get_atomic_counters_tensor( dev_idx: Int, slot_idx: Int, out result: TileTensor[.int32, type_of(counters_layout), MutAnyOrigin]) raises {mut atomic_counters_list, imm}:
         return type_of(result)(
-            ptr=(atomic_counters_list[dev_idx].unsafe_ptr() + slot_idx * counters_size).as_unsafe_any_origin(), layout=counters_layout
+            ptr=atomic_counters_list[dev_idx].unsafe_ptr().unsafe_offset(slot_idx * counters_size).as_unsafe_any_origin(), layout=counters_layout
         )
 
     @inline(.always)
-    @__parameter
-    def get_topk_ids_tensor(dev_idx: Int, slot_idx: Int, out result: TileTensor[.int32, type_of(topk_ids_layout), ImmutAnyOrigin]) raises:
-        return type_of(result)(ptr=(device_topk_bufs_list[dev_idx].unsafe_ptr() + slot_idx * n_tokens_per_rank * top_k).as_unsafe_any_origin(), layout=topk_ids_layout)
+    def get_topk_ids_tensor(dev_idx: Int, slot_idx: Int, out result: TileTensor[.int32, type_of(topk_ids_layout), ImmutAnyOrigin]) raises {imm}:
+        return type_of(result)(ptr=device_topk_bufs_list[dev_idx].unsafe_ptr().unsafe_offset(slot_idx * n_tokens_per_rank * top_k).as_unsafe_any_origin(), layout=topk_ids_layout)
 
     @inline(.always)
-    @__parameter
-    def get_input_tokens_tensor(dev_idx: Int, slot_idx: Int, out result: TileTensor[input_type, type_of(input_tokens_layout), ImmutAnyOrigin]) raises:
-        return type_of(result)(ptr=(device_input_bufs_list[dev_idx].unsafe_ptr() + slot_idx * n_tokens_per_rank * hidden_size).as_unsafe_any_origin(), layout=input_tokens_layout)
+    def get_input_tokens_tensor(dev_idx: Int, slot_idx: Int, out result: TileTensor[input_type, type_of(input_tokens_layout), ImmutAnyOrigin]) raises {imm}:
+        return type_of(result)(ptr=device_input_bufs_list[dev_idx].unsafe_ptr().unsafe_offset(slot_idx * n_tokens_per_rank * hidden_size).as_unsafe_any_origin(), layout=input_tokens_layout)
 
     @inline(.always)
-    @__parameter
-    def get_row_offsets_tensor(dev_idx: Int, slot_idx: Int, out result: TileTensor[.uint32, type_of(row_offsets_layout), MutAnyOrigin]) raises:
-        return type_of(result)(ptr=(device_row_offsets_bufs_list[dev_idx].unsafe_ptr() + slot_idx * (n_local_experts + 1)).as_unsafe_any_origin(), layout=row_offsets_layout)
+    def get_row_offsets_tensor(dev_idx: Int, slot_idx: Int, out result: TileTensor[.uint32, type_of(row_offsets_layout), MutAnyOrigin]) raises {mut device_row_offsets_bufs_list, imm}:
+        return type_of(result)(ptr=device_row_offsets_bufs_list[dev_idx].unsafe_ptr().unsafe_offset(slot_idx * (n_local_experts + 1)).as_unsafe_any_origin(), layout=row_offsets_layout)
 
     @inline(.always)
-    @__parameter
-    def get_expert_ids_tensor(dev_idx: Int, slot_idx: Int, out result: TileTensor[.int32, type_of(expert_ids_layout), MutAnyOrigin]) raises:
-        return type_of(result)(ptr=(device_expert_ids_bufs_list[dev_idx].unsafe_ptr() + slot_idx * n_local_experts).as_unsafe_any_origin(), layout=expert_ids_layout)
+    def get_expert_ids_tensor(dev_idx: Int, slot_idx: Int, out result: TileTensor[.int32, type_of(expert_ids_layout), MutAnyOrigin]) raises {mut device_expert_ids_bufs_list, imm}:
+        return type_of(result)(ptr=device_expert_ids_bufs_list[dev_idx].unsafe_ptr().unsafe_offset(slot_idx * n_local_experts).as_unsafe_any_origin(), layout=expert_ids_layout)
 
     @inline(.always)
-    @__parameter
-    def get_src_token_info_tensor(dev_idx: Int, slot_idx: Int, out result: TileTensor[.int32, type_of(src_token_info_layout), MutAnyOrigin]) raises:
-        return type_of(result)(ptr=(device_src_token_info_bufs_list[dev_idx].unsafe_ptr() + slot_idx * max_recv_num_tokens * 2).as_unsafe_any_origin(), layout=src_token_info_layout)
+    def get_src_token_info_tensor(dev_idx: Int, slot_idx: Int, out result: TileTensor[.int32, type_of(src_token_info_layout), MutAnyOrigin]) raises {mut device_src_token_info_bufs_list, imm}:
+        return type_of(result)(ptr=device_src_token_info_bufs_list[dev_idx].unsafe_ptr().unsafe_offset(slot_idx * max_recv_num_tokens * 2).as_unsafe_any_origin(), layout=src_token_info_layout)
     # fmt: on
 
     @inline(.always)
-    @__parameter
-    def run_dispatch_async(dev_idx: Int, slot_idx: Int) raises:
+    def run_dispatch_async(dev_idx: Int, slot_idx: Int) raises {imm}:
         var ctx = list_of_ctx[dev_idx]
         ep_dispatch_async_kernel_api[
             token_fmt_type,
@@ -1272,8 +1261,7 @@ def test_dispatch_common[
         )
 
     @inline(.always)
-    @__parameter
-    def run_dispatch_async_wait(dev_idx: Int, slot_idx: Int) raises:
+    def run_dispatch_async_wait(dev_idx: Int, slot_idx: Int) raises {imm}:
         var ctx = list_of_ctx[dev_idx]
         var format_handler = dispatch_test.get_token_handler(
             dev_idx, slot_idx, ctx
@@ -1296,8 +1284,7 @@ def test_dispatch_common[
         )
 
     @inline(.always)
-    @__parameter
-    def run_fused_dispatch(dev_idx: Int, slot_idx: Int) raises:
+    def run_fused_dispatch(dev_idx: Int, slot_idx: Int) raises {imm}:
         var ctx = list_of_ctx[dev_idx]
         ep_fused_dispatch_kernel_api[
             n_experts,
@@ -1322,7 +1309,7 @@ def test_dispatch_common[
         )
 
     @inline(.always)
-    def run_e2e(dev_idx: Int, slot_idx: Int) raises:
+    def run_e2e(dev_idx: Int, slot_idx: Int) raises {imm}:
         comptime if fused_dispatch:
             run_fused_dispatch(dev_idx, slot_idx)
         else:
@@ -1330,11 +1317,16 @@ def test_dispatch_common[
             run_dispatch_async_wait(dev_idx, slot_idx)
 
     @inline(.always)
-    @__parameter
-    def clean_up(dev_idx: Int) raises:
+    def clean_up(dev_idx: Int) raises {imm}:
         var ctx = list_of_ctx[dev_idx]
         ctx.enqueue_memset(atomic_counters_list[dev_idx], Int32(0))
         ctx.enqueue_memset(recv_count_bufs_list[dev_idx], UInt64.MAX_FINITE)
+
+    # Each device resets its own recv counts on its own stream, but peers
+    # write signals into them. Wait for all resets, or a late reset can erase
+    # a peer's signal and the wait kernel spins forever.
+    for dev_i in range(n_ranks):
+        list_of_ctx[dev_i].synchronize()
 
     # warm up by running once
     for dev_i in range(n_ranks):
@@ -1367,7 +1359,7 @@ def test_dispatch_common[
         # First, bench the dispatch kernel overhead
 
         @inline(.always)
-        def call_fn_dispatch(ctx: DeviceContext, cache_iter: Int) raises {}:
+        def call_fn_dispatch(ctx: DeviceContext, cache_iter: Int) raises {imm}:
             var dev_id = Int(ctx.id())
             run_dispatch_async(dev_id, cache_iter)
 
@@ -1409,7 +1401,7 @@ def test_dispatch_common[
         @inline(.always)
         def call_fn_dispatch_wait(
             ctx: DeviceContext, cache_iter: Int
-        ) raises {}:
+        ) raises {imm}:
             var dev_id = Int(ctx.id())
             run_dispatch_async_wait(dev_id, cache_iter)
 
@@ -1455,7 +1447,7 @@ def test_dispatch_common[
             list_of_ctx[dev_i].synchronize()
 
         @inline(.always)
-        def call_fn_e2e(ctx: DeviceContext, cache_iter: Int) raises {}:
+        def call_fn_e2e(ctx: DeviceContext, cache_iter: Int) raises {imm}:
             var dev_id = Int(ctx.id())
             run_dispatch_async(dev_id, cache_iter + 1)
             run_dispatch_async_wait(dev_id, cache_iter + 1)
@@ -1502,15 +1494,17 @@ def test_dispatch_common[
         var ctx = list_of_ctx[dev_idx]
 
         # Allocate host buffers for copying device outputs
-        var host_output = alloc[Scalar[input_type]](
+        var host_output = unsafe_alloc[Scalar[input_type]](
             n_slots * max_recv_num_tokens * hidden_size
         )
-        var host_row_offsets = alloc[UInt32](n_slots * (n_local_experts + 1))
-        var host_expert_ids = alloc[Int32](n_slots * n_local_experts)
-        var host_src_token_info = alloc[Int32](
+        var host_row_offsets = unsafe_alloc[UInt32](
+            n_slots * (n_local_experts + 1)
+        )
+        var host_expert_ids = unsafe_alloc[Int32](n_slots * n_local_experts)
+        var host_src_token_info = unsafe_alloc[Int32](
             n_slots * max_recv_num_tokens * 2
         )
-        var host_atomic_counter = alloc[Int32](
+        var host_atomic_counter = unsafe_alloc[Int32](
             n_slots * EPLocalSyncCounters[n_experts].total_size()
         )
 
@@ -1528,13 +1522,16 @@ def test_dispatch_common[
         # Check results for each slot
         for slot_idx in range(n_slots):
             # Get pointers to this slot's data
-            var slot_expert_ids = host_expert_ids + slot_idx * n_local_experts
-            var slot_src_token_info = (
-                host_src_token_info + slot_idx * max_recv_num_tokens * 2
+            var slot_expert_ids = host_expert_ids.unsafe_offset(
+                slot_idx * n_local_experts
+            )
+            var slot_src_token_info = host_src_token_info.unsafe_offset(
+                slot_idx * max_recv_num_tokens * 2
             )
             var slot_dispatch_wait_counter = EPLocalSyncCounters[n_experts](
-                host_atomic_counter
-                + slot_idx * EPLocalSyncCounters[n_experts].total_size()
+                host_atomic_counter.unsafe_offset(
+                    slot_idx * EPLocalSyncCounters[n_experts].total_size()
+                )
             ).get_dispatch_wait_ptr()
 
             # Check if we have received the correct number of tokens
@@ -1545,9 +1542,8 @@ def test_dispatch_common[
 
             # Count expected tokens from all ranks for this slot
             for rank in range(n_ranks):
-                var rank_topk_ids = (
-                    host_topk_ids_list[rank]
-                    + slot_idx * n_tokens_per_rank * top_k
+                var rank_topk_ids = host_topk_ids_list[rank].unsafe_offset(
+                    slot_idx * n_tokens_per_rank * top_k
                 )
                 for tok_idx in range(n_tokens_per_rank * top_k):
                     if (
@@ -1586,10 +1582,9 @@ def test_dispatch_common[
                         ]
 
                         # Get the remote rank's topk_ids for this slot
-                        var remote_rank_topk_ids = (
-                            host_topk_ids_list[remote_rank]
-                            + slot_idx * n_tokens_per_rank * top_k
-                        )
+                        var remote_rank_topk_ids = host_topk_ids_list[
+                            remote_rank
+                        ].unsafe_offset(slot_idx * n_tokens_per_rank * top_k)
 
                         # Check if curr_expert is in remote rank's topk_ids
                         assert_equal(
@@ -1606,16 +1601,18 @@ def test_dispatch_common[
                         )
 
                         # Get the remote rank's input tokens for this slot
-                        var remote_rank_input_tokens = (
-                            host_input_tokens_list[remote_rank]
-                            + slot_idx * n_tokens_per_rank * hidden_size
+                        var remote_rank_input_tokens = host_input_tokens_list[
+                            remote_rank
+                        ].unsafe_offset(
+                            slot_idx * n_tokens_per_rank * hidden_size
                         )
                         dispatch_test.check_output_row(
                             dev_idx,
                             slot_idx,
                             Int(token_idx),
-                            remote_rank_input_tokens
-                            + Int(remote_loc) * hidden_size,
+                            remote_rank_input_tokens.unsafe_offset(
+                                Int(remote_loc) * hidden_size
+                            ),
                         )
 
                         # Check if the received token matches the remote rank's token
@@ -1645,19 +1642,19 @@ def test_dispatch_common[
             )
 
         # Free host buffers
-        host_output.free()
-        host_row_offsets.free()
-        host_expert_ids.free()
-        host_src_token_info.free()
-        host_atomic_counter.free()
+        host_output.unsafe_free()
+        host_row_offsets.unsafe_free()
+        host_expert_ids.unsafe_free()
+        host_src_token_info.unsafe_free()
+        host_atomic_counter.unsafe_free()
 
     dispatch_test.save_outputs_to_host(list_of_ctx)
     sync_parallelize(verify_results, n_ranks)
     print("All results verified successfully!")
 
     for dev_idx in range(n_ranks):
-        host_topk_ids_list[dev_idx].free()
-        host_input_tokens_list[dev_idx].free()
+        host_topk_ids_list[dev_idx].unsafe_free()
+        host_input_tokens_list[dev_idx].unsafe_free()
 
 
 def test_dispatch_bf16[
@@ -1780,9 +1777,6 @@ def test_dispatch_mxfp4[
         _n_ranks=n_ranks,
         _n_slots=n_slots,
         _n_tokens_per_rank=n_tokens_per_rank,
-        # The MX suites cover the fold only: it is what MiniMax-M3 runs
-        # on CDNA4, and these suites are already MI355X-gated.
-        _fuse_a_scale_preshuffle=True,
     ]
     test_dispatch_common[
         DispatchTestType=dispatch_test_type,
@@ -1813,9 +1807,6 @@ def test_dispatch_mxfp8[
         _n_ranks=n_ranks,
         _n_slots=n_slots,
         _n_tokens_per_rank=n_tokens_per_rank,
-        # The MX suites cover the fold only: it is what MiniMax-M3 runs
-        # on CDNA4, and these suites are already MI355X-gated.
-        _fuse_a_scale_preshuffle=True,
     ]
     test_dispatch_common[
         DispatchTestType=dispatch_test_type,
@@ -1833,7 +1824,8 @@ def main() raises:
         raise Error("Cannot enable P2P Mem Access!")
 
     comptime assert (
-        has_nvidia_gpu_accelerator() or has_amd_gpu_accelerator()
+        default_accelerator().is_nvidia_gpu()
+        or default_accelerator().is_amd_gpu()
     ), "Only NVIDIA and AMD GPUs are supported"
 
     comptime for gpu_idx in range(len(test_gpu_counts)):
@@ -1872,7 +1864,7 @@ def main() raises:
 
             comptime device_info = DeviceContext.default_device_info
 
-            comptime if has_nvidia_gpu_accelerator() and _is_sm10x_gpu(
+            comptime if ctx.T.target.is_nvidia_gpu() and _is_sm10x_gpu(
                 device_info
             ):
                 test_dispatch_block_scaled_nv[
@@ -1957,7 +1949,7 @@ def main() raises:
         # the expert matmuls as NaN. 112 experts per device is the first
         # production shape that hits it (896 / EP8). Kept outside the sweep
         # above because its `> 256` cap would skip this count on 4+ GPUs.
-        comptime if has_nvidia_gpu_accelerator() and _is_sm10x_gpu(
+        comptime if ctx.T.target.is_nvidia_gpu() and _is_sm10x_gpu(
             DeviceContext.default_device_info
         ):
             test_dispatch_block_scaled_nv[

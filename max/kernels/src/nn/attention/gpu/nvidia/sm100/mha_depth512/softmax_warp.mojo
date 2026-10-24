@@ -46,23 +46,19 @@ from max.gpu.sync import (
 from max.gpu.compute.arch.tcgen05 import (
     tcgen05_dealloc,
     tcgen05_fence_after,
-    tcgen05_fence_before,
     tcgen05_ld,
     tcgen05_release_allocation_lock,
-    tcgen05_store_wait,
 )
 from max.gpu.primitives.cluster import block_rank_in_cluster
 from linalg.matmul.gpu.sm100_structured.structured_kernels.tmem import (
     TmemAddress,
 )
-from layout import IntTuple
 from layout.swizzle import make_swizzle
 from layout.tensor_core_async import tile_layout_k_major
-from layout.tma_async import RaggedTMA3DTile, SharedMemBarrier
+from layout.tma_async import RaggedTMA3DTile
 from max.gpu.host.nvidia.tma import TensorMapSwizzle
 from nn.attention.gpu.nvidia.sm100.attention_utils import (
     elect,
-    SharedMemPointer,
     MBarType,
     TMemTile,
     llvm_opaque_tid,
@@ -77,9 +73,7 @@ from nn.attention.gpu.nvidia.sm100.attention_utils import (
     scale_pack_o_row,
 )
 from nn.attention.mha_mask import MHAMask, TileMaskStatus, MaskStrategy
-from nn.attention.mha_operand import MHAOperand
 from nn.attention.gpu.nvidia.common import OptionalPointer
-from nn.attention.gpu.nvidia.mha_tile_scheduler import SeqInfo
 from std.utils.index import Index
 from std.utils.static_tuple import StaticTuple
 from .barriers import Depth512MBars
@@ -183,12 +177,11 @@ def depth512_scale_write_output[
         ), "batched depth512 store expects a full-depth box (single issuer)."
 
     # ---- Helper: load from TMEM, scale, write to SMEM --------------------
-    @__parameter
     @inline(.always)
     def read_scale_write(
         o_tmem: TmemAddress,
         col_base: Int,
-    ):
+    ) {imm}:
         comptime for b in range(num_batches):
             comptime col_offset = b * batch_size
             var o_vals = tcgen05_ld[
@@ -210,9 +203,11 @@ def depth512_scale_write_output[
                 var col = col_base + col_offset + base
                 var o_k_block = col // o_sw_K
                 var o_inner = Int(m_row) * o_sw_K + col % o_sw_K
-                (o_smem + o_k_block * BM * o_sw_K + o_swizzle(o_inner)).bitcast[
-                    UInt32
-                ]().store(packed)
+                (
+                    o_smem.unsafe_offset(o_k_block * BM * o_sw_K).unsafe_offset(
+                        o_swizzle(o_inner)
+                    )
+                ).unsafe_bitcast[UInt32]().unsafe_store(packed)
 
     comptime if config.split_o:
         comptime ov_quarter = config.ov_depth // 4
@@ -474,22 +469,19 @@ def depth512_softmax[
 
     # ---- Inner helpers ---------------------------------------------------
 
-    @__parameter
     @inline(.always)
-    def s_load[i: Int]() -> f32x2:
+    def s_load[i: Int]() {imm s} -> f32x2:
         return f32x2(s[2 * i], s[2 * i + 1])
 
-    @__parameter
     @inline(.always)
-    def s_store[i: Int](v: f32x2):
+    def s_store[i: Int](v: f32x2) {mut s}:
         s[2 * i] = v[0]
         s[2 * i + 1] = v[1]
 
-    @__parameter
     @inline(.always)
     def mask_batch[
         N: Int, //, mask_strategy: MaskStrategy
-    ](mut batch: Array[Scalar[accum_dtype], N], kv_col: UInt32):
+    ](mut batch: Array[Scalar[accum_dtype], N], kv_col: UInt32) {imm}:
         """Apply mask to a batch of score elements."""
         apply_mask[
             mask_strategy=mask_strategy,
@@ -506,11 +498,10 @@ def depth512_softmax[
             score_row=Int32(per_thread_score_row),
         )
 
-    @__parameter
     @inline(.always)
     def exchange_reduce[
         op: StringLiteral,  # "max" or "add"
-    ](partial_val: Float32) -> Float32:
+    ](partial_val: Float32) {imm} -> Float32:
         """Exchange partial value between paired threads via correction_smem.
 
         Uses 2 named_barrier syncs. correction_smem must be free (ensured
@@ -543,11 +534,12 @@ def depth512_softmax[
     # Follows FA4 pattern: double-buffer TMEM loads across batches so that
     # masking + max of batch N overlaps with the TMEM load of batch N+1.
 
-    @__parameter
     @inline(.always)
     def load_mask_max_impl[
         *, mask_strategy: MaskStrategy
-    ](s_tmem: UInt32, kv_row: UInt32) -> StaticTuple[Float32, max_unroll]:
+    ](s_tmem: UInt32, kv_row: UInt32) {mut s, imm} -> StaticTuple[
+        Float32, max_unroll
+    ]:
         """Load effective_bn columns of S from TMEM, apply mask, compute partial
         row_max as a StaticTuple for reduction.
 
@@ -614,11 +606,10 @@ def depth512_softmax[
 
         return vrow_max
 
-    @__parameter
     @inline(.always)
     def init_load_mask_max[
         mask_strategy: MaskStrategy
-    ](kv_row: UInt32) -> Float32:
+    ](kv_row: UInt32) {imm} -> Float32:
         """Load S, mask, return partial max (scalar)."""
         return maximum(
             load_mask_max_impl[mask_strategy=mask_strategy](s_even_tmem, kv_row)
@@ -627,7 +618,7 @@ def depth512_softmax[
     @inline(.always)
     def load_mask_max[
         mask_strategy: MaskStrategy
-    ](s_tmem: UInt32, kv_row: UInt32, old_max: Float32) -> Float32:
+    ](s_tmem: UInt32, kv_row: UInt32, old_max: Float32) {imm} -> Float32:
         """Load S, mask, return partial max combined with old_max."""
         return maximum(
             load_mask_max_impl[mask_strategy=mask_strategy](s_tmem, kv_row),
@@ -638,9 +629,8 @@ def depth512_softmax[
     # Follows FA4 pattern: interleave score_to_logit ahead of exp2 via
     # score_to_logit_ratio, then write P to SMEM in batches.
 
-    @__parameter
     @inline(.always)
-    def store_exp(row_max: Float32) -> f32x2:
+    def store_exp(row_max: Float32) {imm} -> f32x2:
         comptime exp_simd = 2
         comptime vs_len = effective_bn // exp_simd
         comptime score_to_logit_ratio: Int = 4
@@ -662,15 +652,13 @@ def depth512_softmax[
         else:
             vneg_max_scaled = f32x2(-row_max * scale_log2e)
 
-        @__parameter
         @inline(.always)
-        def score_to_logit(score: f32x2) -> f32x2:
+        def score_to_logit(score: f32x2) {imm} -> f32x2:
             return fma_ftz(score, vscale, vneg_max_scaled)
 
         # Interleaved exp: score_to_logit runs ahead by score_to_logit_ratio.
-        @__parameter
         @inline(.always)
-        def exp_iter[idx: Int]():
+        def exp_iter[idx: Int]() {imm}:
             comptime if idx < vs_len // score_to_logit_ratio:
                 comptime for i in range(score_to_logit_ratio):
                     comptime j = score_to_logit_ratio * idx + i
@@ -690,9 +678,8 @@ def depth512_softmax[
             16 % size_of[qkv_dtype]() == 0
         ), "P store byte width (16) must be a multiple of dtype size"
 
-        @__parameter
         @inline(.always)
-        def write_p_batch[start_elem: Int, num_elems: Int]():
+        def write_p_batch[start_elem: Int, num_elems: Int]() {imm}:
             comptime assert num_elems % p_elems_per_store == 0, (
                 "write_p_batch num_elems must be a multiple of the per-store"
                 " element count (16/size_of[dtype])"
@@ -700,9 +687,8 @@ def depth512_softmax[
             comptime for c in range(0, num_elems, p_elems_per_store):
                 comptime base = start_elem + c
 
-                @__parameter
                 @inline(.always)
-                def pack_vals[n: Int]() -> SIMD[qkv_dtype, n]:
+                def pack_vals[n: Int]() {imm} -> SIMD[qkv_dtype, n]:
                     var vec = SIMD[accum_dtype, n](0)
                     comptime for k in range(n):
                         vec[k] = s[base + k]
@@ -714,9 +700,13 @@ def depth512_softmax[
                 comptime assert effective_bn % p_sw_K == 0
                 comptime r = base % p_sw_K
                 var p_inner = Int(m_row) * p_sw_K + r
-                (p_smem + p_k_block * BM * p_sw_K + p_swizzle(p_inner)).bitcast[
-                    UInt32
-                ]().store(bitcast[.uint32, 4](vals))
+                (
+                    p_smem.unsafe_offset(p_k_block * BM * p_sw_K).unsafe_offset(
+                        p_swizzle(p_inner)
+                    )
+                ).unsafe_bitcast[UInt32]().unsafe_store(
+                    bitcast[.uint32, 4](vals)
+                )
 
         # Batch 0: compute exp.
         comptime for idx in range(p_batch):
@@ -762,9 +752,8 @@ def depth512_softmax[
     tcgen05_fence_after()
 
     var partial_max: Float32 = peel_mask[
-        rebind[StaticTuple[MaskStrategy, num_sets]](mask_strategies),
-        init_load_mask_max,
-    ](mask_iters, kv_row)
+        rebind[StaticTuple[MaskStrategy, num_sets]](mask_strategies)
+    ](init_load_mask_max, mask_iters, kv_row)
 
     umma_arrive_leader_cta(pipeline_s_even.consumer_mbar())
     pipeline_s_even.step()
@@ -806,9 +795,22 @@ def depth512_softmax[
     var s_nxt_pipeline = pipeline_s_even
     var s_nxt_tmem = s_even_tmem
 
-    @__parameter
     @inline(.always)
-    def main_loop_body[mask_strategy: MaskStrategy]():
+    def main_loop_body[
+        mask_strategy: MaskStrategy
+    ]() {
+        mut row_max,
+        mut partial_max,
+        mut partial_sum,
+        mut row_sum,
+        mut o_phase,
+        mut pipeline_c,
+        mut s_cur_pipeline,
+        mut s_nxt_pipeline,
+        mut s_cur_tmem,
+        mut s_nxt_tmem,
+        imm,
+    }:
         """One iteration of the main softmax loop."""
         var old_max = row_max
 
@@ -891,8 +893,8 @@ def depth512_softmax[
                 break
             var cur_mask_status = mask.status(
                 seq_id,
-                Index[dtype=DType.int32](Int(score_row), Int(kv_row)),
-                Index[dtype=DType.int32](PairBM_mask, BN),
+                Index[dtype=.int32](Int(score_row), Int(kv_row)),
+                Index[dtype=.int32](PairBM_mask, BN),
             )
             if cur_mask_status == TileMaskStatus.FULL_MASK:
                 continue
@@ -913,7 +915,9 @@ def depth512_softmax[
     ].O_mma_hi_offset if config.split_o else Depth512MBars[
         config.num_kv_stages, config.split_o
     ].O_mma_lo_offset
-    var o_mma_done_mbar: MBarType = mbars.mbar_base + o_mma_done_offset
+    var o_mma_done_mbar: MBarType = mbars.mbar_base.unsafe_offset(
+        o_mma_done_offset
+    )
     o_mma_done_mbar[].wait(o_phase)
     tcgen05_fence_after()
 

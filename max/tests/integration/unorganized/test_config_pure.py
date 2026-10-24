@@ -12,6 +12,7 @@
 # ===----------------------------------------------------------------------=== #
 
 import pickle
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -42,6 +43,7 @@ from max.pipelines.lib.config.config import (
     _resolve_default_tool_parser,
     _resolve_overlap_and_device_graph_capture,
     _resolve_spec_decode_mixed_batches,
+    _validate_kv_cache_format,
 )
 from max.pipelines.lib.config.model_config import (
     _build_model_config,
@@ -433,6 +435,7 @@ class TestSpeculativeArchitectureOverride:
         speculative: bool = True,
         is_dflash: bool = False,
         is_dflash2: bool = False,
+        is_dspark: bool = False,
         draft_arch: str | None = None,
     ) -> SimpleNamespace:
         """Build a minimal stand-in exposing the attrs the method reads.
@@ -447,10 +450,21 @@ class TestSpeculativeArchitectureOverride:
             draft_model = SimpleNamespace(
                 huggingface_config=SimpleNamespace(architectures=[draft_arch])
             )
+        method = (
+            "dspark"
+            if is_dspark
+            else "dflash2"
+            if is_dflash2
+            else "dflash"
+            if is_dflash
+            else "eagle"
+        )
         spec = (
             SimpleNamespace(
+                speculative_method=method,
                 is_dflash=lambda: is_dflash or is_dflash2,
                 is_dflash2=lambda: is_dflash2,
+                is_dspark=lambda: is_dspark,
                 is_mtp=lambda: False,
             )
             if speculative
@@ -466,42 +480,18 @@ class TestSpeculativeArchitectureOverride:
         _apply_speculative_target_architecture(cfg.speculative, cfg.manifest)
         return cfg.manifest["main"].huggingface_config.architectures[0]
 
-    def test_llama_eagle(self) -> None:
-        cfg = self._make_config("LlamaForCausalLM")
-        assert self._resolved_arch(cfg) == "UnifiedEagleLlama3ForCausalLM"
-
-    def test_llama_dflash(self) -> None:
-        cfg = self._make_config("LlamaForCausalLM", is_dflash=True)
-        assert self._resolved_arch(cfg) == "UnifiedDflashLlama3ForCausalLM"
-
     def test_dflash2_does_not_take_a_v1_or_eagle_rewrite(self) -> None:
         """DFlash2 shares ``is_dflash()`` but not the graphs it selects.
 
-        The Llama and Kimi arms name v1 and Eagle graphs, neither of which
-        can verify a DFlash2 block draft, so rewriting to one would load a
-        graph that silently mismatches the drafter. The exclusion is
-        deliberately limited to those arms: a target with its own DFlash2
-        arm must still reach it, so this must not become a blanket
-        "return early for v2".
+        The Kimi arm names v1 and Eagle graphs, neither of which can verify a
+        DFlash2 block draft, so rewriting to one would load a graph that
+        silently mismatches the drafter. The exclusion is deliberately
+        limited to that arm: a target with its own DFlash2 arm must still
+        reach it, so this must not become a blanket "return early for v2".
         """
         for target in ("LlamaForCausalLM", "KimiK25ForConditionalGeneration"):
             cfg = self._make_config(target, is_dflash2=True)
             assert self._resolved_arch(cfg) == target
-
-    def test_gemma4_mtp(self) -> None:
-        cfg = self._make_config(
-            "Gemma4ForConditionalGeneration",
-            draft_arch="Gemma4AssistantForCausalLM",
-        )
-        assert self._resolved_arch(cfg) == "UnifiedMTPGemma4ForCausalLM"
-
-    def test_gemma4_unified_dspark(self) -> None:
-        cfg = self._make_config(
-            "Gemma4UnifiedForConditionalGeneration",
-            is_dflash=True,
-            draft_arch="Gemma4DSparkModel",
-        )
-        assert self._resolved_arch(cfg) == "UnifiedDSparkGemma4_12BForCausalLM"
 
     def test_gemma4_unified_without_dspark_draft_is_noop(self) -> None:
         cfg = self._make_config(
@@ -511,10 +501,34 @@ class TestSpeculativeArchitectureOverride:
             self._resolved_arch(cfg) == "Gemma4UnifiedForConditionalGeneration"
         )
 
+    def test_nemotron_h_dspark(self) -> None:
+        cfg = self._make_config(
+            "NemotronHForCausalLM",
+            is_dspark=True,
+            draft_arch="Qwen3DSparkModel",
+        )
+        assert self._resolved_arch(cfg) == "UnifiedDSparkNemotronHForCausalLM"
+
+    def test_nemotron_h_dspark_rejects_other_methods(self) -> None:
+        """The fused graph only runs a DSpark draft step."""
+        for kwargs in ({}, {"is_dflash": True}, {"is_dflash2": True}):
+            cfg = self._make_config(
+                "NemotronHForCausalLM", draft_arch="Qwen3DSparkModel", **kwargs
+            )
+            with pytest.raises(ValueError, match="dspark"):
+                self._resolved_arch(cfg)
+
+    def test_nemotron_h_without_a_dspark_draft_is_noop(self) -> None:
+        for draft_arch in (None, "LlamaForCausalLM"):
+            cfg = self._make_config(
+                "NemotronHForCausalLM", draft_arch=draft_arch
+            )
+            assert self._resolved_arch(cfg) == "NemotronHForCausalLM"
+
     def test_minimax_m3_dspark(self) -> None:
         cfg = self._make_config(
             "MiniMaxM3SparseForConditionalGeneration",
-            is_dflash=True,
+            is_dspark=True,
             draft_arch="DSparkMiniMaxDraftModel",
         )
         assert (
@@ -523,14 +537,14 @@ class TestSpeculativeArchitectureOverride:
         )
 
     def test_minimax_m3_dspark_rejects_other_methods(self) -> None:
-        """The DSpark graph only runs under the v1 dflash harness."""
-        for kwargs in ({}, {"is_dflash2": True}):
+        """The DSpark graph only runs a DSpark draft step."""
+        for kwargs in ({}, {"is_dflash": True}, {"is_dflash2": True}):
             cfg = self._make_config(
                 "MiniMaxM3SparseForConditionalGeneration",
                 draft_arch="DSparkMiniMaxDraftModel",
                 **kwargs,
             )
-            with pytest.raises(ValueError, match="dflash"):
+            with pytest.raises(ValueError, match="dspark"):
                 self._resolved_arch(cfg)
 
     def test_no_speculative_is_noop(self) -> None:
@@ -538,36 +552,6 @@ class TestSpeculativeArchitectureOverride:
             "DeepseekV3ForCausalLM", speculative=False, draft_arch=None
         )
         assert self._resolved_arch(cfg) == "DeepseekV3ForCausalLM"
-
-    def test_inkling_mtp_no_draft(self) -> None:
-        cfg = self._make_config(
-            "InklingForConditionalGeneration", draft_arch=None
-        )
-        cfg.manifest["main"].huggingface_config.mtp_config = SimpleNamespace(
-            num_nextn_predict_layers=8
-        )
-        assert (
-            self._resolved_arch(cfg)
-            == "UnifiedMTPInklingForConditionalGeneration"
-        )
-
-    def test_inkling_without_mtp_config_is_noop(self) -> None:
-        cfg = self._make_config(
-            "InklingForConditionalGeneration", draft_arch=None
-        )
-        assert self._resolved_arch(cfg) == "InklingForConditionalGeneration"
-
-    def test_inkling_mtp_dict_config_no_draft(self) -> None:
-        cfg = self._make_config(
-            "InklingForConditionalGeneration", draft_arch=None
-        )
-        cfg.manifest["main"].huggingface_config.mtp_config = {
-            "num_nextn_predict_layers": 8
-        }
-        assert (
-            self._resolved_arch(cfg)
-            == "UnifiedMTPInklingForConditionalGeneration"
-        )
 
 
 class TestDraftModelDefaultsInheritance:
@@ -1431,7 +1415,7 @@ class TestSamplingConfig:
         ("DeepseekV32ForCausalLM", True, True, 16, False, True, True),
         ("DeepseekV3ForCausalLMNextN", True, True, 16, False, True, True),
         ("KimiK25ForConditionalGeneration", True, True, 16, False, True, True),
-        ("UnifiedEagleLlama3ForCausalLM", True, True, 16, False, True, True),
+        ("LlamaForCausalLM+eagle", True, True, 16, False, True, True),
         ("LlamaForCausalLM", True, True, 16, False, False, False),
         ("LlamaForCausalLM", True, True, None, False, True, True),
         ("LlamaForCausalLM", True, True, 16, True, True, False),
@@ -1906,7 +1890,7 @@ def test_auto_device_graph_capture_eagle_gating(
     """
     monkeypatch.setattr(MAXModelConfig, "huggingface_model_repo", Mock())
     arch = SimpleNamespace(
-        name="UnifiedEagleLlama3ForCausalLM",
+        name="LlamaForCausalLM+eagle",
         task=PipelineTask.TEXT_GENERATION,
         supports_overlap_scheduler=True,
         supports_device_graph_capture=True,
@@ -2273,3 +2257,28 @@ def test_from_args__explicit_backend_is_preserved() -> None:
         )
         == "xgrammar"
     )
+
+
+def test_config__fp4_kv_cache_needs_an_opted_in_architecture() -> None:
+    """``float4_e2m1fn`` and its alias are refused for an architecture that
+    has not opted in, and every other format passes through."""
+    assert not DUMMY_LLAMA_ARCH.supports_nvfp4_kv_cache
+    opted_in = replace(DUMMY_LLAMA_ARCH, supports_nvfp4_kv_cache=True)
+    for fp4 in ("float4_e2m1fn", "float4_e2m1"):
+        with pytest.raises(ValueError, match=f"'{fp4}' is not supported"):
+            _validate_kv_cache_format(
+                KVCacheConfig(kv_cache_format=fp4), DUMMY_LLAMA_ARCH
+            )
+        _validate_kv_cache_format(KVCacheConfig(kv_cache_format=fp4), opted_in)
+    for fmt in (None, "bfloat16", "float8_e4m3fn"):
+        _validate_kv_cache_format(
+            KVCacheConfig(kv_cache_format=fmt), DUMMY_LLAMA_ARCH
+        )
+
+
+def test_config__fp4_kv_cache_format_maps_to_packed_uint8() -> None:
+    """Both FP4 spellings store packed uint8, and ``nvfp4`` is not a format."""
+    assert cache_dtype_for_encoding(None, "float4_e2m1fn") == DType.uint8
+    assert cache_dtype_for_encoding(None, "FLOAT4_E2M1") == DType.uint8
+    with pytest.raises(ValueError, match="Unrecognized kv_cache_format"):
+        cache_dtype_for_encoding(None, "nvfp4")

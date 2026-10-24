@@ -50,9 +50,9 @@ from std.benchmark import (
     BenchMetric,
     ThroughputMeasure,
 )
-from max.gpu.host import DeviceBuffer, DeviceContext
+from max.gpu.host import DeviceContext
 from max.gpu.primitives.grid_controls import PDLLevel, pdl_launch_attributes
-from layout import Coord, Idx, TileTensor, row_major
+from layout import Idx, TileTensor, row_major
 
 from internal_utils import arg_parse
 from internal_utils._cache_busting import CacheBustingBuffer
@@ -337,23 +337,23 @@ def main() raises:
 
         # Per-expert offsets / IDs (small, host-built once).
         var a_offsets_host_alloc = alloc[UInt32](
-            {count = num_active_experts + 1}
+            {length = num_active_experts + 1}
         ).into_managed()
         var a_offsets_host = a_offsets_host_alloc.unsafe_ptr()
         var a_scale_offsets_host_alloc = alloc[UInt32](
-            {count = num_active_experts}
+            {length = num_active_experts}
         ).into_managed()
         var a_scale_offsets_host = a_scale_offsets_host_alloc.unsafe_ptr()
         var expert_ids_host_alloc = alloc[Int32](
-            {count = num_active_experts}
+            {length = num_active_experts}
         ).into_managed()
         var expert_ids_host = expert_ids_host_alloc.unsafe_ptr()
         var expert_scales_host_alloc = alloc[Float32](
-            {count = num_experts}
+            {length = num_experts}
         ).into_managed()
         var expert_scales_host = expert_scales_host_alloc.unsafe_ptr()
         var input_scales_host_alloc = alloc[Float32](
-            {count = num_active_experts}
+            {length = num_active_experts}
         ).into_managed()
         var input_scales_host = input_scales_host_alloc.unsafe_ptr()
 
@@ -410,57 +410,51 @@ def main() raises:
         def _ri(v: Int) -> Int64:
             return Int64(v)
 
-        comptime b_shape = row_major(
-            Coord(Idx[num_experts], Idx[N], Idx[packed_K])
-        )
+        comptime b_shape = row_major(Idx[num_experts], Idx[N], Idx[packed_K])
         comptime b_scales_shape = row_major(
-            Coord(
-                Idx[num_experts],
-                Idx[n_groups_b],
-                Idx[k_groups],
-                Idx[SF_ATOM_M[0]],
-                Idx[SF_ATOM_M[1]],
-                Idx[SF_ATOM_K],
-            )
+            Idx[num_experts],
+            Idx[n_groups_b],
+            Idx[k_groups],
+            Idx[SF_ATOM_M[0]],
+            Idx[SF_ATOM_M[1]],
+            Idx[SF_ATOM_K],
         )
 
         var a_offsets_tt = TileTensor(
             a_offsets_dev,
-            row_major(Coord(_ri(num_active_experts + 1))),
+            row_major(_ri(num_active_experts + 1)),
         ).as_unsafe_any_origin()
         var a_scale_offsets_tt = TileTensor(
             a_scale_offsets_dev,
-            row_major(Coord(_ri(num_active_experts))),
+            row_major(_ri(num_active_experts)),
         ).as_unsafe_any_origin()
         var expert_ids_tt = TileTensor(
             expert_ids_dev,
-            row_major(Coord(_ri(num_active_experts))),
+            row_major(_ri(num_active_experts)),
         ).as_unsafe_any_origin()
         var expert_scales_tt = TileTensor(
             expert_scales_dev,
-            row_major(Coord(Idx[num_experts])),
+            row_major(Idx[num_experts]),
         ).as_unsafe_any_origin()
         var input_scales_tt = TileTensor(
             input_scales_dev,
-            row_major(Coord(_ri(num_active_experts))),
+            row_major(_ri(num_active_experts)),
         ).as_unsafe_any_origin()
 
         var c_bf16_tt = TileTensor(
-            c_bf16_buf, row_major(Coord(_ri(M), Idx[N]))
+            c_bf16_buf, row_major(_ri(M), Idx[N])
         ).as_unsafe_any_origin()
         var o_tt = TileTensor(
-            o_buf, row_major(Coord(_ri(M), Idx[packed_H]))
+            o_buf, row_major(_ri(M), Idx[packed_H])
         ).as_unsafe_any_origin()
         var s_tt = TileTensor(
             s_buf,
             row_major(
-                Coord(
-                    _ri(a_scale_dim0),
-                    Idx[k_groups_swiglu],
-                    Idx[SF_ATOM_M[0]],
-                    Idx[SF_ATOM_M[1]],
-                    Idx[SF_ATOM_K],
-                )
+                _ri(a_scale_dim0),
+                Idx[k_groups_swiglu],
+                Idx[SF_ATOM_M[0]],
+                Idx[SF_ATOM_M[1]],
+                Idx[SF_ATOM_K],
             ),
         ).as_unsafe_any_origin()
 
@@ -506,7 +500,7 @@ def main() raises:
         }:
             var a_tt = TileTensor(
                 cb_a.offset_ptr(iteration),
-                row_major(Coord(_ri(M), Idx[packed_K])),
+                row_major(_ri(M), Idx[packed_K]),
             ).as_unsafe_any_origin()
             var b_tt = TileTensor(
                 cb_b.offset_ptr(iteration), b_shape
@@ -514,13 +508,11 @@ def main() raises:
             var a_scales_tt = TileTensor(
                 cb_a_scales.offset_ptr(iteration),
                 row_major(
-                    Coord(
-                        _ri(a_scale_dim0),
-                        Idx[k_groups],
-                        Idx[SF_ATOM_M[0]],
-                        Idx[SF_ATOM_M[1]],
-                        Idx[SF_ATOM_K],
-                    )
+                    _ri(a_scale_dim0),
+                    Idx[k_groups],
+                    Idx[SF_ATOM_M[0]],
+                    Idx[SF_ATOM_M[1]],
+                    Idx[SF_ATOM_K],
                 ),
             ).as_unsafe_any_origin()
             var b_scales_tt = TileTensor(
@@ -715,6 +707,12 @@ def main() raises:
                     input_scales_immut.LayoutType,
                     hw_info.max_thread_block_size,
                     hw_info.sm_count,
+                    OutputEngine=o_tt.Engine,
+                    ScalesEngine=s_tt.Engine,
+                    InputEngine=c_immut.Engine,
+                    RowOffsetsEngine=a_offsets_immut.Engine,
+                    ScalesOffsetsEngine=a_scale_offsets_immut.Engine,
+                    InputScalesEngine=input_scales_immut.Engine,
                 ]
                 if not matmul_only:
                     if disable_pdl:
@@ -795,7 +793,7 @@ def main() raises:
         # Slot 0 (= L0_D) is the kernel-never-ran sentinel.
         if trace and fused:
             var trace_host_alloc = alloc[UInt64](
-                {count = trace_buf_size}
+                {length = trace_buf_size}
             ).into_managed()
             var trace_host = trace_host_alloc.unsafe_ptr()
             ctx.enqueue_copy(trace_host, trace_buf_dev)

@@ -38,12 +38,140 @@ from max.gpu.sync import barrier
 import max.gpu.primitives.block as block
 import max.gpu.primitives.warp as warp
 from max.gpu.host import DeviceAttribute, DeviceContext, FuncAttribute
+from std.builtin.device_passable import DevicePassable, DeviceTypeEncoder
 from std.memory import bitcast, unsafe_stack_allocation
 from std.math import ceildiv
 from std.time import global_perf_counter_ns
 from std.utils.numerics import min_or_neg_inf
 from std.utils.static_tuple import StaticTuple
-from structured_kernels.trace_buf import GmemTrace, NullTrace, TraceBuf
+from structured_kernels.trace_buf import NullTrace, TraceBuf
+
+# ===----------------------------------------------------------------------=== #
+# Per-row live-column bounds and output sinks
+# ===----------------------------------------------------------------------=== #
+
+
+trait TopkSink(TrivialRegisterPassable):
+    """Where a top-k kernel writes each selected column.
+
+    The kernels hand every output slot to `store`, `-1` padding included, so a
+    sink can derive more than one output from a selection in the same pass.
+    """
+
+    def store(self, idx: Int, col: Int32):
+        """Writes output slot `idx` of the flat `[rows, K]` output.
+
+        Args:
+            idx: Flat output slot, `row * K + rank`.
+            col: Selected column, or `-1` for a padding slot.
+        """
+        ...
+
+
+struct PlainSink(TopkSink):
+    """Writes the selected columns to one int32 buffer."""
+
+    var out_idxs: MutPointer[Int32, MutUntrackedOrigin]
+    """Flat `[rows, K]` output buffer."""
+
+    @inline(.always)
+    def __init__(out self, out_idxs: MutPointer[Int32, MutAnyOrigin]):
+        """Wraps an output buffer.
+
+        Args:
+            out_idxs: Flat `[rows, K]` output buffer.
+        """
+        self.out_idxs = out_idxs.unsafe_origin_cast[MutUntrackedOrigin]()
+
+    @inline(.always)
+    def store(self, idx: Int, col: Int32):
+        """Writes `col` to `out_idxs[idx]`.
+
+        Args:
+            idx: Flat output slot.
+            col: Selected column, or `-1`.
+        """
+        self.out_idxs[idx] = col
+
+
+trait RowBound(DevicePassable, TrivialRegisterPassable):
+    """Per-row live-column count and output sink for the bounded top-k kernels.
+
+    Every thread of a row's block calls `row` once, at kernel entry, with the
+    block's row index; the block is converged there, so an implementation may
+    use warp-collective operations. Per-row state the sink needs (a batch
+    lookup, say) is resolved there once rather than per store.
+    """
+
+    comptime Sink: TopkSink
+    """Sink type the kernels write the row's selections through."""
+
+    def row(
+        self, row: Int, out_idxs: MutPointer[Int32, MutAnyOrigin]
+    ) -> Tuple[Int, Self.Sink]:
+        """Returns the live leading column count of `row` and its sink.
+
+        Args:
+            row: Row index within the launch (the block index).
+            out_idxs: The launch's flat `[rows, K]` output buffer.
+
+        Returns:
+            The live column count, which the kernels clamp to `[0, N]`, and
+            the sink for the row's output slots.
+        """
+        ...
+
+
+struct RowBoundsPtr(RowBound):
+    """Row bounds read from a `[rows]` int32 device buffer."""
+
+    comptime device_type: AnyType = Self
+    """Device-side type alias; the struct is trivially device-passable."""
+
+    comptime Sink = PlainSink
+    """Selections go to the output buffer unchanged."""
+
+    var bounds: ImmPointer[Int32, ImmUntrackedOrigin]
+    """Device pointer to one int32 bound per row."""
+
+    @inline(.always)
+    def __init__(out self, bounds: ImmPointer[Int32, ImmutAnyOrigin]):
+        """Wraps a device buffer of per-row bounds.
+
+        Args:
+            bounds: Device pointer to one int32 bound per row.
+        """
+        self.bounds = bounds.unsafe_origin_cast[ImmUntrackedOrigin]()
+
+    @inline(.always)
+    def row(
+        self, row: Int, out_idxs: MutPointer[Int32, MutAnyOrigin]
+    ) -> Tuple[Int, PlainSink]:
+        """Returns `bounds[row]` and a plain sink.
+
+        Args:
+            row: Row index within the launch.
+            out_idxs: The launch's flat `[rows, K]` output buffer.
+
+        Returns:
+            The stored bound and a sink over `out_idxs`.
+        """
+        return (Int(self.bounds[row]), PlainSink(out_idxs))
+
+    def _to_device_type(
+        self, mut encoder: Some[DeviceTypeEncoder], target: MutOpaquePointer[_]
+    ):
+        encoder.encode_fields[Self](self, target)
+
+    @staticmethod
+    def get_type_name() -> String:
+        """Returns the type name for runtime diagnostics.
+
+        Returns:
+            Always `"RowBoundsPtr"`.
+        """
+        return "RowBoundsPtr"
+
 
 # ===----------------------------------------------------------------------=== #
 # Compile-time constants
@@ -120,7 +248,7 @@ def _widen_score[in_dtype: DType](v: Scalar[in_dtype]) -> Float32:
 def _load4_scores[
     in_dtype: DType, //
 ](
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
     base: Int,
     index_base: Int,
     local0: Int,
@@ -150,7 +278,7 @@ def _load4_scores[
     var off = base + col0
     if local0 + _PTOPK_ITEMS <= count and (off & (_PTOPK_ITEMS - 1)) == 0:
         var v = _widen_scores[in_dtype, _PTOPK_ITEMS](
-            in_scores.load[width=_PTOPK_ITEMS, alignment=v4_align](off)
+            in_scores.unsafe_load[width=_PTOPK_ITEMS, alignment=v4_align](off)
         )
         var idx = SIMD[.int32, _PTOPK_ITEMS](Int32(col0)) + SIMD[
             DType.int32, _PTOPK_ITEMS
@@ -171,10 +299,10 @@ def _halfclean4[
     cv_origin: MutOrigin,
     sv_origin: MutOrigin,
 ](
-    champ_v: UnsafePointer[Float32, cv_origin, address_space=.SHARED],
-    champ_i: UnsafePointer[Int32, cv_origin, address_space=.SHARED],
-    scratch_v: UnsafePointer[Float32, sv_origin, address_space=.SHARED],
-    scratch_i: UnsafePointer[Int32, sv_origin, address_space=.SHARED],
+    champ_v: MutPointer[Float32, cv_origin, address_space=.SHARED],
+    champ_i: MutPointer[Int32, cv_origin, address_space=.SHARED],
+    scratch_v: MutPointer[Float32, sv_origin, address_space=.SHARED],
+    scratch_i: MutPointer[Int32, sv_origin, address_space=.SHARED],
     tid: Int,
 ) -> Tuple[SIMD[.float32, _PTOPK_ITEMS], SIMD[.int32, _PTOPK_ITEMS]]:
     """Batcher half-cleaner: element-wise max of the champion and reversed tile.
@@ -187,13 +315,13 @@ def _halfclean4[
     4), so both champion and scratch reads are single `LDS.128`s.
     """
     var e0 = tid * _PTOPK_ITEMS
-    var cv = champ_v.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0)
-    var ci = champ_i.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0)
+    var cv = champ_v.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0)
+    var ci = champ_i.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0)
     var rbase = _TILE - _PTOPK_ITEMS - e0
-    var bv = scratch_v.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+    var bv = scratch_v.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
         rbase
     ).reversed()
-    var bi = scratch_i.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+    var bi = scratch_i.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
         rbase
     ).reversed()
     var take = bv.gt(cv)  # element-wise mask; `>` is scalar-only on SIMD
@@ -277,8 +405,8 @@ def _bitonic_sort_desc[
     mut i1: Int32,
     mut i2: Int32,
     mut i3: Int32,
-    smem_v: UnsafePointer[Float32, sv_origin, address_space=.SHARED],
-    smem_i: UnsafePointer[Int32, si_origin, address_space=.SHARED],
+    smem_v: MutPointer[Float32, sv_origin, address_space=.SHARED],
+    smem_i: MutPointer[Int32, si_origin, address_space=.SHARED],
     tid: Int,
 ):
     """Full descending bitonic sort of `_PTOPK_TOTAL` elements in place.
@@ -300,43 +428,48 @@ def _bitonic_sort_desc[
             comptime stride = 1 << (h - 1)
             var want_d = ((e0 >> s) & 1) == 0
 
-            comptime if stride == 1:
-                var want_d0 = ((e0 >> s) & 1) == 0
-                var want_d2 = ((e2 >> s) & 1) == 0
-                v0, i0, v1, i1 = _swap_pair_if[tiebreak](
-                    v0, i0, v1, i1, want_d0
-                )
-                v2, i2, v3, i3 = _swap_pair_if[tiebreak](
-                    v2, i2, v3, i3, want_d2
-                )
+            comptime match stride:
+                case 1:
+                    var want_d0 = ((e0 >> s) & 1) == 0
+                    var want_d2 = ((e2 >> s) & 1) == 0
+                    v0, i0, v1, i1 = _swap_pair_if[tiebreak](
+                        v0, i0, v1, i1, want_d0
+                    )
+                    v2, i2, v3, i3 = _swap_pair_if[tiebreak](
+                        v2, i2, v3, i3, want_d2
+                    )
 
-            elif stride == 2:
-                v0, i0, v2, i2 = _swap_pair_if[tiebreak](v0, i0, v2, i2, want_d)
-                v1, i1, v3, i3 = _swap_pair_if[tiebreak](v1, i1, v3, i3, want_d)
+                case 2:
+                    v0, i0, v2, i2 = _swap_pair_if[tiebreak](
+                        v0, i0, v2, i2, want_d
+                    )
+                    v1, i1, v3, i3 = _swap_pair_if[tiebreak](
+                        v1, i1, v3, i3, want_d
+                    )
 
-            else:
-                comptime ts = stride >> 2
-                var pv0 = warp.shuffle_xor(v0, UInt32(ts))
-                var pi0 = warp.shuffle_xor(i0, UInt32(ts))
-                var pv1 = warp.shuffle_xor(v1, UInt32(ts))
-                var pi1 = warp.shuffle_xor(i1, UInt32(ts))
-                var pv2 = warp.shuffle_xor(v2, UInt32(ts))
-                var pi2 = warp.shuffle_xor(i2, UInt32(ts))
-                var pv3 = warp.shuffle_xor(v3, UInt32(ts))
-                var pi3 = warp.shuffle_xor(i3, UInt32(ts))
-                var is_lo = (tid & ts) == 0
-                v0, i0 = _select_lane_after_xor[tiebreak](
-                    v0, i0, pv0, pi0, want_d, is_lo
-                )
-                v1, i1 = _select_lane_after_xor[tiebreak](
-                    v1, i1, pv1, pi1, want_d, is_lo
-                )
-                v2, i2 = _select_lane_after_xor[tiebreak](
-                    v2, i2, pv2, pi2, want_d, is_lo
-                )
-                v3, i3 = _select_lane_after_xor[tiebreak](
-                    v3, i3, pv3, pi3, want_d, is_lo
-                )
+                case _:
+                    comptime ts = stride >> 2
+                    var pv0 = warp.shuffle_xor(v0, UInt32(ts))
+                    var pi0 = warp.shuffle_xor(i0, UInt32(ts))
+                    var pv1 = warp.shuffle_xor(v1, UInt32(ts))
+                    var pi1 = warp.shuffle_xor(i1, UInt32(ts))
+                    var pv2 = warp.shuffle_xor(v2, UInt32(ts))
+                    var pi2 = warp.shuffle_xor(i2, UInt32(ts))
+                    var pv3 = warp.shuffle_xor(v3, UInt32(ts))
+                    var pi3 = warp.shuffle_xor(i3, UInt32(ts))
+                    var is_lo = (tid & ts) == 0
+                    v0, i0 = _select_lane_after_xor[tiebreak](
+                        v0, i0, pv0, pi0, want_d, is_lo
+                    )
+                    v1, i1 = _select_lane_after_xor[tiebreak](
+                        v1, i1, pv1, pi1, want_d, is_lo
+                    )
+                    v2, i2 = _select_lane_after_xor[tiebreak](
+                        v2, i2, pv2, pi2, want_d, is_lo
+                    )
+                    v3, i3 = _select_lane_after_xor[tiebreak](
+                        v3, i3, pv3, pi3, want_d, is_lo
+                    )
 
     # XOR bank-swizzle (bijection) to keep the SMEM stages bank-conflict-free.
     var sw0 = (e0 & ~31) | ((e0 ^ (e0 >> 5)) & 31)
@@ -469,8 +602,8 @@ def _bitonic_merge_desc[
     mut i1: Int32,
     mut i2: Int32,
     mut i3: Int32,
-    smem_v: UnsafePointer[Float32, sv_origin, address_space=.SHARED],
-    smem_i: UnsafePointer[Int32, si_origin, address_space=.SHARED],
+    smem_v: MutPointer[Float32, sv_origin, address_space=.SHARED],
+    smem_i: MutPointer[Int32, si_origin, address_space=.SHARED],
     tid: Int,
 ):
     """Descending bitonic *merge* of a `_PTOPK_TOTAL`-element bitonic sequence.
@@ -573,44 +706,44 @@ def _bitonic_merge_desc[
 def _persistent_topk_2048_kernel[
     in_dtype: DType
 ](
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
-    out_idxs: UnsafePointer[Int32, MutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
+    out_idxs: MutPointer[Int32, MutAnyOrigin],
     N: Int32,
     K: Int32,
 ):
     """Block-wide bitonic top-k for `N <= _PTOPK_TOTAL` (one block per row)."""
-    _persistent_topk_2048_impl(in_scores, out_idxs, N, K, Int(N))
+    _persistent_topk_2048_impl(in_scores, PlainSink(out_idxs), N, K, Int(N))
 
 
 @__name(t"persistent_topk_2048_bounded_{in_dtype}")
 def _persistent_topk_2048_bounded_kernel[
-    in_dtype: DType
+    in_dtype: DType, RB: RowBound
 ](
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
-    out_idxs: UnsafePointer[Int32, MutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
+    out_idxs: MutPointer[Int32, MutAnyOrigin],
     N: Int32,
     K: Int32,
-    row_bounds: UnsafePointer[Int32, ImmutAnyOrigin],
+    row_bounds: RB,
 ):
     """`_persistent_topk_2048_kernel` with a per-row live-column bound.
 
-    Row `r` reads only `in_scores[r * N .. r * N + row_bounds[r])`; columns
+    Row `r` reads only `in_scores[r * N .. r * N + row_bounds(r))`; columns
     past the bound load as `(-inf, -1)`, so they are never selected and pad
     the output with `-1`. Scan cost tracks each row's real length rather than
     the row stride `N`.
     """
-    var bound = Int(row_bounds[Int(block_idx.x)])
+    var bound, sink = row_bounds.row(block_idx.x, out_idxs)
     _persistent_topk_2048_impl(
-        in_scores, out_idxs, N, K, min(Int(N), max(0, bound))
+        in_scores, sink, N, K, min(Int(N), max(0, bound))
     )
 
 
 @inline(.always)
 def _persistent_topk_2048_impl[
-    in_dtype: DType, //
+    in_dtype: DType, S: TopkSink, //
 ](
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
-    out_idxs: UnsafePointer[Int32, MutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
+    sink: S,
     N: Int32,
     K: Int32,
     count: Int,
@@ -658,21 +791,21 @@ def _persistent_topk_2048_impl[
 
     var base = token * _K
     if e0 < _K:
-        out_idxs[base + e0] = i0
+        sink.store(base + e0, i0)
     if e1 < _K:
-        out_idxs[base + e1] = i1
+        sink.store(base + e1, i1)
     if e2 < _K:
-        out_idxs[base + e2] = i2
+        sink.store(base + e2, i2)
     if e3 < _K:
-        out_idxs[base + e3] = i3
+        sink.store(base + e3, i3)
 
 
 @__name(t"streaming_topk_{in_dtype}")
 def _streaming_topk_kernel[
     in_dtype: DType
 ](
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
-    out_idxs: UnsafePointer[Int32, MutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
+    out_idxs: MutPointer[Int32, MutAnyOrigin],
     N: Int32,
     K: Int32,
 ):
@@ -721,10 +854,10 @@ def _streaming_topk_kernel[
     var e3 = tid * 4 + 3
 
     var neg_inf = min_or_neg_inf[.float32]()
-    champ_v.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+    champ_v.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
         e0, SIMD[.float32, _PTOPK_ITEMS](neg_inf)
     )
-    champ_i.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+    champ_i.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
         e0, SIMD[.int32, _PTOPK_ITEMS](Int32(-1))
     )
     barrier()
@@ -759,10 +892,10 @@ def _streaming_topk_kernel[
         # final swizzled reads alias the canonical write indices (WAR hazard).
         barrier()
 
-        scratch_v.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        scratch_v.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
             e0, SIMD[.float32, _PTOPK_ITEMS](v0, v1, v2, v3)
         )
-        scratch_i.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        scratch_i.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
             e0, SIMD[.int32, _PTOPK_ITEMS](i0, i1, i2, i3)
         )
         barrier()
@@ -789,16 +922,16 @@ def _streaming_topk_kernel[
             v0, v1, v2, v3, i0, i1, i2, i3, scratch_v, scratch_i, tid
         )
 
-        champ_v.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        champ_v.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
             e0, SIMD[.float32, _PTOPK_ITEMS](v0, v1, v2, v3)
         )
-        champ_i.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        champ_i.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
             e0, SIMD[.int32, _PTOPK_ITEMS](i0, i1, i2, i3)
         )
         barrier()
 
     var base = token * _K
-    var out_i = champ_i.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0)
+    var out_i = champ_i.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0)
     if e0 < _K:
         out_idxs[base + e0] = out_i[0]
     if e1 < _K:
@@ -1016,7 +1149,9 @@ comptime _HSEL_SCAN_ITEMS: Int = 8
 # back to refining from the row, which is exact and only slower.
 comptime _HSEL_WARPS: Int = _PTOPK_BLOCK // WARP_SIZE
 comptime _HSEL_WARP_CAP: Int = 1024
-comptime _HSEL_CAND_CAP: Int = _HSEL_WARP_CAP * _HSEL_WARPS
+comptime _HSEL_CAND_CAP: Int = _HSEL_WARP_CAP * (
+    _PTOPK_BLOCK // DeviceContext.default_device_info.warp_size
+)
 comptime _HSEL_SMEM_BYTES: Int = _HSEL_CAND_CAP * size_of[Int32]()
 
 # Every row past the single-block tier goes to the select, including the rows
@@ -1166,7 +1301,7 @@ def _phi_of[
 def _load_scan_group[
     in_dtype: DType, //, scan_items: Int
 ](
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
     off: Int,
     local0: Int,
     count: Int,
@@ -1205,7 +1340,7 @@ def _load_scan_group[
     comptime bits_dtype = _score_bits[in_dtype]()
     if local0 + scan_items <= count and (off & (step - 1)) == 0:
         return bitcast[bits_dtype, scan_items](
-            in_scores.load[width=scan_items, alignment=_V4_ALIGN](off)
+            in_scores.unsafe_load[width=scan_items, alignment=_V4_ALIGN](off)
         )
 
     var v = _score_pad[in_dtype, scan_items]()
@@ -1221,7 +1356,7 @@ def _load_scan_group[
 def _phi4[
     in_dtype: DType, //, phi_dtype: DType
 ](
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
     off: Int,
     local0: Int,
     count: Int,
@@ -1243,7 +1378,7 @@ def _phi4[
     var v = _score_pad[in_dtype, _PTOPK_ITEMS]()
     if local0 + _PTOPK_ITEMS <= count and (off & (_PTOPK_ITEMS - 1)) == 0:
         v = bitcast[bits_dtype, _PTOPK_ITEMS](
-            in_scores.load[width=_PTOPK_ITEMS, alignment=v4_align](off)
+            in_scores.unsafe_load[width=_PTOPK_ITEMS, alignment=v4_align](off)
         )
     elif local0 < count:
         comptime for j in range(_PTOPK_ITEMS):
@@ -1278,7 +1413,7 @@ def _hsel_block_scan[
     block_size: Int, mut_origin: MutOrigin
 ](
     val: UInt32,
-    wsum: UnsafePointer[UInt32, mut_origin, address_space=.SHARED],
+    wsum: MutPointer[UInt32, mut_origin, address_space=.SHARED],
 ) -> UInt32:
     """Block-wide inclusive prefix sum across `block_size` threads, one barrier.
 
@@ -1311,7 +1446,7 @@ def _hsel_split_scan[
     block_size: Int, one_barrier: Bool, mut_origin: MutOrigin
 ](
     val: UInt32,
-    wsum: UnsafePointer[UInt32, mut_origin, address_space=.SHARED],
+    wsum: MutPointer[UInt32, mut_origin, address_space=.SHARED],
 ) -> UInt32:
     """The round split's block-wide inclusive prefix sum, whichever is faster here.
 
@@ -1404,8 +1539,8 @@ def _histsel_topk_kernel[
     phi_dtype: DType = _hsel_phi_dtype[in_dtype](),
     scan_items: Int = _HSEL_SCAN_ITEMS,
 ](
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
-    out_idxs: UnsafePointer[Int32, MutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
+    out_idxs: MutPointer[Int32, MutAnyOrigin],
     N: Int32,
     K: Int32,
     trace_buf: TraceBufT,
@@ -1424,7 +1559,7 @@ def _histsel_topk_kernel[
         sig_bits,
         phi_dtype,
         scan_items,
-    ](in_scores, out_idxs, N, K, Int(N), trace_buf)
+    ](in_scores, PlainSink(out_idxs), N, K, Int(N), trace_buf)
 
 
 @__name(t"histsel_topk_bounded_{in_dtype}")
@@ -1442,24 +1577,25 @@ def _histsel_topk_bounded_kernel[
     sig_bits: Int = _hsel_sig_bits[in_dtype](),
     phi_dtype: DType = _hsel_phi_dtype[in_dtype](),
     scan_items: Int = _HSEL_SCAN_ITEMS,
+    RB: RowBound = RowBoundsPtr,
 ](
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
-    out_idxs: UnsafePointer[Int32, MutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
+    out_idxs: MutPointer[Int32, MutAnyOrigin],
     N: Int32,
     K: Int32,
-    row_bounds: UnsafePointer[Int32, ImmutAnyOrigin],
+    row_bounds: RB,
     trace_buf: TraceBufT,
 ):
     """`_histsel_topk_impl` with a per-row live-column bound.
 
-    Row `r` scans only `[0, row_bounds[r])` of its `N`-wide stripe; columns
+    Row `r` scans only `[0, row_bounds(r))` of its `N`-wide stripe; columns
     past the bound are never selected and pad the output with `-1` (the same
     result as the unbounded kernel over a `-inf`-padded row), while the row
     traffic tracks the real length. A bound at or below `K` selects every
     live column, in descending order, and pads the rest of the output row
     with `-1`.
     """
-    var bound = Int(row_bounds[Int(block_idx.x)])
+    var bound, sink = row_bounds.row(block_idx.x, out_idxs)
     _histsel_topk_impl[
         TraceBufT,
         enable_trace,
@@ -1473,12 +1609,13 @@ def _histsel_topk_bounded_kernel[
         sig_bits,
         phi_dtype,
         scan_items,
-    ](in_scores, out_idxs, N, K, min(Int(N), max(0, bound)), trace_buf)
+    ](in_scores, sink, N, K, min(Int(N), max(0, bound)), trace_buf)
 
 
 @inline(.always)
 def _histsel_topk_impl[
     in_dtype: DType,
+    S: TopkSink,
     //,
     TraceBufT: TraceBuf,
     enable_trace: Bool = False,
@@ -1493,8 +1630,8 @@ def _histsel_topk_impl[
     phi_dtype: DType = _hsel_phi_dtype[in_dtype](),
     scan_items: Int = _HSEL_SCAN_ITEMS,
 ](
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
-    out_idxs: UnsafePointer[Int32, MutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
+    sink: S,
     N: Int32,
     K: Int32,
     count: Int,
@@ -1531,8 +1668,8 @@ def _histsel_topk_impl[
     so the caller picks by row count instead of this being unconditional.
     """
     comptime scan_step = _PTOPK_BLOCK * scan_items
-    var tid = Int(thread_idx.x)
-    var token = Int(block_idx.x)
+    var tid = thread_idx.x
+    var token = block_idx.x
 
     var hist = unsafe_stack_allocation[
         _HSEL_BINS + 1, UInt32, address_space=.SHARED
@@ -1581,6 +1718,11 @@ def _histsel_topk_impl[
         ctl[4] = 0
     if tid < _HSEL_WARPS:
         wcur[tid] = 0
+    # Only a select-all row needs this: it skips every round below, and with them
+    # the barriers that would otherwise order this store ahead of the claims.
+    # `select_all` is block-uniform, so the barrier is not divergent.
+    if select_all:
+        barrier()
 
     # A column is one of the K when `phi > t_phi`, or `phi == t_phi` and its
     # `~column` is at least `t_rcol` -- descending score, ascending column.
@@ -1606,7 +1748,7 @@ def _histsel_topk_impl[
     var parked = False
     var lane = Int(lane_id())
     var wbase = Int(warp_id()) * _HSEL_WARP_CAP
-    var wcur_p = wcur + Int(warp_id())
+    var wcur_p = wcur.unsafe_offset(Int(warp_id()))
     var wn = 0
 
     # Per half: at bf16 the score half's 16 significant bits take two rounds
@@ -1681,8 +1823,9 @@ def _histsel_topk_impl[
                                 _ = Atomic[UInt32, scope=BLOCK_SCOPE].fetch_add[
                                     ordering=Ordering.RELAXED
                                 ](
-                                    hist
-                                    + _hsel_digit[half, w_out, nbins](ph, rc),
+                                    hist.unsafe_offset(
+                                        _hsel_digit[half, w_out, nbins](ph, rc)
+                                    ),
                                     UInt32(1),
                                 )
                             col = ncol
@@ -1746,10 +1889,11 @@ def _histsel_topk_impl[
                                             ].fetch_add[
                                                 ordering=Ordering.RELAXED
                                             ](
-                                                hist
-                                                + _hsel_digit[
-                                                    half, w_out, nbins
-                                                ](ph[j], ~UInt32(base + j)),
+                                                hist.unsafe_offset(
+                                                    _hsel_digit[
+                                                        half, w_out, nbins
+                                                    ](ph[j], ~UInt32(base + j))
+                                                ),
                                                 UInt32(1),
                                             )
                             else:
@@ -1761,9 +1905,10 @@ def _histsel_topk_impl[
                                         _ = Atomic[
                                             UInt32, scope=BLOCK_SCOPE
                                         ].fetch_add[ordering=Ordering.RELAXED](
-                                            hist
-                                            + _hsel_digit[half, w_out, nbins](
-                                                ph[j], rc
+                                            hist.unsafe_offset(
+                                                _hsel_digit[half, w_out, nbins](
+                                                    ph[j], rc
+                                                )
                                             ),
                                             UInt32(1),
                                         )
@@ -1841,7 +1986,7 @@ def _histsel_topk_impl[
                         if wn > _HSEL_WARP_CAP:
                             _ = Atomic[UInt32, scope=BLOCK_SCOPE].fetch_add[
                                 ordering=Ordering.RELAXED
-                            ](ctl + 4, UInt32(1))
+                            ](ctl.unsafe_offset(4), UInt32(1))
                     # The next round's zeroing must not race the reads above.
                     barrier()
                     comptime if rr == 1:
@@ -1889,7 +2034,7 @@ def _histsel_topk_impl[
                 var pos = Int(
                     Atomic[UInt32, scope=BLOCK_SCOPE].fetch_add[
                         ordering=Ordering.RELAXED
-                    ](ctl + 3, UInt32(1))
+                    ](ctl.unsafe_offset(3), UInt32(1))
                 )
                 if pos < sel_cap:
                     sel_k[pos] = _pack_key(ph, rc)
@@ -1920,7 +2065,7 @@ def _histsel_topk_impl[
                     var pos = Int(
                         Atomic[UInt32, scope=BLOCK_SCOPE].fetch_add[
                             ordering=Ordering.RELAXED
-                        ](ctl + 3, UInt32(1))
+                        ](ctl.unsafe_offset(3), UInt32(1))
                     )
                     if pos < sel_cap:
                         sel_k[pos] = _pack_key(ph[j], rc)
@@ -1964,9 +2109,13 @@ def _histsel_topk_impl[
     # more than the rank it would save. So the reproducible contract keeps the rank
     # and only `deterministic=False` skips it.
     comptime if (not ordered) and (not deterministic):
+        # Select-all appends only `count` keys; the slots past it are stale.
         var q = tid
         while q < _K:
-            out_idxs[token * _K + q] = _key_column(sel_k[q])
+            sink.store(
+                token * _K + q,
+                _key_column(sel_k[q]) if q < m_sel else Int32(-1),
+            )
             q += _PTOPK_BLOCK
         comptime if enable_trace:
             if tid == 0:
@@ -1994,11 +2143,11 @@ def _histsel_topk_impl[
     ](
         sel_k,
         hist,
-        cand.bitcast[UInt32](),
+        cand.unsafe_bitcast[UInt32](),
         wor,
         hist,
         sel_k,
-        out_idxs,
+        sink,
         token * _K,
         m_sel,
         _K,
@@ -2124,7 +2273,7 @@ def _hsel_digit_of[
 ](
     key: UInt64,
     packed: SIMD[.uint64, 2],
-    dmap: UnsafePointer[UInt32, d_origin, address_space=.SHARED],
+    dmap: MutPointer[UInt32, d_origin, address_space=.SHARED],
     left: Int,
     right: Int,
     use_bin: Bool,
@@ -2150,6 +2299,8 @@ def _hsel_digit_of[
 
 @inline(.always)
 def _hsel_rank_write[
+    S: TopkSink,
+    //,
     TraceBufT: TraceBuf,
     nthreads: Int,
     enable_trace: Bool,
@@ -2162,13 +2313,13 @@ def _hsel_rank_write[
     c_origin: MutOrigin,
     d_origin: MutOrigin,
 ](
-    sel_k: UnsafePointer[UInt64, sk_origin, address_space=.SHARED],
-    hist: UnsafePointer[UInt32, h_origin, address_space=.SHARED],
-    cur: UnsafePointer[UInt32, c_origin, address_space=.SHARED],
-    wor: UnsafePointer[UInt64, sk_origin, address_space=.SHARED],
-    dmap: UnsafePointer[UInt32, d_origin, address_space=.SHARED],
-    banchor: UnsafePointer[UInt64, d_origin, address_space=.SHARED],
-    out_idxs: UnsafePointer[Int32, MutAnyOrigin],
+    sel_k: MutPointer[UInt64, sk_origin, address_space=.SHARED],
+    hist: MutPointer[UInt32, h_origin, address_space=.SHARED],
+    cur: MutPointer[UInt32, c_origin, address_space=.SHARED],
+    wor: MutPointer[UInt64, sk_origin, address_space=.SHARED],
+    dmap: MutPointer[UInt32, d_origin, address_space=.SHARED],
+    banchor: MutPointer[UInt64, d_origin, address_space=.SHARED],
+    sink: S,
     out_base: Int,
     M: Int,
     K: Int,
@@ -2177,7 +2328,7 @@ def _hsel_rank_write[
     trace_buf: TraceBufT,
     token: Int,
 ):
-    """Write the largest `K` of the `M` keys in `sel_k` to `out_idxs`, descending.
+    """Write the largest `K` of the `M` keys in `sel_k` to `sink`, descending.
 
     `M` may exceed `K` when `slots` does: a rank is a bijection onto `[0, M)`, so
     the keys the caller wants are exactly the ranks below `K` and the rest are
@@ -2335,7 +2486,7 @@ def _hsel_rank_write[
         if p0 + i < M:
             _ = Atomic[UInt32, scope=BLOCK_SCOPE].fetch_add[
                 ordering=Ordering.RELAXED
-            ](hist + Int(dig[i]), UInt32(1))
+            ](hist.unsafe_offset(Int(dig[i])), UInt32(1))
     barrier()
 
     comptime if enable_trace:
@@ -2357,7 +2508,6 @@ def _hsel_rank_write[
             cnt[j] = hist[top - j]
             local += cnt[j]
     var inclusive = block.prefix_sum[block_size=nthreads](local)
-    barrier()
     # `acc` before the add is the count of keys in strictly higher bins, which is
     # both bin `b`'s first output slot and its cursor's initial value -- so the
     # cursor costs no second pass over the bins and no extra barrier.
@@ -2381,7 +2531,7 @@ def _hsel_rank_write[
             var p = Int(
                 Atomic[UInt32, scope=BLOCK_SCOPE].fetch_add[
                     ordering=Ordering.RELAXED
-                ](cur + Int(dig[i]), UInt32(1))
+                ](cur.unsafe_offset(Int(dig[i])), UInt32(1))
             )
             sel_k[p] = mine[i]
     barrier()
@@ -2408,7 +2558,7 @@ def _hsel_rank_write[
     # Slots are taken strided rather than adjacent, because the phase costs the
     # *widest* run and adjacent slots share one. Striding spreads a thread's keys
     # across runs while keeping a warp's lanes together.
-    var stage = cur + nbins
+    var stage = cur.unsafe_offset(nbins)
     comptime for i in range(items):
         var key: UInt64
         var b: Int
@@ -2465,9 +2615,9 @@ def _hsel_rank_write[
         # `M < K` only under a per-row bound with fewer live columns than
         # selections; ranks exist for the `M` live keys and the tail is `-1`.
         if q < M:
-            out_idxs[out_base + q] = Int32(Int(stage[q]))
+            sink.store(out_base + q, Int32(Int(stage[q])))
         else:
-            out_idxs[out_base + q] = Int32(-1)
+            sink.store(out_base + q, Int32(-1))
         q += nthreads
 
 
@@ -2489,8 +2639,8 @@ def _histsel_resident_kernel[
     sig_bits: Int = _hsel_sig_bits[in_dtype](),
     phi_dtype: DType = _hsel_phi_dtype[in_dtype](),
 ](
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
-    out_idxs: UnsafePointer[Int32, MutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
+    out_idxs: MutPointer[Int32, MutAnyOrigin],
     N: Int32,
     K: Int32,
     trace_buf: TraceBufT,
@@ -2506,7 +2656,7 @@ def _histsel_resident_kernel[
         res_vecs,
         sig_bits,
         phi_dtype,
-    ](in_scores, out_idxs, N, K, Int(N), trace_buf)
+    ](in_scores, PlainSink(out_idxs), N, K, Int(N), trace_buf)
 
 
 @__llvm_metadata(
@@ -2526,21 +2676,22 @@ def _histsel_resident_bounded_kernel[
     in_dtype: DType = .float32,
     sig_bits: Int = _hsel_sig_bits[in_dtype](),
     phi_dtype: DType = _hsel_phi_dtype[in_dtype](),
+    RB: RowBound = RowBoundsPtr,
 ](
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
-    out_idxs: UnsafePointer[Int32, MutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
+    out_idxs: MutPointer[Int32, MutAnyOrigin],
     N: Int32,
     K: Int32,
-    row_bounds: UnsafePointer[Int32, ImmutAnyOrigin],
+    row_bounds: RB,
     trace_buf: TraceBufT,
 ):
     """`_histsel_resident_impl` with a per-row live-column bound.
 
     Same contract as `_histsel_topk_bounded_kernel`: row `r` reads only
-    `[0, row_bounds[r])` of its stripe, and a bound at or below `K` yields all
+    `[0, row_bounds(r))` of its stripe, and a bound at or below `K` yields all
     live columns descending with a `-1` output tail.
     """
-    var bound = Int(row_bounds[Int(block_idx.x)])
+    var bound, sink = row_bounds.row(block_idx.x, out_idxs)
     _histsel_resident_impl[
         TraceBufT,
         enable_trace,
@@ -2551,12 +2702,13 @@ def _histsel_resident_bounded_kernel[
         res_vecs,
         sig_bits,
         phi_dtype,
-    ](in_scores, out_idxs, N, K, min(Int(N), max(0, bound)), trace_buf)
+    ](in_scores, sink, N, K, min(Int(N), max(0, bound)), trace_buf)
 
 
 @inline(.always)
 def _histsel_resident_impl[
     in_dtype: DType,
+    S: TopkSink,
     //,
     TraceBufT: TraceBuf,
     enable_trace: Bool = False,
@@ -2568,8 +2720,8 @@ def _histsel_resident_impl[
     sig_bits: Int = _hsel_sig_bits[in_dtype](),
     phi_dtype: DType = _hsel_phi_dtype[in_dtype](),
 ](
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
-    out_idxs: UnsafePointer[Int32, MutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
+    sink: S,
     N: Int32,
     K: Int32,
     count: Int,
@@ -2604,8 +2756,8 @@ def _histsel_resident_impl[
     """
     comptime items = res_vecs * _PTOPK_ITEMS
     comptime res_step = _HSEL_RES_BLOCK * _PTOPK_ITEMS
-    var tid = Int(thread_idx.x)
-    var token = Int(block_idx.x)
+    var tid = thread_idx.x
+    var token = block_idx.x
 
     var hist = unsafe_stack_allocation[
         _HSEL_BINS + 1, UInt32, address_space=.SHARED
@@ -2698,7 +2850,7 @@ def _histsel_resident_impl[
         if select_all:
             var q = tid
             while q < _K:
-                out_idxs[token * _K + q] = Int32(q) if q < count else Int32(-1)
+                sink.store(token * _K + q, Int32(q) if q < count else Int32(-1))
                 q += _HSEL_RES_BLOCK
             comptime if enable_trace:
                 if tid == 0:
@@ -2827,8 +2979,9 @@ def _histsel_resident_impl[
                                 _ = Atomic[UInt32, scope=BLOCK_SCOPE].fetch_add[
                                     ordering=Ordering.RELAXED
                                 ](
-                                    hist
-                                    + _hsel_digit[half, w_out, nbins](p, rc),
+                                    hist.unsafe_offset(
+                                        _hsel_digit[half, w_out, nbins](p, rc)
+                                    ),
                                     UInt32(1),
                                 )
                     comptime if fold_bracket:
@@ -2839,10 +2992,10 @@ def _histsel_resident_impl[
                         if lane_id() == 0:
                             Atomic[UInt32, scope=BLOCK_SCOPE].max[
                                 ordering=Ordering.RELAXED
-                            ](ctl + 6, wmax)
+                            ](ctl.unsafe_offset(6), wmax)
                             Atomic[UInt32, scope=BLOCK_SCOPE].min[
                                 ordering=Ordering.RELAXED
-                            ](ctl + 7, wmin)
+                            ](ctl.unsafe_offset(7), wmin)
                     barrier()
 
                     var folded = False
@@ -3070,11 +3223,11 @@ def _histsel_resident_impl[
                 if lane_id() == WARP_SIZE - 1:
                     wb = Atomic[UInt32, scope=BLOCK_SCOPE].fetch_add[
                         ordering=Ordering.RELAXED
-                    ](ctl + 3, pre + gc)
+                    ](ctl.unsafe_offset(3), pre + gc)
                 var gp = Int(warp.shuffle_idx(wb, UInt32(WARP_SIZE - 1)) + pre)
                 comptime for j in range(_PTOPK_ITEMS):
                     if (gmask >> UInt32(j)) & UInt32(1) != 0:
-                        out_idxs[obase + gp] = Int32(c0 + j)
+                        sink.store(obase + gp, Int32(c0 + j))
                         gp += 1
 
             comptime if enable_trace:
@@ -3096,14 +3249,14 @@ def _histsel_resident_impl[
             if lane_id() == WARP_SIZE - 1:
                 ewb = Atomic[UInt32, scope=BLOCK_SCOPE].fetch_add[
                     ordering=Ordering.RELAXED
-                ](ctl + 3, epre + ec_all)
+                ](ctl.unsafe_offset(3), epre + ec_all)
             var ep = Int(warp.shuffle_idx(ewb, UInt32(WARP_SIZE - 1)) + epre)
             comptime for v in range(res_vecs):
                 var c0 = tid * _PTOPK_ITEMS + v * res_step
                 comptime for j in range(_PTOPK_ITEMS):
                     if (emask[v] >> UInt32(j)) & UInt32(1) != 0:
                         if ep < _K:
-                            out_idxs[obase + ep] = Int32(c0 + j)
+                            sink.store(obase + ep, Int32(c0 + j))
                         ep += 1
 
             comptime if enable_trace:
@@ -3130,7 +3283,7 @@ def _histsel_resident_impl[
                     ec += 1
             var local = (gc << UInt32(16)) | ec
             var inclusive = _hsel_block_scan[_HSEL_RES_BLOCK](
-                local, wscan + v * wscan_warps
+                local, wscan.unsafe_offset(v * wscan_warps)
             )
             pref[v] = inclusive - local
             if tid == _HSEL_RES_BLOCK - 1:
@@ -3173,7 +3326,7 @@ def _histsel_resident_impl[
                     UInt64(global_perf_counter_ns()),
                 )
 
-        # Straight to `out_idxs`: a thread's own keys land on consecutive slots,
+        # Straight to `sink`: a thread's own keys land on consecutive slots,
         # and staging them in shared memory to copy out by slot measured slower
         # than the scatter it avoids.
         var obase = token * _K
@@ -3183,11 +3336,11 @@ def _histsel_resident_impl[
             var ep = Int(pref[v] & UInt32(0xFFFF)) + Int(e_before[v])
             comptime for j in range(_PTOPK_ITEMS):
                 if (gmask[v] >> UInt32(j)) & UInt32(1) != 0:
-                    out_idxs[obase + gp] = Int32(c0 + j)
+                    sink.store(obase + gp, Int32(c0 + j))
                     gp += 1
                 elif (emask[v] >> UInt32(j)) & UInt32(1) != 0:
                     if ep < need_eq:
-                        out_idxs[obase + n_above + ep] = Int32(c0 + j)
+                        sink.store(obase + n_above + ep, Int32(c0 + j))
                     ep += 1
 
         comptime if enable_trace:
@@ -3213,7 +3366,7 @@ def _histsel_resident_impl[
                 var pos = Int(
                     Atomic[UInt32, scope=BLOCK_SCOPE].fetch_add[
                         ordering=Ordering.RELAXED
-                    ](ctl + 3, UInt32(1))
+                    ](ctl.unsafe_offset(3), UInt32(1))
                 )
                 if pos < sel_cap:
                     sel_k[pos] = _pack_key(p, rc)
@@ -3257,7 +3410,7 @@ def _histsel_resident_impl[
         wor,
         dmap,
         banchor,
-        out_idxs,
+        sink,
         token * _K,
         m_sel,
         _K,
@@ -3286,9 +3439,9 @@ def _histsel_resident_impl[
 def _split_partial_kernel[
     in_dtype: DType
 ](
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
-    part_v: UnsafePointer[Float32, MutAnyOrigin],
-    part_i: UnsafePointer[Int32, MutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
+    part_v: MutPointer[Float32, MutAnyOrigin],
+    part_i: MutPointer[Int32, MutAnyOrigin],
     N_dev: Int32,
     slice_len_dev: Int32,
     S_dev: Int32,
@@ -3343,10 +3496,10 @@ def _split_partial_kernel[
     var e3 = tid * 4 + 3
 
     var neg_inf = min_or_neg_inf[.float32]()
-    champ_v.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+    champ_v.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
         e0, SIMD[.float32, _PTOPK_ITEMS](neg_inf)
     )
-    champ_i.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+    champ_i.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
         e0, SIMD[.int32, _PTOPK_ITEMS](Int32(-1))
     )
     barrier()
@@ -3389,10 +3542,10 @@ def _split_partial_kernel[
         # swizzled reads alias the canonical write indices (WAR hazard).
         barrier()
 
-        scratch_v.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        scratch_v.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
             e0, SIMD[.float32, _PTOPK_ITEMS](v0, v1, v2, v3)
         )
-        scratch_i.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        scratch_i.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
             e0, SIMD[.int32, _PTOPK_ITEMS](i0, i1, i2, i3)
         )
         barrier()
@@ -3412,31 +3565,31 @@ def _split_partial_kernel[
             v0, v1, v2, v3, i0, i1, i2, i3, scratch_v, scratch_i, tid
         )
 
-        champ_v.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        champ_v.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
             e0, SIMD[.float32, _PTOPK_ITEMS](v0, v1, v2, v3)
         )
-        champ_i.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        champ_i.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
             e0, SIMD[.int32, _PTOPK_ITEMS](i0, i1, i2, i3)
         )
         barrier()
 
     var out_base = (row * S + slce) * _TILE
-    part_v.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+    part_v.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
         out_base + e0,
-        champ_v.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0),
+        champ_v.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0),
     )
-    part_i.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+    part_i.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
         out_base + e0,
-        champ_i.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0),
+        champ_i.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0),
     )
 
 
 @__name(t"reduce_partials_topk")
 def _reduce_partials_kernel(
-    in_v: UnsafePointer[Float32, ImmutAnyOrigin],
-    in_i: UnsafePointer[Int32, ImmutAnyOrigin],
-    out_v: UnsafePointer[Float32, MutAnyOrigin],
-    out_i: UnsafePointer[Int32, MutAnyOrigin],
+    in_v: ImmPointer[Float32, ImmutAnyOrigin],
+    in_i: ImmPointer[Int32, ImmutAnyOrigin],
+    out_v: MutPointer[Float32, MutAnyOrigin],
+    out_i: MutPointer[Int32, MutAnyOrigin],
     count_in_dev: Int32,
     count_out_dev: Int32,
     g_dev: Int32,
@@ -3496,11 +3649,13 @@ def _reduce_partials_kernel(
 
     # Seed the champion with the group's first partial.
     var base0 = (row * count_in + first) * _TILE
-    champ_v.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
-        e0, in_v.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](base0 + e0)
+    champ_v.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        e0,
+        in_v.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](base0 + e0),
     )
-    champ_i.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
-        e0, in_i.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](base0 + e0)
+    champ_i.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        e0,
+        in_i.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](base0 + e0),
     )
     barrier()
 
@@ -3518,11 +3673,13 @@ def _reduce_partials_kernel(
 
     for s in range(1, n_parts):
         var bs = (row * count_in + first + s) * _TILE
-        scratch_v.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
-            e0, in_v.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](bs + e0)
+        scratch_v.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+            e0,
+            in_v.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](bs + e0),
         )
-        scratch_i.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
-            e0, in_i.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](bs + e0)
+        scratch_i.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+            e0,
+            in_i.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](bs + e0),
         )
         barrier()
 
@@ -3542,30 +3699,30 @@ def _reduce_partials_kernel(
             v0, v1, v2, v3, i0, i1, i2, i3, scratch_v, scratch_i, tid
         )
 
-        champ_v.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        champ_v.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
             e0, SIMD[.float32, _PTOPK_ITEMS](v0, v1, v2, v3)
         )
-        champ_i.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        champ_i.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
             e0, SIMD[.int32, _PTOPK_ITEMS](i0, i1, i2, i3)
         )
         barrier()
 
     var out_base = (row * count_out + grp) * _TILE
-    out_v.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+    out_v.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
         out_base + e0,
-        champ_v.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0),
+        champ_v.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0),
     )
-    out_i.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+    out_i.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
         out_base + e0,
-        champ_i.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0),
+        champ_i.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0),
     )
 
 
 @__name(t"merge_partials_topk")
 def _merge_partials_kernel(
-    part_v: UnsafePointer[Float32, ImmutAnyOrigin],
-    part_i: UnsafePointer[Int32, ImmutAnyOrigin],
-    out_idxs: UnsafePointer[Int32, MutAnyOrigin],
+    part_v: ImmPointer[Float32, ImmutAnyOrigin],
+    part_i: ImmPointer[Int32, ImmutAnyOrigin],
+    out_idxs: MutPointer[Int32, MutAnyOrigin],
     count_dev: Int32,
     K_dev: Int32,
 ):
@@ -3618,11 +3775,13 @@ def _merge_partials_kernel(
 
     # Seed the champion with partial 0.
     var base0 = (row * count) * _TILE
-    champ_v.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
-        e0, part_v.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](base0 + e0)
+    champ_v.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        e0,
+        part_v.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](base0 + e0),
     )
-    champ_i.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
-        e0, part_i.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](base0 + e0)
+    champ_i.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        e0,
+        part_i.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](base0 + e0),
     )
     barrier()
 
@@ -3640,11 +3799,17 @@ def _merge_partials_kernel(
 
     for s in range(1, count):
         var bs = (row * count + s) * _TILE
-        scratch_v.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
-            e0, part_v.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](bs + e0)
+        scratch_v.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+            e0,
+            part_v.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+                bs + e0
+            ),
         )
-        scratch_i.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
-            e0, part_i.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](bs + e0)
+        scratch_i.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+            e0,
+            part_i.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+                bs + e0
+            ),
         )
         barrier()
 
@@ -3664,17 +3829,17 @@ def _merge_partials_kernel(
             v0, v1, v2, v3, i0, i1, i2, i3, scratch_v, scratch_i, tid
         )
 
-        champ_v.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        champ_v.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
             e0, SIMD[.float32, _PTOPK_ITEMS](v0, v1, v2, v3)
         )
-        champ_i.store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
+        champ_i.unsafe_store[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](
             e0, SIMD[.int32, _PTOPK_ITEMS](i0, i1, i2, i3)
         )
         barrier()
 
     var _K = Int(K)
     var base = row * _K
-    var out_i = champ_i.load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0)
+    var out_i = champ_i.unsafe_load[width=_PTOPK_ITEMS, alignment=_V4_ALIGN](e0)
     if e0 < _K:
         out_idxs[base + e0] = out_i[0]
     if e1 < _K:
@@ -3694,7 +3859,7 @@ def _merge_partials_kernel(
 def _assert_scores_16b_aligned[
     in_dtype: DType, //
 ](
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
     N: Int,
     total_seq_len: Int,
 ):
@@ -3711,15 +3876,15 @@ def _assert_scores_16b_aligned[
 
 
 def persistent_topk_block[
-    in_dtype: DType, //
+    in_dtype: DType, //, RB: RowBound = RowBoundsPtr
 ](
     ctx: DeviceContext,
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
-    out_idxs: UnsafePointer[Int32, MutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
+    out_idxs: MutPointer[Int32, MutAnyOrigin],
     N: Int,
     K: Int,
     total_seq_len: Int,
-    row_bounds: Optional[UnsafePointer[Int32, ImmutAnyOrigin]] = None,
+    row_bounds: Optional[RB] = None,
 ) raises:
     """Launch block-wide bitonic top-k for `total_seq_len` score rows.
 
@@ -3747,16 +3912,19 @@ def persistent_topk_block[
 
     Parameters:
         in_dtype: Element type of the score buffer, f32 or bf16 (inferred).
+        RB: Type of `row_bounds`; see `RowBound`.
 
     Args:
         ctx: Device context.
         in_scores: Flat score buffer `[total_seq_len × N]` row-major.
         out_idxs: Output buffer `[total_seq_len × K]` row-major (int32).
         N: Score columns per token (the row stride).
-        K: Top-k count per token (≤ N, and ≤ PERSISTENT_TOPK_MAX_N when N > 2048).
+        K: Top-k count per token, at most PERSISTENT_TOPK_MAX_N. It may
+            exceed `N`; slots past a row's live columns are `-1`.
         total_seq_len: Number of rows (one block per row).
-        row_bounds: Optional `[total_seq_len]` int32 per-row live-column counts.
-            When set, row `r` reads only its first `row_bounds[r]` columns;
+        row_bounds: Optional per-row live-column counts (`RowBoundsPtr` over
+            a `[total_seq_len]` int32 buffer, or any `RowBound`). When set, row
+            `r` reads only its first `row_bounds(r)` columns;
             columns past the bound are never selected, never read (they may be
             uninitialized), and pad the output with `-1`. Scan cost tracks the
             real row lengths. Only supported for `N ≤ PERSISTENT_TOPK_MAX_N`
@@ -3764,15 +3932,15 @@ def persistent_topk_block[
     """
     _assert_scores_16b_aligned(in_scores, N, total_seq_len)
     if N <= PERSISTENT_TOPK_MAX_N:
-        if row_bounds:
+        if case .Some(row_bounds) = row_bounds:
             ctx.enqueue_function[
-                _persistent_topk_2048_bounded_kernel[in_dtype]
+                _persistent_topk_2048_bounded_kernel[in_dtype, RB]
             ](
                 in_scores,
                 out_idxs,
                 Int32(N),
                 Int32(K),
-                row_bounds.value(),
+                row_bounds,
                 grid_dim=total_seq_len,
                 block_dim=_PTOPK_BLOCK,
             )
@@ -3830,14 +3998,15 @@ def persistent_topk_block_split[
     sig_bits: Int = _hsel_sig_bits[in_dtype](),
     phi_dtype: DType = _hsel_phi_dtype[in_dtype](),
     scan_items: Int = _hsel_prefetch_scan_items[in_dtype, phi_dtype](),
+    RB: RowBound = RowBoundsPtr,
 ](
     ctx: DeviceContext,
-    in_scores: UnsafePointer[Scalar[in_dtype], ImmutAnyOrigin],
-    out_idxs: UnsafePointer[Int32, MutAnyOrigin],
+    in_scores: ImmPointer[Scalar[in_dtype], ImmutAnyOrigin],
+    out_idxs: MutPointer[Int32, MutAnyOrigin],
     N: Int,
     K: Int,
     total_seq_len: Int,
-    row_bounds: Optional[UnsafePointer[Int32, ImmutAnyOrigin]] = None,
+    row_bounds: Optional[RB] = None,
 ) raises:
     """Launch bitonic top-k, splitting the N dimension when rows under-fill GPU.
 
@@ -3847,6 +4016,14 @@ def persistent_topk_block_split[
     serially), the streaming fold is split across `rows * S` blocks (phase 1),
     each producing a sorted top-`_TILE` partial, then merged per row (phase 2).
     All other shapes fall back to `persistent_topk_block` unchanged.
+
+    On SM90+ targets (SM12x excluded), at most `_CTOPK_MAX_ROWS` rows that do
+    not fill the GPU instead take the cluster-cooperative kernel
+    (`nn/attention/gpu/nvidia/topk_cluster.mojo`), which spreads each row over
+    a thread-block cluster — and only under the
+    `ordered=False, deterministic=False` contract, which is all that kernel
+    promises; every stronger contract keeps the kernels this docstring
+    otherwise describes.
 
     The score-dtype and pointer-alignment contract is `persistent_topk_block`'s,
     unchanged.
@@ -3894,16 +4071,18 @@ def persistent_topk_block_split[
             lands mid-vector for some threads and not others. The arms that do
             not prefetch always take the default width; they hold no group
             across the loop, so a wider one would cost registers for nothing.
+        RB: Type of `row_bounds`; see `RowBound`.
 
     Args:
         ctx: Device context.
         in_scores: Flat score buffer `[total_seq_len × N]` row-major.
         out_idxs: Output buffer `[total_seq_len × K]` row-major (int32).
         N: Score columns per token (the row stride).
-        K: Top-k count per token (≤ N, and ≤ PERSISTENT_TOPK_MAX_N when N > 2048).
+        K: Top-k count per token, at most PERSISTENT_TOPK_MAX_N. It may
+            exceed `N`; slots past a row's live columns are `-1`.
         total_seq_len: Number of rows.
-        row_bounds: Optional `[total_seq_len]` int32 per-row live-column counts;
-            see `persistent_topk_block`. Row `r` scans only `[0, row_bounds[r])`
+        row_bounds: Optional per-row live-column counts; see
+            `persistent_topk_block`. Row `r` scans only `[0, row_bounds(r))`
             of its `N`-wide stripe, so under capture-frozen metadata (where `N`
             is a worst-case bound) the scan cost tracks each row's real length.
             Supported on every path this launcher selects for `N > 2048` (the
@@ -3911,10 +4090,51 @@ def persistent_topk_block_split[
     """
     _assert_scores_16b_aligned(in_scores, N, total_seq_len)
     if N <= PERSISTENT_TOPK_MAX_N:
-        persistent_topk_block(
+        persistent_topk_block[RB=RB](
             ctx, in_scores, out_idxs, N, K, total_seq_len, row_bounds
         )
         return
+
+    # Cluster-cooperative tier: rows that under-fill the GPU, where one CTA
+    # per row leaves SMs idle for the whole scan. The kernel matches only the
+    # `ordered=False, deterministic=False` contract (its threshold plateau is
+    # cut first-come), so callers holding a stronger promise keep the selects
+    # below unchanged. Everything the gate reads -- `N`, `rows`, `K`, the
+    # compile target -- is host-known, so a captured device graph replays the
+    # same route.
+    comptime if (
+        ctx.target._is_sm_9x_or_newer()
+        and not ctx.target._is_sm_120x_or_newer()
+    ):
+        comptime if (not ordered) and (not deterministic):
+            from nn.attention.gpu.nvidia.topk_cluster import (
+                _CTOPK_MAX_ROWS,
+                _choose_topk_cluster_size,
+                topk_cluster_split,
+            )
+
+            var sm_count = ctx.get_attribute(
+                DeviceAttribute.MULTIPROCESSOR_COUNT
+            )
+            if (
+                total_seq_len > 0
+                and total_seq_len <= _CTOPK_MAX_ROWS
+                and total_seq_len < sm_count
+                and K <= PERSISTENT_TOPK_MAX_N
+            ):
+                topk_cluster_split[RB=RB](
+                    ctx,
+                    in_scores,
+                    out_idxs,
+                    N,
+                    K,
+                    total_seq_len,
+                    row_bounds,
+                    _choose_topk_cluster_size[ctx.default_device_info.sm_count](
+                        total_seq_len, N
+                    ),
+                )
+                return
 
     if N >= _HSEL_MIN_N:
         # Both selects below want the same question answered: do the rows fill
@@ -3936,10 +4156,11 @@ def persistent_topk_block_split[
                 # and no reason for the per-bin digit -- both exist only to make
                 # ranking cheap. `sel_cap` of `_PTOPK_TOTAL` is what asks the
                 # rounds to land exactly on `K` instead.
-                if row_bounds:
+                if case .Some(row_bounds) = row_bounds:
                     ctx.enqueue_function[
                         _histsel_resident_bounded_kernel[
                             NullTrace,
+                            RB=RB,
                             sel_cap=_PTOPK_TOTAL,
                             ordered=False,
                             deterministic=deterministic,
@@ -3953,7 +4174,7 @@ def persistent_topk_block_split[
                         out_idxs,
                         Int32(N),
                         Int32(K),
-                        row_bounds.value(),
+                        row_bounds,
                         NullTrace(),
                         grid_dim=total_seq_len,
                         block_dim=_HSEL_RES_BLOCK,
@@ -3990,10 +4211,11 @@ def persistent_topk_block_split[
             # score level including the masked tail, whose `phi` takes the digit's
             # top varying positions and leaves it unable to split within a level.
             if N >= K + K // 2:
-                if row_bounds:
+                if case .Some(row_bounds) = row_bounds:
                     ctx.enqueue_function[
                         _histsel_resident_bounded_kernel[
                             NullTrace,
+                            RB=RB,
                             res_vecs=res_vecs,
                             in_dtype=in_dtype,
                             sig_bits=sig_bits,
@@ -4004,7 +4226,7 @@ def persistent_topk_block_split[
                         out_idxs,
                         Int32(N),
                         Int32(K),
-                        row_bounds.value(),
+                        row_bounds,
                         NullTrace(),
                         grid_dim=total_seq_len,
                         block_dim=_HSEL_RES_BLOCK,
@@ -4032,10 +4254,11 @@ def persistent_topk_block_split[
             # instantiation takes the per-bin digit -- and only this one, since it
             # costs a scan and shared memory the shapes above do not need. With the
             # runs narrow again the hand-over is affordable here too.
-            if row_bounds:
+            if case .Some(row_bounds) = row_bounds:
                 ctx.enqueue_function[
                     _histsel_resident_bounded_kernel[
                         NullTrace,
+                        RB=RB,
                         bin_digit=True,
                         res_vecs=res_vecs,
                         in_dtype=in_dtype,
@@ -4047,7 +4270,7 @@ def persistent_topk_block_split[
                     out_idxs,
                     Int32(N),
                     Int32(K),
-                    row_bounds.value(),
+                    row_bounds,
                     NullTrace(),
                     grid_dim=total_seq_len,
                     block_dim=_HSEL_RES_BLOCK,
@@ -4099,10 +4322,11 @@ def persistent_topk_block_split[
         # group buys them no parallelism and only raises pressure.
         if not hsel_fills_gpu:
             comptime if (not ordered) and (not deterministic):
-                if row_bounds:
+                if case .Some(row_bounds) = row_bounds:
                     ctx.enqueue_function[
                         _histsel_topk_bounded_kernel[
                             NullTrace,
+                            RB=RB,
                             prefetch=True,
                             scan_items=scan_items,
                             tail_bits=_HSEL_TAIL_BITS,
@@ -4117,7 +4341,7 @@ def persistent_topk_block_split[
                         out_idxs,
                         Int32(N),
                         Int32(K),
-                        row_bounds.value(),
+                        row_bounds,
                         NullTrace(),
                         grid_dim=total_seq_len,
                         block_dim=_PTOPK_BLOCK,
@@ -4153,10 +4377,11 @@ def persistent_topk_block_split[
                     ),
                 )
                 return
-            if row_bounds:
+            if case .Some(row_bounds) = row_bounds:
                 ctx.enqueue_function[
                     _histsel_topk_bounded_kernel[
                         NullTrace,
+                        RB=RB,
                         prefetch=True,
                         tail_bits=_HSEL_TAIL_BITS,
                         rank_bits=_HSEL_RANK_BITS,
@@ -4171,7 +4396,7 @@ def persistent_topk_block_split[
                     out_idxs,
                     Int32(N),
                     Int32(K),
-                    row_bounds.value(),
+                    row_bounds,
                     NullTrace(),
                     grid_dim=total_seq_len,
                     block_dim=_PTOPK_BLOCK,
@@ -4208,10 +4433,11 @@ def persistent_topk_block_split[
             )
             return
 
-        if row_bounds:
+        if case .Some(row_bounds) = row_bounds:
             ctx.enqueue_function[
                 _histsel_topk_bounded_kernel[
                     NullTrace,
+                    RB=RB,
                     ordered=ordered,
                     deterministic=deterministic,
                     in_dtype=in_dtype,
@@ -4223,7 +4449,7 @@ def persistent_topk_block_split[
                 out_idxs,
                 Int32(N),
                 Int32(K),
-                row_bounds.value(),
+                row_bounds,
                 NullTrace(),
                 grid_dim=total_seq_len,
                 block_dim=_PTOPK_BLOCK,
@@ -4278,8 +4504,8 @@ def persistent_topk_block_split[
     # Phase 1: fan the streaming fold across `rows * S` blocks into buffer A.
     var buf_a_v = ctx.enqueue_create_buffer[.float32](part_count)
     var buf_a_i = ctx.enqueue_create_buffer[.int32](part_count)
-    var a_v = rebind[UnsafePointer[Float32, MutAnyOrigin]](buf_a_v.unsafe_ptr())
-    var a_i = rebind[UnsafePointer[Int32, MutAnyOrigin]](buf_a_i.unsafe_ptr())
+    var a_v = rebind[MutPointer[Float32, MutAnyOrigin]](buf_a_v.unsafe_ptr())
+    var a_i = rebind[MutPointer[Int32, MutAnyOrigin]](buf_a_i.unsafe_ptr())
 
     ctx.enqueue_function[_split_partial_kernel[in_dtype]](
         in_scores,
@@ -4312,16 +4538,14 @@ def persistent_topk_block_split[
     var buf_b_i = ctx.enqueue_create_buffer[.int32](
         part_count if do_reduce else 1
     )
-    var dst_v = rebind[UnsafePointer[Float32, MutAnyOrigin]](
-        buf_b_v.unsafe_ptr()
-    )
-    var dst_i = rebind[UnsafePointer[Int32, MutAnyOrigin]](buf_b_i.unsafe_ptr())
+    var dst_v = rebind[MutPointer[Float32, MutAnyOrigin]](buf_b_v.unsafe_ptr())
+    var dst_i = rebind[MutPointer[Int32, MutAnyOrigin]](buf_b_i.unsafe_ptr())
 
     while count > _MERGE_FANIN:
         var count_out = ceildiv(count, _MERGE_FANIN)
         ctx.enqueue_function[_reduce_partials_kernel](
-            rebind[UnsafePointer[Float32, ImmutAnyOrigin]](src_v),
-            rebind[UnsafePointer[Int32, ImmutAnyOrigin]](src_i),
+            rebind[ImmPointer[Float32, ImmutAnyOrigin]](src_v),
+            rebind[ImmPointer[Int32, ImmutAnyOrigin]](src_i),
             dst_v,
             dst_i,
             Int32(count),
@@ -4339,8 +4563,8 @@ def persistent_topk_block_split[
         count = count_out
 
     ctx.enqueue_function[_merge_partials_kernel](
-        rebind[UnsafePointer[Float32, ImmutAnyOrigin]](src_v),
-        rebind[UnsafePointer[Int32, ImmutAnyOrigin]](src_i),
+        rebind[ImmPointer[Float32, ImmutAnyOrigin]](src_v),
+        rebind[ImmPointer[Int32, ImmutAnyOrigin]](src_i),
         out_idxs,
         Int32(count),
         Int32(K),

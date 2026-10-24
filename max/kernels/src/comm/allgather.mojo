@@ -70,12 +70,7 @@ from .device_query import (
     KB,
     dispatch_select_comm_config,
 )
-from .relay import (
-    RELAY_ARCH,
-    RelayTuningConfig,
-    _relay_pairs,
-    _relay_slice_vectors,
-)
+from .relay import RelayTuningConfig, _relay_pairs, _relay_slice_vectors
 from internal_utils import Table
 
 from .reducescatter import _target_address_space
@@ -303,15 +298,17 @@ def _allgather_p2p_kernel[
                 if idx < num_simd_vectors[gpu_idx]:
                     data[gpu_idx] = (
                         src_ptrs_rr[gpu_idx]
-                        .address_space_cast[_target_address_space]()
-                        .load[width=simd_width, alignment=alignment](elem_idx)
+                        .unsafe_address_space_cast[_target_address_space]()
+                        .unsafe_load[width=simd_width, alignment=alignment](
+                            elem_idx
+                        )
                     )
             # Then store each peer's data.
             comptime for gpu_idx in range(ngpus):
                 if idx < num_simd_vectors[gpu_idx]:
-                    out_ptrs_rr[gpu_idx].address_space_cast[
+                    out_ptrs_rr[gpu_idx].unsafe_address_space_cast[
                         _target_address_space
-                    ]().store[width=simd_width, alignment=alignment](
+                    ]().unsafe_store[width=simd_width, alignment=alignment](
                         elem_idx, data[gpu_idx]
                     )
 
@@ -370,9 +367,9 @@ def _allgather_tma_kernel[
     var smem_base = external_memory[
         UInt8, address_space=.SHARED, alignment=128
     ]()
-    var mbar_base = (smem_base + NUM_WARPS * BYTES_PER_COPY).bitcast[
-        SharedMemBarrier
-    ]()
+    var mbar_base = smem_base.unsafe_offset(
+        NUM_WARPS * BYTES_PER_COPY
+    ).unsafe_bitcast[SharedMemBarrier]()
 
     var warp = warp_id()
     var is_leader = elect_one_sync()
@@ -386,20 +383,24 @@ def _allgather_tma_kernel[
     var my_src_idx = warp % ngpus
 
     var src_g = (
-        src_ptrs[my_src_idx].bitcast[UInt8]().address_space_cast[.GLOBAL]()
+        src_ptrs[my_src_idx]
+        .unsafe_bitcast[UInt8]()
+        .unsafe_address_space_cast[.GLOBAL]()
     )
     var dst_g = (
-        outputs[my_src_idx].bitcast[UInt8]().address_space_cast[.GLOBAL]()
+        outputs[my_src_idx]
+        .unsafe_bitcast[UInt8]()
+        .unsafe_address_space_cast[.GLOBAL]()
     )
     var nbytes = Int(lengths[my_src_idx]) * size_of[dtype]()
-    var smem = smem_base + warp * BYTES_PER_COPY
-    var mbar = mbar_base + warp
+    var smem = smem_base.unsafe_offset(warp * BYTES_PER_COPY)
+    var mbar = mbar_base.unsafe_offset(warp)
 
     # Grid-strided chunk distribution across warps handling the same source.
     var warps_per_src_per_block = NUM_WARPS // ngpus
     var src_local_warp = warp // ngpus
-    var first = Int(block_idx.x) * warps_per_src_per_block + src_local_warp
-    var warp_stride = Int(grid_dim.x) * warps_per_src_per_block
+    var first = block_idx.x * warps_per_src_per_block + src_local_warp
+    var warp_stride = grid_dim.x * warps_per_src_per_block
 
     var total_chunks = ceildiv(nbytes, BYTES_PER_COPY)
 
@@ -417,14 +418,17 @@ def _allgather_tma_kernel[
                 # Async NVLink read: global → shared.
                 mbar[].expect_bytes(Int32(copy_bytes))
                 cp_async_bulk_shared_cluster_global(
-                    smem, src_g + offset, Int32(copy_bytes), mbar[].unsafe_ptr()
+                    smem,
+                    src_g.unsafe_offset(offset),
+                    Int32(copy_bytes),
+                    mbar[].unsafe_ptr(),
                 )
                 mbar[].wait(phase=phase)
                 phase ^= 1
 
                 # Async local write: shared → global.
                 cp_async_bulk_global_shared_cta(
-                    dst_g + offset, smem, Int32(copy_bytes)
+                    dst_g.unsafe_offset(offset), smem, Int32(copy_bytes)
                 )
                 cp_async_bulk_commit_group()
                 cp_async_bulk_wait_group[0]()
@@ -453,7 +457,7 @@ def _allgather_p2p_tma[
     """
     comptime TMA_BLOCK_SIZE = 256
     comptime TMA_BYTES_PER_COPY = 16384
-    comptime NUM_WARPS = TMA_BLOCK_SIZE // WARP_SIZE
+    comptime NUM_WARPS = TMA_BLOCK_SIZE // ctx.default_device_info.warp_size
     comptime tma_smem = (
         NUM_WARPS * TMA_BYTES_PER_COPY + NUM_WARPS * size_of[SharedMemBarrier]()
     )
@@ -538,8 +542,8 @@ def _allgather_relay_kernel[
     # world rank folded by the group width.
     var group_rank = _my_rank % ngpus
 
-    var bid = Int(block_idx.x)
-    var tid = Int(thread_idx.x)
+    var bid = block_idx.x
+    var tid = thread_idx.x
     var _relay_percent = Int(relay_percent)
 
     # Synchronize before reading. The domain spans both groups because a
@@ -558,10 +562,10 @@ def _allgather_relay_kernel[
         var blocks_per_stream = Int(num_direct_blocks) // ngpus
         var stream_block = bid // ngpus
         var src_idx = circular_add[ngpus](group_rank, stream)
-        var src_ptr = src_ptrs[src_idx].address_space_cast[
+        var src_ptr = src_ptrs[src_idx].unsafe_address_space_cast[
             _target_address_space
         ]()
-        var out_ptr = outputs[src_idx].address_space_cast[
+        var out_ptr = outputs[src_idx].unsafe_address_space_cast[
             _target_address_space
         ]()
         # Each shard is split on its own length, so the group may be
@@ -582,9 +586,9 @@ def _allgather_relay_kernel[
             BLOCK_SIZE,
         ):
             var elem_idx = idx * simd_width
-            out_ptr.store[width=simd_width, alignment=alignment](
+            out_ptr.unsafe_store[width=simd_width, alignment=alignment](
                 elem_idx,
-                src_ptr.load[
+                src_ptr.unsafe_load[
                     width=simd_width, alignment=alignment, invariant=True
                 ](elem_idx),
             )
@@ -610,9 +614,9 @@ def _allgather_relay_kernel[
         # stores before any consumer reads the output.
         var relay_bid = bid - Int(num_direct_blocks)
         var src_idx = relay_bid % ngpus
-        var blocks_per_src = (Int(grid_dim.x) - Int(num_direct_blocks)) // ngpus
+        var blocks_per_src = (grid_dim.x - Int(num_direct_blocks)) // ngpus
         var src_block = relay_bid // ngpus
-        var src_ptr = peer_src_ptrs[src_idx].address_space_cast[
+        var src_ptr = peer_src_ptrs[src_idx].unsafe_address_space_cast[
             _target_address_space
         ]()
 
@@ -655,7 +659,7 @@ def _allgather_relay_kernel[
             )
             comptime for u in range(UNROLL):
                 if idx + u * BLOCK_SIZE < end:
-                    data[u] = src_ptr.load[
+                    data[u] = src_ptr.unsafe_load[
                         width=simd_width,
                         alignment=alignment,
                         invariant=True,
@@ -665,9 +669,9 @@ def _allgather_relay_kernel[
                 var elem_idx = (idx + u * BLOCK_SIZE) * simd_width
                 if idx + u * BLOCK_SIZE < end:
                     comptime for k in range(ngpus - 1):
-                        dst_ptrs[k].address_space_cast[
+                        dst_ptrs[k].unsafe_address_space_cast[
                             _target_address_space
-                        ]().store[width=simd_width, alignment=alignment](
+                        ]().unsafe_store[width=simd_width, alignment=alignment](
                             elem_idx, data[u]
                         )
 
@@ -746,7 +750,7 @@ def _allgather_p2p_relay[
     # `ngpus`-wide grouped barrier and this one advance the same counters at
     # different rates and hang the node.
     comptime relay_domain_id = 0 if 2 * ngpus == MAX_GPUS else 2 * ngpus
-    comptime simd_width = simd_width_of[dtype, target=get_gpu_target()]()
+    comptime simd_width = simd_width_of[dtype, target=ctx.target]()
 
     # A relay block only runs if some shard in the relay world is long enough
     # to split. Both groups see both length sets, so they agree on the grid --
@@ -979,7 +983,7 @@ def _allgather_p2p[
         ](max_length * size_of[dtype]()).get_num_blocks()
     )
 
-    comptime simd_width = simd_width_of[dtype, target=get_gpu_target()]()
+    comptime simd_width = simd_width_of[dtype, target=ctx.target]()
     # Use ceildiv for max_length to ensure we have enough threads.
     var grid_size = min(
         max_num_blocks,

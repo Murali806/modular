@@ -46,7 +46,7 @@ from std.random import rand, random_ui64, seed
 from std.sys.defines import get_defined_int
 
 from max.gpu.host import DeviceBuffer, DeviceContext, HostBuffer
-from layout import Coord, Idx, TileTensor, row_major
+from layout import Idx, TileTensor, row_major
 from nn.attention.gpu.mha import (
     flash_attention,
     get_mha_decoding_num_partitions,
@@ -465,9 +465,9 @@ def _run_mha_composition(
     # Fillers (slots 1..) from `filler_seed`.
     if batch_size > 1:
         seed(filler_seed)
-        rand(q_host.unsafe_ptr() + probe_q, q_size - probe_q)
-        rand(k_host.unsafe_ptr() + probe_kv, kv_size - probe_kv)
-        rand(v_host.unsafe_ptr() + probe_kv, kv_size - probe_kv)
+        rand(q_host.unsafe_ptr().unsafe_offset(probe_q), q_size - probe_q)
+        rand(k_host.unsafe_ptr().unsafe_offset(probe_kv), kv_size - probe_kv)
+        rand(v_host.unsafe_ptr().unsafe_offset(probe_kv), kv_size - probe_kv)
 
     # valid_lengths: the probe attends to all keys (full); fillers get varied
     # lengths (they exercise different masking but are not compared).
@@ -501,7 +501,7 @@ def _run_mha_composition(
         o_dev, row_major((batch_size, seq_len, Idx[num_heads], Idx[depth]))
     )
     # Runtime-sized [batch_size] valid_lengths (mask indexes valid_lengths[b]).
-    var vl = TileTensor(vl_dev, row_major(Coord(batch_size)))
+    var vl = TileTensor(vl_dev, row_major(batch_size))
     var mask = CausalPaddingMask(vl)
 
     flash_attention(o, q, k, v, mask, scale, ctx, num_partitions=np)

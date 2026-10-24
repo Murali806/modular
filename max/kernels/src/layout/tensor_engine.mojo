@@ -87,7 +87,7 @@ def _offset_elements(offset_coord: Coord) -> Int:
     """
     var total = 0
     comptime for i in range(offset_coord.flat_rank):
-        total += Int(offset_coord[i].value())
+        total += Int(offset_coord[i])
     return total
 
 
@@ -385,30 +385,6 @@ trait TensorEngine:
         """
         OtherEngine.copy_from(other, storage)
 
-    @staticmethod
-    def distance[
-        dtype: DType, address_space: AddressSpace, //
-    ](
-        storage: Self.StorageType[mut=False, dtype, _, address_space],
-        other: Self.StorageType[mut=False, dtype, _, address_space],
-    ) -> Int:
-        """Returns the scalar-element distance from `other` to `storage`.
-
-        Parameters:
-            dtype: The storages' `DType`.
-            address_space: The storages' `AddressSpace`.
-
-        Args:
-            storage: The storage to measure the distance to.
-            other: The storage to measure the distance from.
-
-        Returns:
-            The number of scalar elements separating the two handles. The
-            value is positive when `storage` is ahead of `other` and negative
-            when it precedes `other`.
-        """
-        ...
-
 
 @inline(.always)
 def _copy_from[
@@ -510,9 +486,9 @@ def _copy_from[
         comptime num_scalars = num_elements * DstEngine.element_size
         comptime num_chunks = num_scalars // width
         comptime for i in range(num_chunks):
-            dst_ptr.store[alignment=dst_alignment](
+            dst_ptr.unsafe_store[alignment=dst_alignment](
                 i * width,
-                src_ptr.load[width=width, alignment=src_alignment](
+                src_ptr.unsafe_load[width=width, alignment=src_alignment](
                     i * width
                 ).cast[dst_dtype](),
             )
@@ -520,9 +496,9 @@ def _copy_from[
         comptime for i in range(num_elements):
             var src_offset = src_layout(Idx[i])
             var dst_offset = dst_layout(Idx[i])
-            dst_ptr.store[alignment=dst_alignment](
+            dst_ptr.unsafe_store[alignment=dst_alignment](
                 dst_offset,
-                src_ptr.load[
+                src_ptr.unsafe_load[
                     width=DstEngine.element_size, alignment=src_alignment
                 ](src_offset).cast[dst_dtype](),
             )
@@ -681,11 +657,15 @@ def _elementwise_binary_out_with_broadcast[
             var lhs_idx = lhs_layout(Idx[i])
             var rhs_idx = rhs_layout(Idx[i % rhs_size])
 
-            dst_ptr.store[alignment=alignment](
+            dst_ptr.unsafe_store[alignment=alignment](
                 dst_idx,
                 func(
-                    lhs_ptr.load[width=width, alignment=alignment](lhs_idx),
-                    rhs_ptr.load[width=width, alignment=alignment](rhs_idx),
+                    lhs_ptr.unsafe_load[width=width, alignment=alignment](
+                        lhs_idx
+                    ),
+                    rhs_ptr.unsafe_load[width=width, alignment=alignment](
+                        rhs_idx
+                    ),
                 ),
             )
     else:
@@ -693,11 +673,15 @@ def _elementwise_binary_out_with_broadcast[
             var dst_idx = dst_layout(Idx[i])
             var lhs_idx = lhs_layout(Idx[i])
             var rhs_idx = rhs_layout(Idx[i])
-            dst_ptr.store[alignment=alignment](
+            dst_ptr.unsafe_store[alignment=alignment](
                 dst_idx,
                 func(
-                    lhs_ptr.load[width=width, alignment=alignment](lhs_idx),
-                    rhs_ptr.load[width=width, alignment=alignment](rhs_idx),
+                    lhs_ptr.unsafe_load[width=width, alignment=alignment](
+                        lhs_idx
+                    ),
+                    rhs_ptr.unsafe_load[width=width, alignment=alignment](
+                        rhs_idx
+                    ),
                 ),
             )
 
@@ -789,22 +773,30 @@ def _elementwise_binary_with_broadcast[
             var lhs_idx = self_layout(Idx[i])
             var rhs_idx = other_layout(Idx[i % other_size])
 
-            dst_ptr.store[alignment=alignment](
+            dst_ptr.unsafe_store[alignment=alignment](
                 lhs_idx,
                 func(
-                    dst_ptr.load[width=width, alignment=alignment](lhs_idx),
-                    other_ptr.load[width=width, alignment=alignment](rhs_idx),
+                    dst_ptr.unsafe_load[width=width, alignment=alignment](
+                        lhs_idx
+                    ),
+                    other_ptr.unsafe_load[width=width, alignment=alignment](
+                        rhs_idx
+                    ),
                 ),
             )
     else:
         comptime for i in range(type_of(self_layout).static_product):
             var lhs_idx = self_layout(Idx[i])
             var rhs_idx = other_layout(Idx[i])
-            dst_ptr.store[alignment=alignment](
+            dst_ptr.unsafe_store[alignment=alignment](
                 lhs_idx,
                 func(
-                    dst_ptr.load[width=width, alignment=alignment](lhs_idx),
-                    other_ptr.load[width=width, alignment=alignment](rhs_idx),
+                    dst_ptr.unsafe_load[width=width, alignment=alignment](
+                        lhs_idx
+                    ),
+                    other_ptr.unsafe_load[width=width, alignment=alignment](
+                        rhs_idx
+                    ),
                 ),
             )
 
@@ -887,9 +879,11 @@ def _elementwise_unary_out[
     comptime for i in range(type_of(dst_layout).static_product):
         var dst_idx = dst_layout(Idx[i])
         var src_idx = src_layout(Idx[i])
-        dst_ptr.store[alignment=alignment](
+        dst_ptr.unsafe_store[alignment=alignment](
             dst_idx,
-            func(src_ptr.load[width=width, alignment=alignment](src_idx)),
+            func(
+                src_ptr.unsafe_load[width=width, alignment=alignment](src_idx)
+            ),
         )
 
 
@@ -1884,6 +1878,84 @@ trait TensorOps(TensorEngine):
         ...
 
 
+trait TileIO(TensorEngine):
+    """Extends `TensorEngine` with whole-tile loads and stores.
+
+    A conforming engine names a register value type that holds a whole tile,
+    `TileValueType`, and moves storage into and out of it. The layout travels
+    with the storage handle, as in `TensorOps`, so an engine whose storage
+    bakes in its extents can check them against the layout. `TileTensor`
+    exposes these as the zero-coordinate `load()` and `store(value)`
+    overloads.
+    """
+
+    # TODO(HWB-749): Unify with a generic `InlineTensor`.
+    comptime TileValueType[dtype: DType]: TrivialRegisterPassable
+    """The register value holding a whole tile of `dtype` elements.
+
+    Parameters:
+        dtype: The element data type of the tile.
+    """
+
+    @staticmethod
+    def load_tile[
+        mut: Bool,
+        dtype: DType,
+        origin: Origin[mut=mut],
+        address_space: AddressSpace,
+        LayoutType: TensorLayout,
+        //,
+    ](
+        storage: Tuple[
+            Self.StorageType[dtype, origin, address_space], LayoutType
+        ],
+    ) -> Self.TileValueType[dtype]:
+        """Loads the whole tile into a register value.
+
+        Parameters:
+            mut: The mutability of the storage, inferred from `origin`.
+            dtype: The element data type of the storage.
+            origin: The origin tracking the lifetime of the storage.
+            address_space: The address space the storage resides in.
+            LayoutType: The layout type of the tile.
+
+        Args:
+            storage: A tuple of the storage handle and its layout.
+
+        Returns:
+            The tile's contents as a `TileValueType[dtype]`.
+        """
+        ...
+
+    @staticmethod
+    def store_tile[
+        dtype: DType,
+        origin: MutOrigin,
+        address_space: AddressSpace,
+        LayoutType: TensorLayout,
+        //,
+    ](
+        storage: Tuple[
+            Self.StorageType[dtype, origin, address_space], LayoutType
+        ],
+        value: Self.TileValueType[dtype],
+    ):
+        """Stores a register value over the whole tile.
+
+        Parameters:
+            dtype: The element data type of the storage.
+            origin: The origin tracking the lifetime of the storage.
+            address_space: The address space the storage resides in.
+            LayoutType: The layout type of the tile.
+
+        Args:
+            storage: A tuple of the storage handle (modified in place) and its
+                layout.
+            value: The register value to store.
+        """
+        ...
+
+
 struct DefaultEngine[*, element_width: Int = 1](TensorOps):
     """Implements `TensorOps` backed by a raw `Pointer`.
 
@@ -1963,7 +2035,7 @@ struct DefaultEngine[*, element_width: Int = 1](TensorOps):
         # it to the scalar base pointer. For non-vectorized storage
         # (`element_width == 1`) this is the identity; for a vectorized view it
         # yields the scalar base address of the underlying storage.
-        return storage.bitcast[Scalar[dtype]]()
+        return storage.unsafe_bitcast[Scalar[dtype]]()
 
     @staticmethod
     @inline(.always)
@@ -2059,33 +2131,10 @@ struct DefaultEngine[*, element_width: Int = 1](TensorOps):
         # it as a scalar pointer so `+ offset` advances in scalar (not SIMD)
         # units, then `rebind` back to the original handle type.
         return (
-            storage.bitcast[Scalar[offset_dtype]]()
-            + _offset_elements(offset_coord)
-        ).bitcast[SIMD[offset_dtype, Self.element_width]]()
-
-    @staticmethod
-    def distance[
-        dtype: DType, address_space: AddressSpace, //
-    ](
-        storage: Self.StorageType[mut=False, dtype, _, address_space],
-        other: Self.StorageType[mut=False, dtype, _, address_space],
-    ) -> Int:
-        """Returns the scalar-element distance from `other` to `storage`.
-
-        Parameters:
-            dtype: The storages' `DType`.
-            address_space: The storages' `AddressSpace`.
-
-        Args:
-            storage: The storage to measure the distance to.
-            other: The storage to measure the distance from.
-
-        Returns:
-            The number of scalar elements separating the two handles. The
-            value is positive when `storage` is ahead of `other` and negative
-            when it precedes `other`.
-        """
-        return (Int(storage) - Int(other)) // size_of[dtype]()
+            storage.unsafe_bitcast[Scalar[offset_dtype]]().unsafe_offset(
+                _offset_elements(offset_coord)
+            )
+        ).unsafe_bitcast[SIMD[offset_dtype, Self.element_width]]()
 
     @staticmethod
     @inline(.always)
@@ -2556,10 +2605,10 @@ struct DefaultEngine[*, element_width: Int = 1](TensorOps):
 
         comptime for i in range(type_of(layout).static_product):
             var idx = layout(Idx[i])
-            storage.bitcast[Scalar[dtype]]().store(
+            storage.unsafe_bitcast[Scalar[dtype]]().unsafe_store(
                 idx,
                 func(
-                    storage.bitcast[Scalar[dtype]]().load[
+                    storage.unsafe_bitcast[Scalar[dtype]]().unsafe_load[
                         width=Self.element_width
                     ](idx)
                 ),
@@ -2670,10 +2719,10 @@ struct DefaultEngine[*, element_width: Int = 1](TensorOps):
         # during elaboration when passed as a function value.
         comptime for i in range(type_of(layout).static_product):
             var idx = layout(Idx[i])
-            storage.bitcast[Scalar[dtype]]().store(
+            storage.unsafe_bitcast[Scalar[dtype]]().unsafe_store(
                 idx,
                 exp(
-                    storage.bitcast[Scalar[dtype]]().load[
+                    storage.unsafe_bitcast[Scalar[dtype]]().unsafe_load[
                         width=Self.element_width
                     ](idx)
                     * scale.cast[dtype]()
@@ -3382,10 +3431,12 @@ struct DefaultEngine[*, element_width: Int = 1](TensorOps):
         comptime for i in range(type_of(dst_layout).static_product):
             var dst_idx = dst_layout(Idx[i])
             var src_idx = src_layout(Idx[i])
-            dst_ptr.store[alignment=alignment](
+            dst_ptr.unsafe_store[alignment=alignment](
                 dst_idx,
                 exp(
-                    src_ptr.load[width=width, alignment=alignment](src_idx)
+                    src_ptr.unsafe_load[width=width, alignment=alignment](
+                        src_idx
+                    )
                     * scale.cast[dtype]()
                 ),
             )
@@ -3430,7 +3481,7 @@ def _device_leaf_ptr[
         # Reinterpret the handle's first bytes as the encoded device address.
         # The leaf must be `GLOBAL` (device), not `GENERIC` — see the docstring:
         # a `GENERIC` leaf silently misses device memory on Metal.
-        return Pointer(to=storage).bitcast[
+        return Pointer(to=storage).unsafe_bitcast[
             MutPointer[Scalar[dtype], MutAnyOrigin, address_space=.GLOBAL]
         ]()[]
     else:
@@ -3524,8 +3575,7 @@ struct DevicePointerEngine[*, element_width: Int = 1](TensorOps):
         On device the owning `DeviceBuffer` is unavailable, so this reinterprets
         the encoded device address out of the handle (`_device_leaf_ptr`); on
         host it recovers the raw (offset-adjusted) address through the owning
-        `DeviceBuffer`. Stopgap for the in-progress `LayoutTensor` migration,
-        see GPUA-6.
+        `DeviceBuffer`. See GPUA-6.
 
         Parameters:
             mut: The mutability of the borrowed storage, inferred from `origin`.
@@ -3553,11 +3603,13 @@ struct DevicePointerEngine[*, element_width: Int = 1](TensorOps):
         # space, so Metal is out of scope for this stopgap (see GPUA-6).
         comptime if is_gpu():
             return rebind[ResultPtr](
-                _device_leaf_ptr(storage).address_space_cast[address_space]()
+                _device_leaf_ptr(storage).unsafe_address_space_cast[
+                    address_space
+                ]()
             )
         else:
             return rebind[ResultPtr](
-                storage.unsafe_ptr().address_space_cast[address_space]()
+                storage.unsafe_ptr().unsafe_address_space_cast[address_space]()
             )
 
     @staticmethod
@@ -3594,7 +3646,7 @@ struct DevicePointerEngine[*, element_width: Int = 1](TensorOps):
             A handle referring to the same storage, viewed with the new type
             parameters.
         """
-        result = Pointer(to=storage).bitcast[type_of(result)]()[]
+        result = Pointer(to=storage).unsafe_bitcast[type_of(result)]()[]
 
     comptime OffsetResultType[
         offset_types: TypeList[Trait=CoordLike, ...],
@@ -3650,10 +3702,10 @@ struct DevicePointerEngine[*, element_width: Int = 1](TensorOps):
         """
         comptime if is_gpu():
             var result = storage
-            var leaf = Pointer(to=result).bitcast[
+            var leaf = Pointer(to=result).unsafe_bitcast[
                 MutPointer[Scalar[type_of(storage).dtype], MutAnyOrigin]
             ]()
-            leaf[] = leaf[] + _offset_elements(offset_coord)
+            leaf[] = leaf[].unsafe_offset(_offset_elements(offset_coord))
             return result
         else:
             # Keep this non-raising (matching the pointer-backed engine and
@@ -3663,37 +3715,6 @@ struct DevicePointerEngine[*, element_width: Int = 1](TensorOps):
                 return storage + _offset_elements(offset_coord)
             except e:
                 abort(String("DevicePointerEngine.offset: ", e))
-
-    @staticmethod
-    def distance[
-        dtype: DType, address_space: AddressSpace, //
-    ](
-        storage: Self.StorageType[mut=False, dtype, _, address_space],
-        other: Self.StorageType[mut=False, dtype, _, address_space],
-    ) -> Int:
-        """Returns the scalar-element distance from `other` to `storage`.
-
-        Parameters:
-            dtype: The storages' `DType`.
-            address_space: The storages' `AddressSpace`.
-
-        Args:
-            storage: The storage to measure the distance to.
-            other: The storage to measure the distance from.
-
-        Returns:
-            The number of scalar elements separating the two handles. The
-            value is positive when `storage` is ahead of `other` and negative
-            when it precedes `other`.
-        """
-        comptime if is_gpu():
-            return (
-                Int(_device_leaf_ptr(storage)) - Int(_device_leaf_ptr(other))
-            ) // size_of[dtype]()
-        else:
-            # The element offsets are available on host without dereferencing;
-            # their difference is the scalar-element distance (element_size 1).
-            return storage.offset() - other.offset()
 
     @staticmethod
     @inline(.always)
@@ -4171,12 +4192,12 @@ struct DevicePointerEngine[*, element_width: Int = 1](TensorOps):
 
         comptime for i in range(type_of(layout).static_product):
             var idx = layout(Idx[i])
-            _device_leaf_ptr(storage).store(
+            _device_leaf_ptr(storage).unsafe_store(
                 idx,
                 func(
-                    _device_leaf_ptr(storage).load[width=Self.element_width](
-                        idx
-                    )
+                    _device_leaf_ptr(storage).unsafe_load[
+                        width=Self.element_width
+                    ](idx)
                 ),
             )
 
@@ -4290,12 +4311,12 @@ struct DevicePointerEngine[*, element_width: Int = 1](TensorOps):
         # during elaboration when passed as a function value.
         comptime for i in range(type_of(layout).static_product):
             var idx = layout(Idx[i])
-            _device_leaf_ptr(storage).store(
+            _device_leaf_ptr(storage).unsafe_store(
                 idx,
                 exp(
-                    _device_leaf_ptr(storage).load[width=Self.element_width](
-                        idx
-                    )
+                    _device_leaf_ptr(storage).unsafe_load[
+                        width=Self.element_width
+                    ](idx)
                     * scale.cast[dtype]()
                 ),
             )
@@ -5006,10 +5027,12 @@ struct DevicePointerEngine[*, element_width: Int = 1](TensorOps):
             var dst_idx = dst_layout(Idx[i])
             var src_idx = src_layout(Idx[i])
             # Store through the device leaf pointer, matching `iexp`.
-            _device_leaf_ptr(dst_storage).store(
+            _device_leaf_ptr(dst_storage).unsafe_store(
                 dst_idx,
                 exp(
-                    src_ptr.load[width=width, alignment=alignment](src_idx)
+                    src_ptr.unsafe_load[width=width, alignment=alignment](
+                        src_idx
+                    )
                     * scale.cast[dtype]()
                 ),
             )
@@ -5090,7 +5113,9 @@ struct StaticOffsetEngine[*, static_offset: Int, element_width: Int = 1](
             element the engine exposes, i.e. `static_offset` scalar elements
             past the handle.
         """
-        return storage.bitcast[Scalar[dtype]]() + Self.static_offset
+        return storage.unsafe_bitcast[Scalar[dtype]]().unsafe_offset(
+            Self.static_offset
+        )
 
     @staticmethod
     @inline(.always)
@@ -5186,33 +5211,6 @@ struct StaticOffsetEngine[*, static_offset: Int, element_width: Int = 1](
                 _offset_elements(offset_coord)
             )
         ).unsafe_bitcast[SIMD[offset_dtype, Self.element_width]]()
-
-    @staticmethod
-    def distance[
-        dtype: DType, address_space: AddressSpace, //
-    ](
-        storage: Self.StorageType[mut=False, dtype, _, address_space],
-        other: Self.StorageType[mut=False, dtype, _, address_space],
-    ) -> Int:
-        """Returns the scalar-element distance from `other` to `storage`.
-
-        Both handles carry the same static offset, so it cancels out of the
-        distance.
-
-        Parameters:
-            dtype: The storages' `DType`.
-            address_space: The storages' `AddressSpace`.
-
-        Args:
-            storage: The storage to measure the distance to.
-            other: The storage to measure the distance from.
-
-        Returns:
-            The number of scalar elements separating the two handles. The
-            value is positive when `storage` is ahead of `other` and negative
-            when it precedes `other`.
-        """
-        return (Int(storage) - Int(other)) // size_of[dtype]()
 
     @staticmethod
     @inline(.always)

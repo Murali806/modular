@@ -217,7 +217,9 @@ sh_binary(
     testonly = True,
     srcs = ["run_exacto_gpqa_local.sh"],
     data = [
+        "exacto_gpqa_smoke.py",
         "exacto_gpqa_task.py",
+        "exacto_streaming.py",
         ":exacto_gpqa_openrouter",
         ":exacto_report",
     ],
@@ -263,6 +265,40 @@ modular_py_test(
     ],
 )
 
+modular_py_binary(
+    name = "exacto_gpqa_answer_audit",
+    testonly = True,
+    srcs = ["exacto_gpqa_answer_audit.py"],
+    imports = ["."],
+    main = "exacto_gpqa_answer_audit.py",
+)
+
+modular_py_test(
+    name = "test_exacto_gpqa_answer_audit",
+    size = "small",
+    srcs = ["test_exacto_gpqa_answer_audit.py"],
+    deps = [":exacto_gpqa_answer_audit"],
+)
+
+# Runs the smoke CLI with synthetic Inspect/task boundaries; no harness venv,
+# dataset download, or model requests.
+modular_py_test(
+    name = "test_exacto_gpqa_smoke",
+    size = "small",
+    srcs = ["test_exacto_gpqa_smoke.py"],
+    data = [":exacto_gpqa_local"],
+)
+
+modular_py_test(
+    name = "test_gpqa_eval",
+    size = "small",
+    srcs = ["test_gpqa_eval.py"],
+    deps = [
+        ":eval_common",
+        ":gpqa_eval",
+    ],
+)
+
 modular_py_test(
     name = "test_exacto_report",
     size = "small",
@@ -282,11 +318,33 @@ modular_py_test(
 )
 
 modular_py_test(
+    name = "test_scicode_eval",
+    size = "small",
+    srcs = ["test_scicode_eval.py"],
+    deps = [
+        ":eval_common",
+        ":scicode_eval",
+    ],
+)
+
+modular_py_test(
+    name = "test_aime_eval",
+    size = "small",
+    srcs = ["test_aime_eval.py"],
+    deps = [
+        ":aime_eval",
+        requirement("click"),
+    ],
+)
+
+modular_py_test(
     name = "test_eval_common",
     size = "small",
     srcs = ["test_eval_common.py"],
     deps = [
         ":eval_common",
+        requirement("httpx"),
+        requirement("openai"),
     ],
 )
 

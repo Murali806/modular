@@ -97,7 +97,7 @@ def test_math() raises:
                 SIMD[fn_dtype, width]
             ) thin -> SIMD[fn_dtype, width] where fn_dtype.is_floating_point()
         ](ctx: DeviceContext) raises:
-            comptime ls = kernel_fns.size
+            comptime ls = kernel_fns.length
 
             comptime for idx in range(ls):
                 comptime kernel_fn = kernel_fns[idx]
@@ -116,13 +116,13 @@ def test_math() raises:
             log2,
             log10,
             log1p,
-            # logb,
+            logb,
             cbrt,
-            # hypot_fn,
+            hypot_fn,
             erfc,
-            # lgamma,
+            lgamma,
             # gamma,
-            # remainder_fn,
+            remainder_fn,
             # j0,
             # j1,
             # y0,

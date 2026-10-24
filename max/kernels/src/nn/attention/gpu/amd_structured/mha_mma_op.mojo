@@ -32,7 +32,6 @@ from max.gpu import lane_id
 from max.gpu.compute.mma import mma as gpu_mma
 from max.gpu.intrinsics import ds_read_tr8_b64
 from std.math import exp2 as math_exp2
-from std.memory import AddressSpace
 from std.sys import size_of
 from std.utils import IndexList
 
@@ -642,9 +641,9 @@ struct MhaMmaOp[T: DType, config: MhaConfigV2]:
                     var swizzled_elts = (
                         swizzled_elts_odd if is_odd_col else swizzled_elts_even
                     )
-                    var smem_at_lane = (subtile.ptr + swizzled_elts).bitcast[
-                        BFloat16
-                    ]()
+                    var smem_at_lane = (
+                        subtile.ptr.unsafe_offset(swizzled_elts)
+                    ).unsafe_bitcast[BFloat16]()
                     var frag = _load_from_lds[width=Self.FRAG_ELTS](
                         smem_at_lane
                     )
@@ -675,8 +674,8 @@ struct MhaMmaOp[T: DType, config: MhaConfigV2]:
                 Self._swizzle_K_sub(row_offset, col_offset + _HALF)
                 // size_of[Self.T]()
             )
-            var smem_base_lo = src.ptr + swizzled_elts_lo
-            var smem_base_hi = src.ptr + swizzled_elts_hi
+            var smem_base_lo = src.ptr.unsafe_offset(swizzled_elts_lo)
+            var smem_base_hi = src.ptr.unsafe_offset(swizzled_elts_hi)
 
             comptime for register_row in range(height):
                 comptime for register_col in range(width):
@@ -762,8 +761,8 @@ struct MhaMmaOp[T: DType, config: MhaConfigV2]:
                     var subtile_ptr = (
                         subtile_hi.ptr if k_sub == 1 else subtile_lo.ptr
                     )
-                    var smem_lo = subtile_ptr + swizzled_elts_lo
-                    var smem_hi = subtile_ptr + swizzled_elts_hi
+                    var smem_lo = subtile_ptr.unsafe_offset(swizzled_elts_lo)
+                    var smem_hi = subtile_ptr.unsafe_offset(swizzled_elts_hi)
                     var lo = _load_from_lds[width=_HALF](smem_lo)
                     var hi = _load_from_lds[width=_HALF](smem_hi)
                     var frag = lo.join(hi)
@@ -951,7 +950,7 @@ struct MhaMmaOp[T: DType, config: MhaConfigV2]:
                 + R_row_in_sub * _V_SUB_COLS_
                 + depth_base
             )
-            var v_lane_base = src.ptr + v_lane_base_offset
+            var v_lane_base = src.ptr.unsafe_offset(v_lane_base_offset)
 
             comptime for i in range(height):
                 comptime for j in range(width):
@@ -980,7 +979,7 @@ struct MhaMmaOp[T: DType, config: MhaConfigV2]:
                             + _d_in_sub
                         )
                         return ds_read_tr8_b64(
-                            v_lane_base + _comptime_cell_offset
+                            v_lane_base.unsafe_offset(_comptime_cell_offset)
                         )
 
                     var r0 = _load_keys[0]()
@@ -1038,7 +1037,9 @@ struct MhaMmaOp[T: DType, config: MhaConfigV2]:
                         var sub_id = sub_row * _subtiles_per_row + sub_col
                         var slot_row = sub_id * _V_SUB_ROWS_ + row_in_sub
                         var byte_offset = slot_row * _V_SUB_COLS_ + col_in_sub
-                        vals[f] = (v_base + byte_offset).load[width=1]()
+                        vals[f] = v_base.unsafe_offset(
+                            byte_offset
+                        ).unsafe_load()
                     dst_v[i, j, 0] = rebind[dst_v.ElementType](vals)
 
     # MMA dispatch — MFMA over RegTile, named by attention semantic.
@@ -1462,10 +1463,10 @@ struct MlaMmaOp[T: DType, config: MhaConfigV2]:
         )
         var lo = _load_from_lds[
             width=_HALF, typed_imm_offset_bytes=sub_offset_bytes
-        ](src.ptr + swizzled_elts_lo)
+        ](src.ptr.unsafe_offset(swizzled_elts_lo))
         var hi = _load_from_lds[
             width=_HALF, typed_imm_offset_bytes=sub_offset_bytes
-        ](src.ptr + swizzled_elts_hi)
+        ](src.ptr.unsafe_offset(swizzled_elts_hi))
         # `join` yields SIMD[T, 2*_HALF]; rebind to the FRAG_ELTS form
         # (`(MMA_M*MMA_K)//64`) the caller's tile element expects — same
         # in-memory width, syntactically distinct parameter expression.
@@ -1479,10 +1480,8 @@ struct MlaMmaOp[T: DType, config: MhaConfigV2]:
         v_full_v227: Bool = False,
         v227_layout: Bool = False,
     ](
-        v_slot_ptr: UnsafePointer[
-            Scalar[Self.T], origin, address_space=.SHARED
-        ],
-    ) -> UnsafePointer[Scalar[Self.T], origin, address_space=.SHARED]:
+        v_slot_ptr: Pointer[Scalar[Self.T], origin, address_space=.SHARED],
+    ) -> Pointer[Scalar[Self.T], origin, address_space=.SHARED]:
         """Computes the per-lane V LDS base pointer for the FP8 32x32x64
         path ONCE per V SMEM slot (caller passes `v_smem_<stage>.ptr`).
         Hoisting this base out of the per-fragment readout collapses the
@@ -1613,7 +1612,7 @@ struct MlaMmaOp[T: DType, config: MhaConfigV2]:
         # Propagates the slot's origin via the `origin` parameter, so the
         # returned pointer carries the input slot's lifetime/mutability and
         # the caller's two per-slot bases share one concrete type.
-        return v_slot_ptr + v_lane_base_offset
+        return v_slot_ptr.unsafe_offset(v_lane_base_offset)
 
     @staticmethod
     @inline(.always)
@@ -1621,7 +1620,7 @@ struct MlaMmaOp[T: DType, config: MhaConfigV2]:
         layout_dst: TensorLayout,
     ](
         mut dst: RegTile[Self.T, layout_dst, MutUntrackedOrigin],
-        v_lane_base: UnsafePointer[Scalar[Self.T], _, address_space=.SHARED],
+        v_lane_base: Pointer[Scalar[Self.T], _, address_space=.SHARED],
     ):
         """FP8 32x32x64 V load consuming a pre-computed per-lane base
         pointer (hoisted by the caller). Each call site adds ONLY
@@ -1686,7 +1685,9 @@ struct MlaMmaOp[T: DType, config: MhaConfigV2]:
                         + _sub_col * _V_SUB_ROWS_ * _V_SUB_COLS_
                         + _d_in_sub
                     )
-                    return ds_read_tr8_b64(v_lane_base + _comptime_cell_offset)
+                    return ds_read_tr8_b64(
+                        v_lane_base.unsafe_offset(_comptime_cell_offset)
+                    )
 
                 var r0 = _load_keys[0]()
                 var r1 = _load_keys[16]()
@@ -1702,8 +1703,10 @@ struct MlaMmaOp[T: DType, config: MhaConfigV2]:
         j_depth: Int,
         v_full_v227: Bool = False,
     ](
-        v_lane_base: UnsafePointer[Scalar[Self.T], _, address_space=.SHARED],
-    ) -> SIMD[Self.T, Self.FRAG_ELTS]:
+        v_lane_base: Pointer[Scalar[Self.T], _, address_space=.SHARED],
+    ) -> SIMD[
+        Self.T, Self.FRAG_ELTS
+    ]:
         """Loads ONE V MFMA fragment `(i_strip, j_depth)` from the
         pre-computed per-lane V LDS base and returns it as a SIMD value:
         the single-fragment factoring of `load_V_from_lane_base`'s FP8
@@ -1795,7 +1798,9 @@ struct MlaMmaOp[T: DType, config: MhaConfigV2]:
                 + _sub_col * _V_SUB_ROWS_ * _V_SUB_COLS_
                 + _d_in_sub
             )
-            return ds_read_tr8_b64(v_lane_base + _comptime_cell_offset)
+            return ds_read_tr8_b64(
+                v_lane_base.unsafe_offset(_comptime_cell_offset)
+            )
 
         var r0 = _load_keys[0]()
         var r1 = _load_keys[16]()

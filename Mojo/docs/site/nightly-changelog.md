@@ -10,309 +10,157 @@ This version is still a work in progress.
 
 ## Language enhancements
 
-- Added experimental `__match` / `case` pattern matching for early testing,
-  including `comptime __match` for compile-time subjects. Patterns include
-  literals, contextual initializer lists such as `{}` and `{1, offset=2}`,
-  or-patterns (`|`), guards (`if`), `as` / bare name bindings, tuples, structs,
-  and `EnumLike` types such as `Optional`. An initializer-list pattern
-  constructs a value of the subject type and compares it to the subject.
-  Dynamic match also supports `var` / `ref` bindings; comptime match binds
-  names as parameter values and rejects `var` / `ref`. Nested patterns can dig
-  through several layers in one case—for example, matching an optional point
-  at runtime or specializing a kernel path on a compile-time tile size:
+- `with` statements now no longer copy when passed a reference to a context
+  manager like in `with foo: pass`.
+
+- `__exit__(self, error: E)` now additionally supports `var self` and
+  `deinit self`, similar to the non-error `__exit__`.
+
+## Language changes
+
+- `@explicit_destroy("<message>")` on a struct is deprecated and now emits a
+  warning. Give the message on the struct's `Deinitable` conformance instead:
 
   ```mojo
-  def describe(p: Optional[Point]) -> String:
-      __match p:
-          case .Some(Point(x=0, y=0)):
-              return "origin"
-          case .Some(Point(x=var x, y=0)) | .Some(Point(x=0, y=var x)):
-              return String("axis:", x)
-          case .Some(Point(x=x, y=y)) if x == y:
-              return "diagonal"
-          case .None:
-              return "missing"
-          case _:
-              return "unreachable"
-
-  # comptime match is guaranteed evaluated at compile time.  The subject must be
-  # a parameter and the bound names are also parameters. var and ref specifiers
-  # are not allowed in comptime match, because they are not meaningful.
-  def matmul_tile[m: Int, n: Int, k: Int](...):
-      comptime __match (m, n, k):
-          case (16, 16, 16):
-              # Hand-tuned 16³ path.
-              ...
-          case (m_tile, n_tile, k_tile) if m_tile * n_tile <= 256:
-              # Small-tile path; bound sizes stay available as parameters.
-              ...
-          case _:
-              # Generic fallback.
-              ...
-  ```
-
-  Both forms warn on non-exhaustive `EnumLike` subjects (including `Bool` and
-  tuples/structs of such types) and on unreachable or duplicate cases. Open
-  subjects such as `Int` and `String` diagnose duplicate literal cases but are
-  not required to be exhaustive.
-
-  `EnumLike` types can now set `_enum_is_exhaustive` to `False` when their
-  known cases do not cover every possible value. This is useful for extensible
-  domains such as error codes, where an operating system or library can add
-  values that the type does not know about:
-
-  ```mojo
-  struct ErrorCode(EnumLike):
-      comptime FileNotFound = Self(2)
-      comptime PermissionDenied = Self(13)
-      comptime OutOfMemory = Self(12)
-      comptime TimedOut = Self(110)
-      comptime Unavailable = Self(503)
-
-      comptime _enum_is_exhaustive = False
-
-      # EnumLike metadata and methods omitted.
+  # Before
+  @explicit_destroy("call `close()` instead")
+  struct File(not Deinitable):
       ...
 
-  def describe(error: ErrorCode) -> String:
-      __match error:
-          case .FileNotFound:
-              return "file not found"
-          case .PermissionDenied:
-              return "permission denied"
-          case .OutOfMemory:
-              return "out of memory"
-          case .TimedOut:
-              return "operation timed out"
-          case .Unavailable:
-              return "service unavailable"
-          case _:
-              return "unknown error"
-  ```
-
-  Open enums preserve separate compilation between libraries and their
-  clients. A library can add a known case without breaking previously compiled
-  client matches when they compile against a new version of the package that
-  adds a case they didn't know about.
-
-- The message on a `where` clause can now be written
-  `where <condition> else "<message>"`, as the preferred alternative to the
-  existing `where (<condition>, "<message>")`, which will be deprecated over
-  time.
-
-  ```mojo
-  def foo[sc: Int]() where sc > 1 else "scaling factor must be greater than 1":
+  @explicit_destroy("use `deinit_with()` for non-Deinitable elements")
+  struct Box[T: Movable](Deinitable where conforms_to(T, Deinitable)):
       ...
 
-  struct Box[T: Deinitable](
-      Marker where conforms_to(T, Marker) else "Box[T] is a Marker only when T is",
+  # After
+  struct File(not Deinitable else "call `close()` instead"):
+      ...
+
+  struct Box[T: Movable](
+      Deinitable where conforms_to(T, Deinitable) else (
+          "use `deinit_with()` for non-Deinitable elements"
+      ),
   ):
       ...
   ```
 
-- A struct can now opt out of a trait by writing `not <Trait>` in its
-  conformance list. It is the preferred alternative to the existing
-  `<Trait> where False`, which will continue to work:
+  The message on a conditional `Deinitable where <condition> else "<message>"`
+  conformance is now reported when a value is abandoned for parameters that
+  don't satisfy the condition. Previously, only an always-false conformance's
+  message was reported.
+
+- Precompiled packages now no longer leak names and provide the same surface as
+  the same packages compiled from source. This may break your code (especially
+  from `std`):
 
   ```mojo
-  struct Handle(not Movable, Writable):
-      ...
+  from std.os import rmdir
+
+  def main():
+    std.os.rmdir(...) # This no longer works - use rmdir, or import std.os.
   ```
-
-  An opt-out can record why, with the same `else "<message>"` spelling a
-  `where` clause uses:
-
-  ```mojo
-  struct Handle(not Movable else "a Handle is pinned to the port it opened"):
-      ...
-  ```
-
-## Language changes
-
-- The `async` and `await` keywords are renamed to `__async` and `__await` to
-  mark async support as unstable. Write `__async def` and `__await expr`. The
-  unprefixed spellings are no longer keywords, so `async` and `await` are now
-  ordinary identifiers, and existing `async def` code no longer parses.
 
 ## Library stabilizations
 
+- `List.insert`
+- `List.clear`
+
+## Library performance improvements
+
+- Reduced the size of `Optional[T]` to the size of `T` when `T` is one of the
+  following types, so code that stores them in an `Optional` uses less memory:
+
+  - `Allocation`
+  - `Layout`
+  - `List`
+  - `ManagedAllocation`
+  - `Span`
+  - `String`
+  - `StringSpan`
+  - `ThinAllocation`
+
+  Don't depend on this size. It relies on bit patterns that each type's current
+  representation never uses, and that representation could change in the
+  future.
+
 ## Library changes
 
-- `Tuple` gained `first_of[T]()`, which returns a reference to the first
-  element of type `T`. The lookup is resolved at compile time, and it is a
-  compile-time error if the tuple has no element of that type:
+- `Tuple` element types no longer need to be `Movable`. A `Tuple` is now
+  `Movable` only when all of its elements are.
+  `Tuple` has a new `init_with` initializer, which constructs each element in
+  place from a closure parameterized on the element index:
 
   ```mojo
-  var t = (1, String("two"), 3.0)
-  t.first_of[String]() += "!"
+  comptime T = Tuple[Pinned, Pinned]  # `Pinned` is not `Movable`.
+  var t = T(init_with=lambda [i: Int]() -> T.Ts[i]: Pinned(i * 10))
   ```
 
-- `SIMD.from_bytes()` and `SIMD.as_bytes()` now take an `endian` parameter of
-  the new `Endian` type (`Endian.big` or `Endian.little`) instead of the
-  `big_endian` `Bool`:
+- `Layout` now names its element count `length`, matching `Span` and `List`.
+  Construct one with `Layout[T](length=n)` and read the count back with
+  `len(layout)`: `Layout` and `ManagedAllocation` now conform to `Sized`. The
+  `Layout(count=)` initializer and the `Layout.count()` method are deprecated.
 
   ```mojo
-  var port = UInt16.from_bytes[endian=.big](bytes)  # was: big_endian=True
+  var allocation = alloc(Layout[Int32](length=4))
+  for i in range(len(allocation)):
+      allocation.unsafe_ptr().unsafe_offset(i).unsafe_write(Int32(i))
+  dealloc(allocation^)
   ```
 
-  The default is still the target's byte order, which `Endian.native()`
-  returns. `is_big_endian()` and `is_little_endian()` are deprecated; compare
-  `Endian.native()` with `.big` or `.little` instead.
+- Added `FileDescriptor` to `std.io`, an owning wrapper around
+  `RawFileDescriptor`. It is a linear type: close it explicitly with
+  `fd^.close()`, which raises if the close fails. It is movable but not
+  copyable, and `Optional[FileDescriptor]` is the size of a single
+  descriptor. `RawFileDescriptor` gains a raising `close()` method.
 
-- Hashing a byte sequence is now spelled `hash_bytes()`, which takes an
-  `ImmSpan[Byte]`. The pointer-and-length `hash()` overload is deprecated:
+- Added `BorrowedFileDescriptor` to `std.io`, a copyable, non-owning view
+  of a `FileDescriptor` that carries the owner's origin, so it can be
+  passed around without closing the descriptor or outliving its owner.
 
-  ```mojo
-  var digest = hash_bytes(text.as_bytes())  # was: hash(text.ptr(), text.byte_length())
-  ```
+## GPU programming
 
-  `hash()` keeps its `Hashable` meaning, so `hash(my_list)` still hashes a list
-  element-by-element while `hash_bytes(my_list)` hashes its bytes.
-
-- `Coord.product()` has a new parameterized overload, `product[T: DType]()`,
-  which accumulates and returns the product at `T` rather than at
-  `Coord.DTYPE`:
-
-  ```mojo
-  var c = Coord(Idx[4], Int(8), Int32(3))
-  var n = c.product[DType.uint32]()  # UInt32(96)
-  ```
-
-  The unparameterized `product()` is unchanged and still returns
-  `Scalar[Coord.DTYPE]`. A `T` too narrow to hold the result wraps rather
-  than widening, so a caller that picks one owns the overflow.
-
-- `StringSpan` now only provides immutable byte access. `MutStringSpan` and
-  `MutStringSlice` have been removed, and the `mut` parameter on `StringSpan`
-  has been removed.
-
-- Introduced a new `CompilationTarget` public type, which is now used in
-  most APIs that are parameterized on compilation target, such as `size_of()`,
-  `align_of()`, `compile_info()`, and more.
-
-  Convenience accessors are provided for querying the current host and
-  accelerator targets:
-
-  - `CompilationTarget.current()` — either the current host target, or
-    accelerator target in an offload compilation.
-
-  - `CompilationTarget.current_accelerator()` — the default accelerator target,
-    either determined automatically or as specified by `--target-accelerator`.
-
-  Additionally, `CompilationTarget` provides predicate methods for checking the
-  vendor identity of a given target. (The preexisting free functions with the
-  same name are now implemented in terms of these new methods.) These include:
-
-  - `.is_nvidia_gpu()` for checking whether a compilation target is an NVIDIA
-    GPU.
-  - `.is_amd_gpu()` and `.is_apple_gpu()` provide the equivalent checks for AMD
-    and Apple GPUs respectively.
-
-- Added new `TargetAccelerator` type for representing accelerator metadata at
-  compile time, combining `GPUInfo` and `CompilationTarget` values.
-
-  Target constants like `B200` or `MI355X` have changed from being `GPUInfo`
-  instances to `TargetAccelerator`.
-
-  Use `.gpu_info` to access the prior device metadata, or `.target` for the
-  compilation target.
-
-- `Layout` now carries its alignment as a keyword-only parameter of
-  the new `Alignment` type, instead of storing it as a runtime field. It
-  defaults to the element type's natural alignment, so `Layout[T](count=n)` is
-  unchanged. Build an `Alignment` with `Alignment.of[T]()` for a type's natural
-  alignment or `Alignment.of_bytes[n]()` for an explicit byte count.
-
-  `Allocation` and `ManagedAllocation` carry the same parameter.
-  `ThinAllocation` deliberately does not: it records only the element type, so
-  the alignment travels with the `Layout` you supply to `unsafe_with_layout`.
-
-  ```mojo
-  var layout = Layout[Int32, alignment = .of_bytes[64]()](count=8)
-  var thin = alloc(layout).into_thin()
-  dealloc(thin^.unsafe_with_layout(layout))
-  ```
-
-  Only compile-time alignments are supported for now. This makes the common case
-  (natural type alignment) simple - so the `Layout` and `Allocation` type don't
-  pay the cost of holding an extra `Int` field. Dynamic (runtime) alignment will
-  eventually be supported after some more design considerations.
-
-- `Span` has a new `unsafe_deinit_elements()` method, which destroys every
-  element in place and leaves the memory uninitialized.
-
-- `Span` has new methods for initializing a span of `MaybeUninit[T]` elements
-  and viewing the result as a span of `T`:
-
-  - `unsafe_init_with()` initializes each element with the result of calling a
-    function with that element's index.
-  - `unsafe_init_copy_from()` copies from another span.
-    `unsafe_init_move_from()` moves out of another span.
-  - `unsafe_assume_init()` reinterprets the span as initialized, for memory
-    that was initialized some other way.
-
-- The default `Writable` implementation now formats `EnumLike` types by their
-  active case rather than their fields. A case prints as
-  `TypeName.case(payload)`, or as `TypeName.case` when it has no payload
-  (`NoneType`):
-
-  ```mojo
-  print(Shape.circle(3))       # Shape.circle(3)
-  print(repr(Shape.circle(3))) # Shape.circle(Int(3))
-  print(Shape.empty())         # Shape.empty
-  ```
-
-  Types that implement their own `write_to()` or `write_repr_to()`, such as
-  `Optional` and `Bool`, are unaffected.
-
-- `Tuple.consume_elements()`, `Tuple.deinit_with()`, and
-  `VariadicPack.consume_elements()` now take the element handler as a runtime
-  closure argument instead of a compile-time `capturing` parameter, matching
-  `List.deinit_with()` and `VariadicList.consume_elements()`:
-
-  ```mojo
-  def handler[idx: Int](var elt: t.Ts[idx]) {mut collected}:
-      collected[idx] = elt.data
-
-  t^.consume_elements(handler)  # was: t^.consume_elements[handler]()
-  ```
-
-- `SIMD.reduce()` now takes a closure reduction function as a runtime
-  argument instead of a compile-time `capturing` parameter. The `thin`
-  function-pointer form is unchanged:
-
-  ```mojo
-  def add[width: SIMDLength](
-      lhs: SIMD[DType.int32, width], rhs: SIMD[DType.int32, width]
-  ) -> SIMD[DType.int32, width]:
-      return lhs + rhs
-
-  v.reduce(add)          # was: v.reduce[add]()
-  v.reduce[2](add)       # was: v.reduce[add, 2]()
-  ```
+- Added the `apple-m6` and `apple-m6-metal4` accelerator targets, and
+  `CompilationTarget.is_apple_m6()` to `std.sys`. Apple M6 GPUs are now
+  detected automatically, so you no longer need to pass
+  `--target-accelerator=apple-m5` on M6 hardware.
 
 ## Tooling changes
 
-- The `mojo` compiler now uses jemalloc as its allocator on Linux. Compiling
-  large GPU kernel files is roughly 10 to 13 percent faster, because the
-  compiler spends far less system time in glibc's arena management.
-
 ## Removed
 
-- Removed `sum()` from the `CoordLike` trait and from its implementations
-  (`Coord`, `ComptimeInt` and the `All` marker). Nothing called it: a
-  coordinate's elements are extents and indices, so adding them together
-  has no meaning the way `product()` does, where the result is the number
-  of elements a shape describes. Use `product()` for that, or iterate the
-  elements and add them yourself if you really want a sum.
+- Legacy closures are removed. The `capturing` function effect and the
+  `@__parameter` (and `@parameter`), `@__copy_capture`, and
+  `@__move_capture` decorators are now errors. Declare a nested function's
+  captures in a capture list instead, and pass the closure as a value:
+
+  ```mojo
+  def apply[F: def(Int) -> Int](f: F, x: Int) -> Int:
+      return f(x)
+
+  def main():
+      var offset = 10
+      def add(x: Int) {var offset} -> Int:  # was @__copy_capture(offset)
+          return x + offset
+      print(apply(add, 1))
+  ```
+
+  A function passed as a compile-time parameter must now be `thin`, for
+  example `[f: def(Int) thin -> Int]`.
+
+- `CompiledFunctionInfo` no longer has `num_captures`, `capture_sizes`, or
+  `populate` members. Kernels can no longer capture implicitly, so these
+  were always empty.
+
+- The AMD-only intrinsics `readfirstlane()`, `sendmsg()`, and
+  `implicitarg_ptr()` moved from `std.sys.intrinsics` to `max.gpu.intrinsics`,
+  next to the other vendor-specific GPU intrinsics. Import them from there
+  instead. `std.sys.intrinsics.ballot()` is removed; use
+  `max.gpu.primitives.warp.vote()`, which works on every GPU vendor.
 
 ## Fixed
 
-- Splitting on an empty separator no longer puts the trailing empty slice out
-  of bounds.
-
-- Struct layouts that recurse only through a parametric indirection now
-  compile. A field such as `Optional[List[Pointer[Node, origin]]]` or
-  `Tuple[Pointer[Node, origin], Int]` inside `struct Node` was spuriously
-  rejected with `struct has recursive reference to itself`, despite the
-  recursion being behind a pointer.
+- `SIMD.slice()` no longer passes `llvm.vector.extract` an offset that is not
+  a multiple of the output width, which LLVM rejects. A wide slice at such an
+  offset, like `slice[16, offset=8]()` on a 32-element vector, now takes the
+  element-wise path, and aligned slices narrower than the target's native
+  vector width, such as the halves `split()` returns for small vectors, now
+  use the intrinsic.

@@ -15,11 +15,10 @@ from std.sys import simd_width_of
 
 from max.algorithm.functional import elementwise
 from max.gpu import *
-from max.gpu.host import DeviceContext, get_gpu_target
+from max.gpu.host import DeviceContext
 from std.testing import assert_almost_equal, TestSuite
 
 from std.utils.coord import Coord
-from std.utils import Index, IndexList
 
 comptime type = DType.float32
 
@@ -28,7 +27,7 @@ def run_elementwise[
     do_bfloat_exp: Bool
 ](exponent: Int, ctx: DeviceContext) raises:
     comptime length = 256
-    comptime pack_size = simd_width_of[type, target=get_gpu_target()]()
+    comptime pack_size = simd_width_of[type, target=ctx.target]()
 
     var in_device = ctx.enqueue_create_buffer[type](length)
     var out_device = ctx.enqueue_create_buffer[type](length)
@@ -46,7 +45,7 @@ def run_elementwise[
     def func[
         simd_width: Int, alignment: Int = 1
     ](idx0: Coord) {var out_buffer, var in_buffer, var exponent}:
-        var idx = Int(idx0[0].value())
+        var idx = Int(idx0[0])
 
         var val = (
             in_buffer.unsafe_ptr()

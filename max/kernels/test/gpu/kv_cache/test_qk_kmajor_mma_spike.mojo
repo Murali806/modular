@@ -55,9 +55,8 @@ Two arms (parameter `use_native`):
 B200-only (SM100). Single CTA, single elected thread issues the MMA.
 """
 
-from std.math import sqrt
 from std.memory import bitcast
-from std.sys import size_of, has_nvidia_gpu_accelerator
+from std.sys import size_of
 
 from max.gpu import (
     WARP_SIZE,
@@ -67,9 +66,16 @@ from max.gpu import (
 )
 from max.gpu.sync import barrier
 from max.gpu import block_idx
-from max.gpu.primitives.cluster import block_rank_in_cluster
-from max.gpu.host import DeviceBuffer, DeviceContext, FuncAttribute
-from max.gpu.host.nvidia.tma import TensorMapSwizzle, create_tma_descriptor
+from max.gpu.host import (
+    DeviceBuffer,
+    DeviceContext,
+    FuncAttribute,
+    default_accelerator,
+)
+from max.gpu.host.nvidia.tma import (
+    TensorMapSwizzle,
+    create_tma_descriptor,
+)
 from max.gpu.memory import external_memory
 from max.gpu.compute.arch.mma_nvidia_sm100 import *
 from max.gpu.compute.arch.tcgen05 import *
@@ -81,6 +87,7 @@ from layout import (
     RowMajorLayout,
     TensorLayout,
     TileTensor,
+    coord,
     row_major,
 )
 from layout._fillers import arange
@@ -96,7 +103,6 @@ from layout.tma_async import (
 from std.testing import assert_almost_equal
 from std.utils.index import Index, IndexList
 from std.utils.numerics import get_accum_type
-from std.utils.static_tuple import StaticTuple
 
 
 # Core-matrix row count for the WGMMA/UMMA descriptor canonical layout. Matches
@@ -237,12 +243,10 @@ def cpu_qk_naive[
 def qk_mma_kernel[
     ab_type: DType,
     c_type: DType,
-    q_tile_rank: Int,
-    q_tile_shape: IndexList[q_tile_rank],
-    q_desc_shape: IndexList[q_tile_rank],
-    k_tile_rank: Int,
-    k_tile_shape: IndexList[k_tile_rank],
-    k_desc_shape: IndexList[k_tile_rank],
+    q_tile_shape: Coord,
+    q_desc_shape: Coord,
+    k_tile_shape: Coord,
+    k_desc_shape: Coord,
     c_layout: TensorLayout,
     block_tile_shape: IndexList[3],
     mma_shape: IndexList[3],
@@ -250,9 +254,9 @@ def qk_mma_kernel[
     use_native: Bool,
     num_threads: Int = 128,
 ](
-    q_tma_op: TMATensorTile[ab_type, q_tile_rank, q_tile_shape, q_desc_shape],
+    q_tma_op: TMATensorTile[ab_type, q_tile_shape, q_desc_shape],
     k_tma_op: TMATensorTile[
-        ab_type, k_tile_rank, k_tile_shape, k_desc_shape, is_k_major=True
+        ab_type, k_tile_shape, k_desc_shape, is_k_major=True
     ],
     c: TileTensor[c_type, c_layout, MutAnyOrigin],
     num_iters_dev: Int32,
@@ -306,12 +310,12 @@ def qk_mma_kernel[
     comptime k_size = BN * BK
     comptime assert ((q_size * size_of[ab_type]()) % 128) == 0
     comptime assert ((k_size * size_of[ab_type]()) % 16) == 0
-    var k_smem = (q_smem + q_size).bitcast[Scalar[ab_type]]()
+    var k_smem = q_smem.unsafe_offset(q_size).unsafe_bitcast[Scalar[ab_type]]()
 
     var q_smem_tile = TileTensor(q_smem, q_smem_layout)
     var k_smem_tile = TileTensor(k_smem, k_smem_layout)
 
-    var ptr_tmem_addr = (k_smem + k_size).bitcast[UInt32]()
+    var ptr_tmem_addr = k_smem.unsafe_offset(k_size).unsafe_bitcast[UInt32]()
 
     comptime accum_type = get_accum_type[ab_type]()
     comptime c_frag_size = MMA_M * MMA_N // num_threads
@@ -321,8 +325,10 @@ def qk_mma_kernel[
     comptime k_expected_bytes = k_size * size_of[ab_type]()
     comptime expected_bytes = q_expected_bytes + k_expected_bytes
 
-    var tma_mbar = (ptr_tmem_addr + 2).bitcast[SharedMemBarrier]()
-    var mma_mbar = tma_mbar + 1
+    var tma_mbar = ptr_tmem_addr.unsafe_offset(2).unsafe_bitcast[
+        SharedMemBarrier
+    ]()
+    var mma_mbar = tma_mbar.unsafe_offset(1)
 
     if thread_idx.x == 0:
         tma_mbar[0].init()
@@ -371,8 +377,8 @@ def qk_mma_kernel[
     for i in range(num_iters):
         if elect_one_thread:
             tma_mbar[0].expect_bytes(Int32(expected_bytes))
-            var m = Int(block_idx.y) * BM
-            var n = Int(block_idx.x) * BN
+            var m = block_idx.y * BM
+            var n = block_idx.x * BN
             var k = i * BK
             # A=Q k-major : (k, m).   B=K k-major (transpose_b=True) : (k, n).
             q_tma_op.async_copy(q_smem_tile, tma_mbar[0], (k, m))
@@ -431,7 +437,7 @@ def qk_mma_kernel[
     comptime num_warps = num_threads // WARP_SIZE
     var warp_id = get_warp_id()
 
-    var ctile = c.tile[BM, BN](Int(block_idx.y), Int(block_idx.x))
+    var ctile = c.tile[BM, BN](block_idx.y, block_idx.x)
 
     comptime for m_mma in range(num_m_mmas):
         comptime for n_mma in range(num_n_mmas):
@@ -505,12 +511,15 @@ def run_qk_spike[
     k.to_device()
 
     # A=Q k-major tile (BM,BK), default box.
-    var q_tma_op = create_tensor_tile[Index(BM, BK), swizzle_mode=swizzle_mode](
+    var q_tma_op = create_tensor_tile[coord[BM, BK], swizzle_mode=swizzle_mode](
         ctx, q.device_tensor()
     )
     comptime block_dim = 128
     comptime smem_use = (BM + BN) * size_of[ab_type]() * BK + 64
-    comptime native_box = Index(_CM_NUM_ROWS, gran)
+    comptime native_box = coord[_CM_NUM_ROWS, gran]
+    # `create_tma_descriptor` still takes IndexList for shared_mem_shape (low-level
+    # TMA-builder API); only the high-level TMATensorTile uses Coord.
+    comptime native_box_idx = Index(_CM_NUM_ROWS, gran)
 
     # The kernel + enqueue is duplicated in each comptime-if arm because the two
     # arms produce K tiles with different `desc_shape` (default `(BN, gran)` vs
@@ -530,24 +539,22 @@ def run_qk_spike[
         var k_desc = create_tma_descriptor[ab_type, 2, swizzle_mode](
             DeviceBuffer(
                 ctx,
-                k_ptr.unsafe_mut_cast[True]().address_space_cast[.GENERIC](),
+                k_ptr,
                 1,
                 owning=False,
             ),
             Index(N, K),  # gmem [seq_k, head_size], row-major
             Index(K, 1),  # head_size contiguous
-            native_box,  # (_CM_NUM_ROWS, gran) core-matrix box
+            native_box_idx,  # (_CM_NUM_ROWS, gran) core-matrix box
         )
         var k_tma_op = TMATensorTile[
-            ab_type, 2, Index(BN, BK), native_box, is_k_major=True
+            ab_type, coord[BN, BK], native_box, is_k_major=True
         ](k_desc)
         comptime kernel = qk_mma_kernel[
             ab_type,
             c_type,
-            type_of(q_tma_op).rank,
             type_of(q_tma_op).tile_shape,
             type_of(q_tma_op).desc_shape,
-            type_of(k_tma_op).rank,
             type_of(k_tma_op).tile_shape,
             type_of(k_tma_op).desc_shape,
             type_of(o).LayoutType,
@@ -573,15 +580,13 @@ def run_qk_spike[
         # Baseline arm: default box (BN, gran) -> global chunk-outer, matching
         # the current `tile_layout_k_major`.
         var k_tma_op = create_tensor_tile[
-            Index(BN, BK), swizzle_mode=swizzle_mode
+            coord[BN, BK], swizzle_mode=swizzle_mode
         ](ctx, k.device_tensor())
         comptime kernel = qk_mma_kernel[
             ab_type,
             c_type,
-            type_of(q_tma_op).rank,
             type_of(q_tma_op).tile_shape,
             type_of(q_tma_op).desc_shape,
-            type_of(k_tma_op).rank,
             type_of(k_tma_op).tile_shape,
             type_of(k_tma_op).desc_shape,
             type_of(o).LayoutType,
@@ -619,7 +624,7 @@ def run_qk_spike[
                     o_host_ref[m, n],
                     atol=0.05,
                     rtol=0.05,
-                    msg=String(m) + "," + String(n),
+                    msg=String(t"{m},{n}"),
                 )
             except e:
                 if mismatches < 8:
@@ -637,7 +642,7 @@ def run_qk_spike[
     if mismatches == 0:
         print("  PASS")
     else:
-        print("  FAIL: " + String(mismatches) + " mismatches")
+        print(t"  FAIL: {mismatches} mismatches")
         raise Error(
             "qk_kmajor_spike (native="
             + String(use_native)
@@ -693,7 +698,7 @@ def _print_layouts[mn: Int, k: Int]():
 
 
 def main() raises:
-    comptime if not has_nvidia_gpu_accelerator():
+    comptime if not default_accelerator().is_nvidia_gpu():
         return
     with DeviceContext() as ctx:
         _print_layouts[mn=128, k=128]()

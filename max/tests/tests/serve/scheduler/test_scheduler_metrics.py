@@ -14,13 +14,20 @@
 import io
 import json
 import logging
+import queue
 import re
 from contextlib import contextmanager
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
+import pytest
 from max.nn.kv_cache.metrics import KVCacheMetrics
+from max.pipelines.kv_cache import JengaKVCacheManager
 from max.pipelines.kv_cache.kv_connector import BlockCount, ByteCount
+from max.pipelines.kv_cache.paged_kv_cache.jenga_block_manager import (
+    _LeafOccupancy,
+    _PoolOccupancy,
+)
 from max.pipelines.lib.vision_encoder_cache import (
     VideoEncoderMetrics,
     VisionEncoderMetrics,
@@ -465,7 +472,7 @@ def test_dkv_read_counts_follow_the_console_clause_on_a_write_only_batch() -> (
 
 
 def test_dkv_peer_counters_report_zero_while_a_tier_is_attached() -> None:
-    """An attached tier that pulled from no peer still reports all five zeros.
+    """An attached tier that pulled from no peer still reports all its zeros.
 
     This is the whole point of the counters: a flat zero says no cache hint
     reached the connector, which is a different fault from hints arriving and
@@ -482,9 +489,16 @@ def test_dkv_peer_counters_report_zero_while_a_tier_is_attached() -> None:
     mock_metrics.dkv_peer_loads.assert_called_once_with(0)
     mock_metrics.dkv_peer_load_failures.assert_called_once_with(0)
     mock_metrics.dkv_hints_rejected.assert_called_once_with(0)
+    mock_metrics.dkv_peer_transfer_failures.assert_called_once_with(0)
+    mock_metrics.dkv_peer_metadata_refreshes.assert_called_once_with(0)
+    mock_metrics.dkv_peer_metadata_refresh_failures.assert_called_once_with(0)
+    mock_metrics.dkv_touches_deduplicated.assert_called_once_with(0)
 
     extra = metrics.to_log_extra()
     assert extra["dkv_peer_loads"] == 0
+    assert extra["dkv_touches_deduplicated"] == 0
+    assert extra["dkv_peer_transfer_failures"] == 0
+    assert extra["dkv_peer_metadata_refresh_failures"] == 0
     assert extra["dkv_hints_rejected"] == 0
 
     # the console line stays quiet, since there is nothing to say about peers
@@ -501,14 +515,54 @@ def test_dkv_peer_counters_are_silent_without_a_tier() -> None:
     mock_metrics.dkv_peer_attaches.assert_not_called()
     mock_metrics.dkv_peer_loads.assert_not_called()
     mock_metrics.dkv_hints_rejected.assert_not_called()
+    mock_metrics.dkv_touches_deduplicated.assert_not_called()
+    mock_metrics.dkv_settle_queue_depth.assert_not_called()
+    mock_metrics.dkv_settle_jobs_finished.assert_not_called()
+    mock_metrics.dkv_owner_releases_halted.assert_not_called()
 
     extra = metrics.to_log_extra()
     assert "dkv_peer_loads" not in extra
+    assert "dkv_touches_deduplicated" not in extra
+    assert "dkv_settle_queue_depth" not in extra
     assert "dkv_hints_rejected" not in extra
 
 
+def test_dkv_settle_metrics_reach_the_log_and_the_published_metrics() -> None:
+    """An attached tier reports the settle levels and its finished count.
+
+    Each value is distinct, so a field published under its neighbour's name
+    fails here.
+    """
+    metrics = _make_metrics(
+        dkv_connected_clients=1,
+        dkv_total_clients=1,
+        dkv_settle_queue_depth=3,
+        dkv_settle_queue_oldest_age_ms=2.5,
+        dkv_settle_jobs_finished=9,
+        dkv_owner_releases_halted=1,
+    )
+
+    extra = metrics.to_log_extra()
+    assert extra["dkv_settle_queue_depth"] == 3
+    assert extra["dkv_settle_queue_oldest_age_ms"] == 2.5
+    assert extra["dkv_settle_jobs_finished"] == 9
+    assert extra["dkv_owner_releases_halted"] == 1
+
+    with patch("max.serve.scheduler.utils.METRICS") as mock_metrics:
+        metrics.publish_metrics()
+
+    mock_metrics.dkv_settle_queue_depth.assert_called_once_with(3)
+    mock_metrics.dkv_settle_queue_oldest_age_ms.assert_called_once_with(2.5)
+    mock_metrics.dkv_settle_jobs_finished.assert_called_once_with(9)
+    mock_metrics.dkv_owner_releases_halted.assert_called_once_with(1)
+
+
 def test_dkv_peer_counters_carry_their_values_to_every_surface() -> None:
-    """A batch that pulled cross-node reports it on the line, log, and counters."""
+    """A batch that pulled cross-node reports it on the line, log, and counters.
+
+    The per-call maps reach the log and the counters too, the labels that
+    moved and no others.
+    """
     metrics = _make_metrics(
         dkv_connected_clients=2,
         dkv_total_clients=2,
@@ -518,11 +572,24 @@ def test_dkv_peer_counters_carry_their_values_to_every_surface() -> None:
         dkv_peer_loads=3,
         dkv_peer_load_failures=4,
         dkv_hints_rejected=5,
+        dkv_peer_transfer_failures=7,
+        dkv_peer_metadata_refreshes=8,
+        dkv_peer_metadata_refresh_failures=9,
+        dkv_touches_deduplicated=11,
+        dkv_hints_rejected_by_reason={"chain_mismatch": 5, "unparseable": 0},
+        dkv_rpc_calls={"read_blocks": 3, "heartbeat": 0},
+        dkv_rpc_time_ms={"read_blocks": 2.5, "heartbeat": 0.0},
+        dkv_rpc_socket_wait_ms={"read_blocks": 0.5},
+        dkv_lock_waits={"prepare_load": 2, "offload": 0},
+        dkv_lock_wait_ms={"prepare_load": 1.25},
+        dkv_blocked_calls={"start_prepare_load": 4, "offload": 0},
+        dkv_blocked_ms={"start_prepare_load": 0.75},
     )
 
     assert (
         "dKV peers: 3 loads (4 failed), 1 attaches (2 failed, 6 dropped), "
-        "5 hints rejected" in metrics.pretty_format()
+        "5 hints rejected, 7 transfers failed, "
+        "8 metadata refreshes (9 failed)" in metrics.pretty_format()
     )
 
     extra = metrics.to_log_extra()
@@ -532,6 +599,25 @@ def test_dkv_peer_counters_carry_their_values_to_every_surface() -> None:
     assert extra["dkv_peer_loads"] == 3
     assert extra["dkv_peer_load_failures"] == 4
     assert extra["dkv_hints_rejected"] == 5
+    assert extra["dkv_peer_transfer_failures"] == 7
+    assert extra["dkv_peer_metadata_refreshes"] == 8
+    assert extra["dkv_peer_metadata_refresh_failures"] == 9
+    assert extra["dkv_touches_deduplicated"] == 11
+    assert {
+        k: v
+        for k, v in extra.items()
+        if "_rpc_" in k or "_lock_" in k or "_blocked_" in k
+    } == {
+        "dkv_rpc_calls_read_blocks": 3,
+        "dkv_rpc_time_ms_read_blocks": 2.5,
+        "dkv_rpc_socket_wait_ms_read_blocks": 0.5,
+        "dkv_lock_waits_prepare_load": 2,
+        "dkv_lock_wait_ms_prepare_load": 1.25,
+        "dkv_blocked_calls_start_prepare_load": 4,
+        "dkv_blocked_ms_start_prepare_load": 0.75,
+    }
+    assert extra["dkv_hints_rejected_chain_mismatch"] == 5
+    assert "dkv_hints_rejected_unparseable" not in extra
 
     with patch("max.serve.scheduler.utils.METRICS") as mock_metrics:
         metrics.publish_metrics()
@@ -542,6 +628,83 @@ def test_dkv_peer_counters_carry_their_values_to_every_surface() -> None:
     mock_metrics.dkv_peer_loads.assert_called_once_with(3)
     mock_metrics.dkv_peer_load_failures.assert_called_once_with(4)
     mock_metrics.dkv_hints_rejected.assert_called_once_with(5)
+    mock_metrics.dkv_peer_transfer_failures.assert_called_once_with(7)
+    mock_metrics.dkv_peer_metadata_refreshes.assert_called_once_with(8)
+    mock_metrics.dkv_peer_metadata_refresh_failures.assert_called_once_with(9)
+    mock_metrics.dkv_touches_deduplicated.assert_called_once_with(11)
+    mock_metrics.dkv_hints_rejected_by_reason.assert_called_once_with(
+        5, reason="chain_mismatch"
+    )
+    mock_metrics.dkv_rpc_calls.assert_called_once_with(3, op="read_blocks")
+    mock_metrics.dkv_rpc_time_ms.assert_called_once_with(2.5, op="read_blocks")
+    mock_metrics.dkv_rpc_socket_wait_ms.assert_called_once_with(
+        0.5, op="read_blocks"
+    )
+    mock_metrics.dkv_lock_waits.assert_called_once_with(2, entry="prepare_load")
+    mock_metrics.dkv_lock_wait_ms.assert_called_once_with(
+        1.25, entry="prepare_load"
+    )
+    mock_metrics.dkv_blocked_calls.assert_called_once_with(
+        4, entry="start_prepare_load"
+    )
+    mock_metrics.dkv_blocked_ms.assert_called_once_with(
+        0.75, entry="start_prepare_load"
+    )
+
+
+def test_dkv_per_call_counters_publish_one_series_per_label() -> None:
+    """Each per-call map publishes one increment per key that moved.
+
+    A zero increment changes no counter, so the zeros never leave the
+    scheduler thread.
+    """
+    metrics = _make_metrics(
+        dkv_connected_clients=1,
+        dkv_total_clients=1,
+        dkv_rpc_calls={"read_blocks": 3, "touch_blocks": 2, "heartbeat": 0},
+        dkv_rpc_time_ms={
+            "read_blocks": 2.5,
+            "touch_blocks": 4.0,
+            "heartbeat": 0.0,
+        },
+        dkv_rpc_socket_wait_ms={"read_blocks": 0.5, "touch_blocks": 0.0},
+        dkv_lock_waits={"poll_transfers": 6, "offload": 0},
+        dkv_lock_wait_ms={"poll_transfers": 1.25, "offload": 0.0},
+        dkv_blocked_calls={"poll_transfers": 6, "offload": 0},
+        dkv_blocked_ms={"poll_transfers": 2.5, "offload": 0.0},
+        dkv_hints_rejected_by_reason={"chain_mismatch": 7, "unparseable": 0},
+    )
+
+    with patch("max.serve.scheduler.utils.METRICS") as mock_metrics:
+        metrics.publish_metrics()
+
+    mock_metrics.dkv_rpc_calls.assert_has_calls(
+        [call(3, op="read_blocks"), call(2, op="touch_blocks")], any_order=True
+    )
+    assert mock_metrics.dkv_rpc_calls.call_count == 2
+    mock_metrics.dkv_rpc_time_ms.assert_has_calls(
+        [call(2.5, op="read_blocks"), call(4.0, op="touch_blocks")],
+        any_order=True,
+    )
+    assert mock_metrics.dkv_rpc_time_ms.call_count == 2
+    mock_metrics.dkv_rpc_socket_wait_ms.assert_called_once_with(
+        0.5, op="read_blocks"
+    )
+    mock_metrics.dkv_lock_waits.assert_called_once_with(
+        6, entry="poll_transfers"
+    )
+    mock_metrics.dkv_lock_wait_ms.assert_called_once_with(
+        1.25, entry="poll_transfers"
+    )
+    mock_metrics.dkv_blocked_calls.assert_called_once_with(
+        6, entry="poll_transfers"
+    )
+    mock_metrics.dkv_blocked_ms.assert_called_once_with(
+        2.5, entry="poll_transfers"
+    )
+    mock_metrics.dkv_hints_rejected_by_reason.assert_called_once_with(
+        7, reason="chain_mismatch"
+    )
 
 
 def test_dkv_peer_clause_appears_on_rejected_hints_alone() -> None:
@@ -555,6 +718,21 @@ def test_dkv_peer_clause_appears_on_rejected_hints_alone() -> None:
     )
 
     assert "7 hints rejected" in metrics.pretty_format()
+
+
+def test_dkv_peer_clause_appears_on_peer_transfer_failures_alone() -> None:
+    """A stale peer's failed reads print the clause with nothing else moving.
+
+    The failure no longer degrades the connector, so the line is the only
+    console trace it leaves.
+    """
+    metrics = _make_metrics(
+        dkv_connected_clients=1,
+        dkv_total_clients=1,
+        dkv_peer_transfer_failures=3,
+    )
+
+    assert "3 transfers failed" in metrics.pretty_format()
 
 
 def test_to_log_extra_required_fields() -> None:
@@ -1551,6 +1729,10 @@ def test_scheduler_overlap_attributes_execution_metrics_to_completed_batch() -> 
         # the CE label rather than the enqueued TG batch's.
         assert [bt for _, bt in recorder.terminated_calls] == ["CE"]
         assert recorder.creation_calls[-1][1] == "TG"
+        # The CE result names the pass that produced it, not this one.
+        responses = scheduler.response_queue
+        assert isinstance(responses, queue.Queue)
+        assert [r.batch_id for r in responses.queue[0].values()] == [0]
 
 
 # ---------------------------------------------------------------------------
@@ -2033,3 +2215,194 @@ def test_connector_load_failures_are_silent_while_none_fail() -> None:
 
     mock_metrics.cache_connector_load_failures.assert_not_called()
     assert "connector_load_failures" not in metrics.to_log_extra()
+
+
+def test_create_carries_dkv_fail_open_counters_through() -> None:
+    """The connector's fail-open counts reach the batch, with no host tier."""
+    kv_cache = MagicMock()
+    kv_cache.block_count.return_value = BlockCount(free=60, total=100)
+    kv_cache.pressure_pct.return_value = 40.0
+    kv_cache.host_byte_count.return_value = ByteCount(free=0, total=0)
+    kv_cache.disk_byte_count.return_value = ByteCount(free=0, total=0)
+    kv_cache.take_metrics_aggregated.return_value = KVCacheMetrics(
+        dkv_total_clients=1,
+        dkv_prepare_load_degraded=1,
+        dkv_load_with_plan_degraded=2,
+        dkv_load_with_plan_expired=3,
+    )
+
+    metrics = BatchMetrics.create(
+        sch_config=_mock_sch_config(),
+        inputs=_mock_inputs(batch_size=1, batch_type=BatchType.TG),
+        kv_cache=kv_cache,
+        batch_creation_time_s=0.001,
+        batch_execution_time_s=0.1,
+        num_pending_reqs=0,
+        num_terminated_reqs=0,
+        total_preemption_count=0,
+    )
+
+    assert metrics.dkv_prepare_load_degraded == 1
+    assert metrics.dkv_load_with_plan_degraded == 2
+    assert metrics.dkv_load_with_plan_expired == 3
+
+
+def test_dkv_fail_open_counters_reach_the_log_and_the_counters() -> None:
+    """Published while a tier is attached, so a tier serving misses shows."""
+    metrics = _make_metrics(
+        dkv_connected_clients=0,
+        dkv_total_clients=1,
+        dkv_prepare_load_degraded=4,
+        dkv_load_with_plan_degraded=5,
+        dkv_load_with_plan_expired=6,
+    )
+
+    with patch("max.serve.scheduler.utils.METRICS") as mock_metrics:
+        metrics.publish_metrics()
+
+    mock_metrics.dkv_prepare_load_degraded.assert_called_once_with(4)
+    mock_metrics.dkv_load_with_plan_degraded.assert_called_once_with(5)
+    mock_metrics.dkv_load_with_plan_expired.assert_called_once_with(6)
+    extra = metrics.to_log_extra()
+    assert extra["dkv_prepare_load_degraded"] == 4
+    assert extra["dkv_load_with_plan_degraded"] == 5
+    assert extra["dkv_load_with_plan_expired"] == 6
+
+
+def test_dkv_fail_open_counters_are_silent_without_a_tier() -> None:
+    metrics = _make_metrics()
+
+    with patch("max.serve.scheduler.utils.METRICS") as mock_metrics:
+        metrics.publish_metrics()
+
+    mock_metrics.dkv_prepare_load_degraded.assert_not_called()
+    mock_metrics.dkv_load_with_plan_degraded.assert_not_called()
+    mock_metrics.dkv_load_with_plan_expired.assert_not_called()
+    assert "dkv_prepare_load_degraded" not in metrics.to_log_extra()
+
+
+def test_connector_loads_refused_publish_for_a_dkv_tier() -> None:
+    """dKV reports no host tier, so its refusals publish on the tier's guard."""
+    metrics = _make_metrics(
+        total_host_kv_bytes=0,
+        dkv_connected_clients=1,
+        dkv_total_clients=1,
+        connector_loads_refused=3,
+    )
+
+    with patch("max.serve.scheduler.utils.METRICS") as mock_metrics:
+        metrics.publish_metrics()
+
+    mock_metrics.cache_connector_loads_refused.assert_called_once_with(3)
+    assert metrics.to_log_extra()["connector_loads_refused"] == 3
+
+
+def test_connector_loads_refused_are_silent_without_a_connector() -> None:
+    metrics = _make_metrics(total_host_kv_bytes=0)
+
+    with patch("max.serve.scheduler.utils.METRICS") as mock_metrics:
+        metrics.publish_metrics()
+
+    mock_metrics.cache_connector_loads_refused.assert_not_called()
+    assert "connector_loads_refused" not in metrics.to_log_extra()
+
+
+def _leaf(used: int, evictable: int, empty: int) -> _LeafOccupancy:
+    return _LeafOccupancy(used, evictable, empty, 100, used // 10, 1)
+
+
+_OCCUPANCY = [
+    _PoolOccupancy({"mla": _leaf(90, 2, 3), "idx": _leaf(10, 0, 50)}, 0),
+    _PoolOccupancy({"mla": _leaf(40, 0, 60), "idx": _leaf(80, 5, 10)}, 4),
+]
+
+
+def _occupancy_kv_cache(jenga: bool) -> MagicMock:
+    kv_cache = MagicMock(spec=JengaKVCacheManager) if jenga else MagicMock()
+    kv_cache.block_count.return_value = BlockCount(free=60, total=100)
+    kv_cache.pressure_pct.return_value = 40.0
+    kv_cache.host_byte_count.return_value = ByteCount(free=0, total=0)
+    kv_cache.disk_byte_count.return_value = ByteCount(free=0, total=0)
+    kv_cache.take_metrics_aggregated.return_value = KVCacheMetrics()
+    kv_cache.occupancy.side_effect = _OCCUPANCY.__getitem__
+    return kv_cache
+
+
+def test_batch_log_sums_every_jenga_leaf_across_replicas(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with (
+        patch("max.serve.scheduler.utils.METRICS"),
+        caplog.at_level(logging.INFO, logger="max.serve"),
+    ):
+        SchedulerLogger(log_interval_s=0).log_metrics(
+            sch_config=_mock_sch_config(dp=2),
+            inputs=_mock_inputs(batch_size=2, batch_type=BatchType.TG),
+            kv_cache=_occupancy_kv_cache(jenga=True),
+            batch_creation_time_s=0.001,
+            batch_execution_time_s=0.1,
+            num_pending_reqs=0,
+            num_terminated_reqs=0,
+            total_preemption_count=0,
+        )
+
+    assert (
+        "KV leaves: mla 67.5% (130 used, 2 evictable, 63 empty of 200; "
+        "13 huge used, 2 evictable), idx 67.5% (90 used, 5 evictable, "
+        "60 empty of 200; 9 huge used, 2 evictable) | "
+    ) in caplog.text
+
+
+@pytest.mark.parametrize("jenga", [True, False])
+def test_jenga_occupancy_samples_busy_and_idle_on_one_dump_clock(
+    jenga: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Every logged batch publishes the gauges; the per-leaf dump, busy or
+    idle, fires at most once per interval. Other caches publish nothing."""
+    kv_cache = _occupancy_kv_cache(jenga)
+    scheduler_logger = SchedulerLogger(
+        log_interval_s=1, leaf_dump_interval_s=60
+    )
+
+    dumps_per_step: list[list[str]] = []
+    with (
+        patch("max.serve.scheduler.utils.METRICS") as mock_metrics,
+        patch("max.serve.scheduler.utils.time") as clock,
+        caplog.at_level(logging.INFO, logger="max.serve"),
+    ):
+        # Busy at 100 and 102, then idle; the idle polls at 130 and 171 fall
+        # inside the interval of the dumps at 100 and 170.
+        for now in (100.0, 102.0, 130.0, 170.0, 171.0):
+            clock.monotonic.return_value = now
+            if now < 130:
+                scheduler_logger.log_metrics(
+                    sch_config=_mock_sch_config(dp=2),
+                    inputs=_mock_inputs(batch_size=2, batch_type=BatchType.TG),
+                    kv_cache=kv_cache,
+                    batch_creation_time_s=0.001,
+                    batch_execution_time_s=0.1,
+                    num_pending_reqs=0,
+                    num_terminated_reqs=0,
+                    total_preemption_count=0,
+                )
+            else:
+                scheduler_logger.log_idle(kv_cache, num_replicas=2)
+            messages = [r.getMessage().split(":")[0] for r in caplog.records]
+            dumps_per_step.append(
+                [m for m in messages if m.startswith("KV leaf occupancy")]
+            )
+            caplog.clear()
+
+    dump = ["KV leaf occupancy, replica 0", "KV leaf occupancy, replica 1"]
+    assert dumps_per_step == ([dump, [], [], dump, []] if jenga else [[]] * 5)
+    # Sampled at 100, 102 and 170, for two replicas of two leaves each.
+    samples = 3 if jenga else 0
+    small = mock_metrics.cache_jenga_small_blocks.call_args_list
+    huge = mock_metrics.cache_jenga_huge_blocks.call_args_list
+    assert len(small) == samples * 2 * 2 * 3
+    assert len(huge) == samples * 2 * (2 * 2 + 1)
+    if jenga:
+        assert call(5, replica="1", leaf="idx", state="evictable") in small
+        assert call(9, replica="0", leaf="mla", state="used") in huge
+        assert call(0, replica="0", leaf="none", state="empty") in huge
+        assert call(4, replica="1", leaf="none", state="empty") in huge

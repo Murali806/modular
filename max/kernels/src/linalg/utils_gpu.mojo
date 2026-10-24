@@ -13,7 +13,7 @@
 
 """Provides GPU matmul configuration selection, block-swizzling, and Hilbert-curve tile-ordering utilities."""
 
-from std.hashlib.hasher import Hasher
+from std.hash.hasher import Hasher
 from std.math import ceildiv
 from std.math.uutils import uceildiv
 from std.sys import (
@@ -592,7 +592,7 @@ def create_hilbert_lut(
     """
     var num_blocks = grid_x * grid_y
     # Allocate temporary host buffer.
-    var host = alloc(AllocLayout[UInt32](count=num_blocks)).into_managed()
+    var host = alloc(AllocLayout[UInt32](length=num_blocks)).into_managed()
 
     # Next power-of-two square dimension enclosing the rectangle.
     var dim_pow2 = 1
@@ -651,8 +651,8 @@ def get_hilbert_lut_with_cache(
     # use runtime lookup since key is computed at runtime
     var cached_ptr = _get_global_or_null(key_str)
 
-    if cached_ptr:
-        var device_ptr = cached_ptr.unsafe_value().unsafe_bitcast[UInt32]()
+    if case .Some(cached_ptr) = cached_ptr:
+        var device_ptr = cached_ptr.unsafe_bitcast[UInt32]()
         var num_blocks = grid_x * grid_y
         # the cached buffer stays alive as long as the program runs
         return DeviceBuffer[.uint32](ctx, device_ptr, num_blocks, owning=False)
@@ -665,7 +665,7 @@ def get_hilbert_lut_with_cache(
     # store the device pointer directly in global cache
     external_call["KGEN_CompilerRT_InsertGlobal", NoneType](
         StringSlice(key_str),
-        device_ptr.bitcast[NoneType](),
+        device_ptr.unsafe_bitcast[NoneType](),
     )
 
     # the buffer will live for the duration of the program

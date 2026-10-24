@@ -21,8 +21,9 @@ from std.collections.string.string_span import (
 )
 from std.sys.info import size_of, simd_width_of
 
-from std.testing import assert_equal, assert_false, assert_true, assert_raises
+from std.testing import assert_equal, assert_false, assert_true
 from std.testing import TestSuite
+from test_utils import check_niches
 
 # ===----------------------------------------------------------------------=== #
 # Reusable testing data
@@ -92,8 +93,9 @@ def test_constructors() raises:
 def test_string_slice_from_string_static_repr() raises:
     """Tests special case of StringSlice from String pointing to static data."""
 
-    def is_static_string(s: String) -> Bool:
-        return not s._is_inline() and not s._is_ref_counted()
+    var is_static_string = lambda (s: String) -> Bool: (
+        not s._is_inline() and not s._is_ref_counted()
+    )
 
     var s1 = String("foo")
     assert_true(is_static_string(s1))
@@ -731,6 +733,13 @@ def test_splitlines() raises:
     assert_equal(
         S("hello\r\nworld").splitlines(), [StaticString("hello"), "world"]
     )
+    assert_equal(
+        S("hello\rworld\nmojo").splitlines(),
+        [StaticString("hello"), "world", "mojo"],
+    )
+    assert_equal(
+        S("a\r\nb\rc\nd").splitlines(), [StaticString("a"), "b", "c", "d"]
+    )
 
     # Test with multiple different line breaks
     var s1 = S("hello\nworld\r\nmojo\rlanguage\r\n")
@@ -1323,8 +1332,7 @@ def test_immutable_string_span_compatibility_aliases() raises:
             total += Int(b)
         return total
 
-    def byte_sum_compat(s: ImmStringSlice[_]) -> Int:
-        return byte_sum(s)
+    var byte_sum_compat = lambda (s: ImmStringSlice[_]) -> Int: byte_sum(s)
 
     var mutable_data = String("abc")
     var immutable_data = StaticString("abc")
@@ -1332,6 +1340,23 @@ def test_immutable_string_span_compatibility_aliases() raises:
     # Both names work with mutable and immutable data.
     assert_equal(byte_sum(mutable_data), 294)
     assert_equal(byte_sum_compat(immutable_data), 294)
+
+
+def test_string_span_niche() raises:
+    assert_equal(StaticString.niche_count(), Int.MAX)
+    assert_equal(size_of[Optional[StaticString]](), size_of[StaticString]())
+    check_niches[StaticString]()
+
+    var some = Optional(StaticString("hello"))
+    assert_true(some)
+    assert_equal(some.value(), "hello")
+
+    var empty = Optional(StaticString())
+    assert_true(empty)
+    assert_equal(empty.value(), "")
+
+    var none = Optional[StaticString](None)
+    assert_false(none)
 
 
 def main() raises:

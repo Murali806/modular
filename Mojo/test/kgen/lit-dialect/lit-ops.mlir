@@ -16,6 +16,18 @@ lit.struct.decl @FooStruct<size, dtype: dtype, ty: type> {
 lit.struct.decl @EmptyStruct {
 }
 
+// A case's payload types are absent until they are resolved.
+// CHECK-LABEL: lit.struct.decl @Color attributes {isEnum}
+// CHECK-NEXT: lit.enum.case red : []{{$}}
+// CHECK-NEXT: lit.enum.case rgb : [index, index] {docString = #doc_string}
+// CHECK-NEXT: lit.enum.case unresolved{{$}}
+// CHECK-NEXT: }
+lit.struct.decl @Color attributes {isEnum} {
+  lit.enum.case red : []
+  lit.enum.case rgb : [index, index] {docString = #lit.doc.string<"Red, green.">}
+  lit.enum.case unresolved
+}
+
 // CHECK-LABEL: lit.struct.decl @ValueType
 lit.struct.decl @ValueType
  // CHECK-NEXT: move :() -> () @ValueType::@__moveinit__
@@ -211,19 +223,6 @@ kgen.generator @ref_pack_from_pointer_pack(
   %0 = lit.ref.pack.from_pointer_pack %pack
     : !kgen.struct<(pointer<index, 4>, pointer<f32, 4>) isParamPack>
    -> !lit.ref.pack<:param_list<!kgen.type> [index, f32], imm #lit.any.origin, 4>
-  hlcf.return
-}
-
-// CHECK-LABEL: lit.fn @nested_function_region
-lit.fn @nested_function_region() {
-  // CHECK-NEXT: hlcf.loop
-  hlcf.loop {
-    // CHECK-NEXT: lit.fn nested_fn()
-    lit.fn nested_fn() {
-      hlcf.return
-    }
-    hlcf.continue
-  }
   hlcf.return
 }
 

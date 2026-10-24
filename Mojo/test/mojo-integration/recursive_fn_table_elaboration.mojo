@@ -98,6 +98,57 @@ def serializer_table() -> Array[Serializer, 3]:
 comptime SERIALIZERS = serializer_table()
 
 
+# MOCO-4947: Two recursive scc in the graph a <-> b, and __deinit__s from ArcPointer
+struct Ty(ImplicitlyCopyable):
+    var v: Optional[ArcPointer[Ty]]
+
+    def __init__(out self):
+        self.v = None
+
+    comptime leaf = Ty()
+
+
+def f(n: Int, t: Ty) -> Int:
+    return n
+
+
+def a(n: Int) -> Int:
+    return b(n)
+
+
+def b(n: Int) -> Int:
+    if n == 1:
+        return f(a(n + 1), Ty.leaf)
+    return n
+
+
+# The blocking dependence is one level away from the SCC.
+struct Tree(ImplicitlyCopyable):
+    var kid: Optional[ArcPointer[Tree]]
+
+    def __init__(out self, kid: Optional[ArcPointer[Tree]]):
+        self.kid = kid
+
+    comptime leaf = Tree(None)
+
+
+def c(n: Int) -> Int:
+    if n == 0:
+        return d(n)
+    return n
+
+
+def d(n: Int) -> Int:
+    _ = make_tree(n + 1)
+    return c(n + 1)
+
+
+def make_tree(n: Int) -> Tree:
+    if n == 1:
+        return Tree.leaf
+    return make_tree(n - 1)
+
+
 def main() raises:
     # CHECK: "ok"
     print(Value(Value.STRING, Payload(Str("ok"))).to_string())
@@ -111,3 +162,9 @@ def main() raises:
     )
     # CHECK: [1,"x"]
     print(Value(Value.ARRAY, Payload(arr^)).to_string())
+
+    # CHECK: 0
+    print(a(0))
+
+    # CHECK: 1
+    print(c(0))

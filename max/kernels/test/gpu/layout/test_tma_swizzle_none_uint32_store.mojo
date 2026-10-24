@@ -38,13 +38,13 @@ from max.gpu.host import DeviceContext
 from max.gpu.host.nvidia.tma import TensorMapSwizzle
 from max.gpu.memory import fence_async_view_proxy
 from max.gpu.sync import cp_async_bulk_commit_group, cp_async_bulk_wait_group
-from layout import TileTensor, row_major
+from layout import Coord, TileTensor, row_major
 from layout._fillers import arange
 from layout._host_device_tile_tensor import HostDeviceTileTensor
 from layout.tma_async import TMATensorTile, create_tma_tile
 from std.memory import unsafe_stack_allocation
+from std.sys import align_of
 from std.testing import assert_equal
-from std.utils.index import IndexList
 
 comptime M = 128
 comptime N = 64
@@ -56,9 +56,9 @@ comptime ITERS = (M * N) // ELEMS_PER_ITER  # 8192 / 512 == 16
 
 @__llvm_arg_metadata(tma_tile, `nvvm.grid_constant`)
 def tma_store_uint32_kernel[
-    tile_shape: IndexList[2],
-    desc_shape: IndexList[2],
-](tma_tile: TMATensorTile[.uint32, 2, tile_shape, desc_shape]):
+    tile_shape: Coord,
+    desc_shape: Coord,
+](tma_tile: TMATensorTile[.uint32, tile_shape, desc_shape]):
     var smem = TileTensor(
         unsafe_stack_allocation[
             M * N, UInt32, address_space=.SHARED, alignment=128
@@ -71,13 +71,16 @@ def tma_store_uint32_kernel[
     # offset, so each thread writes consecutive integers at its assigned
     # 4-element chunk.
     var iota = SIMD[.uint32, VEC](0, 1, 2, 3)
+    var smem_flat = smem.reshape[M * N]()
 
     for it in range(ITERS):
         # Conflict-free canonical (non-swizzled) placement: 8 consecutive
         # threads write 32 contiguous uint32 == one full sweep over all 32
         # banks.
         var base = UInt32(it * ELEMS_PER_ITER) + UInt32(tid) * UInt32(VEC)
-        smem.unsafe_ptr().store(Int(base), SIMD[.uint32, VEC](base) + iota)
+        smem_flat.store[alignment=align_of[DType.uint32]()](
+            Coord(Int(base)), SIMD[.uint32, VEC](base) + iota
+        )
 
     barrier()
     fence_async_view_proxy()

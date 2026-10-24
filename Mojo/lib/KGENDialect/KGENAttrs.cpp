@@ -13,6 +13,7 @@
 
 #include "Mojo/KGENDialect/KGENAttrs.h"
 #include "Mojo/Interpreter/InterpreterAttrs.h"
+#include "Mojo/KGENDialect/CompilerCaches.h"
 #include "Mojo/KGENDialect/FoldUtils.h"
 #include "Mojo/KGENDialect/KGENDType.h"
 #include "Mojo/KGENDialect/KGENDialect.h"
@@ -906,20 +907,6 @@ GetWitnessAttr::simplify(ConformanceOp witnessTable,
 }
 
 //===----------------------------------------------------------------------===//
-// CompileOffloadClosureAttr
-//===----------------------------------------------------------------------===//
-
-bool CompileOffloadClosureAttr::isConstant() const { return false; }
-
-LogicalResult CompileOffloadClosureAttr::verify(
-    llvm::function_ref<mlir::InFlightDiagnostic()> emitError, TypedAttr target,
-    TypedAttr func, Type type) {
-  if (!::isa<TargetType>(target.getType()))
-    return emitError() << "target operand must be of `!kgen.target` type";
-  return success();
-}
-
-//===----------------------------------------------------------------------===//
 // GetLinkageNameAttr
 //===----------------------------------------------------------------------===//
 
@@ -1708,8 +1695,38 @@ SymbolConstantAttr::verifySymbolUses(SymTabEvaluationContext &evaluationContext,
   }
 
   FuncTypeGeneratorType declSignature = getSymbolSignature(func, symbolOps);
-  declSignature = declSignature.getSpecializedGenerator(
-      getParamValues(), &evaluationContext, [&] { return emitError(loc); });
+  if (getParamValues().empty() ||
+      !llvm::all_of(getParamValues(), llvm::IsaPred<UnboundAttr>)) {
+    // If all the provided bindings are unbound, use the original generator.
+    //
+    // FIXME(MOCO-3542): this is a hack to avoid the bug when UnboundAttr erased
+    // type dependencies, which results in `getSpecializedGenerator` being
+    // computed in a wrong way.
+    //
+    // E.g.,
+    //
+    // def takeClosure[
+    //     origins: OriginSet,
+    //     //,
+    //     f: def() capturing[origins] -> None,
+    // ]():
+    //     pass
+    //
+    // where
+    //
+    // `f: def() capturing[origins]` will be replaced to
+    // `f: def() capturing[  ?    ]`. This will make the type dependency on
+    // `origins` unrecoverable.
+    declSignature = declSignature.getSpecializedGenerator(
+        getParamValues(), &evaluationContext, [&] { return emitError(loc); });
+  } else if (getParamValues().size() !=
+             declSignature.getInputParamTypes().size()) {
+    return mlir::emitError(loc)
+           << "generator type expects "
+           << declSignature.getInputParamTypes().size()
+           << " parameters but got bindings for " << getParamValues().size();
+  }
+
   if (!declSignature)
     return failure();
 
@@ -2044,15 +2061,87 @@ Type TargetParamAttr::getType() const { return TargetType::get(getContext()); }
 // GetTargetPluginAttr
 //===----------------------------------------------------------------------===//
 
-TypedAttr GetTargetPluginAttr::get(TypedAttr target, Type type) {
+LogicalResult
+GetTargetPluginAttr::verify(function_ref<InFlightDiagnostic()> emitError,
+                            TypedAttr target, TypedAttr fallback, Type type) {
+  if (!isa<TargetType>(target.getType()))
+    return emitError() << "target must have !kgen.target type";
+  if (fallback.getType() != type)
+    return emitError() << "fallback type " << fallback.getType()
+                       << " does not match result type " << type;
+  return success();
+}
+
+TypedAttr GetTargetPluginAttr::get(TypedAttr target, TypedAttr fallback,
+                                   Type type) {
+  assert(fallback.getType() == type &&
+         "target plugin fallback must have the result type");
   if (auto targetAttr = dyn_cast<TargetParamAttr>(target)) {
-    if (auto plugin = dyn_cast_if_present<TypedAttr>(
-            targetAttr.getTarget().getOpaquePlugin()))
-      if (plugin.getType() == type)
-        return plugin;
+    TypedAttr plugin = targetAttr.getTarget().getOpaquePlugin();
+    if (!plugin)
+      return fallback;
+    if (plugin.getType() == type)
+      return plugin;
   }
 
-  return Base::get(target.getContext(), target, type);
+  return Base::get(target.getContext(), target, fallback, type);
+}
+
+/// Describe why a literal target's payload can never satisfy the requested
+/// type, or return nullopt if it might. Types that still mention parameters are
+/// left alone: substitution may yet make them agree, which is what keeps the
+/// expression unresolved.
+static std::optional<std::string> describePluginTypeMismatch(TypedAttr target,
+                                                             Type type) {
+  auto targetAttr = dyn_cast<TargetParamAttr>(target);
+  if (!targetAttr)
+    return std::nullopt;
+  TypedAttr plugin = targetAttr.getTarget().getOpaquePlugin();
+  if (!plugin)
+    return std::nullopt;
+
+  Type pluginType = plugin.getType();
+  if (pluginType == type || isParameterizedType(pluginType) ||
+      isParameterizedType(type))
+    return std::nullopt;
+  return "target 'opaque_plugin' has type '" + mlir::debugString(pluginType) +
+         "'; expected a value of type '" + mlir::debugString(type) + "'";
+}
+
+TypedAttr
+GetTargetPluginAttr::getChecked(function_ref<InFlightDiagnostic()> emitError,
+                                TypedAttr target, TypedAttr fallback,
+                                Type type) {
+  if (failed(verify(emitError, target, fallback, type)))
+    return {};
+  if (std::optional<std::string> mismatch =
+          describePluginTypeMismatch(target, type)) {
+    emitError() << *mismatch;
+    return {};
+  }
+  return get(target, fallback, type);
+}
+
+/// A target parameter only becomes a literal after substitution, which cannot
+/// report through `getChecked`, so the mismatch is diagnosed here instead.
+FailureOr<TypedAttr> GetTargetPluginAttr::evaluateWithContext(
+    ParameterEvaluationContext &context) const {
+  if (std::optional<std::string> mismatch =
+          describePluginTypeMismatch(getTarget(), getType()))
+    context.emitMaterializationError(*mismatch);
+  return failure();
+}
+
+TypedAttr GetTargetPluginAttr::get(MLIRContext *ctx, TypedAttr target,
+                                   TypedAttr fallback, Type type) {
+  return get(target, fallback, type);
+}
+
+TypedAttr
+GetTargetPluginAttr::getChecked(function_ref<InFlightDiagnostic()> emitError,
+                                MLIRContext *ctx, TypedAttr target,
+                                TypedAttr fallback, Type type) {
+  return getChecked(emitError, target, fallback, type);
 }
 
 bool GetTargetPluginAttr::isConstant() const { return false; }
@@ -4646,6 +4735,26 @@ static std::optional<bool> decideParamIdentical(IdentityOperand &lhs,
     return true;
   }
 
+  // We support upcast on param list too, look through those: as long as each
+  // element of a parameter list is the same, the list is identical. We need to
+  // peel off the list here since the upcast will be sunk into the constant
+  // param list during canonicalization.
+  auto lList = dyn_cast<ParamListAttr>(lhs.getCanonical());
+  auto rList = dyn_cast<ParamListAttr>(rhs.getCanonical());
+  if (lList && rList && lList.getValues().size() == rList.getValues().size()) {
+    bool allSame = true;
+    for (auto [l, r] : llvm::zip_equal(lList.getValues(), rList.getValues())) {
+      IdentityOperand lhsOperand(l), rhsOperand(r);
+      std::optional<bool> same = decideParamIdentical(lhsOperand, rhsOperand);
+      if (same && !*same)
+        return false;
+      allSame &= same.value_or(false);
+    }
+    if (allSame)
+      return true;
+    return std::nullopt;
+  }
+
   // Folding to False is a lot harder:
   // If either side contains expression nodes that still need to be evaluated,
   // we cannot fold to False since after evaluation they may become equal.
@@ -5309,9 +5418,9 @@ TypedAttr SugarAttr::get(MLIRContext *context, SugarKind kind,
     if ((int)*shouldElide >= (int)kind)
       return canonical;
 
-  // We will /never/ use the type sugar in the expanded form of opaque
-  // sugar kinds, so we can strip it all away to simplify things.
-  if (kind <= SugarKind::Preserved)
+  // We want nested aliases in types to survive, but all other opaque
+  // sugar kinds can be stripped to simplify things.
+  if (kind <= SugarKind::Preserved && !isa<TypeParamAttr>(expanded))
     expanded = ParamOperatorAttr::getRebind(canonical, sugared.getType());
 
   return Base::get(sugared.getContext(), kind, memberName, sugared, expanded,
@@ -5319,7 +5428,22 @@ TypedAttr SugarAttr::get(MLIRContext *context, SugarKind kind,
 }
 
 Type SugarAttr::getMemberAliasType() const {
-  return cast<TypeParamAttr>(getSugared()).getMlirType();
+  return ParamType::get(getSugared());
+}
+
+ParamDeclRefAttr SugarAttr::getAliasDeclRef() const {
+  switch (getKind()) {
+  case SugarKind::Alias:
+    return dyn_cast<ParamDeclRefAttr>(getSugared());
+  case SugarKind::Preserved:
+    // `BindParamsAttr::get` may rebind the application to the requested type.
+    if (auto bindParams = dyn_cast<BindParamsAttr>(
+            ParamOperatorAttr::stripRebind(getSugared())))
+      return dyn_cast<ParamDeclRefAttr>(bindParams.getGenerator());
+    return {};
+  default:
+    return {};
+  }
 }
 
 TypedAttr SugarAttr::getMemberAlias(Type type, StringAttr memberName,
@@ -5404,6 +5528,15 @@ class Canonicalizer : public ParameterReplacer<Canonicalizer> {
     if (auto can = getLocalCanonical(value))
       return can;
 
+    // Walking is repeated for the same value many times; cache across calls.
+    using Base =
+        std::conditional_t<std::is_base_of_v<Type, T>, Type, Attribute>;
+    ShardedCache<const void *> *cache = getCache(value.getContext());
+    if (cache) {
+      if (const void *hit = cache->lookup(value.getAsOpaquePointer()))
+        return Base::getFromOpaquePointer(hit);
+    }
+
     // Otherwise, recursively walk and rebuild the attribute with
     // canonicalized subelements.
     SmallVector<Attribute, 16> newAttrs;
@@ -5417,9 +5550,20 @@ class Canonicalizer : public ParameterReplacer<Canonicalizer> {
     value.walkImmediateSubElements(
         [&](Attribute attr) { walkFn(attr, newAttrs); },
         [&](Type type) { walkFn(type, newTypes); });
-    if (!changed)
-      return value;
-    return value.replaceImmediateSubElements(newAttrs, newTypes);
+    Base result =
+        changed ? Base(value.replaceImmediateSubElements(newAttrs, newTypes))
+                : Base(value);
+    if (cache && result) {
+      cache->insert(value.getAsOpaquePointer(), result.getAsOpaquePointer());
+      if (changed)
+        cache->insert(result.getAsOpaquePointer(), result.getAsOpaquePointer());
+    }
+    return result;
+  }
+
+  static ShardedCache<const void *> *getCache(MLIRContext *context) {
+    CompilerCaches *caches = CompilerCaches::get(context);
+    return caches ? &caches->canonical : nullptr;
   }
 
   friend class ParameterReplacer<Canonicalizer>;

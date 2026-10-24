@@ -44,6 +44,8 @@ Inputs:
 Outputs:
   conv_output_ragged : [total_seq_len, conv_dim]              float32
       Causal conv output in the same ragged layout as the input.
+  qkv_window         : [total_seq_len, conv_dim]              float32
+      A copy of the input under CAPTURE_INPUT; untouched otherwise.
   (conv_state is mutated in place; there is no separate state-out
    tensor.  Window slot j ends up holding the raw input at position
    seq_len - (kernel_size-1) + j within the sequence, carrying forward
@@ -66,13 +68,11 @@ from std.sys.info import is_nvidia_gpu
 import max.gpu.primitives.warp as warp
 from max.gpu import (
     WARP_SIZE,
-    block_dim,
     block_idx,
     lane_id,
     thread_idx,
 )
-from layout import Coord, TensorEngine, TensorLayout, TileTensor
-from std.utils.index import IndexList
+from layout import Coord, TensorEngine, TensorLayout, TileTensor, row_major
 
 
 # Upper bound on the runtime `tokens_per_block`; the host shrinks it to the
@@ -98,44 +98,43 @@ def gated_delta_conv1d_fwd_gpu[
     input_row_offsets_LT: TensorLayout,
     conv_output_ragged_LT: TensorLayout,
     Engine: TensorEngine,
+    CAPTURE_INPUT: Bool = False,
+    qkv_window_LT: TensorLayout = conv_output_ragged_LT,
 ](
     batch_size: Int32,
     total_seq_len: Int32,
     conv_dim: Int32,
     tokens_per_block: Int32,
     qkv_input_ragged: TileTensor[
-        work_dtype, qkv_input_ragged_LT, MutUntrackedOrigin, Engine=Engine
+        work_dtype, qkv_input_ragged_LT, ImmUntrackedOrigin, Engine=Engine
     ],
     conv_weight: TileTensor[
-        work_dtype, conv_weight_LT, MutUntrackedOrigin, Engine=Engine
+        work_dtype, conv_weight_LT, ImmUntrackedOrigin, Engine=Engine
     ],
     conv_state: TileTensor[
         state_dtype, conv_state_LT, MutUntrackedOrigin, Engine=Engine
     ],
     slot_idx: TileTensor[
-        .uint32, slot_idx_LT, MutUntrackedOrigin, Engine=Engine
+        .uint32, slot_idx_LT, ImmUntrackedOrigin, Engine=Engine
     ],
     input_row_offsets: TileTensor[
-        .uint32, input_row_offsets_LT, MutUntrackedOrigin, Engine=Engine
+        .uint32, input_row_offsets_LT, ImmUntrackedOrigin, Engine=Engine
     ],
     conv_output_ragged: TileTensor[
         work_dtype, conv_output_ragged_LT, MutUntrackedOrigin, Engine=Engine
     ],
-    # Strides for [total_seq_len, conv_dim] tensors
-    qkv_input_seqlen_stride: UInt32,  # stride along total_seq_len axis
-    qkv_input_channel_stride: UInt32,  # stride along conv_dim axis (usually 1)
-    conv_weight_channel_stride: UInt32,  # stride along conv_dim axis
-    conv_weight_offset_stride: UInt32,  # stride along kernel_size axis
-    # Output strides (match input strides for conv_output_ragged)
-    conv_output_seqlen_stride: UInt32,
-    conv_output_channel_stride: UInt32,
+    qkv_window: TileTensor[
+        work_dtype, qkv_window_LT, MutUntrackedOrigin, Engine=Engine
+    ],
 ):
     """Slot-indexed causal depthwise conv1d over a ragged batch.
 
     The thread owning a sequence's first token computes the outputs that
     see the old conv window and then rewrites the window; later tokens read
     only the ragged input. With `WRITE_STATE` False the window is left
-    unchanged.
+    unchanged. With `CAPTURE_INPUT` every thread also copies the input it
+    owns to `qkv_window`, which has the output's shape; otherwise
+    `qkv_window` is never touched.
     """
     comptime KERNEL_SIZE_MINUS_ONE = KERNEL_SIZE - 1
 
@@ -151,13 +150,65 @@ def gated_delta_conv1d_fwd_gpu[
 
     var weight_register = SIMD[work_dtype, KERNEL_SIZE](0)
     comptime for kernel_offset_k in range(KERNEL_SIZE):
-        var weight_flat_offset = (
-            UInt32(channel_read_idx) * conv_weight_channel_stride
-            + UInt32(kernel_offset_k) * conv_weight_offset_stride
+        weight_register[kernel_offset_k] = conv_weight.load[width=1](
+            (channel_read_idx, kernel_offset_k)
         )
-        weight_register[kernel_offset_k] = conv_weight.raw_load(
-            weight_flat_offset
+
+    # The ragged input and output are addressed as row * stride + channel in
+    # 32 bits, instead of resolving a full 64-bit coordinate per access, so
+    # their linear offsets must stay below 2**32 (the host launcher checks
+    # this). The state pool uses coordinate access, which is 64-bit.
+    # TODO(bez): return to coordinate access for the ragged tensors once
+    # TileTensor coordinate loads/stores stop costing extra registers here.
+    var input_row_stride = UInt32(
+        qkv_input_ragged.layout[
+            linear_idx_type=qkv_input_ragged.linear_idx_type
+        ](Coord(1, 0))
+    )
+    var input_channel_offset = UInt32(
+        qkv_input_ragged.layout[
+            linear_idx_type=qkv_input_ragged.linear_idx_type
+        ](Coord(0, channel_read_idx))
+    )
+    var output_row_stride = UInt32(
+        conv_output_ragged.layout[
+            linear_idx_type=conv_output_ragged.linear_idx_type
+        ](Coord(1, 0))
+    )
+    var output_channel_offset = UInt32(
+        conv_output_ragged.layout[
+            linear_idx_type=conv_output_ragged.linear_idx_type
+        ](Coord(0, conv_channel_idx))
+    )
+    var window_row_stride = UInt32(
+        qkv_window.layout[linear_idx_type=qkv_window.linear_idx_type](
+            Coord(1, 0)
         )
+    )
+    var window_channel_offset = UInt32(
+        qkv_window.layout[linear_idx_type=qkv_window.linear_idx_type](
+            Coord(0, conv_channel_idx)
+        )
+    )
+    var qkv_input_flat = qkv_input_ragged.reshape(
+        row_major(
+            Int(qkv_input_ragged.layout(qkv_input_ragged.layout.product() - 1))
+            + 1
+        )
+    )
+    var conv_output_flat = conv_output_ragged.reshape(
+        row_major(
+            Int(
+                conv_output_ragged.layout(
+                    conv_output_ragged.layout.product() - 1
+                )
+            )
+            + 1
+        )
+    )
+    var qkv_window_flat = qkv_window.reshape(
+        row_major(Int(qkv_window.layout(qkv_window.layout.product() - 1)) + 1)
+    )
 
     # Cached across the consecutive tokens this thread owns.
     var batch_item_idx = 0
@@ -169,6 +220,23 @@ def gated_delta_conv1d_fwd_gpu[
         first_flat_token_idx,
         min(first_flat_token_idx + _tokens_per_block, _total_seq_len),
     ):
+        comptime if CAPTURE_INPUT:
+            if active:
+                qkv_window_flat.store(
+                    (
+                        UInt32(flat_token_idx) * window_row_stride
+                        + window_channel_offset,
+                    ),
+                    rebind[Scalar[work_dtype]](
+                        qkv_input_flat.load(
+                            (
+                                UInt32(flat_token_idx) * input_row_stride
+                                + input_channel_offset,
+                            )
+                        )
+                    ),
+                )
+
         if flat_token_idx >= sequence_end_flat_idx:
             # Rightmost b with input_row_offsets[b] <= flat_token_idx, which
             # skips zero-length sequences.
@@ -185,7 +253,7 @@ def gated_delta_conv1d_fwd_gpu[
                         var found = False
                         if lane < _batch_size:
                             found = (
-                                Int(input_row_offsets.raw_load(lane))
+                                Int(input_row_offsets.load[width=1]((lane,)))
                                 <= flat_token_idx
                             )
                         var ballot = warp.vote[.uint32](found)
@@ -202,7 +270,7 @@ def gated_delta_conv1d_fwd_gpu[
                     while lo < hi:
                         var mid = (lo + hi + 1) >> 1
                         if (
-                            Int(input_row_offsets.raw_load(mid))
+                            Int(input_row_offsets.load[width=1]((mid,)))
                             <= flat_token_idx
                         ):
                             lo = mid
@@ -210,10 +278,10 @@ def gated_delta_conv1d_fwd_gpu[
                             hi = mid - 1
                     batch_item_idx = lo
             sequence_start_flat_idx = Int(
-                input_row_offsets.raw_load(batch_item_idx)
+                input_row_offsets.load[width=1]((batch_item_idx,))
             )
             sequence_end_flat_idx = Int(
-                input_row_offsets.raw_load(batch_item_idx + 1)
+                input_row_offsets.load[width=1]((batch_item_idx + 1,))
             )
 
         var sequence_length = sequence_end_flat_idx - sequence_start_flat_idx
@@ -228,22 +296,24 @@ def gated_delta_conv1d_fwd_gpu[
                 var lookback_position = token_position_in_sequence - (
                     KERNEL_SIZE_MINUS_ONE - kernel_offset_k
                 )
-                var ragged_flat_offset = (
+                var tap_offset = (
                     UInt32(sequence_start_flat_idx + lookback_position)
-                    * qkv_input_seqlen_stride
-                    + UInt32(channel_read_idx) * qkv_input_channel_stride
+                    * input_row_stride
+                    + input_channel_offset
                 )
                 conv_sum += Float32(
-                    qkv_input_ragged.raw_load(ragged_flat_offset)
+                    rebind[Scalar[work_dtype]](
+                        qkv_input_flat.load(Coord(tap_offset))
+                    )
                 ) * Float32(weight_register[kernel_offset_k])
 
             if active:
-                var output_flat_offset = (
-                    UInt32(flat_token_idx) * conv_output_seqlen_stride
-                    + UInt32(conv_channel_idx) * conv_output_channel_stride
-                )
-                conv_output_ragged.raw_store(
-                    output_flat_offset, Scalar[work_dtype](conv_sum)
+                conv_output_flat.store(
+                    (
+                        UInt32(flat_token_idx) * output_row_stride
+                        + output_channel_offset,
+                    ),
+                    Scalar[work_dtype](conv_sum),
                 )
             continue
 
@@ -251,7 +321,7 @@ def gated_delta_conv1d_fwd_gpu[
             # The head thread already computed this output.
             continue
 
-        var slot = Int(slot_idx.raw_load(batch_item_idx))
+        var slot = Int(slot_idx.load[width=1]((batch_item_idx,)))
         debug_assert(
             0 <= slot < Int(conv_state.dim[0]()), "conv state slot out of range"
         )
@@ -269,22 +339,28 @@ def gated_delta_conv1d_fwd_gpu[
                 var input_value: Float32 = 0
 
                 if lookback_position >= 0:
-                    var ragged_flat_offset = (
-                        UInt32(sequence_start_flat_idx + lookback_position)
-                        * qkv_input_seqlen_stride
-                        + UInt32(channel_read_idx) * qkv_input_channel_stride
-                    )
                     input_value = Float32(
-                        qkv_input_ragged.raw_load(ragged_flat_offset)
+                        rebind[Scalar[work_dtype]](
+                            qkv_input_flat.load(
+                                (
+                                    UInt32(
+                                        sequence_start_flat_idx
+                                        + lookback_position
+                                    )
+                                    * input_row_stride
+                                    + input_channel_offset,
+                                )
+                            )
+                        )
                     )
                 else:
                     # Window index 0 is the oldest entry.
                     var window_idx = KERNEL_SIZE_MINUS_ONE + lookback_position
                     if window_idx >= 0:
                         input_value = Float32(
-                            conv_state.load(
-                                Coord(slot, channel_read_idx, window_idx)
-                            )[0]
+                            conv_state.load[width=1](
+                                (slot, channel_read_idx, window_idx)
+                            )
                         )
 
                 conv_sum += input_value * Float32(
@@ -292,13 +368,13 @@ def gated_delta_conv1d_fwd_gpu[
                 )
 
             if active:
-                var output_flat_offset = (
-                    UInt32(sequence_start_flat_idx + head_position)
-                    * conv_output_seqlen_stride
-                    + UInt32(conv_channel_idx) * conv_output_channel_stride
-                )
-                conv_output_ragged.raw_store(
-                    output_flat_offset, Scalar[work_dtype](conv_sum)
+                conv_output_flat.store(
+                    (
+                        UInt32(sequence_start_flat_idx + head_position)
+                        * output_row_stride
+                        + output_channel_offset,
+                    ),
+                    Scalar[work_dtype](conv_sum),
                 )
 
         # Safe in place: every old-window read precedes the write to its slot.
@@ -311,28 +387,30 @@ def gated_delta_conv1d_fwd_gpu[
 
                 var state_value: Scalar[state_dtype] = 0
                 if source_position_in_sequence >= 0:
-                    var source_flat_offset = (
-                        UInt32(
-                            sequence_start_flat_idx
-                            + source_position_in_sequence
-                        )
-                        * qkv_input_seqlen_stride
-                        + UInt32(channel_read_idx) * qkv_input_channel_stride
-                    )
                     state_value = Scalar[state_dtype](
-                        qkv_input_ragged.raw_load(source_flat_offset)
+                        rebind[Scalar[work_dtype]](
+                            qkv_input_flat.load(
+                                (
+                                    UInt32(
+                                        sequence_start_flat_idx
+                                        + source_position_in_sequence
+                                    )
+                                    * input_row_stride
+                                    + input_channel_offset,
+                                )
+                            )
+                        )
                     )
                 else:
                     var old_window_idx = (
                         KERNEL_SIZE_MINUS_ONE + source_position_in_sequence
                     )
                     if old_window_idx >= 0:
-                        state_value = conv_state.load(
-                            Coord(slot, channel_read_idx, old_window_idx)
-                        )[0]
+                        state_value = conv_state.load[width=1](
+                            (slot, channel_read_idx, old_window_idx)
+                        )
 
                 if active:
                     conv_state.store(
-                        Coord(slot, conv_channel_idx, state_slot_j),
-                        state_value,
+                        (slot, conv_channel_idx, state_slot_j), state_value
                     )

@@ -36,7 +36,12 @@ from std.random import rand, random_float64, seed
 
 from max.gpu.host import DeviceContext
 from kv_cache.types import create_flat_kv_tma_tile
-from layout import Coord, Idx, TensorLayout, TileTensor, row_major
+from layout import (
+    Idx,
+    TensorLayout,
+    TileTensor,
+    row_major,
+)
 from layout.tile_tensor import ImmTileTensor, MutTileTensor
 from nn.attention.gpu.sparse_index_fp8_sm100 import (
     _BM_KEY,
@@ -46,7 +51,6 @@ from nn.attention.gpu.sparse_index_fp8_sm100 import (
     fp8_index_score_sm100,
 )
 from nn.attention.mha_operand import MHAOperand, RaggedMHAOperand
-from std.sys.info import _has_blackwell_tcgen05
 from std.testing import assert_equal
 
 comptime NUM_HEADS = 32
@@ -181,23 +185,23 @@ def test_kscale_war(
     )
     var o_t = TileTensor(o_d.unsafe_ptr(), row_major((total_q, num_keys)))
     var cro_t = TileTensor[mut=False](
-        cro_d.unsafe_ptr(), row_major(Coord(batch_size + 1))
+        cro_d.unsafe_ptr(), row_major(batch_size + 1)
     )
     var k_op = RaggedMHAOperand(
         TileTensor[mut=False](
-            k_d.unsafe_ptr(), row_major(Coord(total_k, Idx[1], Idx[DEPTH]))
+            k_d.unsafe_ptr(), row_major(total_k, Idx[1], Idx[DEPTH])
         ),
         cro_t,
     )
     var ks_op = RaggedMHAOperand(
         TileTensor[mut=False](
-            ks_d.unsafe_ptr(), row_major(Coord(total_k, Idx[1], Idx[1]))
+            ks_d.unsafe_ptr(), row_major(total_k, Idx[1], Idx[1])
         ),
         cro_t,
     )
     var one_op = RaggedMHAOperand(
         TileTensor[mut=False](
-            one_d.unsafe_ptr(), row_major(Coord(total_k, Idx[1], Idx[1]))
+            one_d.unsafe_ptr(), row_major(total_k, Idx[1], Idx[1])
         ),
         cro_t,
     )
@@ -328,9 +332,9 @@ def test_kscale_war(
 
 
 def main() raises:
-    comptime if not _has_blackwell_tcgen05():
-        return
     seed(7)
     with DeviceContext() as ctx:
+        if not ctx.target._has_blackwell_tcgen05():
+            return
         test_kscale_war(4, 1024, 4096, 4, ctx)
         test_kscale_war(1, 8192, 0, 4, ctx)

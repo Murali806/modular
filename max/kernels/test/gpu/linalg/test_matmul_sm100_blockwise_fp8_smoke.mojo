@@ -24,7 +24,6 @@ from std.sys import size_of
 from linalg.matmul.gpu.sm100.config import MatmulConfig, GEMMKind
 from max.gpu.host import DeviceContext
 from max.gpu.host.nvidia.tma import TensorMapSwizzle
-from std.memory import alloc
 from internal_utils import (
     assert_almost_equal,
     assert_with_measure,
@@ -33,7 +32,6 @@ from std.random import rand
 from internal_utils._measure import relative_difference
 from layout import (
     TileTensor,
-    Coord,
     CoordLike,
     row_major,
     Idx,
@@ -69,9 +67,9 @@ def test_blackwell_matmul_tma_umma_warp_specialized_blockwise_fp8[
     comptime BLOCK_SCALE_K = 128
     comptime accum_type = get_accum_type[c_type]()
 
-    var M = Int(m.value())
-    var N = Int(n.value())
-    var K = Int(k.value())
+    var M = Int(m)
+    var N = Int(n)
+    var K = Int(k)
 
     if M * size_of[DType.float32]() % 16 != 0:
         raise Error("TMA expects M to be divisible by 16 bytes")
@@ -107,19 +105,17 @@ def test_blackwell_matmul_tma_umma_warp_specialized_blockwise_fp8[
     )
 
     # Shapes
-    var a_shape = row_major(Coord(m, Idx[KType.static_value]))
-    var b_shape = row_major(
-        Coord(Idx[NType.static_value], Idx[KType.static_value])
-    )
-    var c_shape = row_major(Coord(m, Idx[NType.static_value]))
+    var a_shape = row_major(m, Idx[KType.static_value])
+    var b_shape = row_major(Idx[NType.static_value], Idx[KType.static_value])
+    var c_shape = row_major(m, Idx[NType.static_value])
 
     # Calculate scales dimensions
     var a_scales_shape_k = ceildiv(K, BLOCK_SCALE_K)
     var b_scales_shape_n = ceildiv(N, BLOCK_SCALE_K)
     var b_scales_shape_k = ceildiv(K, BLOCK_SCALE_K)
 
-    var a_scales_shape = row_major(Coord(a_scales_shape_k, m))
-    var b_scales_shape = row_major(Coord(b_scales_shape_n, b_scales_shape_k))
+    var a_scales_shape = row_major(a_scales_shape_k, m)
+    var b_scales_shape = row_major(b_scales_shape_n, b_scales_shape_k)
 
     # Allocate host memory
     var a_host_ptr = ctx.enqueue_create_host_buffer[a_type](M * K)

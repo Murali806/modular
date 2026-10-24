@@ -97,14 +97,15 @@ def test_concat_inner_all_outer_dims_singleton() raises:
     )
 
     # Verify contiguous concatenation
+    var out_flat = output.reshape(row_major(out_layout.product()))
+    var x1_flat = x1.reshape(row_major(l1.product()))
+    var x2_flat = x2.reshape(row_major(l2.product()))
     for i in range(l1.product()):
-        assert_equal(
-            output.raw_load(i), x1.raw_load(i), msg="Mismatch in first input"
-        )
+        assert_equal(out_flat[i], x1_flat[i], msg="Mismatch in first input")
     for i in range(l2.product()):
         assert_equal(
-            output.raw_load(l1.product() + i),
-            x2.raw_load(i),
+            out_flat[l1.product() + i],
+            x2_flat[i],
             msg="Mismatch in second input",
         )
 
@@ -243,41 +244,29 @@ def test_fused_concat_cpu() raises:
     # Input lambda: generates data based on input index
     @inline(.always)
     def input_fn[
-        input_index: Int, width: Int, _rank: Int, alignment: Int = 1
-    ](indices: IndexList[_rank]) -> SIMD[dtype, width]:
+        input_index: Int, width: Int, alignment: Int = 1
+    ](coords: Coord) -> SIMD[dtype, width]:
+        var flat = Int(coords[0]) * 100 + Int(coords[1]) * 10 + Int(coords[2])
         comptime if input_index == 0:
-            return SIMD[dtype, width](
-                Float32(indices[0] * 100 + indices[1] * 10 + indices[2])
-            )
+            return SIMD[dtype, width](Float32(flat))
         else:
-            return SIMD[dtype, width](
-                Float32(1000 + indices[0] * 100 + indices[1] * 10 + indices[2])
-            )
+            return SIMD[dtype, width](Float32(1000 + flat))
 
     # Output epilogue: multiply by 2
-    @__parameter
     @inline(.always)
-    @__copy_capture(output)
     def output_fn[
-        c_type: DType, _rank: Int, width: SIMDLength, *, alignment: Int
-    ](indices: IndexList[_rank], val: SIMD[c_type, width]):
-        var coord = Coord(indices)
-        comptime assert output.flat_rank >= coord.flat_rank
-        output.store[width=width](coord, rebind[SIMD[dtype, width]](val * 2))
+        c_type: DType, width: SIMDLength, *, alignment: Int
+    ](coords: Coord, val: SIMD[c_type, width]) {var output}:
+        comptime assert output.flat_rank >= coords.flat_rank
+        output.store(coords, rebind[SIMD[dtype, width]](val * 2))
 
     var output_dyn = output.make_dynamic[.int64]()
 
-    fused_concat[
-        dtype,
-        rank,
+    fused_concat[dtype, rank, axis=axis, target="cpu"](
+        StaticTuple[IndexList[rank], 2](input_shape_0, input_shape_1),
+        output_dyn.layout,
         input_fn,
         output_fn,
-        output_dyn.LayoutType,
-        axis=axis,
-        target="cpu",
-    ](
-        StaticTuple[IndexList[rank], 2](input_shape_0, input_shape_1),
-        output_dyn,
         DeviceContext(api="cpu"),
     )
 
@@ -375,11 +364,10 @@ def test_concat_with_epilogue() raises:
 
     @inline(.always)
     def epilogue_add_10[
-        c_type: DType, _rank: Int, width: SIMDLength, *, alignment: Int
-    ](indices: IndexList[_rank], val: SIMD[c_type, width]) {var output}:
-        var coord = Coord(indices)
-        comptime assert output.flat_rank >= coord.flat_rank
-        output.store[width=width](coord, rebind[SIMD[dtype, width]](val + 10))
+        c_type: DType, width: SIMDLength, *, alignment: Int
+    ](coords: Coord, val: SIMD[c_type, width]) {var output}:
+        comptime assert output.flat_rank >= coords.flat_rank
+        output.store(coords, rebind[SIMD[dtype, width]](val + 10))
 
     concat[dtype](
         output.make_dynamic[.int64]().as_unsafe_any_origin(),

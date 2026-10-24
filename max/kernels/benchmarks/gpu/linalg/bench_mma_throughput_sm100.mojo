@@ -67,7 +67,6 @@ from std.benchmark import (
     BenchMetric,
     ThroughputMeasure,
 )
-from max.gpu import WARP_SIZE
 from max.gpu.sync import barrier
 from max.gpu.compute.arch.mma_nvidia_sm100 import (
     MMASmemDescriptor,
@@ -87,7 +86,7 @@ from max.gpu.host import DeviceContext, FuncAttribute
 from max.gpu.host.nvidia.tma import TensorMapSwizzle
 from max.gpu import thread_idx, warp_id as get_warp_id
 from max.gpu.memory import external_memory
-from layout import TensorLayout, TileTensor, row_major
+from layout import Coord, TensorLayout, TileTensor, coord, row_major
 from layout._host_device_tile_tensor import HostDeviceTileTensor
 from layout.tensor_core_async import tile_layout_k_major_typed
 from layout.tma_async import (
@@ -95,7 +94,7 @@ from layout.tma_async import (
     TMATensorTile,
     create_tensor_tile,
 )
-from std.utils.index import Index, IndexList
+from std.utils.index import Index
 from std.utils.numerics import get_accum_type
 
 
@@ -170,12 +169,10 @@ def mma_ws_cta1[
 def mma_throughput_kernel[
     a_type: DType,
     accum_type: DType,
-    a_tile_rank: Int,
-    a_tile_shape: IndexList[a_tile_rank],
-    a_desc_shape: IndexList[a_tile_rank],
-    b_tile_rank: Int,
-    b_tile_shape: IndexList[b_tile_rank],
-    b_desc_shape: IndexList[b_tile_rank],
+    a_tile_shape: Coord,
+    a_desc_shape: Coord,
+    b_tile_shape: Coord,
+    b_desc_shape: Coord,
     sink_layout: TensorLayout,
     BM: Int,
     BN: Int,
@@ -188,8 +185,8 @@ def mma_throughput_kernel[
     b_swizzle: TensorMapSwizzle = TensorMapSwizzle.SWIZZLE_NONE,
     num_threads: Int = 128,
 ](
-    a_tma_op: TMATensorTile[a_type, a_tile_rank, a_tile_shape, a_desc_shape],
-    b_tma_op: TMATensorTile[a_type, b_tile_rank, b_tile_shape, b_desc_shape],
+    a_tma_op: TMATensorTile[a_type, a_tile_shape, a_desc_shape],
+    b_tma_op: TMATensorTile[a_type, b_tile_shape, b_desc_shape],
     sink: TileTensor[accum_type, sink_layout, MutAnyOrigin],
 ):
     """SM100 single-CTA tcgen05 MMA-instruction throughput kernel.
@@ -296,20 +293,22 @@ def mma_throughput_kernel[
         (b_size * size_of[a_type]()) % 16
     ) == 0, "preserve alignment"
 
-    var b_smem = (a_smem + a_size).bitcast[Scalar[a_type]]()
+    var b_smem = a_smem.unsafe_offset(a_size).unsafe_bitcast[Scalar[a_type]]()
 
     var a_smem_tile = TileTensor(a_smem, a_smem_layout)
     var b_smem_tile = TileTensor(b_smem, b_smem_layout)
 
     # Shared memory pointer for tensor memory address handshake + mbarriers.
-    var ptr_tmem_addr = (b_smem + b_size).bitcast[UInt32]()
+    var ptr_tmem_addr = b_smem.unsafe_offset(b_size).unsafe_bitcast[UInt32]()
 
     comptime a_expected_bytes = a_size * size_of[a_type]()
     comptime b_expected_bytes = b_size * size_of[a_type]()
     comptime expected_bytes = a_expected_bytes + b_expected_bytes
 
-    var tma_mbar = (ptr_tmem_addr + 2).bitcast[SharedMemBarrier]()
-    var mma_mbar = tma_mbar + 1
+    var tma_mbar = ptr_tmem_addr.unsafe_offset(2).unsafe_bitcast[
+        SharedMemBarrier
+    ]()
+    var mma_mbar = tma_mbar.unsafe_offset(1)
 
     if thread_idx.x == 0:
         tma_mbar[0].init()
@@ -533,20 +532,18 @@ def main() raises:
         var sink_dev = sink.device_tensor()
 
         var a_tma_op = create_tensor_tile[
-            Index(BM, BK_DESC), swizzle_mode=TensorMapSwizzle.SWIZZLE_NONE
+            coord[BM, BK_DESC], swizzle_mode=TensorMapSwizzle.SWIZZLE_NONE
         ](ctx, a.device_tensor())
         var b_tma_op = create_tensor_tile[
-            Index(BN, BK_DESC), swizzle_mode=TensorMapSwizzle.SWIZZLE_NONE
+            coord[BN, BK_DESC], swizzle_mode=TensorMapSwizzle.SWIZZLE_NONE
         ](ctx, b.device_tensor())
 
         comptime smem_use = ((BM + BN) * size_of[dtype]() * BK_DESC + 24)
         comptime kernel = mma_throughput_kernel[
             dtype,
             accum_type,
-            type_of(a_tma_op).rank,
             type_of(a_tma_op).tile_shape,
             type_of(a_tma_op).desc_shape,
-            type_of(b_tma_op).rank,
             type_of(b_tma_op).tile_shape,
             type_of(b_tma_op).desc_shape,
             type_of(sink_dev).LayoutType,

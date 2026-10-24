@@ -26,7 +26,7 @@ from std.bit import log2_floor
 from max.gpu import lane_id, warp_id as get_warp_id
 from max.gpu.sync import barrier
 from layout import TileTensor, row_major, stack_allocation
-from layout.tile_layout import TensorLayout, col_major
+from layout.tile_layout import col_major
 from nn.softmax import _exp2_concrete, _exp_concrete
 
 
@@ -217,8 +217,8 @@ struct Softmax[
         var warp_x = umod(get_warp_id[broadcast=True](), Self.num_rowwise_warps)
         # Decompose lane via the warp layout: col-major (warp_rows, warp_cols).
         var lane_coord = Self.WarpLayoutT().idx2crd(Int(lane_id()))
-        var lane_row = Int(lane_coord[0].value())
-        var lane_col = Int(lane_coord[1].value())
+        var lane_row = Int(lane_coord[0])
+        var lane_col = Int(lane_coord[1])
         var lane_contains_first_column = lane_col == 0
 
         # Per-thread fragment reduction + warp-level lane shuffle.

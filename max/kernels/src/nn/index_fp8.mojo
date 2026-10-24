@@ -10,10 +10,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ===----------------------------------------------------------------------=== #
-"""Implements tensor indexing and gather kernels with FP8 quantization support on Blackwell GPUs."""
+"""Implements tensor indexing and gather kernels with FP8 quantization support on Blackwell and AMD CDNA4 GPUs."""
 from std.math.uutils import ufloordiv, udivmod
+from std.memory import unsafe_stack_allocation
 from std.sys import size_of, simd_width_of
-from std.sys.info import _has_blackwell_tcgen05
+from std.sys.intrinsics import llvm_intrinsic
+from std.sys.info import (
+    _accelerator_arch,
+    _cdna_4_or_newer,
+    is_amd_gpu,
+)
+from std.bit import count_trailing_zeros
 from std.math import ceildiv
 from layout import (
     Coord,
@@ -26,20 +33,22 @@ from layout import (
 )
 from layout.tile_tensor import ImmTileTensor, MutTileTensor
 from layout.tile_layout import row_major
-from max.gpu import block_idx, thread_idx
-from max.gpu.host import DeviceContext, FuncAttribute
-from max.gpu.sync import barrier
+from max.gpu import WARP_SIZE, block_idx, lane_id, thread_idx
+from max.gpu.primitives import warp
+from max.gpu.compute.mma import mma as gpu_mma
+from max.gpu.host import DeviceContext, FuncAttribute, default_accelerator
+from max.gpu.intrinsics import AMDBufferResource, permlane_swap, readfirstlane
+from max.gpu.sync import barrier, s_waitcnt
 from max.gpu.memory import external_memory
 from kv_cache.types import create_flat_kv_tma_tile
+from structured_kernels.amd_tile_io import _load_from_lds, _load_to_lds
 from nn.attention.mha_operand import RaggedMHAOperand, MHAOperand
-from nn.attention.gpu.nvidia.common import q_tma
 from nn.attention.gpu.sparse_index_fp8_sm100 import (
     _BM_KEY,
     _INDEX_SWIZZLE,
     SPEC_DECODE_N_TOKENS_ALT,
     fp8_index_score_sm100,
 )
-from std.utils.index import Index
 
 
 struct IndexSmemStorage[
@@ -303,6 +312,587 @@ def fp8_index_kernel[
 
 
 @inline(.always)
+def _has_gfx950_accelerator() -> Bool:
+    """True when building for an AMD gfx950 (CDNA4) accelerator target.
+
+    `is_amd_gpu()` / `_cdna_4_or_newer()` read the compilation target's
+    TRIPLE, which is the host CPU for host-side dispatch code even when
+    `--target-accelerator=amdgpu:gfx950` is set (they stay true inside
+    device code). Host-side dispatchers must read the accelerator string
+    instead. MI300/MI325 (gfx942) are excluded: the block-scaled MFMA
+    family this scorer uses is CDNA4-only.
+    """
+    return (
+        default_accelerator().is_amd_gpu() and "gfx950" in _accelerator_arch()
+    )
+
+
+# Each wave64 owns 32 keys; both waves process every row in the group.
+comptime _AMD_BN_KEY = 64
+comptime _AMD_TOKENS_PER_CTA = 2
+# A wave copies its keys to LDS in 1 KiB passes (64 lanes x 16 B); the LDS
+# layout needs every pass to hold whole keys, so `depth` must divide it.
+comptime _AMD_DMA_PASS_BYTES = 64 * 16
+
+
+@inline(.always)
+def _amd_index_barrier():
+    llvm_intrinsic["llvm.amdgcn.s.barrier", NoneType]()
+
+
+@__name(t"fp8_index_score_amd_{dtype}")
+def _fp8_index_score_amd_kernel[
+    dtype: DType,
+    OutputLT: TensorLayout,
+    QLT: TensorLayout,
+    QSLT: TensorLayout,
+    k_operand_type: MHAOperand,
+    ks_operand_type: MHAOperand,
+    VLLT: TensorLayout,
+    num_heads: Int,
+    depth: Int,
+    _is_cache_length_accurate: Bool,
+    causal: Bool,
+    kpool: Int,
+    pool_row_tokens: Int,
+    BLOCK_M: Int,
+    *,
+    OutputEngine: TensorEngine = DefaultEngine[element_width=1],
+    QEngine: TensorEngine = DefaultEngine[element_width=1],
+    QSEngine: TensorEngine = DefaultEngine[element_width=1],
+    VLEngine: TensorEngine = DefaultEngine[element_width=1],
+](
+    output_tt: TileTensor[
+        .float32, OutputLT, MutAnyOrigin, Engine=OutputEngine
+    ],
+    q_tt: TileTensor[dtype, QLT, ImmutAnyOrigin, Engine=QEngine],
+    q_s_tt: TileTensor[.float32, QSLT, ImmutAnyOrigin, Engine=QSEngine],
+    k_operand: k_operand_type,
+    ks_operand: ks_operand_type,
+    valid_length_tt: TileTensor[.uint32, VLLT, ImmutAnyOrigin, Engine=VLEngine],
+    batch_size: Int32,
+    chunk_begin: Int32,
+    chunk_rows: Int32,
+    kv_splits: Int32,
+):
+    """Scores a row group against one KV split with a two-stage LDS K ring.
+
+    Each wave owns 32 key columns for every query row. Query scales stay in
+    registers; for pooled cache rows, one query fragment stays in LDS to
+    avoid spills. Direct-to-LDS copies stage successive 64-key tiles.
+    Each row's causal store bound is applied independently.
+
+    Parameters:
+        dtype: Data type of the query and key tiles (float8_e4m3fn).
+        OutputLT: Layout type of the output score tensor.
+        QLT: Layout type of the query tensor.
+        QSLT: Layout type of the query scale tensor.
+        k_operand_type: MHAOperand type used to address the paged key cache.
+        ks_operand_type: MHAOperand type used to address the key scales.
+        VLLT: Layout type of the valid-length (sequence offset) tensor.
+        num_heads: Number of query heads (multiple of 32; one M-tile per 32).
+        depth: Per-head feature depth (a multiple of 64 that divides 1024;
+            one MMA K-step per 64).
+        _is_cache_length_accurate: When True, `num_keys = cache_length`;
+            when False, `num_keys = cache_length + seq_len`.
+        causal: Restrict token `t` to keys `[0, cache_len + t + 1)` in the
+            store guard (fused mask; NULL mask callers pass False).
+        kpool: Tokens per scored key. With `kpool > 1` a key is a pool of
+            `kpool` tokens, so the candidate count and the causal bound are
+            floored to whole pools and an output column is a pool id.
+        pool_row_tokens: Cache rows a pooled key spans. 1 when the cache holds
+            one `depth`-wide row per key; `kpool` when it is declared
+            `depth / kpool` wide, one row per token, with each pool's key
+            spread over the rows of the tokens it covers.
+        BLOCK_M: Query rows per workgroup.
+        OutputEngine: Engine of the `output_tt` tile.
+        QEngine: Engine of the `q_tt` tile.
+        QSEngine: Engine of the `q_s_tt` tile.
+        VLEngine: Engine of the `valid_length_tt` tile.
+
+    Args:
+        output_tt: Output score tensor of shape `[chunk_rows, max_num_keys]`.
+        q_tt: Query tensor of shape `[total_seq_len, num_heads, depth]`.
+        q_s_tt: Per-query scale tensor of shape `[total_seq_len, num_heads]`.
+        k_operand: Paged operand providing key rows.
+        ks_operand: Paged operand providing per-key scales.
+        valid_length_tt: Cumulative sequence offsets of shape `[batch_size + 1]`.
+        batch_size: Number of requests in the batch.
+        chunk_begin: Global row held in output row 0.
+        chunk_rows: Number of output rows in this window.
+        kv_splits: Disjoint candidate-key walks per row group.
+    """
+    comptime assert (
+        is_amd_gpu() and _cdna_4_or_newer()
+    ), "the AMD MFMA index scorer requires AMD CDNA4 (gfx950)"
+    comptime assert (
+        WARP_SIZE == 64
+    ), "the AMD MFMA index scorer fragment maps assume wave64"
+    comptime assert (
+        num_heads % 32 == 0
+    ), "the AMD MFMA index scorer tiles heads by MMA_M == 32"
+    comptime assert (
+        depth % 64 == 0
+    ), "the AMD MFMA index scorer contracts depth in MMA_K == 64 steps"
+    comptime assert _AMD_DMA_PASS_BYTES % depth == 0, (
+        "the AMD MFMA index scorer copies keys to LDS in 1 KiB passes that"
+        " must hold whole keys"
+    )
+    comptime assert (
+        dtype == .float8_e4m3fn
+    ), "the AMD MFMA index scorer is validated for float8_e4m3fn only"
+
+    comptime assert q_tt.flat_rank == 3
+    comptime assert q_s_tt.flat_rank == 2
+    comptime assert output_tt.flat_rank == 2
+    comptime assert valid_length_tt.flat_rank == 1
+
+    var window_begin = Int(chunk_begin)
+    var global_row = window_begin
+
+    # A request's final tile cannot consume the next request's key cache.
+    # Each wave finds this CTA's request WARP_SIZE requests at a time: lane
+    # `i` counts request `base + i`'s row groups, and the first lane whose
+    # inclusive prefix passes `tile` owns it.
+    var tile = Int32(block_idx.x)
+    var b = Int(batch_size)
+    var base = 0
+    while base < Int(batch_size):
+        var r = base + Int(lane_id())
+        var first = 0
+        var tiles = 0
+        if r < Int(batch_size):
+            first = max(window_begin, Int(valid_length_tt[r]))
+            var last = min(
+                window_begin + Int(chunk_rows), Int(valid_length_tt[r + 1])
+            )
+            tiles = ceildiv(max(0, last - first), BLOCK_M)
+        var end = warp.prefix_sum(Int32(tiles))
+        var hits = warp.vote[DType.uint64](tile < end)
+        if hits != 0:
+            var hit = UInt32(count_trailing_zeros(hits))
+            var row = Int32(first) + (end - 1 - tile) * Int32(BLOCK_M)
+            global_row = Int(readfirstlane(warp.shuffle_idx(row, hit)))
+            b = base + Int(hit)
+            break
+        tile -= readfirstlane(warp.shuffle_idx(end, UInt32(WARP_SIZE - 1)))
+        base += WARP_SIZE
+    if b == Int(batch_size):
+        return
+    var start_of_seq = valid_length_tt[b]
+    var end_of_seq = valid_length_tt[b + 1]
+    var seq_len = end_of_seq - start_of_seq
+    var seq = global_row - Int(start_of_seq)
+    var active_tokens = min(
+        BLOCK_M,
+        min(
+            Int(end_of_seq) - global_row,
+            window_begin + Int(chunk_rows) - global_row,
+        ),
+    )
+
+    var num_keys = k_operand.cache_length(b)
+    comptime if not _is_cache_length_accurate:
+        num_keys += Int(seq_len)
+    # `num_keys` counts tokens, because the causal bound is in tokens; the
+    # scored candidates are whole pools.
+    var num_rows = num_keys // kpool
+    var group_bound = num_rows
+    comptime if causal:
+        group_bound = (num_keys - (Int(seq_len) - seq - active_tokens)) // kpool
+    var split_tiles = ceildiv(ceildiv(group_bound, _AMD_BN_KEY), Int(kv_splits))
+    var first_tile = block_idx.y * split_tiles
+    var last_tile = min(
+        first_tile + split_tiles, ceildiv(group_bound, _AMD_BN_KEY)
+    )
+    if first_tile >= last_tile:
+        return
+
+    var lid = Int(lane_id())
+    var wave = thread_idx.x // WARP_SIZE
+    var half = lid // 32
+    var col = lid % 32
+    var key_local = wave * 32 + col
+    comptime K_STEPS = depth // 64
+    comptime M_TILES = num_heads // 32
+    var q_frags = Array[SIMD[dtype, 32], BLOCK_M * M_TILES * K_STEPS](
+        uninitialized=True
+    )
+    var q_tail_smem = unsafe_stack_allocation[
+        64 * 32, dtype, alignment=128, address_space=.SHARED
+    ]()
+    var qs_frags = Array[SIMD[.float32, 16], BLOCK_M * M_TILES](
+        uninitialized=True
+    )
+    comptime for t in range(BLOCK_M):
+        # For kpool 1, reuse an active row's Q in a partial group so MFMAs
+        # can overlap both epilogues; only stores need a validity guard.
+        var source_row = global_row + t
+        comptime if kpool == 1:
+            source_row = global_row + min(t, active_tokens - 1)
+        if kpool == 1 or t < active_tokens:
+            var q_ptr = q_tt.ptr_at_offset(Coord(UInt32(source_row), 0, 0))
+            var qs_ptr = q_s_tt.ptr_at_offset(Coord(UInt32(source_row), 0))
+            comptime for m in range(M_TILES):
+                qs_frags[t * M_TILES + m] = (
+                    qs_ptr.unsafe_load[width=4](m * 32 + half * 4)
+                    .join(qs_ptr.unsafe_load[width=4](m * 32 + 8 + half * 4))
+                    .join(
+                        qs_ptr.unsafe_load[width=4](
+                            m * 32 + 16 + half * 4
+                        ).join(
+                            qs_ptr.unsafe_load[width=4](m * 32 + 24 + half * 4)
+                        )
+                    )
+                )
+                comptime for s in range(K_STEPS):
+                    var a_off = (m * 32 + col) * depth + s * 64 + half * 32
+                    var a_frag = q_ptr.unsafe_load[width=16](a_off).join(
+                        q_ptr.unsafe_load[width=16](a_off + 16)
+                    )
+                    comptime if (
+                        pool_row_tokens > 1
+                        and t == BLOCK_M - 1
+                        and m == M_TILES - 1
+                        and s == K_STEPS - 1
+                    ):
+                        if wave == 0:
+                            q_tail_smem.unsafe_offset(lid * 32).unsafe_store[
+                                width=32
+                            ](a_frag)
+                    else:
+                        q_frags[(t * M_TILES + m) * K_STEPS + s] = a_frag
+
+    s_waitcnt[vmcnt=0, lgkmcnt=0]()
+    comptime if pool_row_tokens > 1:
+        _amd_index_barrier()
+
+    comptime CHUNKS_PER_KEY = depth // 16
+    comptime KEYS_PER_PASS = 64 // CHUNKS_PER_KEY
+    comptime DMAS_PER_STAGE = 32 // KEYS_PER_PASS
+    comptime K_SOURCE_STRIDE = (
+        depth * pool_row_tokens if k_operand_type.page_size == 0 else depth
+    )
+    comptime assert 32 % KEYS_PER_PASS == 0
+    var k_smem = unsafe_stack_allocation[
+        2 * _AMD_BN_KEY * depth,
+        dtype,
+        alignment=128,
+        address_space=.SHARED,
+    ]()
+    var key_in_pass, chunk = udivmod(thread_idx.x % 64, CHUNKS_PER_KEY)
+
+    @inline(.always)
+    def stage_k(tile_idx: Int, stage: Int) {imm}:
+        var wave_key = tile_idx * _AMD_BN_KEY + wave * 32
+        var valid_keys = max(0, min(32, num_rows - wave_key))
+        var row = readfirstlane(
+            UInt32(min(wave_key, num_rows - 1) * pool_row_tokens)
+        )
+        var base = k_operand.block_paged_ptr[1](
+            UInt32(b),
+            row,
+            UInt32(0),
+            UInt32(0),
+        )
+        var resource = AMDBufferResource(
+            readfirstlane(base),
+            readfirstlane(valid_keys * K_SOURCE_STRIDE),
+        )
+        comptime for p in range(DMAS_PER_STAGE):
+            var pass_key = key_in_pass + p * KEYS_PER_PASS
+            # The DMA destination is fixed; permute 32-byte source pairs.
+            var swizzle = 0
+            comptime if depth == 128:
+                swizzle = ((pass_key >> 1) & 3) * 2
+            var source_off = pass_key * K_SOURCE_STRIDE + (chunk ^ swizzle) * 16
+            _load_to_lds[width=16](
+                resource,
+                Int32(source_off),
+                readfirstlane(
+                    k_smem.unsafe_offset(
+                        stage * _AMD_BN_KEY * depth
+                        + wave * 32 * depth
+                        + p * _AMD_DMA_PASS_BYTES
+                    )
+                ),
+            )
+
+    var scale_row_stride = 1
+    comptime if ks_operand_type.page_size != 0:
+        var scale_row0 = ks_operand.block_paged_ptr[1](
+            UInt32(b), UInt32(0), UInt32(0), UInt32(0)
+        )
+        var scale_row1 = ks_operand.block_paged_ptr[1](
+            UInt32(b), UInt32(1), UInt32(0), UInt32(0)
+        )
+        scale_row_stride = scale_row1 - scale_row0
+
+    stage_k(first_tile, 0)
+    for tile_idx in range(first_tile, last_tile):
+        var stage = (tile_idx - first_tile) & 1
+        var key_start = tile_idx * _AMD_BN_KEY
+        var key = key_start + key_local
+        var key_scale: Float32 = 0
+        # The launcher bounds keys to Int32, so compare in 32 bits.
+        var key_is_valid = Int32(key) < Int32(num_rows)
+        if key_is_valid and lid < 32:
+            comptime if ks_operand_type.page_size != 0:
+                # A wave's keys fit within one page.
+                var wave_key = key_start + wave * 32
+                var row = readfirstlane(
+                    UInt32(min(wave_key, num_rows - 1) * pool_row_tokens)
+                )
+                var ks_ptr = ks_operand.block_paged_ptr[1](
+                    UInt32(b), row, UInt32(0), UInt32(0)
+                )
+                key_scale = ks_ptr.unsafe_address_space_cast[.GLOBAL]()[
+                    col * pool_row_tokens * scale_row_stride
+                ].cast[.float32]()
+            else:
+                var ks_ptr = ks_operand.block_paged_ptr[1](
+                    UInt32(b),
+                    UInt32(key * pool_row_tokens),
+                    UInt32(0),
+                    UInt32(0),
+                )
+                key_scale = ks_ptr[0].cast[.float32]()
+        if tile_idx + 1 < last_tile:
+            stage_k(tile_idx + 1, stage ^ 1)
+            s_waitcnt[vmcnt=UInt32(DMAS_PER_STAGE)]()
+        else:
+            s_waitcnt[vmcnt=0]()
+        var col_sums = Array[Float32, BLOCK_M](fill=0.0)
+        comptime for m in range(M_TILES):
+            var acc = Array[SIMD[.float32, 16], BLOCK_M](fill=0)
+            comptime for s in range(K_STEPS):
+                var b_off = key_local * depth + s * 64 + half * 32
+                comptime if depth == 128:
+                    b_off ^= ((key_local >> 1) & 3) * 32
+                var b_frag = _load_from_lds[width=32](
+                    k_smem.unsafe_offset(stage * _AMD_BN_KEY * depth + b_off)
+                )
+                comptime for t in range(BLOCK_M):
+                    if kpool == 1 or t < active_tokens:
+                        comptime if (
+                            pool_row_tokens > 1
+                            and t == BLOCK_M - 1
+                            and m == M_TILES - 1
+                            and s == K_STEPS - 1
+                        ):
+                            var a_frag = _load_from_lds[width=32](
+                                q_tail_smem.unsafe_offset(lid * 32)
+                            )
+                            gpu_mma(acc[t], a_frag, b_frag, acc[t])
+                        else:
+                            gpu_mma(
+                                acc[t],
+                                q_frags[(t * M_TILES + m) * K_STEPS + s],
+                                b_frag,
+                                acc[t],
+                            )
+            comptime for t in range(BLOCK_M):
+                if kpool == 1 or t < active_tokens:
+                    # Finite FP8 operands yield finite MFMA outputs. Maximum
+                    # propagates NaNs but avoids maxnum's NaN fixup here.
+                    var relu = llvm_intrinsic[
+                        "llvm.maximum.v16f32",
+                        SIMD[.float32, 16],
+                        has_side_effect=False,
+                    ](acc[t], SIMD[.float32, 16](0))
+                    var partial = (
+                        relu * qs_frags[t * M_TILES + m]
+                    ).reduce_add()
+                    var swapped = permlane_swap[32](partial, partial)
+                    col_sums[t] += swapped[0] + swapped[1]
+
+        if key_is_valid and lid < 32:
+            comptime for t in range(BLOCK_M):
+                if t < active_tokens:
+                    var key_bound = num_rows
+                    comptime if causal:
+                        key_bound = (
+                            num_keys - (Int(seq_len) - 1 - seq - t)
+                        ) // kpool
+                    if Int32(key) < Int32(key_bound):
+                        var o_ptr = output_tt.ptr_at_offset(
+                            Coord(
+                                UInt32(global_row + t - window_begin),
+                                UInt32(key_start),
+                            )
+                        )
+                        o_ptr[key_local] = key_scale * col_sums[t]
+        s_waitcnt[lgkmcnt=0]()
+
+
+@inline(.always)
+def fp8_index_score_amd[
+    dtype: DType,
+    KOperand: MHAOperand,
+    KSOperand: MHAOperand,
+    num_heads: Int,
+    depth: Int,
+    _is_cache_length_accurate: Bool,
+    causal: Bool = False,
+    kpool: Int = 1,
+    pool_row_tokens: Int = 1,
+](
+    output: TileTensor[.float32, ...],
+    q: TileTensor[mut=False, dtype, ...],
+    q_s: TileTensor[mut=False, .float32, ...],
+    k_operand: KOperand,
+    ks_operand: KSOperand,
+    valid_length: TileTensor[mut=False, .uint32, ...],
+    batch_size: Int,
+    max_seq_len: Int,
+    max_num_keys: Int,
+    ctx: DeviceContext,
+    chunk_begin: Int = 0,
+) raises:
+    """Enqueues the gfx950 MFMA FP8 indexer scorer (`_fp8_index_score_amd_kernel`).
+
+    AMD counterpart of `fp8_index_score_sm100`: writes the same
+    `[chunk_rows, max_num_keys]` score buffer as the scalar
+    `fp8_index_kernel`, with OOB keys left untouched (the caller's `-inf` fill
+    or bounded top-k covers them).
+
+    Parameters:
+        dtype: FP8 element type of Q and K (float8_e4m3fn).
+        KOperand: `MHAOperand` type for the K values.
+        KSOperand: `MHAOperand` type for the per-token K scales.
+        num_heads: Query index heads (multiple of 32).
+        depth: Head dimension (multiple of 64).
+        _is_cache_length_accurate: When False, `num_keys = cache_length + seq_len`;
+            when True, `cache_length` already includes the new tokens.
+        causal: Fuse the causal bound into the store guard (token t sees keys
+            up to cache_len + t + 1); forbidden slots are never written.
+        kpool: Tokens per scored key; see `_fp8_index_score_amd_kernel`.
+        pool_row_tokens: Cache rows a pooled key spans; see
+            `_fp8_index_score_amd_kernel`.
+
+    Args:
+        output: Score buffer `[chunk_rows, max_num_keys]`, f32.
+        q: Query tensor `[total_seq, num_heads, depth]`, fp8.
+        q_s: Query scales `[total_seq, num_heads]`, f32.
+        k_operand: K values as an `MHAOperand`.
+        ks_operand: K scales as an `MHAOperand`.
+        valid_length: Ragged query-token offsets `[batch + 1]`.
+        batch_size: Number of sequences in the batch.
+        max_seq_len: Upper bound on any batch entry's query-token count.
+        max_num_keys: Row stride of `output` (>= every per-batch key count).
+        ctx: Device context used to enqueue the kernel.
+        chunk_begin: Global row held in output row 0.
+    """
+    comptime assert (
+        KOperand.page_size % pool_row_tokens == 0
+        and KSOperand.page_size % pool_row_tokens == 0
+    ), (
+        "the kernel reads a pooled key's rows as one run, so no pool may"
+        " straddle a page"
+    )
+    comptime if (
+        KOperand.page_size != 0
+        and KOperand.page_size % (32 * pool_row_tokens) != 0
+    ):
+        raise Error(
+            "the AMD FP8 scorer requires a page to hold a whole 32-key wave"
+        )
+    comptime if (
+        KSOperand.page_size != 0
+        and KSOperand.page_size % (32 * pool_row_tokens) != 0
+    ):
+        raise Error(
+            "the AMD FP8 scorer requires a scale page to hold a whole"
+            " 32-key wave"
+        )
+
+    # Fewer tokens than one pool leaves no candidate, and a zero-wide grid is
+    # a launch error rather than a no-op.
+    if max_num_keys == 0:
+        return
+
+    var chunk_rows = Int(output.dim[0]())
+    var row_groups = ceildiv(chunk_rows, _AMD_TOKENS_PER_CTA) + batch_size - 1
+    var row_groups_per_request = max(
+        1, ceildiv(min(max_seq_len, chunk_rows), _AMD_TOKENS_PER_CTA)
+    )
+    # Occupancy 4 waves/SIMD fits eight two-wave CTAs per CU. Size splits so a
+    # launch (or window) runs about six rounds of resident CTAs, but keep each
+    # split walking >= 64 K tiles so short caches are not over-split.
+    comptime ctas_per_cu = 8
+    comptime target_rounds = 6
+    comptime min_tiles_per_split = 64
+    var resident_ctas = ctx.default_device_info.sm_count * ctas_per_cu
+    var kv_splits = min(
+        max(1, ceildiv(target_rounds * resident_ctas, row_groups_per_request)),
+        max(1, ceildiv(max_num_keys, min_tiles_per_split * _AMD_BN_KEY)),
+    )
+    # Decode has one row group per request, so the rule above leaves most CUs
+    # idle (b64 x 1 token x 8k keys runs 192 CTAs). Split until the working
+    # row groups fill about four CTAs per CU, down to two K tiles per split.
+    comptime decode_ctas_per_cu = 4
+    comptime min_decode_tiles_per_split = 2
+    var working_groups = max(
+        1, min(row_groups, batch_size * row_groups_per_request)
+    )
+    kv_splits = max(
+        kv_splits,
+        min(
+            ceildiv(
+                ctx.default_device_info.sm_count * decode_ctas_per_cu,
+                working_groups,
+            ),
+            ceildiv(max_num_keys, min_decode_tiles_per_split * _AMD_BN_KEY),
+        ),
+    )
+
+    # A key tile addresses up to 63 columns past the last valid key, and the
+    # kernel compares keys in 32 bits.
+    if max_num_keys > Int(Int32.MAX) - (_AMD_BN_KEY - 1):
+        raise Error("the AMD FP8 scorer requires max_num_keys to fit in Int32")
+
+    comptime kernel = _fp8_index_score_amd_kernel[
+        dtype,
+        type_of(output).LayoutType,
+        type_of(q).LayoutType,
+        type_of(q_s).LayoutType,
+        type_of(k_operand),
+        type_of(ks_operand),
+        type_of(valid_length.as_imm()).LayoutType,
+        num_heads,
+        depth,
+        _is_cache_length_accurate,
+        causal,
+        kpool,
+        pool_row_tokens,
+        _AMD_TOKENS_PER_CTA,
+        OutputEngine=output.Engine,
+        QEngine=q.Engine,
+        QSEngine=q_s.Engine,
+        VLEngine=valid_length.Engine,
+    ]
+
+    ctx.enqueue_function[kernel](
+        output,
+        q.as_imm(),
+        q_s.as_imm(),
+        k_operand,
+        ks_operand,
+        valid_length.as_imm(),
+        Int32(batch_size),
+        Int32(chunk_begin),
+        Int32(chunk_rows),
+        Int32(kv_splits),
+        grid_dim=(
+            row_groups,
+            kv_splits,
+            1,
+        ),
+        block_dim=(2 * ctx.default_device_info.warp_size, 1, 1),
+    )
+
+
+@inline(.always)
 def fp8_index[
     dtype: DType,
     output_layout: TensorLayout,
@@ -374,16 +964,41 @@ def fp8_index[
 
     comptime assert num_heads % 4 == 0, "num_heads must be a multiple of 4"
 
-    # RaggedMHAOperand.cache_length() returns full key length directly, so the
-    # SM100 tensor-core scorer and the scalar fallback both run with
+    # cache_length() returns full key length directly, so all scorers run with
     # _is_cache_length_accurate=True (skip adding seq_len in the kernel).
-    # The scorer uses tcgen05/TMA (Blackwell-only), so gate on
-    # _has_blackwell_tcgen05(): H100/A100/other NVIDIA and AMD take the scalar
-    # fallback. The SM100 scorer stages a BM_key-row K tile with one TMA copy,
-    # so a paged K cache must have page_size == 0 (contiguous, as this ragged
-    # path is) or a multiple of BM_key; any other page_size falls back too.
-    comptime if (
-        _has_blackwell_tcgen05()
+    # Route on target: gfx950 takes the MFMA scorer at 32-head M-tiles, SM100
+    # the tcgen05 scorer (page_size 0 or a BM_key multiple), else scalar.
+    comptime use_amd_mfma_scorer = (
+        _has_gfx950_accelerator()
+        and num_heads % 32 == 0
+        and depth % 64 == 0
+        and _AMD_DMA_PASS_BYTES % depth == 0
+        and dtype == .float8_e4m3fn
+    )
+
+    comptime if use_amd_mfma_scorer:
+        fp8_index_score_amd[
+            dtype,
+            type_of(k_operand),
+            type_of(ks_operand),
+            num_heads,
+            depth,
+            _is_cache_length_accurate=True,
+            causal=False,
+        ](
+            output,
+            q,
+            q_s.as_imm(),
+            k_operand,
+            ks_operand,
+            valid_length,
+            batch_size,
+            max_seq_len,
+            max_num_keys,
+            ctx,
+        )
+    elif (
+        ctx.target._has_blackwell_tcgen05()
         and (
             num_heads == 64
             or num_heads == 32
@@ -661,9 +1276,7 @@ def fp8_index_naive[
     logits_dev.enqueue_fill(Float32(0.0))
     var logits_buf = TileTensor(
         logits_dev.unsafe_ptr(),
-        row_major(
-            Coord(batch_size * max_seq_len, max_num_keys, Idx[num_heads])
-        ),
+        row_major(batch_size * max_seq_len, max_num_keys, Idx[num_heads]),
     )
 
     comptime mm = _index_matmul_max[

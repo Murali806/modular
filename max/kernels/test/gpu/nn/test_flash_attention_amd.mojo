@@ -19,12 +19,9 @@ from std.sys import argv
 from max.gpu import *
 from max.gpu.host import DeviceContext
 from layout import Idx, TileTensor, row_major
-from std.memory import unsafe_memset_zero
 from nn.attention.gpu.mha import flash_attention, mha_gpu_naive
 from nn.attention.mha_mask import NullMask
 from std.testing import assert_almost_equal
-
-from std.utils.index import Index
 
 
 def is_benchmark() -> Bool:
@@ -57,7 +54,7 @@ def test[
         "batch_size:",
         batch_size,
         "num_partitions:",
-        num_partitions.value() if num_partitions else -1,
+        num_partitions.or_else(-1),
         "seq_len:",
         seq_len,
         "num_keys:",
@@ -456,8 +453,8 @@ def test_context_encoding[
     # Long-context AMD CDNA prefill gate. seq_len=4096 with BF16-output
     # causal prefill on CDNA fires the gate in `flash_attention_dispatch`,
     # routing through `mha_prefill_v2`. Validates that (a) the gate builds
-    # + launches the kernel correctly, (b) the `LayoutTensor → TileTensor`
-    # adapters in the gate preserve the data, and (c) the output matches
+    # + launches the kernel correctly, (b) the tensor adapters in the gate
+    # preserve the data, and (c) the output matches
     # the gpu_naive reference within BF16 attention tolerance. Guarded on
     # depth in {64, 128} (the gate's depth eligibility); other depths fall
     # through to FA2.

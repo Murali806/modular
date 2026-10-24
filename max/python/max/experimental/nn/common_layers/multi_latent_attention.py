@@ -30,7 +30,7 @@ from max.experimental.nn.common_layers.functional_kernels import (
 )
 from max.experimental.nn.common_layers.mesh_axis import TP
 from max.experimental.nn.norm import RMSNorm
-from max.experimental.sharding import DeviceMapping, NamedMapping
+from max.experimental.sharding import DeviceMesh, NamedMapping
 from max.experimental.tensor import Tensor
 from max.nn.attention import MHAMaskVariant
 from max.nn.kv_cache import KVCacheParams, PagedCacheValues
@@ -156,10 +156,8 @@ class LatentAttentionWithRope(Module[..., Tensor]):
             offsets, cache offsets, and buffer lengths for the prefill step.
         """
         layer_idx = F.constant(0, DType.uint32, device=CPU())
-        replicated = DeviceMapping.replicated(input_row_offsets.mesh)
         buffer_row_offsets, cache_offsets, buffer_lengths = (
-            value.rebind_mapping(replicated)
-            for value in flare_mla_prefill_plan(
+            flare_mla_prefill_plan(
                 self.kv_params,
                 input_row_offsets,
                 kv_collection,
@@ -250,8 +248,18 @@ class LatentAttentionWithRope(Module[..., Tensor]):
                 mla_prefill_metadata.buffer_row_offsets
             )
             attn_kwargs["cache_offsets"] = mla_prefill_metadata.cache_offsets
+            # Each device planned its own buffer length, and the kernel reads
+            # it on the host. One host mesh device per device keeps each
+            # length; ``.to(CPU())`` would give every device the first one's.
+            mesh = mla_prefill_metadata.buffer_lengths.mesh
             attn_kwargs["buffer_length"] = (
-                mla_prefill_metadata.buffer_lengths.to(CPU())
+                mla_prefill_metadata.buffer_lengths.to(
+                    DeviceMesh(
+                        (CPU(),) * mesh.num_devices,
+                        mesh.mesh_shape,
+                        mesh.axis_names,
+                    )
+                )
             )
             attn_kwargs["w_k"] = self.w_k
             attn_kwargs["w_uv"] = self.w_uv
@@ -292,12 +300,19 @@ class LatentAttentionWithRope(Module[..., Tensor]):
         if self.q_lora_rank is not None:
             # Use fused matmul because weights in `wqkv` (`q_proj` and
             # `kv_a_proj_with_mqa`) have the same placement.
-            qkv = x @ self.wqkv.T
+            wqkv = self.wqkv
+            qkv = x.cast(wqkv.dtype) @ wqkv.T
             xq, kv = qkv.split([self.q_lora_rank, self.cache_head_dim], axis=1)
-            xq = self.q_a_layernorm(xq) @ self.q_b_proj.T
+            xq = (
+                self.q_a_layernorm(xq).cast(self.q_b_proj.dtype)
+                @ self.q_b_proj.T
+            )
         else:
-            xq = x @ self.q_proj.T
-            kv = x @ self.kv_a_proj_with_mqa.T
+            xq = x.cast(self.q_proj.dtype) @ self.q_proj.T
+            kv = (
+                x.cast(self.kv_a_proj_with_mqa.dtype)
+                @ self.kv_a_proj_with_mqa.T
+            )
 
         xq = xq.reshape((-1, self.n_heads, self.qk_head_dim))
 

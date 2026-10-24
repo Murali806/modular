@@ -35,6 +35,8 @@ from max.nn import (
 from max.nn.attention.mask_config import MHAMaskVariant
 from max.nn.kernels import (
     mla_fp8_index_top_k,
+    mla_fp8_index_top_k_physical,
+    mla_fp8_index_top_k_with_physical,
     mla_kpool_compress,
     mla_kpool_expand_topk,
     mla_kpool_ring_close,
@@ -47,39 +49,28 @@ from max.nn.kernels import (
 )
 from max.nn.kv_cache import PagedCacheValues
 from max.nn.layer import Shardable
-from max.nn.quant_config import (
-    InputScaleSpec,
-    QuantFormat,
-    ScaleGranularity,
-    ScaleOrigin,
-    WeightScaleSpec,
-)
+from max.nn.quant_config import QuantFormat
 
 from .transforms import HadamardTransform
 
 
-def exclusive_prefix_sum(x: TensorValue) -> TensorValue:
-    """Returns ``[0, x[0], x[0] + x[1], ...]``, one entry longer than ``x``.
+def indexer_selection_width(
+    index_topk: int, index_kpool: int, always_select_tail: bool
+) -> int:
+    """Returns the width of one token's selected rows.
 
-    A masked row sum rather than :func:`~max.graph.ops.cumsum`, which has no
-    GPU kernel (KERN-1095) and so runs the scan on the host. The host round
-    trip that reaches it lowers to a device-to-host copy plus an ``mgp.sync``,
-    and a blocking sync cannot be recorded into a captured device graph, which
-    takes capture off the table for the whole model.
-
-    ``x`` holds one entry per request, so the ``[n + 1, n]`` selection mask
-    this materializes is batch-sized rather than token-sized.
+    ``index_topk + index_kpool - 1`` when the k-pool tail is always selected,
+    ``index_topk`` otherwise.
     """
-    n = x.shape[0]
-    device = x.device
-    rows = ops.range(
-        0, n + 1, 1, out_dim=n + 1, dtype=DType.int64, device=device
-    )
-    cols = ops.range(0, n, 1, out_dim=n, dtype=DType.int64, device=device)
-    below = ops.unsqueeze(cols, 0) < ops.unsqueeze(rows, -1)
-    return ops.squeeze(
-        ops.sum(ops.where(below, ops.unsqueeze(x, 0), 0), axis=-1), -1
-    )
+    if not always_select_tail or index_kpool == 1:
+        return index_topk
+    return index_topk + index_kpool - 1
+
+
+def exclusive_prefix_sum(x: TensorValue) -> TensorValue:
+    """Returns ``[0, x[0], x[0] + x[1], ...]``, one entry longer than ``x``."""
+    zero = ops.constant(0, x.dtype, device=x.device).reshape([1])
+    return ops.concat([zero, ops.cumsum(x, axis=0)], axis=0)
 
 
 def act_quant(
@@ -122,21 +113,8 @@ def _indexer_act_quant_config(quant_config: QuantConfig) -> QuantConfig:
     """
     if quant_config.format == QuantFormat.BLOCKSCALED_FP8:
         return quant_config
-    return QuantConfig(
-        input_scale=InputScaleSpec(
-            granularity=ScaleGranularity.BLOCK,
-            origin=ScaleOrigin.DYNAMIC,
-            dtype=DType.float32,
-            block_size=(1, 128),
-        ),
-        weight_scale=WeightScaleSpec(
-            granularity=ScaleGranularity.BLOCK,
-            dtype=DType.float32,
-            block_size=(128, 128),
-        ),
-        mlp_quantized_layers=set(),
-        attn_quantized_layers=set(),
-        format=QuantFormat.BLOCKSCALED_FP8,
+    return QuantConfig.blockscaled_fp8(
+        mlp_quantized_layers=(), attn_quantized_layers=()
     )
 
 
@@ -229,7 +207,7 @@ class Indexer(Module, Shardable):
             out_dim=self.n_heads,
             dtype=DType.bfloat16,
             device=devices[0],
-        )  # DS casts to f32
+        )
 
         self.hadamard_transform = HadamardTransform(
             scale=self.softmax_scale, device=devices[0]
@@ -683,7 +661,9 @@ class Indexer(Module, Shardable):
         *,
         tail: BufferValue | None = None,
         slot_idx: TensorValue | None = None,
-    ) -> TensorValue:
+        mla_collection: PagedCacheValues | None = None,
+        write_logical: bool,
+    ) -> tuple[TensorValue | None, TensorValue | None]:
         """
         Args:
             x: Tensor of shape (total_seq_len, dim) Input activations.
@@ -699,10 +679,31 @@ class Indexer(Module, Shardable):
             tail: The k-pool tail ring, required when ``index_kpool > 1``.
             slot_idx: ``[batch]`` ring slot per request, required when
                 ``index_kpool > 1``.
+            mla_collection: The MLA cache the selections index. When set and
+                ``index_kpool == 1``, the indexer also returns each
+                selection's physical row in it.
+            write_logical: Whether to return the logical indices. Required,
+                so a caller that needs them asks for them; the sparse MLA ops
+                read them only under the shared-index fold. ``False`` returns
+                only the physical rows, which the top-k then writes alone; it
+                requires ``mla_collection`` and ``index_kpool == 1``.
         Returns:
             topk_indices, tTensor of shape (total_seq_len, index_topk) indices
-                of the top k Keys selected by the Indexer for MLA to attend to.
+                of the top k Keys selected by the Indexer for MLA to attend to
+                (``None`` when ``write_logical`` is False), and their physical
+                rows in ``mla_collection`` (``None`` without one, or when
+                pooled). For an NVFP4 ``mla_collection``, whose scales are
+                paged apart from its values, each row is ``2 * index_topk``
+                wide: the physical rows, then the selections' rows in the
+                scale pool.
         """
+        if not write_logical and (
+            mla_collection is None or self.index_kpool > 1
+        ):
+            raise ValueError(
+                "write_logical=False returns only physical rows, which need"
+                " mla_collection and index_kpool == 1."
+            )
         # qr comes projected to lora rank and pre-normed; q_lora_rank -> self.n_heads * self.head_dim
         q = self.wq_b(qr)
         q = q.reshape((-1, self.n_heads, self.head_dim))
@@ -737,9 +738,11 @@ class Indexer(Module, Shardable):
         q_fp8, q_scale = act_quant(q, self.quant_config)
         k_fp8, k_scale = act_quant(k, self.quant_config)
 
+        # DeepSeek projects the scoring weights in float32.
+        proj = self.weights_proj.weight.to(x.device).cast(DType.float32)
         weights_for_scoring = (
             ops.unsqueeze(
-                self.weights_proj(x.cast(DType.float32)) * self.n_heads**-0.5,
+                (x.cast(DType.float32) @ proj.T) * self.n_heads**-0.5,
                 axis=-1,
             )
             * q_scale
@@ -756,7 +759,7 @@ class Indexer(Module, Shardable):
                 )
             # Pooled keys replace the per-token ones in the cache, so the
             # per-token store below is skipped entirely.
-            return self._select_pooled(
+            pooled_indices = self._select_pooled(
                 x,
                 k,
                 q_fp8,
@@ -768,6 +771,7 @@ class Indexer(Module, Shardable):
                 tail,
                 slot_idx,
             )
+            return pooled_indices, None
 
         store_k_cache_ragged(
             indexer_k_collection,
@@ -785,11 +789,36 @@ class Indexer(Module, Shardable):
             ],
         )
 
-        return mla_fp8_index_top_k(
+        if mla_collection is None:
+            topk_indices = mla_fp8_index_top_k(
+                q_fp8,
+                ops.squeeze(weights_for_scoring, axis=-1),
+                input_row_offsets,
+                indexer_k_collection,
+                layer_idx,
+                self.index_topk,
+                self.quant_config.scales_granularity_mnk[2],
+                mask_variant,
+            )
+            return topk_indices, None
+        if not write_logical:
+            return None, mla_fp8_index_top_k_physical(
+                q_fp8,
+                ops.squeeze(weights_for_scoring, axis=-1),
+                input_row_offsets,
+                indexer_k_collection,
+                mla_collection,
+                layer_idx,
+                self.index_topk,
+                self.quant_config.scales_granularity_mnk[2],
+                mask_variant,
+            )
+        return mla_fp8_index_top_k_with_physical(
             q_fp8,
             ops.squeeze(weights_for_scoring, axis=-1),
             input_row_offsets,
             indexer_k_collection,
+            mla_collection,
             layer_idx,
             self.index_topk,
             self.quant_config.scales_granularity_mnk[2],
@@ -805,9 +834,9 @@ class Indexer(Module, Shardable):
     def selection_width(self) -> int:
         """Output width: ``index_topk + index_kpool - 1`` = 2051 with the
         tail, ``index_topk`` without."""
-        if not self.always_select_tail or self.index_kpool == 1:
-            return self.index_topk
-        return self.index_topk + self.index_kpool - 1
+        return indexer_selection_width(
+            self.index_topk, self.index_kpool, self.always_select_tail
+        )
 
     @property
     def pooled_cache_head_dim(self) -> int:

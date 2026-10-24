@@ -129,7 +129,7 @@ struct FusedSwiGLUMatmulConfig[
         *,
         mma_shape: IndexList[3],
         cta_group: Int = 2,
-        cluster_shape: IndexList[3] = Index(2, 1, 1),
+        cluster_shape: IndexList[3] = (2, 1, 1),
         AB_swapped: Bool = False,
         block_swizzle_size: Int = 0,
         raster_order: RasterOrder = RasterOrder.AlongM,
@@ -199,8 +199,8 @@ struct FusedSwiGLUMatmulConfig[
             b200_smem - output_smem - clc_smem - mma_output_smem - extra
         ) // AB_smem_per_stage
 
-        if num_pipeline_stages:
-            self.num_pipeline_stages = num_pipeline_stages.value()
+        if case .Some(num_pipeline_stages) = num_pipeline_stages:
+            self.num_pipeline_stages = num_pipeline_stages
         else:
             self.num_pipeline_stages = align_down(max_stages, k_group_size)
 
@@ -270,7 +270,7 @@ def swiglu_matmul_config[
     *,
     mma_shape: IndexList[3],
     cta_group: Int = 2,
-    cluster_shape: IndexList[3] = Index(2, 1, 1),
+    cluster_shape: IndexList[3] = (2, 1, 1),
     AB_swapped: Bool = False,
     block_swizzle_size: Int = 0,
     raster_order: RasterOrder = RasterOrder.AlongM,

@@ -14,7 +14,7 @@
 from max.gpu.host import DeviceContext
 from std.random import random_ui64
 
-from layout import Coord, TileTensor, Idx, row_major
+from layout import Coord, TileTensor, row_major
 from nn.gather_scatter import gather, gather_nd, gather_nd_shape, gather_shape
 from nn.index_tensor import (
     _index_tensor_1d,
@@ -478,9 +478,9 @@ def test_advanced_indexing_getitem(ctx: DeviceContext) raises:
     ](coordinates: Coord) {var _index_a_dyn, var _index_b_dyn} -> Int:
         comptime assert coordinates.rank == index_rank
         comptime if indices_index == 0:
-            return Int(_index_a_dyn.load[width=1](coordinates))
+            return Int(_index_a_dyn.load(coordinates))
         else:
-            return Int(_index_b_dyn.load[width=1](coordinates))
+            return Int(_index_b_dyn.load(coordinates))
 
     # Build input strides IndexList manually from layout
     var in_strides = IndexList[input_rank](
@@ -624,9 +624,9 @@ def test_advanced_indexing_setitem_inplace(ctx: DeviceContext) raises:
     ](coordinates: Coord) {var _index_a_dyn, var _index_b_dyn} -> Int:
         comptime assert coordinates.rank == index_rank
         comptime if indices_index == 0:
-            return Int(_index_a_dyn.load[width=1](coordinates))
+            return Int(_index_a_dyn.load(coordinates))
         else:
-            return Int(_index_b_dyn.load[width=1](coordinates))
+            return Int(_index_b_dyn.load(coordinates))
 
     # Build index shape and updates strides manually
     var idx_shape = IndexList[index_rank](

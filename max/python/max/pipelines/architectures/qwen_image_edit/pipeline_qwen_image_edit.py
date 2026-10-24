@@ -25,12 +25,11 @@ from typing import Any, Literal
 
 import numpy as np
 import numpy.typing as npt
-from max.driver import CPU, Buffer, Device
+from max.driver import CPU, Buffer, Device, float32_to_bfloat16_as_uint16
 from max.dtype import DType
 from max.graph import TensorType, TensorValue, ops
 from max.pipelines.context import PixelContext, TokenBuffer
 from max.pipelines.diffusion.interface import DiffusionPipeline, max_compile
-from max.pipelines.lib.bfloat16_utils import float32_to_bfloat16_as_uint16
 from max.pipelines.lib.config.model_config import (
     _resolve_component_encoding_and_weights,
     _select_quantization_encoding,
@@ -804,7 +803,7 @@ class QwenImageEditPipeline(DiffusionPipeline):
 
         For multi-image editing each condition image needs a distinct T
         coordinate so the transformer can distinguish them via RoPE:
-        noise → T=0, first image → T=1, second image → T=2, etc.
+        noise → T=0, first image → T=1, second image → T=2, and so on.
         """
         t_coords = np.full((height, width), image_index + 1, dtype=np.int64)
         h_c = np.arange(height, dtype=np.int64) - (height - height // 2)

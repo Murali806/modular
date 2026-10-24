@@ -16,13 +16,13 @@
 from std.collections import Optional
 from std.math import align_down, align_up, ceildiv, iota
 from std.sys._build import is_debug_build
-from std.sys.info import CompilationTarget, simd_width_of, size_of
+from std.sys.info import CompilationTarget, align_of, simd_width_of, size_of
 from std.sys.intrinsics import masked_load, masked_store
 from std.utils.index import Index, IndexList
 from std.algorithm import vectorize
 from layout.layout import *
-from layout import LayoutTensor, TileTensor, Coord, TensorLayout
-from layout.tile_layout import Layout as _NewLayout
+from layout import TileTensor, Coord, TensorLayout
+from layout.tile_layout import Layout as _NewLayout, row_major
 from std.builtin.device_passable import DevicePassable, DeviceTypeEncoder
 from std.reflection import reflect
 
@@ -31,7 +31,7 @@ from std.reflection import reflect
 def partial_simd_load[
     dtype: DType, //, width: Int
 ](
-    storage: UnsafePointer[mut=False, Scalar[dtype], ...],
+    storage: ImmPointer[Scalar[dtype], ...],
     lbound: Int,
     rbound: Int,
     pad_value: Scalar[dtype],
@@ -72,7 +72,7 @@ def partial_simd_load[
 def partial_simd_store[
     dtype: DType, //, width: SIMDLength
 ](
-    storage: UnsafePointer[mut=True, Scalar[dtype], ...],
+    storage: MutPointer[Scalar[dtype], ...],
     lbound: Int,
     rbound: Int,
     data: SIMD[dtype, width],
@@ -107,32 +107,24 @@ def partial_simd_store[
     return masked_store(data, storage, mask)
 
 
-comptime elementwise_epilogue_type = def[
-    dtype: DType, width: SIMDLength, *, alignment: Int = 1
-](IndexList[2], SIMD[dtype, width]) capturing -> None
-
-comptime elementwise_compute_lambda_type = def[
-    dtype: DType, width: SIMDLength, *, alignment: Int = 1
-](IndexList[2], SIMD[dtype, width]) capturing -> SIMD[dtype, width]
-
 comptime _elementwise_compute_fn_signature = def[
     dtype: DType, width: SIMDLength, *, alignment: Int
-](IndexList[2], SIMD[dtype, width]) -> SIMD[dtype, width]
+](Coord, SIMD[dtype, width]) -> SIMD[dtype, width]
 
 comptime ElementwiseComputeFn = (
     ImplicitlyCopyable & RegisterPassable & _elementwise_compute_fn_signature
 )
-"""Value-taking counterpart of `elementwise_compute_lambda_type`.
+"""Fused elementwise compute closure: `(coord, value) -> value`.
 
-A unified closure passed as a runtime value carries the origins of its
+The coordinate has the same rank-2 contract as `ElementwiseEpilogueFn`; see
+there. A unified closure passed as a runtime value carries the origins of its
 captures, so the buffers it reads stay alive until the kernel that calls it
-has launched. `alignment` has no default; pass `alignment=1` where the
-legacy type relied on its default.
+has launched.
 """
 
 comptime _elementwise_output_compute_fn_signature = def[
     dtype: DType, width: SIMDLength, *, alignment: Int
-](IndexList[2], SIMD[dtype, width], SIMD[dtype, width]) -> SIMD[dtype, width]
+](Coord, SIMD[dtype, width], SIMD[dtype, width]) -> SIMD[dtype, width]
 
 comptime ElementwiseOutputComputeFn = (
     ImplicitlyCopyable
@@ -150,24 +142,29 @@ output and cannot alias it.
 
 comptime _elementwise_epilogue_fn_signature = def[
     dtype: DType, width: SIMDLength, *, alignment: Int
-](IndexList[2], SIMD[dtype, width]) -> None
+](Coord, SIMD[dtype, width]) -> None
 
 comptime ElementwiseEpilogueFn = (
     ImplicitlyCopyable & RegisterPassable & _elementwise_epilogue_fn_signature
 )
-"""Value-taking counterpart of `elementwise_epilogue_type`.
+"""Fused elementwise epilogue closure: `(coord, value) -> None`.
+
+The coordinate is always rank 2 (row, column) in the output's own space.
+`Coord` cannot express that constraint in the type -- it is variadic over
+`CoordLike`, and `Coord[_, _]` is rejected as unbound variadic syntax -- so
+every implementation asserts `coord.rank == 2` instead. Kernels whose epilogue
+is genuinely rank-N (concat, conv, allreduce, the reduction generators) use
+their own aliases and do not share this one.
 
 The closure stores the output itself, so a kernel that receives one writes
-nothing to its output argument. Pass it to a named kernel with `host_arg=`.
-`alignment` has no default; pass `alignment=1` where the legacy type relied
-on its default.
+nothing to its output argument. Pass it to a named kernel with `host_args=`.
 """
 
 
 @inline(.always)
 def _no_epilogue_body[
     dtype: DType, width: SIMDLength, *, alignment: Int
-](idx: IndexList[2], val: SIMD[dtype, width]):
+](idx: Coord, val: SIMD[dtype, width]):
     pass
 
 
@@ -178,7 +175,7 @@ def _as_epilogue_fn[
     """Binds a parametric function to its `ElementwiseEpilogueFn` closure type.
 
     A bare parametric function only converts where a function-type bound gives
-    it context, so neither `type_of` nor a `host_arg` slot accepts it directly.
+    it context, so neither `type_of` nor a `host_args` slot accepts it directly.
 
     Parameters:
         EpilogueFnType: Type of the epilogue function (inferred).
@@ -198,45 +195,9 @@ the output directly."""
 
 
 @inline(.always)
-def apply_elementwise_epilogue[
-    EpilogueFnType: ElementwiseEpilogueFn,
-    dtype: DType,
-    width: SIMDLength,
-    //,
-    elementwise_lambda_fn: Optional[elementwise_epilogue_type],
-    *,
-    alignment: Int = 1,
-](epilogue_fn: EpilogueFnType, idx: IndexList[2], val: SIMD[dtype, width],):
-    """Applies the legacy epilogue lambda if set, otherwise `epilogue_fn`.
-
-    Kernels that accept both epilogue forms call this under
-    `comptime if elementwise_lambda_fn or has_epilogue_fn`.
-
-    Parameters:
-        EpilogueFnType: Type of `epilogue_fn` (inferred).
-        dtype: Element dtype of `val` (inferred).
-        width: SIMD width of `val` (inferred).
-        elementwise_lambda_fn: Legacy epilogue lambda; takes precedence
-            when set.
-        alignment: Alignment of `val` in elements.
-
-    Args:
-        epilogue_fn: Value epilogue, used when `elementwise_lambda_fn` is
-            unset.
-        idx: Output coordinates.
-        val: Output value.
-    """
-    comptime if elementwise_lambda_fn:
-        comptime elementwise_lambda = elementwise_lambda_fn.value()
-        elementwise_lambda[dtype, width, alignment=alignment](idx, val)
-    else:
-        epilogue_fn[dtype, width, alignment=alignment](idx, val)
-
-
-@inline(.always)
 def identity_compute_fn[
     dtype: DType, width: SIMDLength, *, alignment: Int
-](idx: IndexList[2], val: SIMD[dtype, width]) -> SIMD[dtype, width]:
+](idx: Coord, val: SIMD[dtype, width]) -> SIMD[dtype, width]:
     """Returns `val` unchanged.
 
     Stands in for an `ElementwiseComputeFn` argument on code paths that
@@ -255,6 +216,18 @@ def identity_compute_fn[
         `val`.
     """
     return val
+
+
+@inline(.always)
+def _as_compute_fn[
+    ComputeFnType: ElementwiseComputeFn
+](compute_fn: ComputeFnType) -> ComputeFnType:
+    return compute_fn
+
+
+comptime no_compute_fn = _as_compute_fn(identity_compute_fn)
+"""`identity_compute_fn` as a value, the default for a compute closure
+argument."""
 
 
 trait TileConsumer(DevicePassable, TrivialRegisterPassable):
@@ -364,7 +337,7 @@ trait TileOperation(DevicePassable, TrivialRegisterPassable):
         Args:
             tile_coord: Absolute element coord of this sub-tile's top-left in
                 the global output tensor — consistent with `TileConsumer.__call__`
-                and the legacy `elementwise_compute_lambda_type`.
+                and `ElementwiseComputeFn`.
             thread_layout: Logical layout of the threads collaborating on this
                 call. Passed as a value (its static dims are comptime-readable
                 via `type_of(thread_layout)`), so the kernel states "this call
@@ -510,42 +483,6 @@ struct GemmShape(TrivialRegisterPassable):
     var M: Int
     var N: Int
     var K: Int
-
-    @staticmethod
-    def get[
-        transpose_b: Bool,
-        layout_c: Layout,
-        layout_a: Layout,
-        layout_b: Layout,
-    ](
-        c: LayoutTensor[mut=False, _, layout_c, ...],
-        a: LayoutTensor[mut=False, _, layout_a, ...],
-        b: LayoutTensor[mut=False, _, layout_b, ...],
-    ) -> GemmShape:
-        """Constructor of a gemm shape record from input buffers.
-
-        M, N, and K are intentionally calculated using `a` and `c` ONLY. This
-        is because `b` may be padded to a multiple of the tile size if it has
-        been pre-packed.
-
-        Parameters:
-            transpose_b: Whether matrix B is stored in transposed form.
-            layout_c: The memory layout of the output C tensor.
-            layout_a: The memory layout of the input A tensor.
-            layout_b: The memory layout of the input B tensor.
-
-        Args:
-            c: LayoutTensor with allocated output space.
-            a: LayoutTensor containing matrix operand A.
-            b: LayoutTensor containing matrix operand B.
-        """
-
-        # We only want a 2D tensor for now
-        comptime assert c.rank == 2
-        comptime assert a.rank == 2
-        comptime assert b.rank == 2
-
-        return GemmShape(c.dim[0](), c.dim[1](), a.dim[1]())
 
     @staticmethod
     def get[
@@ -1282,8 +1219,8 @@ def packA_i8mm[
     t0: Int,
     t1: Int,
     k: Int,
-    a_ptr: UnsafePointer[mut=False, Scalar[a_type], ...],
-    a_packed_ptr: UnsafePointer[mut=True, Scalar[a_type], ...],
+    a: TileTensor[a_type, ...],
+    a_packed_ptr: MutPointer[Scalar[a_type], ...],
 ):
     """Packs a range of rows of matrix A for the i8mm kernel layout.
 
@@ -1294,28 +1231,33 @@ def packA_i8mm[
         t0: The starting row index of the range to pack.
         t1: The ending row index of the range to pack (exclusive).
         k: The K dimension of the matmul.
-        a_ptr: Pointer to the source A matrix in row-major layout.
+        a: The source A matrix in row-major layout.
         a_packed_ptr: Pointer to the destination packed A buffer.
     """
+
+    comptime assert a.flat_rank == 2, "a must be rank 2"
 
     @inline(.always)
     def packA_helper[
         nrow: Int
-    ](offset: Int) {var k, var t0, imm a_ptr, imm a_packed_ptr}:
+    ](offset: Int) {var k, var t0, imm a, imm a_packed_ptr}:
         var kl = align_down(k, 8)
         var kh = align_up(k, 8)
         var j = t0 + offset
+        var a_rows = a.reshape(row_major(Int(a.dim[0]()), k))
         for l in range(0, k, 8):
             comptime for idx in range(nrow):
-                var t0 = a_ptr.load[width=8]((j + idx) * k + l)
-                a_packed_ptr.store(kh * j + 2 * l + 8 * idx, t0)
+                var t0 = a_rows.load[
+                    width=8, alignment=align_of[a_type](), invariant=False
+                ](Coord(j + idx, l))
+                a_packed_ptr.unsafe_store(kh * j + 2 * l + 8 * idx, t0)
 
         comptime for idx in range(nrow):
             var t0 = partial_simd_load[8](
-                a_ptr + ((j + idx) * k + kl), 0, k - kl, 0
+                a.ptr_at_offset(Coord(j + idx, kl)), 0, k - kl, 0
             )
             partial_simd_store(
-                a_packed_ptr + (kh * j + 2 * kl + 8 * idx),
+                a_packed_ptr.unsafe_offset(kh * j + 2 * kl + 8 * idx),
                 0,
                 k - kl,
                 t0,
@@ -1325,7 +1267,7 @@ def packA_i8mm[
 
 
 @fieldwise_init
-struct InnerKernelID(TrivialRegisterPassable):
+struct InnerKernelID(EnumLike, TrivialRegisterPassable):
     """Identifies the inner matmul kernel variant selected for a target."""
 
     comptime DEFAULT = InnerKernelID(0)
@@ -1334,6 +1276,35 @@ struct InnerKernelID(TrivialRegisterPassable):
     comptime I8MM = InnerKernelID(3)
 
     var value: Int
+
+    # The implicit fieldwise initializer accepts raw values outside the named
+    # cases, so the enum is not exhaustive.
+    comptime _enum_is_exhaustive = False
+
+    comptime _enum_case_names = ParameterList.of[
+        "DEFAULT".value,
+        "VNNI".value,
+        "NEON".value,
+        "I8MM".value,
+    ].values
+
+    comptime _enum_case_types = TypeList.splat[
+        ParameterList[Self._enum_case_names].length, NoneType
+    ].values
+
+    @inline(.always)
+    def _get_enum_discriminant(self) -> Int:
+        """Return the active case index."""
+        return self.value
+
+    @inline(.always)
+    def _unsafe_get_enum_payload[
+        id: Int
+    ](ref self) -> ref[self] TypeList[Trait=AnyType, Self._enum_case_types]()[
+        id
+    ]:
+        """InnerKernelID cases carry no payload."""
+        comptime assert False, "InnerKernelID has no payload"
 
     @inline(.always)
     def __eq__(self, rhs: InnerKernelID) -> Bool:

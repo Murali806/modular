@@ -122,6 +122,19 @@ class EPConfig:
     tensor being elided); both raise rather than degrade silently.
     """
 
+    moe_dim: int = 0
+    """Intermediate width of the routed experts' FFN, when the model provides
+    it. A config that gives it gets the fused MoE counters' reserve in its EP
+    sync-counter buffers. It does not request the fused MoE, which needs
+    ``MODULAR_EP_FUSED_MOE=1`` and a configuration the backend serves."""
+
+    fused_moe_ready: bool = False
+    """Whether EP init set up the backend's one-launch fused MoE for this
+    configuration. Set by :class:`EPCommInitializer` when
+    ``MODULAR_EP_FUSED_MOE=1`` requests it and the backend serves the
+    configuration; layers whose experts the fused op serves then run
+    dispatch, FFN and combine as one launch."""
+
     use_allreduce: bool = False
     """Whether to use allreduce for the cross-device communication."""
 
@@ -139,6 +152,12 @@ class EPConfig:
     max_replicas: int = 1
     """Largest replica count across all (layer, logical) cells. Also the trailing dim of log2phy."""
 
+    eplb_router_folded: bool = False
+    """When true, the router's expert-indexed weights are stored in physical
+    slot order, so the router emits physical expert ids and dispatch skips
+    the EPLB remap. Only valid for a placement that is a pure permutation
+    (``max_replicas == 1``)."""
+
     eplb_phy2log_plan: Any = None
     """Optional pre-computed EPLB plan (phy2log numpy array, shape
     [num_moe_layers, num_phy]). When non-None, EPBatchManager picks it
@@ -146,15 +165,6 @@ class EPConfig:
     model's first __init__ pass (no re-shard needed).
     """
 
-    mxfp4_a_scales_preshuffled: bool = False
-    """When True (KS224 up-proj fusion, MXFP4 preshuffled-B path on
-    AMD), the dispatch-wait kernel writes the per-token E8M0 activation scale
-    directly into the up-proj grouped-matmul's per-expert fixed-stride
-    ``scale_4d`` slot layout, so the standalone preshuffle kernel is dropped from
-    the decode critical path. The dispatch scales output is then slot-sized
-    (``n_local_experts * align_up(max_recv_tokens_per_expert, 32)`` rows)
-    instead of ``max_recv_tokens`` rows. Set by ``MoEQuantized`` when the MXFP4
-    strategy uses preshuffled B. Only valid for MXFP4 dispatch."""
     # In EPConfig, alongside n_experts / num_moe_layers / max_replicas:
 
     num_logical_experts: int = 0
@@ -205,6 +215,17 @@ class EPConfig:
             return self.max_tokens_per_rank * min(
                 self.n_experts, n_ranks * self.top_k
             )
+
+    def _max_recv_tokens_per_expert(self, alignment: int = 32) -> int:
+        """Returns the most tokens one local expert can receive, rounded up to
+        a multiple of ``alignment``: every rank can route all of its tokens to
+        it. The default alignment gives the per-expert A-scale slot stride of
+        the MX grouped matmul, which the MX dispatch ops derive the same way
+        from their EP geometry."""
+        n_ranks = self.n_gpus_per_node * self.n_nodes
+        return (
+            ceildiv(self.max_tokens_per_rank * n_ranks, alignment) * alignment
+        )
 
     def __post_init__(self):
         if self.num_logical_experts == 0:
@@ -391,3 +412,17 @@ def calculate_ep_max_tokens_per_rank(
     # must be ceil, not floor — otherwise the dispatch kernel rejects the
     # largest shard (see ep.mojo dispatch assertion).
     return ceildiv(max_batch_input_tokens, tp_size)
+
+
+_EP_LOCAL_SYNC_RESERVED_WORDS = 262144
+"""Int32 words (1 MiB) reserved for the fused MegaMoE counters at the end of
+each EP sync-counter buffer of a config that gives ``moe_dim``. Mirrors
+``EP_LOCAL_SYNC_RESERVED_WORDS`` in ``ep_comm.mojo``; the fused path asserts
+that its counters fit."""
+
+
+def _ep_fused_moe_requested() -> bool:
+    """Returns whether ``MODULAR_EP_FUSED_MOE=1`` asks EP init to set up the
+    backend's one-launch fused MoE. Internal and off by default; the backend
+    decides whether it serves the configuration."""
+    return os.environ.get("MODULAR_EP_FUSED_MOE", "0") == "1"

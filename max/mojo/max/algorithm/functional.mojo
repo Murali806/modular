@@ -21,14 +21,13 @@ from max.algorithm import elementwise
 
 from max._plugin import MaxPluginForTarget
 from std.collections.string.string_span import get_static_string
-from std.math import ceildiv
 from max.gpu.host import DeviceContext
 from max.gpu.host.info import is_cpu, is_gpu
 from max.runtime.tracing import Trace, TraceLevel, get_safe_task_id, trace_arg
 from std.sys.info import CompilationTarget, _accelerator_arch
 
 from std.utils.coord import Coord, coord_to_index_list
-from std.utils.index import Index, IndexList
+from std.utils.index import IndexList
 
 # Re-export CPU implementations.
 from .backend.cpu import (
@@ -120,76 +119,6 @@ def _get_start_indices_of_nth_subvolume[
 # ===-----------------------------------------------------------------------===#
 # Elementwise
 # ===-----------------------------------------------------------------------===#
-
-
-@inline(.always)
-def elementwise[
-    func: def[width: Int, alignment: Int = 1](Coord) capturing[_] -> None,
-    simd_width: Int,
-    *,
-    target: StaticString = "cpu",
-    _trace_description: StaticString = "elementwise",
-](shape: Int, context: DeviceContext) raises:
-    """Executes `func[width, rank](indices)`, possibly as sub-tasks, for a
-    suitable combination of width and indices so as to cover shape. Returns when
-    all sub-tasks have completed.
-
-    Parameters:
-        func: The body function.
-        simd_width: The SIMD vector width to use.
-        target: The target to run on.
-        _trace_description: Description of the trace.
-
-    Args:
-        shape: The shape of the buffer.
-        context: The device context to use.
-
-    Raises:
-        If the operation fails.
-    """
-
-    elementwise[
-        func,
-        simd_width=simd_width,
-        target=target,
-        _trace_description=_trace_description,
-    ](Coord(shape), context)
-
-
-@inline(.always)
-def elementwise[
-    func: def[width: Int, alignment: Int = 1](Coord) capturing[_] -> None,
-    simd_width: Int,
-    *,
-    target: StaticString = "cpu",
-    _trace_description: StaticString = "elementwise",
-](shape: Coord, context: DeviceContext) raises:
-    """Executes `func[width, rank](indices)`, possibly as sub-tasks, for a
-    suitable combination of width and indices so as to cover shape. Returns when
-    all sub-tasks have completed.
-
-    Parameters:
-        func: The body function.
-        simd_width: The SIMD vector width to use.
-        target: The target to run on.
-        _trace_description: Description of the trace.
-
-    Args:
-        shape: The shape of the buffer.
-        context: The device context to use.
-
-    Raises:
-        If the operation fails.
-    """
-
-    def func_unified[width: Int, alignment: Int = 1](indices: Coord) {}:
-        func[width, alignment](indices)
-
-    _elementwise_impl[
-        simd_width,
-        target=target,
-        trace_description=_trace_description,
-    ](func_unified, shape, context)
 
 
 @inline(.always)
@@ -315,7 +244,9 @@ def _elementwise_impl[
     *,
     target: StaticString = "cpu",
     trace_description: StaticString,
-](func: FuncType, shape: Coord, context: DeviceContext) raises:
+](func: FuncType, shape: Coord, context0: DeviceContext.Generic) raises:
+    var context = context0.cast_if_cpu[target]()
+
     @inline(.always)
     def description_fn() {imm} -> String:
         var shape_str = trace_arg("shape", coord_to_index_list(shape))
@@ -349,7 +280,11 @@ def _elementwise_impl[
             _elementwise_impl_cpu[
                 simd_width=simd_width,
                 trace_description=trace_description,
-            ](func_wrap_cpu, shape=shape, ctx=Optional(context))
+            ](
+                func_wrap_cpu,
+                shape=shape,
+                ctx=Optional(context.assert_cpu_target()),
+            )
         elif _accelerator_arch() != "" and MaxPluginForTarget[
             context.target
         ]._handles_elementwise:
@@ -357,7 +292,7 @@ def _elementwise_impl[
             return plugin.elementwise_fn[shape.rank, simd_width](
                 _CoordToIndexListAdapter[shape.rank, FuncType](func),
                 coord_to_index_list(shape),
-                context,
+                context.assert_default_target(),
             )
         elif is_gpu[target]():
             _elementwise_impl_gpu[
@@ -366,7 +301,7 @@ def _elementwise_impl[
             ](
                 func,
                 shape=shape,
-                ctx=context,
+                ctx=context.assert_default_target(),
             )
         else:
             CompilationTarget.unsupported_target_error[

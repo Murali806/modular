@@ -12,11 +12,9 @@
 # ===----------------------------------------------------------------------=== #
 
 from max.gpu.host import DeviceContext
-from layout import Coord, row_major
+from layout import row_major
 from layout._host_device_tile_tensor import HostDeviceTileTensor
 from nn.slice import sliced_add
-
-from std.utils import IndexList
 
 
 def test_sliced_add[
@@ -31,8 +29,7 @@ def test_sliced_add[
     ), "batch_end_idx must be less than or equal to rows"
 
     # Create managed buffers and host views.
-    var shape = IndexList[2](rows, cols)
-    var layout = row_major(Coord(shape))
+    var layout = row_major((rows, cols))
     var a = HostDeviceTileTensor[dtype](layout, ctx)
     var b = HostDeviceTileTensor[dtype](layout, ctx)
     var c = HostDeviceTileTensor[dtype](layout, ctx)
@@ -44,17 +41,14 @@ def test_sliced_add[
     # a: all ones, b: all twos, c: zeros
     for i in range(rows):
         for j in range(cols):
-            var idx = a_host.layout(Coord(IndexList[2](i, j)))
-            a_host.raw_store(idx, 1.0)
-            b_host.raw_store(idx, 2.0)
-            c_host.raw_store(idx, 0.0)
+            a_host[i, j] = 1.0
+            b_host[i, j] = 2.0
+            c_host[i, j] = 0.0
 
     # Keep lora_end_idx on host; sliced_add reads this scalar on host.
-    var lora_end_idx = HostDeviceTileTensor[.int64](
-        row_major(Coord(IndexList[1](1)))
-    )
+    var lora_end_idx = HostDeviceTileTensor[.int64](row_major(1))
     var lora_end_idx_host = lora_end_idx.host_tensor()
-    lora_end_idx_host.raw_store(0, Int64(batch_end_idx))
+    lora_end_idx_host[0] = Int64(batch_end_idx)
 
     a.to_device()
     b.to_device()
@@ -85,8 +79,7 @@ def test_sliced_add[
                 # Should be just a = 1
                 expected = 1.0
 
-            var idx = c_host.layout(Coord(IndexList[2](i, j)))
-            var actual = c_host.raw_load(idx)
+            var actual = c_host[i, j]
             if actual != expected:
                 raise Error(
                     "Mismatch at ["

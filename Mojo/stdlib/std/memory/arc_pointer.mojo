@@ -25,7 +25,7 @@ from std.format._utils import (
     FormatStruct,
     TypeNames,
 )
-from std.hashlib.hasher import Hasher
+from std.hash.hasher import Hasher
 from std.memory.maybe_uninit import MaybeUninit
 from std.memory.alloc import (
     alloc,
@@ -284,7 +284,7 @@ struct ArcPointer[T: Movable & Deinitable](
         if self._inner[].drop_weak():
             dealloc(
                 ThinAllocation(unsafe_owned_ptr=self._inner).unsafe_with_layout(
-                    {count = 1}
+                    {length = 1}
                 )
             )
 
@@ -540,8 +540,8 @@ struct WeakPointer[T: Movable & Deinitable](
         Args:
             copy: The existing `WeakPointer` to share an allocation with.
         """
-        if copy._inner:
-            copy._inner.unsafe_value()[].add_weak()
+        if case .Some(inner) = copy._inner:
+            inner[].add_weak()
         self._inner = copy._inner
 
     @inline(.never)
@@ -551,7 +551,7 @@ struct WeakPointer[T: Movable & Deinitable](
             dealloc(
                 ThinAllocation(
                     unsafe_owned_ptr=self._inner.unsafe_value()
-                ).unsafe_with_layout({count = 1})
+                ).unsafe_with_layout({length = 1})
             )
 
     def try_upgrade(self) -> Optional[ArcPointer[Self.T]]:
@@ -571,8 +571,8 @@ struct WeakPointer[T: Movable & Deinitable](
         Returns:
             The current number of strong references to the allocation.
         """
-        if self._inner:
-            return self._inner.unsafe_value()[].strong_count()
+        if case .Some(inner) = self._inner:
+            return inner[].strong_count()
         else:
             return 0
 
@@ -585,9 +585,9 @@ struct WeakPointer[T: Movable & Deinitable](
             The approximate number of outstanding `WeakPointer`s.
         """
 
-        if self._inner:
-            var w = self._inner.unsafe_value()[].weak_count_with_implicit()
-            if self._inner.unsafe_value()[].strong_count() == 0:
+        if case .Some(inner) = self._inner:
+            var w = inner[].weak_count_with_implicit()
+            if inner[].strong_count() == 0:
                 return w
             # If there are any strong remaining, we don't want to
             # include the implicit weak in the returned count.

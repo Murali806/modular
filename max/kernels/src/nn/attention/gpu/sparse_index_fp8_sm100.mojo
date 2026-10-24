@@ -90,7 +90,6 @@ from max.gpu.compute.arch.tcgen05 import (
 from max.gpu.compute.arch.mma_nvidia_sm100 import UMMAKind
 from std.math import align_up, ceildiv
 from std.sys import get_defined_int, size_of
-from std.utils.index import Index
 from std.utils.static_tuple import StaticTuple
 
 from layout import (
@@ -99,6 +98,7 @@ from layout import (
     TensorEngine,
     TileTensor,
     UNKNOWN_VALUE,
+    coord,
 )
 from layout.tile_layout import row_major as tt_row_major
 from layout.tile_tensor import ImmTileTensor, MutTileTensor
@@ -122,7 +122,13 @@ from nn.attention.gpu.sparse_index_fp8_sm100_prefill import (
     _KEYSPLIT_MAX_TOKEN_TILES,
     _PREFILL_MIN_TOKEN_TILES,
     _ctas_per_sm,
+    _index_swizzle,
     _is_keysplit_shape,
+    _is_mxfp4,
+    _k_box_rows,
+    _k_tile_fits_pages,
+    IndexerScoreHook,
+    NoScoreHook,
     fp8_index_score_sm100_prefill,
 )
 
@@ -174,6 +180,10 @@ comptime _PREFILL_MIN_TOKEN_TILES_NH32 = 448
 # value-level gate at all.
 comptime SPEC_DECODE_N_TOKENS_ALT = 3
 
+# Tokens per MXFP4 tile at 32 heads: 96 columns, leaving TMEM room for the
+# scale atoms (see `mxfp4_index_score_sm100`).
+comptime _MXFP4_N_TOKENS = 3
+
 # Measurement overrides for the prefill route's alternate N-tile. All three default to
 # the production behaviour, so an unset build instantiates exactly the shipped kernel
 # set, and none of them can reach a tile that would cost residency. `_ALT_OFF` needs
@@ -202,12 +212,12 @@ comptime _Q1SmemOffset[
 
 comptime QTMATileT[
     dtype: DType, MMA_N: Int, depth: Int
-] = SplitLastDimTMATensorTile[dtype, Index(MMA_N, 1, depth), _INDEX_SWIZZLE]
+] = SplitLastDimTMATensorTile[
+    dtype, coord[MMA_N, 1, depth], _index_swizzle[dtype, depth]()
+]
 comptime KTMATileT[dtype: DType, BM_key: Int, depth: Int] = TMATensorTile[
     dtype,
-    4,
-    Index(1, BM_key, 1, depth),
-    Index(1, BM_key, 1, depth),
+    coord[1, BM_key, 1, depth],
 ]
 """The K descriptor, addressed by `(row_in_block, block)`.
 
@@ -233,6 +243,8 @@ def _fp8_index_body[
     N_TOKENS: Int,
     _is_cache_length_accurate: Bool,
     kpool: Int = 1,
+    pool_row_tokens: Int = 1,
+    k_box_rows: Int = BM_key,
     epilogue_chunk: Int = _EPILOGUE_CHUNK,
     *,
     VLEngine: TensorEngine = DefaultEngine[element_width=1],
@@ -240,7 +252,7 @@ def _fp8_index_body[
     OutEngine: TensorEngine = DefaultEngine[element_width=1],
 ](
     q_tma: QTMATileT[dtype, N_TOKENS * num_heads, depth],
-    k_tma: KTMATileT[dtype, BM_key, depth],
+    k_tma: KTMATileT[dtype, k_box_rows, depth],
     k_operand: KOperand,
     ks_operand: KSOperand,
     valid_length: TileTensor[.uint32, VLLT, ImmutAnyOrigin, Engine=VLEngine],
@@ -254,6 +266,9 @@ def _fp8_index_body[
     out_row_end: Int,
 ):
     comptime assert valid_length.flat_rank == 1
+    comptime assert not _is_mxfp4[
+        dtype
+    ](), "MXFP4 runs on the warp-specialized kernel only"
     comptime MMA_N = N_TOKENS * num_heads
     comptime assert (
         MMA_N == 128
@@ -284,7 +299,7 @@ def _fp8_index_body[
 
     var tid = thread_idx.x
     var b = block_idx.x
-    var key_start = Int(block_idx.y) * BM_key
+    var key_start = block_idx.y * BM_key
 
     var start_of_seq = Int(valid_length[b])
     var end_of_seq = Int(valid_length[b + 1])
@@ -349,21 +364,32 @@ def _fp8_index_body[
         name="fp8_index_sm100_smem",
     ]()
     var k_smem = smem
-    var q_smem = smem + k_elems
-    var qs_smem = (smem + k_elems + q_elems).bitcast[Float32]()
-    var ks_smem = qs_smem + _N_Q_BUF * MMA_N
+    var q_smem = smem.unsafe_offset(k_elems)
+    var qs_smem = (
+        smem.unsafe_offset(k_elems)
+        .unsafe_offset(q_elems)
+        .unsafe_bitcast[Float32]()
+    )
+    var ks_smem = qs_smem.unsafe_offset(_N_Q_BUF * MMA_N)
     # mbar[0] = K staging-done (one-shot); then one Q staging-done per Q buffer;
     # then the accumulator handshake, a (full, empty) pair per stage; the last
     # slot holds the tcgen05 TMEM base address.
-    var mbar = (ks_smem + BM_key).bitcast[SharedMemBarrier]()
+    var mbar = ks_smem.unsafe_offset(BM_key).unsafe_bitcast[SharedMemBarrier]()
     var k_mbar = mbar
-    var q_mbar = mbar + 1
-    var s_full = mbar + 1 + _N_Q_BUF
-    var s_empty = s_full + _N_S_STAGES
-    var ptr_tmem = (mbar + _N_MBARS - 1).bitcast[UInt32]()
-    var q1_smem = smem + _Q1SmemOffset[dtype, BM_key, MMA_N, depth]
+    var q_mbar = mbar.unsafe_offset(1)
+    var s_full = mbar.unsafe_offset(1).unsafe_offset(_N_Q_BUF)
+    var s_empty = s_full.unsafe_offset(_N_S_STAGES)
+    var ptr_tmem = (
+        mbar.unsafe_offset(_N_MBARS).unsafe_offset(-1).unsafe_bitcast[UInt32]()
+    )
+    var q1_smem = smem.unsafe_offset(_Q1SmemOffset[dtype, BM_key, MMA_N, depth])
 
     comptime k_flat_layout = tt_row_major[k_elems]()
+    comptime assert (
+        k_box_rows == _k_box_rows[BM_key, KOperand.page_size, pool_row_tokens]()
+    ), "k_box_rows must be the rows one K TMA copy stages for this cache"
+    comptime K_BOX = k_box_rows
+    comptime k_box_layout = tt_row_major[K_BOX * depth]()
     comptime q_flat_layout = tt_row_major[q_elems]()
 
     if tid == 0:
@@ -395,14 +421,27 @@ def _fp8_index_body[
     comptime k_bytes = k_elems * size_of[dtype]()
     comptime q_bytes = q_elems * size_of[dtype]()
     if tid == 0:
-        var k_row0, k_block = k_operand.kv_tma_coords(
-            UInt32(b), UInt32(key_start)
-        )
-        var k_dst = TileTensor[
-            dtype, type_of(k_flat_layout), address_space=.SHARED
-        ](k_smem, k_flat_layout)
         k_mbar[0].expect_bytes(Int32(k_bytes))
-        k_tma.async_copy_4d(k_dst, k_mbar[0], (0, 0, Int(k_row0), Int(k_block)))
+        # One copy per page the tile spans. A key is `pool_row_tokens` token
+        # rows, so its token is `pool_row_tokens * key` and the descriptor's
+        # row is that token's page row over `pool_row_tokens`. A copy past this
+        # batch's last key re-reads the last key's page instead of looking up a
+        # page the batch does not own; the epilogue guard drops those scores.
+        comptime for c in range(BM_key // K_BOX):
+            var key_row = key_start + c * K_BOX
+            comptime if c > 0:
+                key_row = min(key_row, (num_rows - 1) // K_BOX * K_BOX)
+            var k_tok, k_block = k_operand.kv_tma_coords(
+                UInt32(b), UInt32(key_row * pool_row_tokens)
+            )
+            var k_dst = TileTensor[
+                dtype, type_of(k_box_layout), address_space=.SHARED
+            ](k_smem.unsafe_offset(c * K_BOX * depth), k_box_layout)
+            k_tma.async_copy_4d(
+                k_dst,
+                k_mbar[0],
+                (0, 0, Int(k_tok) // pool_row_tokens, Int(k_block)),
+            )
         # The first token tile's Q TMA is independent of K, so it rides
         # alongside the K TMA instead of stalling behind the k_mbar wait. This
         # prologue arm is the sole producer of q_mbar[0]'s first completion;
@@ -424,7 +463,10 @@ def _fp8_index_body[
         var key_local = key_start + Int(tid)
         if key_local < num_rows:
             var ks_ptr = ks_operand.block_paged_ptr[1](
-                UInt32(b), UInt32(key_local), UInt32(0), UInt32(0)
+                UInt32(b),
+                UInt32(key_local * pool_row_tokens),
+                UInt32(0),
+                UInt32(0),
             )
             ks_smem[tid] = ks_ptr[0].cast[.float32]()
         else:
@@ -527,7 +569,7 @@ def _fp8_index_body[
                 c_scale=0,
                 elect=e,
             )
-            elect_mma_arrive(s_full + st, elect=e)
+            elect_mma_arrive(s_full.unsafe_offset(st), elect=e)
             p_state.step()
 
         var cs = Int(c_state.index())
@@ -594,10 +636,9 @@ def _fp8_index_body[
                         ) // kpool
                         if key_local < key_bound and tok_local < tok_hi:
                             var out_row = out_row0 + tok_local
-                            output.raw_store(
-                                out_row * max_num_keys + key_local,
-                                (k_scale * (acc[0] + acc[1])).cast[out_dtype](),
-                            )
+                            output[out_row, key_local] = (
+                                k_scale * (acc[0] + acc[1])
+                            ).cast[out_dtype]()
                         acc = SIMD[AT, 2](0)
         tcgen05_load_wait()
         _ = s_empty[cs].arrive()
@@ -632,13 +673,15 @@ def _fp8_index_score_kernel_sm100[
     N_TOKENS: Int,
     _is_cache_length_accurate: Bool,
     kpool: Int = 1,
+    pool_row_tokens: Int = 1,
+    k_box_rows: Int = BM_key,
     *,
     VLEngine: TensorEngine = DefaultEngine[element_width=1],
     QSEngine: TensorEngine = DefaultEngine[element_width=1],
     OutEngine: TensorEngine = DefaultEngine[element_width=1],
 ](
     q_tma: QTMATileT[dtype, N_TOKENS * num_heads, depth],
-    k_tma: KTMATileT[dtype, BM_key, depth],
+    k_tma: KTMATileT[dtype, k_box_rows, depth],
     k_operand: KOperand,
     ks_operand: KSOperand,
     valid_length: TileTensor[.uint32, VLLT, ImmutAnyOrigin, Engine=VLEngine],
@@ -652,7 +695,7 @@ def _fp8_index_score_kernel_sm100[
     var max_num_keys = Int(max_num_keys_dev)
     var causal = Int(causal_dev)
     var b = block_idx.x
-    var key_start = Int(block_idx.y) * BM_key
+    var key_start = block_idx.y * BM_key
     var start_of_seq = Int(valid_length[b])
     var seq_len = Int(valid_length[b + 1]) - start_of_seq
     var num_keys = Int(k_operand.cache_length(b))
@@ -688,6 +731,8 @@ def _fp8_index_score_kernel_sm100[
         N_TOKENS,
         _is_cache_length_accurate,
         kpool,
+        pool_row_tokens=pool_row_tokens,
+        k_box_rows=k_box_rows,
         VLEngine=VLEngine,
         QSEngine=QSEngine,
         OutEngine=OutEngine,
@@ -728,13 +773,15 @@ def _fp8_index_score_kernel_sm100_split[
     N_TOKENS: Int,
     _is_cache_length_accurate: Bool,
     kpool: Int = 1,
+    pool_row_tokens: Int = 1,
+    k_box_rows: Int = BM_key,
     *,
     VLEngine: TensorEngine = DefaultEngine[element_width=1],
     QSEngine: TensorEngine = DefaultEngine[element_width=1],
     OutEngine: TensorEngine = DefaultEngine[element_width=1],
 ](
     q_tma: QTMATileT[dtype, N_TOKENS * num_heads, depth],
-    k_tma: KTMATileT[dtype, BM_key, depth],
+    k_tma: KTMATileT[dtype, k_box_rows, depth],
     k_operand: KOperand,
     ks_operand: KSOperand,
     valid_length: TileTensor[.uint32, VLLT, ImmutAnyOrigin, Engine=VLEngine],
@@ -748,7 +795,7 @@ def _fp8_index_score_kernel_sm100_split[
     var max_num_keys = Int(max_num_keys_dev)
     var causal = Int(causal_dev)
     var b = block_idx.x
-    var key_start = Int(block_idx.y) * BM_key
+    var key_start = block_idx.y * BM_key
     var start_of_seq = Int(valid_length[b])
     var seq_len = Int(valid_length[b + 1]) - start_of_seq
     var num_keys = Int(k_operand.cache_length(b))
@@ -766,8 +813,8 @@ def _fp8_index_score_kernel_sm100_split[
     # grid.z splits this sequence's windowed token tiles across CTAs; bounds are
     # uniform per CTA.
     var n_token_tiles = ceildiv(win_tokens, N_TOKENS)
-    var tiles_per_slice = ceildiv(n_token_tiles, Int(grid_dim.z))
-    var nt_start = Int(block_idx.z) * tiles_per_slice
+    var tiles_per_slice = ceildiv(n_token_tiles, grid_dim.z)
+    var nt_start = block_idx.z * tiles_per_slice
 
     # Bail uniformly (every thread) before the helper's first collective op
     # (TMA mbar / tcgen05 alloc); a divergent early return would deadlock them.
@@ -790,6 +837,8 @@ def _fp8_index_score_kernel_sm100_split[
         N_TOKENS,
         _is_cache_length_accurate,
         kpool,
+        pool_row_tokens=pool_row_tokens,
+        k_box_rows=k_box_rows,
         VLEngine=VLEngine,
         QSEngine=QSEngine,
         OutEngine=OutEngine,
@@ -826,13 +875,15 @@ def fp8_index_score_sm100[
     _is_cache_length_accurate: Bool,
     N_TOKENS_ALT: Int = 0,
     kpool: Int = 1,
+    pool_row_tokens: Int = 1,
+    k_box_rows: Int = _BM_KEY,
 ](
     output: MutTileTensor[out_dtype, output_layout, _],
     q: ImmTileTensor[dtype, q_layout, _],
     q_s: ImmTileTensor[.float32, qs_layout, _],
     k_operand: KOperand,
     ks_operand: KSOperand,
-    k_tma: KTMATileT[dtype, _BM_KEY, depth],
+    k_tma: KTMATileT[dtype, k_box_rows, depth],
     valid_length: ImmTileTensor[.uint32, vl_layout, _],
     batch_size: Int,
     max_seq_len: Int,
@@ -847,8 +898,7 @@ def fp8_index_score_sm100[
     same `[total_seq, max_num_keys]` score buffer as the scalar
     `nn.index_fp8.fp8_index_kernel`. Out-of-range keys are left untouched --
     the bounded top-k derives the same per-row bound and never reads past it,
-    so the buffer needs no fill; only the unbounded `topk_gpu` arm relies on
-    the caller's `-inf` fill.
+    so the buffer needs no fill.
 
     Parameters:
         out_dtype: Element type of the score buffer, f32 or bf16 (inferred).
@@ -876,6 +926,13 @@ def fp8_index_score_sm100[
             `k > 1` scores one pooled key per `k` consecutive tokens, so
             every candidate count and the caller's `top_k` are
             pool-granular.
+        pool_row_tokens: Token rows one key spans in the cache. `1` when
+            the cache holds one row per key; `kpool` for GLM-5.3-Flash, whose
+            cache stores each pooled key over its tokens' `depth / kpool`-wide
+            rows. Key `p` then starts at token `kpool * p`.
+        k_box_rows: Key rows per `k_tma` copy. One copy covers a whole key
+            tile unless a pooled page holds fewer keys, in which case the
+            tile is staged one page at a time.
 
     Args:
         output: Score buffer `[total_seq, max_num_keys]`, f32 or bf16.
@@ -916,18 +973,21 @@ def fp8_index_score_sm100[
         depth == 128
     ), "SM100 FP8 indexer scorer requires depth == 128"
     comptime BM_key = _BM_KEY
-    # The K tile is staged with ONE TMA copy of BM_key contiguous physical rows
-    # at row_idx(b, key_start), which is only correct when BM_key virtual key
-    # rows never straddle a page boundary: page_size must be 0 (contiguous /
-    # ragged) or a multiple of BM_key. The dispatch sites (index_fp8 /
-    # mla_index_fp8) route any other page_size to the scalar kernel; this is the
-    # backstop so a future caller cannot reintroduce the wrong-page read.
-    comptime assert (
-        KOperand.page_size == 0 or KOperand.page_size % BM_key == 0
-    ), (
-        "SM100 FP8 indexer scorer requires K-cache page_size == 0 or a multiple"
-        " of BM_key"
+    # The K tile is staged one TMA copy per page it spans, and a copy cannot
+    # cross a page, so a tile must be whole pages or sit inside one page (or
+    # the cache is contiguous). The dispatch sites (index_fp8 / mla_index_fp8)
+    # route any other page_size to the scalar kernel; this is the backstop so a
+    # future caller cannot reintroduce the wrong-page read.
+    comptime assert _k_tile_fits_pages[
+        BM_key, KOperand.page_size, pool_row_tokens
+    ](), (
+        "SM100 FP8 indexer scorer requires the K tile to cover whole pages or"
+        " sit inside one"
     )
+    comptime assert (
+        k_box_rows == _k_box_rows[BM_key, KOperand.page_size, pool_row_tokens]()
+    ), "k_box_rows must be the rows one K TMA copy stages for this cache"
+    comptime K_BOX = k_box_rows
     comptime MMA_N = 128
     comptime N_TOKENS = MMA_N // num_heads
 
@@ -1077,10 +1137,12 @@ def fp8_index_score_sm100[
                         N_ALT,
                         _is_cache_length_accurate,
                         kpool,
+                        pool_row_tokens=pool_row_tokens,
+                        k_box_rows=K_BOX,
                     ](
                         q_ptr,
                         num_q_tokens,
-                        rebind[KTMATileT[dtype, BM_key, depth]](k_tma),
+                        rebind[KTMATileT[dtype, K_BOX, depth]](k_tma),
                         k_operand,
                         ks_operand,
                         valid_length,
@@ -1104,10 +1166,12 @@ def fp8_index_score_sm100[
                 N_TOKENS,
                 _is_cache_length_accurate,
                 kpool,
+                pool_row_tokens=pool_row_tokens,
+                k_box_rows=K_BOX,
             ](
                 q_ptr,
                 num_q_tokens,
-                rebind[KTMATileT[dtype, BM_key, depth]](k_tma),
+                rebind[KTMATileT[dtype, K_BOX, depth]](k_tma),
                 k_operand,
                 ks_operand,
                 valid_length,
@@ -1131,8 +1195,8 @@ def fp8_index_score_sm100[
         # Only the K-resident scorer reads this descriptor; the prefill routes
         # above build their own in the row order they fold in.
         var q_tma_tile = create_split_tma[
-            Index(MMA_N, 1, depth),
-            Index(UNKNOWN_VALUE, 1, depth),
+            coord[MMA_N, 1, depth],
+            coord[UNKNOWN_VALUE, 1, depth],
             _INDEX_SWIZZLE,
         ](
             ctx,
@@ -1153,6 +1217,8 @@ def fp8_index_score_sm100[
             N_TOKENS,
             _is_cache_length_accurate,
             kpool,
+            pool_row_tokens=pool_row_tokens,
+            k_box_rows=K_BOX,
         ]
         comptime kernel_split = _fp8_index_score_kernel_sm100_split[
             dtype,
@@ -1168,6 +1234,8 @@ def fp8_index_score_sm100[
             N_TOKENS,
             _is_cache_length_accurate,
             kpool,
+            pool_row_tokens=pool_row_tokens,
+            k_box_rows=K_BOX,
         ]
 
         comptime q1_offset = _Q1SmemOffset[dtype, BM_key, MMA_N, depth]
@@ -1204,7 +1272,7 @@ def fp8_index_score_sm100[
         if num_slices > 1:
             ctx.enqueue_function[kernel_split](
                 rebind[QTMATileT[dtype, MMA_N, depth]](q_tma_tile),
-                rebind[KTMATileT[dtype, BM_key, depth]](k_tma),
+                rebind[KTMATileT[dtype, K_BOX, depth]](k_tma),
                 k_operand,
                 ks_operand,
                 valid_length,
@@ -1228,7 +1296,7 @@ def fp8_index_score_sm100[
         else:
             ctx.enqueue_function[kernel_flat](
                 rebind[QTMATileT[dtype, MMA_N, depth]](q_tma_tile),
-                rebind[KTMATileT[dtype, BM_key, depth]](k_tma),
+                rebind[KTMATileT[dtype, K_BOX, depth]](k_tma),
                 k_operand,
                 ks_operand,
                 valid_length,
@@ -1245,3 +1313,190 @@ def fp8_index_score_sm100[
                     UInt32(smem_bytes)
                 ),
             )
+
+
+def mxfp4_index_score_sm100[
+    dtype: DType,
+    out_dtype: DType,
+    output_layout: TensorLayout,
+    q_layout: TensorLayout,
+    qs_layout: TensorLayout,
+    vl_layout: TensorLayout,
+    //,
+    KOperand: MHAOperand,
+    KSOperand: MHAOperand,
+    num_heads: Int,
+    _is_cache_length_accurate: Bool,
+    kpool: Int = 1,
+    pool_row_tokens: Int = 1,
+    k_box_rows: Int = _BM_KEY,
+](
+    output: MutTileTensor[out_dtype, output_layout, _],
+    q: ImmTileTensor[dtype, q_layout, _],
+    q_sf: ImmPointer[UInt32, ImmutAnyOrigin],
+    weights: ImmTileTensor[.float32, qs_layout, _],
+    k_operand: KOperand,
+    ks_operand: KSOperand,
+    k_tma: KTMATileT[dtype, k_box_rows, 64],
+    valid_length: ImmTileTensor[.uint32, vl_layout, _],
+    batch_size: Int,
+    max_seq_len: Int,
+    max_num_keys: Int,
+    causal: Bool,
+    ctx: DeviceContext,
+    out_row_begin: Int = 0,
+) raises:
+    """Launch the SM100 MXFP4 indexer scorer into `output`.
+
+    The MXFP4 counterpart of `fp8_index_score_sm100`, with its output, masking
+    and row window. Queries and keys are packed E2M1 rows of 128 values in 64
+    bytes, each with a 32-bit word of four UE8M0 scales (one per 32 values),
+    and a score is `sum_h relu(q[t, h] . k[s]) * weights[t, h]`: the weights
+    carry every other factor, and keys have no scale of their own.
+
+    Parameters:
+        dtype: `uint8`, standing in for packed E2M1.
+        out_dtype: Element type of `output`.
+        output_layout: Layout of `output`.
+        q_layout: Layout of `q`.
+        qs_layout: Layout of `weights`.
+        vl_layout: Layout of `valid_length`.
+        KOperand: Packed key rows, one head of 64 bytes.
+        KSOperand: The keys' scale words, one per key.
+        num_heads: Index heads per token; 32.
+        _is_cache_length_accurate: Whether `k_operand.cache_length` already
+            counts this call's tokens.
+        kpool: Tokens per key row, the compression ratio.
+        pool_row_tokens: Tokens a physical cache row holds; 1.
+        k_box_rows: Keys one K TMA copy stages: the key tile, or a page when
+            a page is smaller.
+
+    Args:
+        output: `[rows, max_num_keys]` scores.
+        q: Packed queries, `[total_seq, num_heads, 64]`.
+        q_sf: `q`'s scale words, `[total_seq, num_heads]`.
+        weights: Per-head weights, `[total_seq, num_heads]`.
+        k_operand: Key rows.
+        ks_operand: Key scale words.
+        k_tma: TMA tile over the key rows.
+        valid_length: Ragged query-token offsets `[batch + 1]`.
+        batch_size: Batch size.
+        max_seq_len: Most query tokens any request brings.
+        max_num_keys: Row stride of `output`.
+        causal: Whether token t sees keys up to its own position only.
+        ctx: Device context.
+        out_row_begin: Global token row that `output` row 0 holds.
+    """
+    mxfp4_index_score_sm100[
+        KOperand,
+        KSOperand,
+        num_heads,
+        _is_cache_length_accurate,
+        kpool,
+        pool_row_tokens,
+        k_box_rows,
+    ](
+        output,
+        q,
+        q_sf,
+        weights,
+        k_operand,
+        ks_operand,
+        k_tma,
+        valid_length,
+        batch_size,
+        max_seq_len,
+        max_num_keys,
+        causal,
+        ctx,
+        out_row_begin,
+        NoScoreHook(),
+    )
+
+
+def mxfp4_index_score_sm100[
+    dtype: DType,
+    out_dtype: DType,
+    output_layout: TensorLayout,
+    q_layout: TensorLayout,
+    qs_layout: TensorLayout,
+    vl_layout: TensorLayout,
+    H: IndexerScoreHook,
+    //,
+    KOperand: MHAOperand,
+    KSOperand: MHAOperand,
+    num_heads: Int,
+    _is_cache_length_accurate: Bool,
+    kpool: Int = 1,
+    pool_row_tokens: Int = 1,
+    k_box_rows: Int = _BM_KEY,
+](
+    output: MutTileTensor[out_dtype, output_layout, _],
+    q: ImmTileTensor[dtype, q_layout, _],
+    q_sf: ImmPointer[UInt32, ImmutAnyOrigin],
+    weights: ImmTileTensor[.float32, qs_layout, _],
+    k_operand: KOperand,
+    ks_operand: KSOperand,
+    k_tma: KTMATileT[dtype, k_box_rows, 64],
+    valid_length: ImmTileTensor[.uint32, vl_layout, _],
+    batch_size: Int,
+    max_seq_len: Int,
+    max_num_keys: Int,
+    causal: Bool,
+    ctx: DeviceContext,
+    out_row_begin: Int,
+    score_hook: H,
+) raises:
+    """Launch the SM100 MXFP4 indexer scorer into `output` with a score hook.
+
+    `score_hook` runs on every score the epilogue stores. Its rows count from
+    the window's first row, so its row 0 is `output`'s row 0.
+    """
+    comptime assert _is_mxfp4[dtype](), "MXFP4 rows are packed in uint8"
+    # An MXFP4 row is 128 E2M1 values in 64 bytes.
+    comptime depth = 64
+    # Both MXFP4 scale atoms live in TMEM beside the S^T ring, which two
+    # 128-column stages already fill at 2 CTAs/SM. A 3-token tile (96
+    # columns) leaves them room, so it is the only tile. Every shape takes
+    # the warp-specialized kernel, as FP8 does at this head count.
+    comptime assert (
+        num_heads == 32
+    ), "the MXFP4 indexer scorer is built for 32 heads; got " + String(
+        num_heads
+    )
+    comptime assert _k_tile_fits_pages[
+        _BM_KEY, KOperand.page_size, pool_row_tokens, split_pages=True
+    ](), (
+        "the MXFP4 scorer needs pages of a whole number of key tiles, or"
+        " a power-of-two fraction of one"
+    )
+    fp8_index_score_sm100_prefill[
+        dtype,
+        KOperand,
+        KSOperand,
+        num_heads,
+        depth,
+        _BM_KEY,
+        _MXFP4_N_TOKENS,
+        _is_cache_length_accurate,
+        kpool,
+        pool_row_tokens=pool_row_tokens,
+        k_box_rows=k_box_rows,
+    ](
+        q.unsafe_ptr().as_unsafe_any_origin(),
+        Int(q.dim[0]()),
+        k_tma,
+        k_operand,
+        ks_operand,
+        valid_length,
+        weights,
+        output,
+        batch_size,
+        max_seq_len,
+        max_num_keys,
+        Int(causal),
+        ctx,
+        out_row_begin,
+        q_sf,
+        score_hook,
+    )

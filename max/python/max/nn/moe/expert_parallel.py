@@ -132,6 +132,12 @@ def _ep_forward(
     device_ids: list[int] = []
 
     batch_mgr = moe_shards[0].ep_batch_manager
+    router_folded = batch_mgr.config.eplb_router_folded
+    if router_folded and eplb_counter_buffers:
+        raise ValueError(
+            "EPLB routing profiling counts logical expert ids, but the "
+            "router is folded to emit physical ids; profile without folding"
+        )
     _eplb_remap_logged = False
     for i, (shard, x) in enumerate(zip(moe_shards, xs, strict=True)):
         gate = shard.gate
@@ -139,6 +145,7 @@ def _ep_forward(
 
         use_fused_eplb_router = (
             batch_mgr.config.eplb_enabled
+            and not router_folded
             and getattr(gate, "n_group", 1) == 1
             and not _eplb_is_identity_placement(batch_mgr)
             and hasattr(
@@ -210,7 +217,7 @@ def _ep_forward(
                     gate.num_experts,
                 )
 
-            if batch_mgr.config.eplb_enabled:
+            if batch_mgr.config.eplb_enabled and not router_folded:
                 assert layer_idx_per_device, (
                     "EPLB requires per-device layer_idx tensors; got "
                     f"{layer_idx_per_device!r}"
@@ -254,12 +261,29 @@ def _ep_forward(
         and not batch_mgr.config.nvfp4_dyn_global_scales
     )
 
-    # Decide the MXFP4 EP A-scale preshuffle fold before dispatch because the
-    # dispatch scales output shape depends on it. All dispatch paths now thread
-    # the fusion parameters. `MoE` handles this as a no-op; `MoEQuantized`
-    # enables the fold when applicable.
-    for shard in moe_shards:
-        shard.configure_ep_scale_fusion(dispatch_supports_fold=True)
+    # One-launch fused EP MoE, once EP init set it up (``fused_moe_ready``).
+    # Replaces dispatch, the local FFN and the combine with ONE launch per
+    # device that returns the token-indexed routed output. All-or-nothing per
+    # layer (every rank must run the same protocol); any shard it cannot serve
+    # keeps the shipping chain below.
+    #
+    # Exclusive-launch contract: the fused grid is one persistent CTA per SM
+    # and was qualified with nothing co-resident, so the shared expert runs
+    # INLINE on the default stream (never ``ops.side_stream``) and serializes
+    # with the fused launch. The shipping path below keeps its side stream.
+    if batch_mgr.config.fused_moe_ready and all(
+        shard._can_fuse_megaffn_ep() for shard in moe_shards
+    ):
+        fused_outputs: list[TensorValue] = []
+        for i, (shard, x) in enumerate(zip(moe_shards, xs, strict=True)):
+            shared = shard.shared_experts(x) if has_unfused_shared else None
+            out = shard._ep_fused_forward(
+                x, all_topk_ids[i], all_router_weights[i]
+            )
+            if shared is not None:
+                out += shared
+            fused_outputs.append(out.cast(x.dtype))
+        return fused_outputs
 
     shared_outs: list[TensorValue | None] | None = None
 
@@ -483,7 +507,7 @@ def forward_moe_sharded_layers(
     :func:`forward_sharded_layers`.
 
     Args:
-        shards: Per-device shard callables (MoE, MLP, etc.).
+        shards: Per-device shard callables (MoE, MLP and so on).
         xs: Input tensors, one per shard.
 
     Returns:

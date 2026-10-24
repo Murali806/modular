@@ -43,7 +43,7 @@ struct HostDeviceTileTensor[dtype: DType, LayoutType: TensorLayout](Movable):
             layout: The layout of the tensor.
         """
         self._layout = layout
-        self._host = alloc(Layout[Scalar[Self.dtype]](count=_cosize(layout)))
+        self._host = alloc(Layout[Scalar[Self.dtype]](length=_cosize(layout)))
         self._device = None
         self._ctx = None
 
@@ -57,7 +57,7 @@ struct HostDeviceTileTensor[dtype: DType, LayoutType: TensorLayout](Movable):
         var size = _cosize(layout)
         var device = ctx.enqueue_create_buffer[Self.dtype](size)
         self._layout = layout
-        self._host = alloc(Layout[Scalar[Self.dtype]](count=size))
+        self._host = alloc(Layout[Scalar[Self.dtype]](length=size))
         self._device = device
         self._ctx = ctx
 
@@ -103,22 +103,20 @@ struct HostDeviceTileTensor[dtype: DType, LayoutType: TensorLayout](Movable):
 
         Does nothing if there is no device buffer.
         """
-        if self._ctx:
-            self._ctx.value().enqueue_copy(
+        if case .Some(ctx) = self._ctx:
+            ctx.enqueue_copy(
                 self._device.value(), self._host.unsafe_ptr().as_imm()
             )
-            self._ctx.value().synchronize()
+            ctx.synchronize()
 
     def to_host(mut self) raises:
         """Copies the device buffer to host memory and waits for the copy.
 
         Does nothing if there is no device buffer.
         """
-        if self._ctx:
-            self._ctx.value().enqueue_copy(
-                self._host.unsafe_ptr(), self._device.value()
-            )
-            self._ctx.value().synchronize()
+        if case .Some(ctx) = self._ctx:
+            ctx.enqueue_copy(self._host.unsafe_ptr(), self._device.value())
+            ctx.synchronize()
 
 
 def _cosize[L: TensorLayout](layout: L) -> Int:

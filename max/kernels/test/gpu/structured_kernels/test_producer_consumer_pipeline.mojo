@@ -43,11 +43,10 @@ data-before-signal ordering that `AmdCounterBackend` delegates to the caller;
 """
 
 from std.atomic import Ordering, fence
-from max.gpu import barrier, lane_id, thread_idx, WARP_SIZE
+from max.gpu import barrier, lane_id, thread_idx, warp_id
 from max.gpu.host import DeviceContext
 from max.gpu.memory import AddressSpace
 from std.memory import stack_allocation
-from std.sys import has_amd_gpu_accelerator
 from std.testing import assert_equal
 
 from structured_kernels.pipeline import ProducerConsumerPipeline
@@ -68,7 +67,7 @@ def _produced_value(i: Int) -> Int32:
 def pingpong_kernel[
     num_stages: Int,
     Backend: PipelineBackend,
-](result: UnsafePointer[Scalar[DType.int32], MutAnyOrigin], n_items: Int32):
+](result: MutPointer[Scalar[DType.int32], MutAnyOrigin], n_items: Int32):
     """Hand `n_items` values from one producer warp to one consumer warp."""
     comptime n_bar = 2 * num_stages  # full[0..num_stages) then empty[0..)
 
@@ -93,7 +92,7 @@ def pingpong_kernel[
     barrier()
 
     var is_leader = lane_id() == 0
-    var warp = Int(thread_idx.x) // WARP_SIZE
+    var warp = warp_id()
 
     if warp == 0:
         for i in range(Int(n_items)):
@@ -124,13 +123,13 @@ def pingpong_kernel[
 def _run_config[num_stages: Int](ctx: DeviceContext, n_items: Int) raises:
     print("  num_stages=", num_stages, ", n_items=", n_items, sep="")
 
-    var result = ctx.enqueue_create_buffer[DType.int32](n_items)
-    ctx.enqueue_memset[DType.int32](result, 0)
+    var result = ctx.enqueue_create_buffer[.int32](n_items)
+    ctx.enqueue_memset[.int32](result, 0)
 
     # Exactly two warps: producer (warp 0) + consumer (warp 1).
-    comptime block_dim = 2 * WARP_SIZE
+    comptime block_dim = 2 * ctx.default_device_info.warp_size
 
-    comptime if has_amd_gpu_accelerator():
+    comptime if ctx.target.is_amd_gpu():
         ctx.enqueue_function[
             pingpong_kernel[num_stages, AmdCounterBackend[1, 1]]
         ](result, Int32(n_items), grid_dim=1, block_dim=block_dim)
@@ -139,7 +138,7 @@ def _run_config[num_stages: Int](ctx: DeviceContext, n_items: Int) raises:
             pingpong_kernel[num_stages, NvidiaMbarBackend[num_stages]]
         ](result, Int32(n_items), grid_dim=1, block_dim=block_dim)
 
-    var host = ctx.enqueue_create_host_buffer[DType.int32](n_items)
+    var host = ctx.enqueue_create_host_buffer[.int32](n_items)
     ctx.enqueue_copy(host, result)
     ctx.synchronize()
 

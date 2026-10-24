@@ -23,6 +23,7 @@
 # RUN: FileCheck %s --enable-var-scope --check-prefixes=S8 < %t.mlir
 # RUN: FileCheck %s --enable-var-scope --check-prefixes=S9 < %t.mlir
 # RUN: FileCheck %s --enable-var-scope --check-prefixes=S10 < %t.mlir
+# RUN: FileCheck %s --enable-var-scope --check-prefixes=S11 < %t.mlir
 # COM: Thin Closures With Concrete Captures Are Properly Lifted
 # S0-DAG: lit.fn @"compute_gpu
 
@@ -83,17 +84,17 @@ def _align_of[
 
 
 @fieldwise_init
-struct LayoutTensor[
+struct TileTensor[
     dtype: DType, alignment: Int = _align_of[dtype, _current_target()]()
 ](TrivialRegisterPassable):
     pass
 
 
-def outer[dtype: DType, valid: Bool](a: LayoutTensor[dtype, ...]) raises:
+def outer[dtype: DType, valid: Bool](a: TileTensor[dtype, ...]) raises:
     comptime assert valid, "need float"
 
-    def inner(buf: LayoutTensor[dtype, ...]) -> LayoutTensor[dtype]:
-        return LayoutTensor[dtype]()
+    def inner(buf: TileTensor[dtype, ...]) -> TileTensor[dtype]:
+        return TileTensor[dtype]()
 
     var x = inner(a)
 
@@ -255,7 +256,7 @@ struct Foo[width: Int](Movable where False):
 # COM: The closure parameter's trait instance quotes `self`'s three Builder
 # COM: origin params directly, in order (`origin.mut`, `origin._mlir_origin`,
 # COM: `origin`), so no per-signature trait alias witnesses them.
-# S9-SAME: *"work.T{{.*}}": trait<@"##__mojo_closure__##"
+# S9-SAME: *"work.T{{[^"]*}}": trait<@"##__mojo_closure__##"
 # S9-SAME: #kgen.quote<!lit.ref<!lit.struct<#Builder <:!Bool *"origin.mut`", :origin<{{.*}}> *"origin._mlir_origin`1", :!lit.struct<{{.*}}> origin>>, mut
 # S9: lit.call
 # S9-SAME: #kgen.get_witness<:trait<@"##__mojo_closure__##"
@@ -296,3 +297,25 @@ def capture_nested() -> Int:
         return inner
 
     return outer2(1)(2)
+
+
+# COM: A closure may capture both a mutable and an immutable closure over the
+# COM: same variable; its storage initializer only stores the captures, so it
+# COM: is marked as not requiring nested origin exclusivity.
+# S11: lit.struct.decl @"{{.*}}capture_aliasing_closures()::outer_alias::__storage"
+# S11: lit.fn @"__init__({{.*}})"no_nested_origin_exclusivity[
+
+
+def capture_aliasing_closures():
+    var s = 0
+
+    def load[i: Int]() {imm s} -> Int:
+        return s
+
+    def store[i: Int](v: Int) {mut s}:
+        s = v
+
+    def outer_alias[i: Int]() {imm}:
+        store[i](load[i]())
+
+    outer_alias[0]()

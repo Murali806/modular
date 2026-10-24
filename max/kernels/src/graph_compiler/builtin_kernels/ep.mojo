@@ -26,6 +26,7 @@ from layout.tile_tensor import row_major
 from std.utils.index import IndexList
 
 from max.runtime.tracing import Trace, TraceLevel, get_safe_task_id
+from std.math import align_up
 from std.sys.info import size_of
 from extensibility import (
     InputTensor,
@@ -68,15 +69,14 @@ from shmem.ep_comm import (
     EPLocalSyncCounters,
     MXTokenFormat,
     NVBlockScaledTokenFormat,
-    elementwise_epilogue_type,
     fused_silu_kernel,
-    fused_silu_fp8_kernel,
     fused_silu_mx_kernel,
     fused_silu_mxfp6_kernel,
     fused_silu_nvfp4_kernel,
 )
 from linalg.mx_format import MXFormat
 from linalg.fp6_utils import FP6Format
+from linalg.swiglu_activation import get_swiglu_activation
 
 comptime RT_LAYOUT_2D = type_of(row_major(Int64(1), Int64(1)))
 
@@ -144,60 +144,63 @@ struct Struct_ep_init:
         var dispatch_msg_size: Int
 
         # Infer message sizes for dispatch phases
-        comptime if dispatch_fmt_str == "BlockwiseFP8":
-            comptime token_fmt_type = BlockwiseFP8TokenFormat[
-                fp8_dtype=dispatch_dtype,
-                scales_dtype=dispatch_scale_dtype,
-                output_layout=RT_LAYOUT_2D,
-                scales_layout=RT_LAYOUT_2D,
-                hidden_size,
-                top_k,
-            ]
-            dispatch_msg_size = token_fmt_type.msg_size()
+        comptime match dispatch_fmt_str:
+            case "BlockwiseFP8":
+                comptime token_fmt_type = BlockwiseFP8TokenFormat[
+                    fp8_dtype=dispatch_dtype,
+                    scales_dtype=dispatch_scale_dtype,
+                    output_layout=RT_LAYOUT_2D,
+                    scales_layout=RT_LAYOUT_2D,
+                    hidden_size,
+                    top_k,
+                ]
+                dispatch_msg_size = token_fmt_type.msg_size()
 
-        elif dispatch_fmt_str == "BLOCK_SCALED_NV":
-            comptime token_fmt_type = NVBlockScaledTokenFormat[
-                quant_dtype=dispatch_dtype,
-                scales_dtype=dispatch_scale_dtype,
-                output_layout=RT_LAYOUT_2D,
-                scales_offset_layout=RT_LAYOUT_2D,
-                hidden_size,
-                top_k,
-                nvfp4_dyn_global_scales=nvfp4_dyn_global_scales,
-            ]
-            dispatch_msg_size = token_fmt_type.msg_size()
+            case "BLOCK_SCALED_NV":
+                comptime token_fmt_type = NVBlockScaledTokenFormat[
+                    quant_dtype=dispatch_dtype,
+                    scales_dtype=dispatch_scale_dtype,
+                    output_layout=RT_LAYOUT_2D,
+                    scales_offset_layout=RT_LAYOUT_2D,
+                    hidden_size,
+                    top_k,
+                    nvfp4_dyn_global_scales=nvfp4_dyn_global_scales,
+                ]
+                dispatch_msg_size = token_fmt_type.msg_size()
 
-        elif dispatch_fmt_str == "MXFP4":
-            comptime token_fmt_type = MXTokenFormat[
-                quant_dtype=dispatch_dtype,
-                scales_dtype=dispatch_scale_dtype,
-                output_layout=RT_LAYOUT_2D,
-                scales_layout=RT_LAYOUT_2D,
-                hidden_size,
-                top_k,
-            ]
-            dispatch_msg_size = token_fmt_type.msg_size()
+            case "MXFP4":
+                comptime token_fmt_type = MXTokenFormat[
+                    quant_dtype=dispatch_dtype,
+                    scales_dtype=dispatch_scale_dtype,
+                    output_layout=RT_LAYOUT_2D,
+                    scales_layout=RT_LAYOUT_2D,
+                    hidden_size,
+                    top_k,
+                ]
+                dispatch_msg_size = token_fmt_type.msg_size()
 
-        elif dispatch_fmt_str == "MXFP6":
-            comptime token_fmt_type = MXTokenFormat[
-                quant_dtype=dispatch_dtype,
-                scales_dtype=dispatch_scale_dtype,
-                output_layout=RT_LAYOUT_2D,
-                scales_layout=RT_LAYOUT_2D,
-                hidden_size,
-                top_k,
-                mx_format=MXFormat.FP6_E2M3,
-            ]
-            dispatch_msg_size = token_fmt_type.msg_size()
+            case "MXFP6":
+                comptime token_fmt_type = MXTokenFormat[
+                    quant_dtype=dispatch_dtype,
+                    scales_dtype=dispatch_scale_dtype,
+                    output_layout=RT_LAYOUT_2D,
+                    scales_layout=RT_LAYOUT_2D,
+                    hidden_size,
+                    top_k,
+                    mx_format=MXFormat.FP6_E2M3,
+                ]
+                dispatch_msg_size = token_fmt_type.msg_size()
 
-        elif dispatch_fmt_str == "BF16":
-            comptime token_fmt_type = BF16TokenFormat[
-                output_layout=RT_LAYOUT_2D, hidden_size, top_k
-            ]
-            dispatch_msg_size = token_fmt_type.msg_size()
+            case "BF16":
+                comptime token_fmt_type = BF16TokenFormat[
+                    output_layout=RT_LAYOUT_2D, hidden_size, top_k
+                ]
+                dispatch_msg_size = token_fmt_type.msg_size()
 
-        else:
-            raise Error("Invalid dispatch format string: ", dispatch_fmt_str)
+            case _:
+                raise Error(
+                    "Invalid dispatch format string: ", dispatch_fmt_str
+                )
 
         var dispatch_send_size = max_token_per_rank * dispatch_msg_size
         var dispatch_recv_size = (
@@ -214,27 +217,31 @@ struct Struct_ep_init:
 
         # Initialize atomic counters to zero for synchronization
         # These counters coordinate work between different thread blocks.
+        # A config that can host a fused EP kernel allocates the reserved
+        # words too (`allocation_size()`); the memset zeroes them as well.
         comptime assert (
             atomic_counters_0.static_spec.static_size
             == EPLocalSyncCounters[n_experts].total_size()
+            or atomic_counters_0.static_spec.static_size
+            == EPLocalSyncCounters[n_experts].allocation_size()
         ), "Atomic counters 0 size doesn't match expected size."
         var atomic_counters_0_buf = atomic_counters_0.to_device_buffer(gpu_ctx)
         gpu_ctx.enqueue_memset(atomic_counters_0_buf, Int32(0))
 
         comptime assert (
             atomic_counters_1.static_spec.static_size
-            == EPLocalSyncCounters[n_experts].total_size()
+            == atomic_counters_0.static_spec.static_size
         ), "Atomic counters 1 size doesn't match expected size."
         var atomic_counters_1_buf = atomic_counters_1.to_device_buffer(gpu_ctx)
         gpu_ctx.enqueue_memset(atomic_counters_1_buf, Int32(0))
 
-        var dispatch_send_p: UnsafePointer[UInt8, MutUntrackedOrigin]
-        var dispatch_recv_p: UnsafePointer[UInt8, MutUntrackedOrigin]
-        var dispatch_recv_count_p: UnsafePointer[UInt64, MutUntrackedOrigin]
+        var dispatch_send_p: MutPointer[UInt8, MutUntrackedOrigin]
+        var dispatch_recv_p: MutPointer[UInt8, MutUntrackedOrigin]
+        var dispatch_recv_count_p: MutPointer[UInt64, MutUntrackedOrigin]
 
-        var combine_send_p: Optional[UnsafePointer[UInt8, MutUntrackedOrigin]]
-        var combine_recv_p: UnsafePointer[UInt8, MutUntrackedOrigin]
-        var combine_recv_count_p: UnsafePointer[UInt64, MutUntrackedOrigin]
+        var combine_send_p: Optional[MutPointer[UInt8, MutUntrackedOrigin]]
+        var combine_recv_p: MutPointer[UInt8, MutUntrackedOrigin]
+        var combine_recv_count_p: MutPointer[UInt64, MutUntrackedOrigin]
 
         comptime if n_nodes > 1:
             # Initialize the SHMEM library for this GPU
@@ -254,8 +261,9 @@ struct Struct_ep_init:
             combine_recv_count_p = shmem_malloc[.uint64](n_experts)
 
         else:
-            if not is_p2p_enabled():
-                raise Error("P2P is not supported on this system.")
+            comptime if n_gpus_per_node > 1:
+                if not is_p2p_enabled():
+                    raise Error("P2P is not supported on this system.")
             dispatch_send_p = gpu_ctx.enqueue_create_buffer[.uint8](
                 dispatch_send_size
             ).take_ptr()
@@ -377,56 +385,59 @@ struct Struct_ep_dispatch_async:
             context: GPU device context for the current device.
         """
 
-        comptime if dispatch_fmt_str == "BlockwiseFP8":
-            comptime token_fmt_type = BlockwiseFP8TokenFormat[
-                fp8_dtype=dispatch_dtype,
-                scales_dtype=DType.float32,
-                output_layout=RT_LAYOUT_2D,
-                scales_layout=RT_LAYOUT_2D,
-                hidden_size,
-                top_k,
-            ]
-            ep_dispatch_async_kernel_api[
-                token_fmt_type,
-                n_experts,
-                max_token_per_rank,
-                n_gpus_per_node,
-                n_nodes,
-                target,
-            ](
-                atomic_counters.to_tile_tensor[.int64](),
-                input_tokens.to_tile_tensor[.int64]().as_imm(),
-                topk_ids.to_tile_tensor[.int64]().as_imm(),
-                send_ptrs.to_tile_tensor[.int64](),
-                recv_ptrs.to_tile_tensor[.int64](),
-                recv_count_ptrs.to_tile_tensor[.int64](),
-                context,
-            )
+        comptime match dispatch_fmt_str:
+            case "BlockwiseFP8":
+                comptime token_fmt_type = BlockwiseFP8TokenFormat[
+                    fp8_dtype=dispatch_dtype,
+                    scales_dtype=DType.float32,
+                    output_layout=RT_LAYOUT_2D,
+                    scales_layout=RT_LAYOUT_2D,
+                    hidden_size,
+                    top_k,
+                ]
+                ep_dispatch_async_kernel_api[
+                    token_fmt_type,
+                    n_experts,
+                    max_token_per_rank,
+                    n_gpus_per_node,
+                    n_nodes,
+                    target,
+                ](
+                    atomic_counters.to_tile_tensor[.int64](),
+                    input_tokens.to_tile_tensor[.int64]().as_imm(),
+                    topk_ids.to_tile_tensor[.int64]().as_imm(),
+                    send_ptrs.to_tile_tensor[.int64](),
+                    recv_ptrs.to_tile_tensor[.int64](),
+                    recv_count_ptrs.to_tile_tensor[.int64](),
+                    context,
+                )
 
-        elif dispatch_fmt_str == "BF16":
-            comptime token_fmt_type = BF16TokenFormat[
-                output_layout=RT_LAYOUT_2D, hidden_size, top_k
-            ]
+            case "BF16":
+                comptime token_fmt_type = BF16TokenFormat[
+                    output_layout=RT_LAYOUT_2D, hidden_size, top_k
+                ]
 
-            ep_dispatch_async_kernel_api[
-                token_fmt_type,
-                n_experts,
-                max_token_per_rank,
-                n_gpus_per_node,
-                n_nodes,
-                target,
-            ](
-                atomic_counters.to_tile_tensor[.int64](),
-                input_tokens.to_tile_tensor[.int64]().as_imm(),
-                topk_ids.to_tile_tensor[.int64]().as_imm(),
-                send_ptrs.to_tile_tensor[.int64](),
-                recv_ptrs.to_tile_tensor[.int64](),
-                recv_count_ptrs.to_tile_tensor[.int64](),
-                context,
-            )
+                ep_dispatch_async_kernel_api[
+                    token_fmt_type,
+                    n_experts,
+                    max_token_per_rank,
+                    n_gpus_per_node,
+                    n_nodes,
+                    target,
+                ](
+                    atomic_counters.to_tile_tensor[.int64](),
+                    input_tokens.to_tile_tensor[.int64]().as_imm(),
+                    topk_ids.to_tile_tensor[.int64]().as_imm(),
+                    send_ptrs.to_tile_tensor[.int64](),
+                    recv_ptrs.to_tile_tensor[.int64](),
+                    recv_count_ptrs.to_tile_tensor[.int64](),
+                    context,
+                )
 
-        else:
-            raise Error("Invalid dispatch format string: ", dispatch_fmt_str)
+            case _:
+                raise Error(
+                    "Invalid dispatch format string: ", dispatch_fmt_str
+                )
 
 
 @extensibility.register("ep.dispatch_async.block.scaled.nv")
@@ -498,12 +509,12 @@ struct Struct_ep_dispatch_async_block_scaled_nv:
         var input_scales_tensor = input_scales.to_tile_tensor[.int64]()
         comptime assert input_scales_tensor.flat_rank == 1
 
-        @__parameter
         @inline(.always)
-        @__copy_capture(input_scales_tensor)
-        def input_scales_fn[dtype: DType](expert_id: Int) -> Scalar[dtype]:
+        def input_scales_fn[
+            dtype: DType
+        ](expert_id: Int) {var input_scales_tensor} -> Scalar[dtype]:
             # Currently only use one global input scale for all experts
-            return rebind[Scalar[dtype]](input_scales_tensor[0].cast[dtype]())
+            return input_scales_tensor[0].cast[dtype]()
 
         comptime token_fmt_type = NVBlockScaledTokenFormat[
             quant_dtype=dispatch_dtype,
@@ -520,7 +531,6 @@ struct Struct_ep_dispatch_async_block_scaled_nv:
             n_gpus_per_node,
             n_nodes,
             target,
-            input_scales_wrapper=input_scales_fn,
         ](
             atomic_counters.to_tile_tensor[.int64](),
             input_tokens.to_tile_tensor[.int64]().as_imm(),
@@ -529,6 +539,7 @@ struct Struct_ep_dispatch_async_block_scaled_nv:
             recv_ptrs.to_tile_tensor[.int64](),
             recv_count_ptrs.to_tile_tensor[.int64](),
             context,
+            input_scales_fn,
         )
 
 
@@ -847,8 +858,6 @@ struct Struct_ep_dispatch_wait_mxfp4:
         target: StaticString,
         num_input_tokens: Int = -1,
         *,
-        fuse_a_scale_preshuffle: Bool = False,
-        max_padded_M: Int = 0,
         MX_FORMAT: StaticString = "auto",
     ](
         output_tokens: OutputTensor[dtype=dispatch_dtype, rank=2, ...],
@@ -865,14 +874,15 @@ struct Struct_ep_dispatch_wait_mxfp4:
         tokens are in MXFP4 format: two FP4 elements packed per ``uint8`` in
         ``output_tokens`` with per-token even-mode scales in ``output_scales``.
 
-        When ``fuse_a_scale_preshuffle=True`` (KS224 up-proj fusion), the
-        kernel writes the E8M0 activation scale directly into the up-proj
-        grouped matmul's per-expert fixed-stride ``scale_4d`` slot layout (slot
-        stride ``max_padded_M * K_SCALES``), so the standalone
-        ``preshuffle_grouped_scale_4d_gpu`` can be dropped from the decode
-        critical path. The scales output tensor must then have shape
-        ``[n_local_experts * max_padded_M, K_SCALES]``.
+        The kernel writes the E8M0 activation scale directly into the up-proj
+        grouped matmul's per-expert fixed-stride ``scale_4d`` slot layout (KS224
+        up-proj fusion). A slot holds ``max_padded_M`` rows, the most tokens one
+        expert can receive rounded up to 32, so the scales output tensor has
+        shape ``[n_local_experts * max_padded_M, K_SCALES]``.
         """
+        comptime max_padded_M = align_up(
+            max_token_per_rank * n_gpus_per_node * n_nodes, 32
+        )
         var output_tokens_tensor = output_tokens.to_tile_tensor[.int64]()
         var output_scales_tensor = output_scales.to_tile_tensor[.int64]()
 
@@ -887,7 +897,6 @@ struct Struct_ep_dispatch_wait_mxfp4:
         var format_handler = MXTokenFormat[
             hidden_size,
             top_k,
-            fuse_a_scale_preshuffle=fuse_a_scale_preshuffle,
             mx_format=mx_fmt,
         ](
             output_tokens_tensor,
@@ -1203,12 +1212,12 @@ struct Struct_ep_dispatch_block_scaled_nv:
         var input_scales_tensor = input_scales.to_tile_tensor[.int64]()
         comptime assert input_scales_tensor.flat_rank == 1
 
-        @__parameter
         @inline(.always)
-        @__copy_capture(input_scales_tensor)
-        def input_scales_fn[dtype: DType](expert_id: Int) -> Scalar[dtype]:
+        def input_scales_fn[
+            dtype: DType
+        ](expert_id: Int) {var input_scales_tensor} -> Scalar[dtype]:
             # Currently only use one global input scale for all experts
-            return rebind[Scalar[dtype]](input_scales_tensor[0].cast[dtype]())
+            return input_scales_tensor[0].cast[dtype]()
 
         var format_handler = NVBlockScaledTokenFormat[hidden_size, top_k](
             output_tokens_tensor,
@@ -1224,7 +1233,6 @@ struct Struct_ep_dispatch_block_scaled_nv:
             n_nodes,
             fused_shared_expert,
             target,
-            input_scales_wrapper=input_scales_fn,
             skip_a2a=skip_a2a,
             allreduce_world_size=allreduce_world_size,
         ](
@@ -1239,6 +1247,7 @@ struct Struct_ep_dispatch_block_scaled_nv:
             recv_ptrs.to_tile_tensor[.int64](),
             recv_count_ptrs.to_tile_tensor[.int64](),
             context,
+            input_scales_fn,
         )
 
 
@@ -1420,8 +1429,6 @@ struct Struct_ep_dispatch_mxfp4:
         //,
         target: StaticString,
         *,
-        fuse_a_scale_preshuffle: Bool = False,
-        max_padded_M: Int = 0,
         MX_FORMAT: StaticString = "auto",
     ](
         output_tokens: OutputTensor[dtype=dispatch_dtype, rank=2, ...],
@@ -1440,13 +1447,15 @@ struct Struct_ep_dispatch_mxfp4:
         """Execute the fused Expert Parallelism MXFP4 dispatch kernel. Tokens
         are dispatched in MXFP4 format.
 
-        When ``fuse_a_scale_preshuffle=True`` (KS224 up-proj fusion), the
-        wait-side copy writes the E8M0 activation scale directly into the
+        The wait-side copy writes the E8M0 activation scale directly into the
         up-proj grouped matmul's per-expert fixed-stride ``scale_4d`` slot
-        layout (slot stride ``max_padded_M * K_SCALES``), dropping the standalone
-        preshuffle. The scales output tensor must then be slot-sized
-        (``[n_local_experts * max_padded_M, K_SCALES]``).
+        layout (KS224 up-proj fusion). A slot holds ``max_padded_M`` rows, the
+        most tokens one expert can receive rounded up to 32, so the scales
+        output tensor has shape ``[n_local_experts * max_padded_M, K_SCALES]``.
         """
+        comptime max_padded_M = align_up(
+            max_token_per_rank * n_gpus_per_node * n_nodes, 32
+        )
         var output_tokens_tensor = output_tokens.to_tile_tensor[.int64]()
         var output_scales_tensor = output_scales.to_tile_tensor[.int64]()
 
@@ -1456,7 +1465,6 @@ struct Struct_ep_dispatch_mxfp4:
         var format_handler = MXTokenFormat[
             hidden_size,
             top_k,
-            fuse_a_scale_preshuffle=fuse_a_scale_preshuffle,
             mx_format=mx_fmt,
         ](
             output_tokens_tensor,
@@ -1527,7 +1535,7 @@ struct DistributedEPDispatchBlockScaledNV:
             dtype=DType.int32, rank=1, ...
         ],
         dev_ctxs: DeviceContextArray,
-    ) capturing raises:
+    ) raises:
         """Multi-device fused Expert Parallelism NVFP4 dispatch.
 
         Launches the EP dispatch kernel on all devices simultaneously via
@@ -1613,11 +1621,11 @@ struct DistributedEPDispatchBlockScaledNV:
             var in_scales = input_scales[index].to_tile_tensor[.int64]()
             comptime assert in_scales.flat_rank == 1
 
-            @__parameter
             @inline(.always)
-            @__copy_capture(in_scales)
-            def input_scales_fn[dtype: DType](expert_id: Int) -> Scalar[dtype]:
-                return rebind[Scalar[dtype]](in_scales[0].cast[dtype]())
+            def input_scales_fn[
+                dtype: DType
+            ](expert_id: Int) {var in_scales} -> Scalar[dtype]:
+                return in_scales[0].cast[dtype]()
 
             var format_handler = NVBlockScaledTokenFormat[hidden_size, top_k](
                 out_tokens,
@@ -1633,7 +1641,6 @@ struct DistributedEPDispatchBlockScaledNV:
                 n_nodes,
                 fused_shared_expert,
                 target,
-                input_scales_wrapper=input_scales_fn,
             ](
                 format_handler,
                 row_offsets[index].to_tile_tensor[.int64](),
@@ -1646,6 +1653,7 @@ struct DistributedEPDispatchBlockScaledNV:
                 recv_ptrs[index].to_tile_tensor[.int64](),
                 recv_count_ptrs[index].to_tile_tensor[.int64](),
                 gpu_ctxs[index],
+                input_scales_fn,
             )
 
         _launch_device_collective[num_devices](launch_dispatch, gpu_ctxs.copy())
@@ -1696,7 +1704,7 @@ struct DistributedEPDispatchBlockScaledNVDynGlobalScales:
             dtype=DType.int32, rank=1, ...
         ],
         dev_ctxs: DeviceContextArray,
-    ) capturing raises:
+    ) raises:
         """Multi-device fused Expert Parallelism NVFP4 dispatch with dynamic
         global scales.
 
@@ -1834,8 +1842,6 @@ struct DistributedEPDispatchMXFP4:
         n_gpus_per_node: Int,
         n_nodes: Int,
         fused_shared_expert: Bool,
-        fuse_a_scale_preshuffle: Bool,
-        max_padded_m: Int,
         //,
         target: StaticString,
         _trace_name: StaticString,
@@ -1858,7 +1864,7 @@ struct DistributedEPDispatchMXFP4:
             dtype=DType.int32, rank=1, ...
         ],
         dev_ctxs: DeviceContextArray,
-    ) capturing raises:
+    ) raises:
         """Multi-device fused Expert Parallelism MXFP4 dispatch.
 
         Launches the EP dispatch kernel on all devices simultaneously via
@@ -1893,8 +1899,9 @@ struct DistributedEPDispatchMXFP4:
         Args:
             output_tokens: Output variadic tensors storing the dispatched
                 MXFP4-quantized tokens, one per device.
-            output_scales: Output variadic tensors storing the per-token
-                E8M0 scales for the dispatched tokens, one per device.
+            output_scales: Output variadic tensors storing the dispatched
+                tokens' E8M0 scales in the grouped matmul's per-expert slot
+                layout, one per device.
             row_offsets: Output variadic tensors storing the row offsets for
                 the received tokens, one per device.
             expert_ids: Output variadic tensors storing the expert ID for
@@ -1916,6 +1923,9 @@ struct DistributedEPDispatchMXFP4:
                 thread blocks, one per device.
             dev_ctxs: List of GPU device contexts, one per device.
         """
+        comptime max_padded_m = align_up(
+            max_token_per_rank * n_gpus_per_node * n_nodes, 32
+        )
         comptime num_devices = input_tokens.size
 
         var gpu_ctxs = dev_ctxs.filter_gpu_contexts[num_devices]()
@@ -1946,7 +1956,6 @@ struct DistributedEPDispatchMXFP4:
             var format_handler = MXTokenFormat[
                 hidden_size,
                 top_k,
-                fuse_a_scale_preshuffle=fuse_a_scale_preshuffle,
                 mx_format=mx_fmt,
             ](
                 out_tokens,
@@ -2010,7 +2019,7 @@ struct DistributedEPDispatch:
             dtype=DType.int32, rank=1, ...
         ],
         dev_ctxs: DeviceContextArray,
-    ) capturing raises:
+    ) raises:
         """Multi-device fused Expert Parallelism BF16 dispatch.
 
         Parameters:
@@ -2138,7 +2147,7 @@ struct DistributedEPDispatchFP8:
             dtype=DType.int32, rank=1, ...
         ],
         dev_ctxs: DeviceContextArray,
-    ) capturing raises:
+    ) raises:
         """Multi-device fused Expert Parallelism FP8 dispatch.
 
         Launches the EP dispatch kernel on all devices simultaneously via
@@ -2260,7 +2269,6 @@ struct DistributedEPCombine:
         n_gpus_per_node: Int,
         n_nodes: Int,
         fused_shared_expert: Bool,
-        has_epilogue_fusion: Bool,
         //,
         target: StaticString,
         _trace_name: StaticString,
@@ -2280,7 +2288,7 @@ struct DistributedEPCombine:
             dtype=DType.int32, rank=1, ...
         ],
         dev_ctxs: DeviceContextArray,
-    ) capturing raises:
+    ) raises:
         """Multi-device fused Expert Parallelism combine with output fusion.
 
         Parameters:
@@ -2294,8 +2302,6 @@ struct DistributedEPCombine:
             n_nodes: Number of physical nodes.
             fused_shared_expert: Whether a shared expert is fused into the
                 combine kernel.
-            has_epilogue_fusion: Whether the combine output is fused with a
-                downstream elementwise epilogue.
             target: Compile-time device target.
             _trace_name: Trace label for this op.
 
@@ -2336,24 +2342,37 @@ struct DistributedEPCombine:
             imm atomic_counters,
             imm gpu_ctxs,
         }:
+            comptime assert (
+                Int(type_of(output_tokens).static_specs[index].shape_tuple[1])
+                == hidden_size
+            ), "EP combine: output tokens shape doesn't match hidden size."
             var rw_tensor = router_weights[index].to_tile_tensor[.int64]()
 
-            @__parameter
             @inline(.always)
-            @__copy_capture(rw_tensor)
             def router_weights_fn[
                 width: Int
-            ](token_idx: Int, topk_id: Int) -> SIMD[.float32, width]:
+            ](token_idx: Int, topk_id: Int) {var rw_tensor} -> SIMD[
+                .float32, width
+            ]:
                 return rw_tensor.load[width=width]((token_idx, topk_id)).cast[
                     DType.float32
                 ]()
 
-            @__parameter
+            # Stores into this device's fused output. It runs on the device, so
+            # it copies the tensor.
+            var out_tensor = output_tokens[index]
+
             @inline(.always)
             def output_fn[
-                dtype: DType, width: SIMDLength, *, alignment: Int = 1
-            ](coords: IndexList[2], val: SIMD[dtype, width]):
-                output_tokens[index]._lambda_store[
+                dtype: DType,
+                rank: Int,
+                width: SIMDLength,
+                *,
+                alignment: Int = 1,
+            ](coords: IndexList[rank], val: SIMD[dtype, width]) {
+                var out_tensor
+            }:
+                out_tensor._fused_store[
                     width=width, element_alignment=alignment
                 ](
                     coords,
@@ -2368,13 +2387,9 @@ struct DistributedEPCombine:
                 n_gpus_per_node,
                 n_nodes,
                 target,
-                router_weights_wrapper=router_weights_fn,
-                epilogue_fn=Optional[elementwise_epilogue_type](
-                    output_fn
-                ) if has_epilogue_fusion else None,
                 fused_shared_expert=fused_shared_expert,
             ](
-                output_tokens[index].to_tile_tensor[.int64](),
+                output_tokens[index].dim_size[0](),
                 atomic_counters[index].to_tile_tensor[.int64](),
                 input_tokens[index].to_tile_tensor[.int64](),
                 src_info[index].to_tile_tensor[.int64](),
@@ -2382,6 +2397,8 @@ struct DistributedEPCombine:
                 recv_ptrs[index].to_tile_tensor[.int64](),
                 recv_count_ptrs[index].to_tile_tensor[.int64](),
                 gpu_ctxs[index],
+                output_fn,
+                router_weights_fn,
             )
 
         _launch_device_collective[num_devices](launch_combine, gpu_ctxs.copy())
@@ -2484,7 +2501,6 @@ struct Struct_ep_combine_wait:
         max_token_per_rank: Int,
         n_gpus_per_node: Int,
         n_nodes: Int,
-        has_epilogue_fusion: Bool,
         target: StaticString,
     ](
         output_tokens: FusedOutputTensor[dtype=combine_dtype, rank=2, ...],
@@ -2512,9 +2528,6 @@ struct Struct_ep_combine_wait:
                 receive.
             n_gpus_per_node: Number of GPUs per physical node.
             n_nodes: Number of physical nodes in the deployment.
-            has_epilogue_fusion: Whether to apply an elementwise
-                epilogue function after computing the combined
-                output.
             target: Compile-time device target.
 
         Args:
@@ -2532,38 +2545,40 @@ struct Struct_ep_combine_wait:
                 Shape `[num_tokens, top_k]`.
             context: GPU device context for the current device.
         """
+        comptime assert (
+            Int(output_tokens.static_spec.shape_tuple[1]) == hidden_size
+        ), "EP combine: output tokens shape doesn't match hidden size."
         var router_weights_tensor = router_weights.to_tile_tensor[.int64]()
         comptime assert router_weights_tensor.flat_rank == 2
         comptime assert router_weights_tensor.flat_rank >= 2
 
-        @__parameter
         @inline(.always)
-        @__copy_capture(router_weights_tensor)
         def router_weights_fn[
             width: Int
-        ](token_idx: Int, topk_id: Int) -> SIMD[.float32, width]:
+        ](token_idx: Int, topk_id: Int) {var router_weights_tensor} -> SIMD[
+            .float32, width
+        ]:
             return router_weights_tensor.load[width=width](
                 (token_idx, topk_id)
             ).cast[.float32]()
 
-        @__parameter
         @inline(.always)
         def output_fn[
-            dtype: DType, width: SIMDLength, *, alignment: Int = 1
-        ](coords: IndexList[2], val: SIMD[dtype, width]):
-            output_tokens._lambda_store[
+            dtype: DType,
+            rank: Int,
+            width: SIMDLength,
+            *,
+            alignment: Int = 1,
+        ](coords: IndexList[rank], val: SIMD[dtype, width]) {var output_tokens}:
+            output_tokens._fused_store[
                 width=width, element_alignment=alignment
             ](
                 coords,
                 rebind[SIMD[combine_dtype, width]](val),
             )
 
-        var output_tokens_tensor = output_tokens.to_tile_tensor[.int64]()
-        # `output_tokens.dim(0)` is the per-token combine result count
-        # (= num_input_tokens). Pass it to enable the decode-fast-path
-        # grid sizing in `ep_combine_wait_kernel_api`.
-        var num_input_tokens = Int(output_tokens_tensor.dim(0))
         ep_combine_wait_kernel_api[
+            combine_dtype,
             hidden_size,
             top_k,
             n_experts,
@@ -2571,17 +2586,14 @@ struct Struct_ep_combine_wait:
             n_gpus_per_node,
             n_nodes,
             target,
-            router_weights_wrapper=router_weights_fn,
-            epilogue_fn=Optional[elementwise_epilogue_type](
-                output_fn
-            ) if has_epilogue_fusion else None,
         ](
-            output_tokens_tensor,
+            output_tokens.dim_size[0](),
             atomic_counters.to_tile_tensor[.int64](),
             recv_ptrs.to_tile_tensor[.int64](),
             recv_count_ptrs.to_tile_tensor[.int64](),
             context,
-            num_input_tokens,
+            output_fn,
+            router_weights_fn,
         )
 
 
@@ -2601,7 +2613,6 @@ struct Struct_ep_combine:
         n_gpus_per_node: Int,
         n_nodes: Int,
         fused_shared_expert: Bool,
-        has_epilogue_fusion: Bool,
         skip_a2a: Bool,
         //,
         target: StaticString,
@@ -2642,9 +2653,6 @@ struct Struct_ep_combine:
             fused_shared_expert: Whether a shared expert is fused into
                 the combine kernel, adding its output to the routed
                 expert outputs (inferred).
-            has_epilogue_fusion: Whether to apply an elementwise
-                epilogue function after computing the combined output
-                (inferred).
             skip_a2a: Whether to skip the all-to-all communication and
                 send tokens only within the current device (inferred).
             target: Compile-time device target.
@@ -2671,26 +2679,35 @@ struct Struct_ep_combine:
                 `[num_tokens, top_k]`.
             context: GPU device context for the current device.
         """
+        comptime assert (
+            not skip_a2a
+        ), "ep.combine: skip_a2a is lowered to ep.combine.skip_a2a."
+        comptime assert (
+            Int(output_tokens.static_spec.shape_tuple[1]) == hidden_size
+        ), "EP combine: output tokens shape doesn't match hidden size."
         var router_weights_tensor = router_weights.to_tile_tensor[.int64]()
         comptime assert router_weights_tensor.flat_rank == 2
         comptime assert router_weights_tensor.flat_rank >= 2
 
-        @__parameter
         @inline(.always)
-        @__copy_capture(router_weights_tensor)
         def router_weights_fn[
             width: Int
-        ](token_idx: Int, topk_id: Int) -> SIMD[.float32, width]:
+        ](token_idx: Int, topk_id: Int) {var router_weights_tensor} -> SIMD[
+            .float32, width
+        ]:
             return router_weights_tensor.load[width=width](
                 (token_idx, topk_id)
             ).cast[.float32]()
 
-        @__parameter
         @inline(.always)
         def output_fn[
-            dtype: DType, width: SIMDLength, *, alignment: Int = 1
-        ](coords: IndexList[2], val: SIMD[dtype, width]):
-            output_tokens._lambda_store[
+            dtype: DType,
+            rank: Int,
+            width: SIMDLength,
+            *,
+            alignment: Int = 1,
+        ](coords: IndexList[rank], val: SIMD[dtype, width]) {var output_tokens}:
+            output_tokens._fused_store[
                 width=width, element_alignment=alignment
             ](
                 coords,
@@ -2705,14 +2722,10 @@ struct Struct_ep_combine:
             n_gpus_per_node,
             n_nodes,
             target,
-            router_weights_wrapper=router_weights_fn,
-            epilogue_fn=Optional[elementwise_epilogue_type](
-                output_fn
-            ) if has_epilogue_fusion else None,
             fused_shared_expert=fused_shared_expert,
             skip_a2a=skip_a2a,
         ](
-            output_tokens.to_tile_tensor[.int64](),
+            output_tokens.dim_size[0](),
             atomic_counters.to_tile_tensor[.int64](),
             input_tokens.to_tile_tensor[.int64](),
             src_info.to_tile_tensor[.int64](),
@@ -2720,6 +2733,8 @@ struct Struct_ep_combine:
             recv_ptrs.to_tile_tensor[.int64](),
             recv_count_ptrs.to_tile_tensor[.int64](),
             context,
+            output_fn,
+            router_weights_fn,
         )
 
 
@@ -2739,7 +2754,6 @@ struct Struct_ep_combine_skip_a2a:
         n_gpus_per_node: Int,
         n_nodes: Int,
         fused_shared_expert: Bool,
-        has_epilogue_fusion: Bool,
         skip_a2a: Bool,
         allreduce_world_size: Int,
         //,
@@ -2784,9 +2798,6 @@ struct Struct_ep_combine_skip_a2a:
             fused_shared_expert: Whether a shared expert is fused
                 into the combine kernel, adding its output to the
                 routed expert outputs (inferred).
-            has_epilogue_fusion: Whether to apply an elementwise
-                epilogue function after computing the combined
-                output (inferred).
             skip_a2a: Whether to skip the all-to-all communication
                 and reduce expert outputs locally instead
                 (inferred).
@@ -2819,26 +2830,32 @@ struct Struct_ep_combine_skip_a2a:
                 Shape `[num_tokens, top_k]`.
             context: GPU device context for the current device.
         """
+        comptime assert (
+            Int(output_tokens.static_spec.shape_tuple[1]) == hidden_size
+        ), "EP combine: output tokens shape doesn't match hidden size."
         var router_weights_tensor = router_weights.to_tile_tensor[.int64]()
         comptime assert router_weights_tensor.flat_rank == 2
         comptime assert router_weights_tensor.flat_rank >= 2
 
-        @__parameter
         @inline(.always)
-        @__copy_capture(router_weights_tensor)
         def router_weights_fn[
             width: Int
-        ](token_idx: Int, topk_id: Int) -> SIMD[.float32, width]:
+        ](token_idx: Int, topk_id: Int) {var router_weights_tensor} -> SIMD[
+            .float32, width
+        ]:
             return router_weights_tensor.load[width=width](
                 (token_idx, topk_id)
             ).cast[.float32]()
 
-        @__parameter
         @inline(.always)
         def output_fn[
-            dtype: DType, width: SIMDLength, *, alignment: Int = 1
-        ](coords: IndexList[2], val: SIMD[dtype, width]):
-            output_tokens._lambda_store[
+            dtype: DType,
+            rank: Int,
+            width: SIMDLength,
+            *,
+            alignment: Int = 1,
+        ](coords: IndexList[rank], val: SIMD[dtype, width]) {var output_tokens}:
+            output_tokens._fused_store[
                 width=width, element_alignment=alignment
             ](
                 coords,
@@ -2853,15 +2870,11 @@ struct Struct_ep_combine_skip_a2a:
             n_gpus_per_node,
             n_nodes,
             target,
-            router_weights_wrapper=router_weights_fn,
-            epilogue_fn=Optional[elementwise_epilogue_type](
-                output_fn
-            ) if has_epilogue_fusion else None,
             fused_shared_expert=fused_shared_expert,
             skip_a2a=skip_a2a,
             allreduce_world_size=allreduce_world_size,
         ](
-            output_tokens.to_tile_tensor[.int64](),
+            output_tokens.dim_size[0](),
             atomic_counters.to_tile_tensor[.int64](),
             input_tokens.to_tile_tensor[.int64](),
             src_info.to_tile_tensor[.int64](),
@@ -2869,7 +2882,9 @@ struct Struct_ep_combine_skip_a2a:
             recv_ptrs.to_tile_tensor[.int64](),
             recv_count_ptrs.to_tile_tensor[.int64](),
             context,
-            topk_ids._ptr.as_imm().unsafe_origin_cast[ImmUntrackedOrigin](),
+            output_fn,
+            router_weights_fn,
+            topk_ids._ptr.as_imm(),
         )
 
 
@@ -2884,6 +2899,10 @@ struct Struct_ep_fused_silu:
         input_dtype: DType,
         //,
         target: StaticString,
+        activation: StaticString = "silu",
+        swiglu_alpha: Float32 = 0.0,
+        swiglu_limit: Float32 = 0.0,
+        interleaved: Bool = False,
     ](
         output: OutputTensor[dtype=output_dtype, rank=2, ...],
         input: InputTensor[dtype=input_dtype, rank=2, ...],
@@ -2900,6 +2919,11 @@ struct Struct_ep_fused_silu:
         This kernel will read the row offsets to determine the actual number of
         received tokens in the input tensor, and then only perform the SILU
         operation on the received tokens.
+
+        The gated activation is built at compile time from the `activation`,
+        `swiglu_alpha` and `swiglu_limit` parameters.
+        `interleaved` reads each input row as `[gate_0, up_0, ...]` instead
+        of `[gate | up]`.
         """
         # Ensure this kernel only runs on GPU targets
         comptime assert is_gpu[target](), "EP is only supported on GPU."
@@ -2913,6 +2937,12 @@ struct Struct_ep_fused_silu:
         var gpu_ctx = context
         comptime hw_info = gpu_ctx.default_device_info
 
+        comptime act = get_swiglu_activation[
+            activation,
+            swiglu_alpha,
+            swiglu_limit,
+        ]
+
         comptime fused_silu = fused_silu_kernel[
             output_dtype,
             input_dtype,
@@ -2921,6 +2951,8 @@ struct Struct_ep_fused_silu:
             row_offsets_tensor.LayoutType,
             hw_info.max_thread_block_size,
             hw_info.sm_count,
+            activation=act,
+            interleaved=interleaved,
         ]
 
         @inline(.always)
@@ -2929,6 +2961,7 @@ struct Struct_ep_fused_silu:
             return String(
                 "output_dtype=", output_dtype,
                 ";input_dtype=", input_dtype,
+                ";activation=", activation,
             )
             # fmt: on
 
@@ -2939,91 +2972,6 @@ struct Struct_ep_fused_silu:
         ):
             gpu_ctx.enqueue_function[fused_silu](
                 output_tensor,
-                input_tensor,
-                row_offsets_tensor,
-                grid_dim=hw_info.sm_count,
-                block_dim=hw_info.max_thread_block_size,
-                attributes=pdl_launch_attributes(PDLLevel.ON),
-            )
-
-
-@extensibility.register("ep.fused_silu.fp8")
-struct Struct_ep_fused_silu_fp8:
-    """Registers the `ep.fused_silu.fp8` graph op with the graph compiler."""
-
-    @inline(.always)
-    @staticmethod
-    def execute[
-        fp8_dtype: DType,
-        scales_dtype: DType,
-        input_dtype: DType,
-        target: StaticString,
-    ](
-        output: OutputTensor[dtype=fp8_dtype, rank=2, ...],
-        scales: OutputTensor[dtype=scales_dtype, rank=2, ...],
-        input: InputTensor[dtype=input_dtype, rank=2, ...],
-        row_offsets: InputTensor[dtype=.uint32, rank=1, ...],
-        context: DeviceContext,
-    ) raises:
-        """Execute the Expert Parallelism fused SILU kernel with FP8
-        quantization.
-
-        This function launches the fused_silu_fp8 kernel to perform the SILU
-        operation for all the MLPs in the EP MoE module.
-
-        This kernel will read the row offsets to determine the actual number of
-        received tokens in the input tensor, and then only perform the SILU
-        operation on the received tokens. Once the SILU operation is performed,
-        the output will be quantized to the FP8 format. The scales tensor
-        will be stored in a transposed way.
-        """
-        # Ensure this kernel only runs on GPU targets
-        comptime assert is_gpu[target](), "EP is only supported on GPU."
-
-        comptime group_size = 128
-
-        var output_tensor = output.to_tile_tensor[.int64]()
-        var scales_tensor = scales.to_tile_tensor[.int64]()
-        var input_tensor = input.to_tile_tensor[.int64]().as_imm()
-        var row_offsets_tensor = row_offsets.to_tile_tensor[
-            DType.int64
-        ]().as_imm()
-
-        var gpu_ctx = context
-        comptime hw_info = gpu_ctx.default_device_info
-
-        comptime fused_silu_fp8 = fused_silu_fp8_kernel[
-            fp8_dtype,
-            scales_dtype,
-            input_dtype,
-            output_tensor.LayoutType,
-            scales_tensor.LayoutType,
-            input_tensor.LayoutType,
-            row_offsets_tensor.LayoutType,
-            hw_info.max_thread_block_size,
-            hw_info.sm_count,
-            group_size,
-        ]
-
-        @inline(.always)
-        def description_fn() {imm} -> String:
-            # fmt: off
-            return String(
-                "fp8_dtype=", fp8_dtype,
-                ";scales_dtype=", scales_dtype,
-                ";input_dtype=", input_dtype,
-                ";group_size=", group_size,
-            )
-            # fmt: on
-
-        with Trace[TraceLevel.OP, target=target](
-            "ep.fused_silu.fp8",
-            Trace[TraceLevel.OP]._get_detail_str(description_fn),
-            task_id=get_safe_task_id(context),
-        ):
-            gpu_ctx.enqueue_function[fused_silu_fp8](
-                output_tensor,
-                scales_tensor,
                 input_tensor,
                 row_offsets_tensor,
                 grid_dim=hw_info.sm_count,
@@ -3044,9 +2992,10 @@ struct Struct_ep_fused_silu_mxfp4:
         input_dtype: DType,
         target: StaticString,
         *,
-        fuse_a_scale_preshuffle: Bool = False,
-        max_padded_M: Int = 0,
-        clamp_activation: Bool = False,
+        max_padded_M: Int,
+        activation: StaticString = "silu",
+        swiglu_alpha: Float32 = 0.0,
+        swiglu_limit: Float32 = 0.0,
         # `ep.fused_silu.mxfp8` shares this body and overrides the label.
         trace_name: StaticString = "ep.fused_silu.mxfp4",
     ](
@@ -3054,10 +3003,6 @@ struct Struct_ep_fused_silu_mxfp4:
         scales: OutputTensor[dtype=scales_dtype, rank=2, ...],
         input: InputTensor[dtype=input_dtype, rank=2, ...],
         row_offsets: InputTensor[dtype=.uint32, rank=1, ...],
-        # Clamped-SwiGLU alpha/L (trailing CPU f32 constants); unused when
-        # clamp_activation=False.
-        alpha: Float32,
-        limit: Float32,
         context: DeviceContext,
     ) raises:
         """Execute the Expert Parallelism fused SILU kernel with MX
@@ -3077,15 +3022,19 @@ struct Struct_ep_fused_silu_mxfp4:
         operation on the received tokens. Once the SILU operation is performed,
         the output will be quantized to the MXFP4 or MXFP8 format.
 
-        When `fuse_a_scale_preshuffle=True` (KS64 fusion), the kernel
-        writes the E8M0 scale directly into the grouped matmul's per-expert
-        fixed-stride `scale_4d` slot layout (slot stride `max_padded_M *
-        K_SCALES`), so the standalone `preshuffle_grouped_scale_4d_gpu` can be
-        omitted from the critical path. The scales output tensor must then have
-        shape `[n_local_experts * max_padded_M, K_SCALES]`.
+        The kernel writes the E8M0 scale directly into the grouped matmul's
+        per-expert fixed-stride `scale_4d` slot layout (slot stride
+        `max_padded_M * K_SCALES`; KS64 fusion), so the scales output tensor
+        has shape `[n_local_experts * max_padded_M, K_SCALES]`.
+
+        The gated activation is built at compile time from the `activation`,
+        `swiglu_alpha` and `swiglu_limit` parameters.
         """
         # Ensure this kernel only runs on GPU targets
         comptime assert is_gpu[target](), "EP is only supported on GPU."
+        comptime assert (
+            max_padded_M > 0 and max_padded_M % 32 == 0
+        ), "max_padded_M must be a positive multiple of 32"
 
         var output_tensor = output.to_tile_tensor[.int64]()
         var scales_tensor = scales.to_tile_tensor[.int64]()
@@ -3097,6 +3046,12 @@ struct Struct_ep_fused_silu_mxfp4:
         var gpu_ctx = context
         comptime hw_info = gpu_ctx.default_device_info
 
+        comptime act = get_swiglu_activation[
+            activation,
+            swiglu_alpha,
+            swiglu_limit,
+        ]
+
         comptime fused_silu_mx = fused_silu_mx_kernel[
             quant_dtype,
             scales_dtype,
@@ -3107,8 +3062,7 @@ struct Struct_ep_fused_silu_mxfp4:
             row_offsets_tensor.LayoutType,
             hw_info.max_thread_block_size,
             hw_info.sm_count,
-            fuse_a_scale_preshuffle=fuse_a_scale_preshuffle,
-            clamp_activation=clamp_activation,
+            activation=act,
         ]
 
         @inline(.always)
@@ -3118,8 +3072,7 @@ struct Struct_ep_fused_silu_mxfp4:
                 "quant_dtype=", quant_dtype,
                 ";scales_dtype=", scales_dtype,
                 ";input_dtype=", input_dtype,
-                ";fuse_a_scale_preshuffle=", fuse_a_scale_preshuffle,
-                ";clamp_activation=", clamp_activation,
+                ";activation=", activation,
             )
             # fmt: on
 
@@ -3134,8 +3087,6 @@ struct Struct_ep_fused_silu_mxfp4:
                 input_tensor,
                 row_offsets_tensor,
                 Int32(max_padded_M),
-                alpha,
-                limit,
                 grid_dim=hw_info.sm_count,
                 block_dim=hw_info.max_thread_block_size,
                 attributes=pdl_launch_attributes(PDLLevel.ON),
@@ -3154,16 +3105,15 @@ struct Struct_ep_fused_silu_mxfp8:
         input_dtype: DType,
         target: StaticString,
         *,
-        fuse_a_scale_preshuffle: Bool = False,
-        max_padded_M: Int = 0,
-        clamp_activation: Bool = False,
+        max_padded_M: Int,
+        activation: StaticString = "silu",
+        swiglu_alpha: Float32 = 0.0,
+        swiglu_limit: Float32 = 0.0,
     ](
         output: OutputTensor[dtype=fp8_dtype, rank=2, ...],
         scales: OutputTensor[dtype=scales_dtype, rank=2, ...],
         input: InputTensor[dtype=input_dtype, rank=2, ...],
         row_offsets: InputTensor[dtype=.uint32, rank=1, ...],
-        alpha: Float32,
-        limit: Float32,
         context: DeviceContext,
     ) raises:
         """Execute the EP fused SILU kernel with MXFP8 quantization.
@@ -3171,16 +3121,17 @@ struct Struct_ep_fused_silu_mxfp8:
         Same body as `ep.fused_silu.mxfp4`: `fused_silu_mx_kernel` takes its
         element packing from the output dtype, so one `fp8_e4m3fn` byte per
         element here rather than two FP4 nibbles, leaving `output` at the full
-        hidden size along axis 1. With `fuse_a_scale_preshuffle`, `scales` must
-        be shaped `[n_local_experts * max_padded_M, K_SCALES]`.
+        hidden size along axis 1. `scales` is shaped
+        `[n_local_experts * max_padded_M, K_SCALES]`.
         """
         Struct_ep_fused_silu_mxfp4.execute[
             target=target,
-            fuse_a_scale_preshuffle=fuse_a_scale_preshuffle,
             max_padded_M=max_padded_M,
-            clamp_activation=clamp_activation,
+            activation=activation,
+            swiglu_alpha=swiglu_alpha,
+            swiglu_limit=swiglu_limit,
             trace_name="ep.fused_silu.mxfp8",
-        ](output, scales, input, row_offsets, alpha, limit, context)
+        ](output, scales, input, row_offsets, context)
 
 
 @extensibility.register("ep.fused_silu.mxfp6")
@@ -3194,19 +3145,16 @@ struct Struct_ep_fused_silu_mxfp6:
         input_dtype: DType,
         target: StaticString,
         *,
+        max_padded_M: Int,
         FP6_FORMAT: Int = 0,
-        fuse_a_scale_preshuffle: Bool = False,
-        max_padded_M: Int = 0,
-        clamp_activation: Bool = False,
+        activation: StaticString = "silu",
+        swiglu_alpha: Float32 = 0.0,
+        swiglu_limit: Float32 = 0.0,
     ](
         output: OutputTensor[dtype=.uint8, rank=2, ...],
         scales: OutputTensor[dtype=scales_dtype, rank=2, ...],
         input: InputTensor[dtype=input_dtype, rank=2, ...],
         row_offsets: InputTensor[dtype=.uint32, rank=1, ...],
-        # Clamped-SwiGLU alpha/L (trailing CPU f32 constants); unused when
-        # clamp_activation=False.
-        alpha: Float32,
-        limit: Float32,
         context: DeviceContext,
     ) raises:
         """Execute the EP fused SILU kernel with MXFP6 quantization.
@@ -3219,15 +3167,14 @@ struct Struct_ep_fused_silu_mxfp6:
         `FP6_FORMAT` selects the element encoding (0 = E2M3, 1 = E3M2). Both
         occupy six bits and pack identically, so nothing downstream can recover
         it from the bytes -- it must match what the checkpoint declares.
+
+        The gated activation is built at compile time from the `activation`,
+        `swiglu_alpha` and `swiglu_limit` parameters.
         """
         comptime assert is_gpu[target](), "EP is only supported on GPU."
-        comptime assert not fuse_a_scale_preshuffle or (
+        comptime assert (
             max_padded_M > 0 and max_padded_M % 32 == 0
-        ), (
-            "the A-scale fold needs the graph-build-time slot stride:"
-            " max_padded_M must be a positive multiple of 32, since the"
-            " matmul reads with align_up(max_num_tokens_per_expert, 32)"
-        )
+        ), "max_padded_M must be a positive multiple of 32"
 
         var output_tensor = output.to_tile_tensor[.int64]()
         var scales_tensor = scales.to_tile_tensor[.int64]()
@@ -3239,6 +3186,12 @@ struct Struct_ep_fused_silu_mxfp6:
         var gpu_ctx = context
         comptime hw_info = gpu_ctx.default_device_info
 
+        comptime act = get_swiglu_activation[
+            activation,
+            swiglu_alpha,
+            swiglu_limit,
+        ]
+
         comptime fused_silu_fp6 = fused_silu_mxfp6_kernel[
             scales_dtype,
             input_dtype,
@@ -3249,8 +3202,7 @@ struct Struct_ep_fused_silu_mxfp6:
             hw_info.max_thread_block_size,
             hw_info.sm_count,
             fp6_format=FP6Format(FP6_FORMAT),
-            fuse_a_scale_preshuffle=fuse_a_scale_preshuffle,
-            clamp_activation=clamp_activation,
+            activation=act,
         ]
 
         @inline(.always)
@@ -3260,8 +3212,7 @@ struct Struct_ep_fused_silu_mxfp6:
                 "scales_dtype=", scales_dtype,
                 ";input_dtype=", input_dtype,
                 ";FP6_FORMAT=", FP6_FORMAT,
-                ";fuse_a_scale_preshuffle=", fuse_a_scale_preshuffle,
-                ";clamp_activation=", clamp_activation,
+                ";activation=", activation,
             )
             # fmt: on
 
@@ -3276,8 +3227,6 @@ struct Struct_ep_fused_silu_mxfp6:
                 input_tensor,
                 row_offsets_tensor,
                 Int32(max_padded_M),
-                alpha,
-                limit,
                 grid_dim=hw_info.sm_count,
                 block_dim=hw_info.max_thread_block_size,
                 attributes=pdl_launch_attributes(PDLLevel.ON),
@@ -3295,6 +3244,9 @@ struct Struct_ep_fused_silu_nvfp4:
         scales_dtype: DType,
         input_dtype: DType,
         target: StaticString,
+        activation: StaticString = "silu",
+        swiglu_alpha: Float32 = 0.0,
+        swiglu_limit: Float32 = 0.0,
     ](
         output: OutputTensor[dtype=fp4_dtype, rank=2, ...],
         scales: OutputTensor[dtype=scales_dtype, rank=5, ...],
@@ -3315,6 +3267,9 @@ struct Struct_ep_fused_silu_nvfp4:
         operation on the received tokens. Once the SILU operation is performed,
         the output will be quantized to the NVFP4 format. The scales tensor
         will be padded and zero-filled.
+
+        The gated activation is built at compile time from the `activation`,
+        `swiglu_alpha` and `swiglu_limit` parameters.
         """
         # Ensure this kernel only runs on GPU targets
         comptime assert is_gpu[target](), "EP is only supported on GPU."
@@ -3335,6 +3290,12 @@ struct Struct_ep_fused_silu_nvfp4:
         var gpu_ctx = context
         comptime hw_info = gpu_ctx.default_device_info
 
+        comptime act = get_swiglu_activation[
+            activation,
+            swiglu_alpha,
+            swiglu_limit,
+        ]
+
         comptime fused_silu_nvfp4 = fused_silu_nvfp4_kernel[
             fp4_dtype,
             scales_dtype,
@@ -3347,6 +3308,13 @@ struct Struct_ep_fused_silu_nvfp4:
             input_scales_tensor.LayoutType,
             hw_info.max_thread_block_size,
             hw_info.sm_count,
+            activation=act,
+            OutputEngine=output_tensor.Engine,
+            ScalesEngine=scales_tensor.Engine,
+            InputEngine=input_tensor.Engine,
+            RowOffsetsEngine=row_offsets_tensor.Engine,
+            ScalesOffsetsEngine=scales_offsets_tensor.Engine,
+            InputScalesEngine=input_scales_tensor.Engine,
         ]
 
         @inline(.always)
@@ -3356,6 +3324,7 @@ struct Struct_ep_fused_silu_nvfp4:
                 "fp4_dtype=", fp4_dtype,
                 ";scales_dtype=", scales_dtype,
                 ";input_dtype=", input_dtype,
+                ";activation=", activation,
             )
             # fmt: on
 

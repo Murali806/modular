@@ -32,6 +32,7 @@ from layout import (
     MixedLayout,
     TensorLayout,
     TileTensor,
+    coord,
     row_major,
 )
 from layout._fillers import random
@@ -58,30 +59,16 @@ def cpu_matmul_naive[
     var M = Int(C.dim[0]())
     var N = Int(C.dim[1]())
     var K = Int(A.dim[0]()) if transpose_a else Int(A.dim[1]())
-    var a_ptr = A.unsafe_ptr()
-    var b_ptr = B.unsafe_ptr()
-    var c_ptr = C.unsafe_ptr()
     for n in range(N):
         for m in range(M):
             var acc: Float32 = 0.0
             for k in range(K):
-                var a_idx: Int
-
-                comptime if transpose_a:
-                    a_idx = k * M + m
-                else:
-                    a_idx = m * K + k
-                var b_idx: Int
-
-                comptime if transpose_b:
-                    b_idx = n * K + k
-                else:
-                    b_idx = k * N + n
-                acc += (
-                    a_ptr[a_idx].cast[.float32]()
-                    * b_ptr[b_idx].cast[.float32]()
-                )
-            c_ptr[m * N + n] = acc.cast[C.dtype]()
+                var a_coord = Coord(k, m) if transpose_a else Coord(m, k)
+                var b_coord = Coord(n, k) if transpose_b else Coord(k, n)
+                acc += rebind[Float32](
+                    A.load(a_coord).cast[.float32]()
+                ) * rebind[Float32](B.load(b_coord).cast[.float32]())
+            C.store((m, n), acc.cast[C.dtype]())
 
 
 @__llvm_metadata(`nvvm.cluster_dim`=cluster_shape)
@@ -91,12 +78,10 @@ def tma_umma_kernel_ss[
     a_type: DType,
     b_type: DType,
     c_type: DType,
-    a_tile_rank: Int,
-    a_tile_shape: IndexList[a_tile_rank],
-    a_desc_shape: IndexList[a_tile_rank],
-    b_tile_rank: Int,
-    b_tile_shape: IndexList[b_tile_rank],
-    b_desc_shape: IndexList[b_tile_rank],
+    a_tile_shape: Coord,
+    a_desc_shape: Coord,
+    b_tile_shape: Coord,
+    b_desc_shape: Coord,
     c_layout: TensorLayout,
     block_tile_shape: IndexList[3],
     mma_shape: IndexList[3],
@@ -107,8 +92,8 @@ def tma_umma_kernel_ss[
     b_swizzle: TensorMapSwizzle = TensorMapSwizzle.SWIZZLE_NONE,
     num_threads: Int = 128,
 ](
-    a_tma_op: TMATensorTile[a_type, a_tile_rank, a_tile_shape, a_desc_shape],
-    b_tma_op: TMATensorTile[b_type, b_tile_rank, b_tile_shape, b_desc_shape],
+    a_tma_op: TMATensorTile[a_type, a_tile_shape, a_desc_shape],
+    b_tma_op: TMATensorTile[b_type, b_tile_shape, b_desc_shape],
     c: TileTensor[c_type, c_layout, MutAnyOrigin],
     num_iters_dev: Int32,
 ):
@@ -169,13 +154,13 @@ def tma_umma_kernel_ss[
     comptime assert (
         (b_size * size_of[b_type]()) % 16
     ) == 0, "preserve alignment"
-    var b_smem = (a_smem + a_size).bitcast[Scalar[b_type]]()
+    var b_smem = a_smem.unsafe_offset(a_size).unsafe_bitcast[Scalar[b_type]]()
 
     var a_smem_tile = TileTensor(a_smem, a_smem_layout)
     var b_smem_tile = TileTensor(b_smem, b_smem_layout)
 
     # Shared memory pointer to hold tensor memory address
-    var ptr_tmem_addr = (b_smem + b_size).bitcast[UInt32]()
+    var ptr_tmem_addr = b_smem.unsafe_offset(b_size).unsafe_bitcast[UInt32]()
 
     comptime accum_type = get_accum_type[a_type]()
 
@@ -186,8 +171,10 @@ def tma_umma_kernel_ss[
     comptime b_expected_bytes = b_size * size_of[b_type]()
     comptime expected_bytes = a_expected_bytes + b_expected_bytes
 
-    var tma_mbar = (ptr_tmem_addr + 2).bitcast[SharedMemBarrier]()
-    var mma_mbar = tma_mbar + 1
+    var tma_mbar = ptr_tmem_addr.unsafe_offset(2).unsafe_bitcast[
+        SharedMemBarrier
+    ]()
+    var mma_mbar = tma_mbar.unsafe_offset(1)
 
     if thread_idx.x == 0:
         tma_mbar[0].init()
@@ -330,7 +317,7 @@ def tma_umma_kernel_ss[
         var warp_id_q, warp_id_r = udivmod(warp_id, 4)
         warp_id = 2 * warp_id_r + warp_id_q
 
-    var ctile = c.tile[BM, BN](Int(block_idx.y), Int(block_idx.x))
+    var ctile = c.tile[BM, BN](block_idx.y, block_idx.x)
 
     comptime for m_mma in range(num_m_mmas):
         comptime for n_mma in range(num_n_mmas):
@@ -364,9 +351,8 @@ def tma_umma_kernel_ts[
     b_type: DType,
     c_type: DType,
     a_layout: TensorLayout,
-    b_tile_rank: Int,
-    b_tile_shape: IndexList[b_tile_rank],
-    b_desc_shape: IndexList[b_tile_rank],
+    b_tile_shape: Coord,
+    b_desc_shape: Coord,
     c_layout: TensorLayout,
     block_tile_shape: IndexList[3],
     mma_shape: IndexList[3],
@@ -375,7 +361,7 @@ def tma_umma_kernel_ts[
     num_threads: Int = 128,
 ](
     a: TileTensor[a_type, a_layout, ImmutAnyOrigin],
-    b_tma_op: TMATensorTile[b_type, b_tile_rank, b_tile_shape, b_desc_shape],
+    b_tma_op: TMATensorTile[b_type, b_tile_shape, b_desc_shape],
     c: TileTensor[c_type, c_layout, MutAnyOrigin],
     num_iters_dev: Int32,
 ):
@@ -426,7 +412,7 @@ def tma_umma_kernel_ts[
         (b_size * size_of[b_type]()) % 16
     ) == 0, "preserve alignment"
     # Shared memory pointer to hold tensor memory address
-    var ptr_tmem_addr = (b_smem + b_size).bitcast[UInt32]()
+    var ptr_tmem_addr = b_smem.unsafe_offset(b_size).unsafe_bitcast[UInt32]()
 
     comptime c_frag_size = MMA_M * MMA_N // num_threads
     var c_frag: Array[Scalar[accum_type], c_frag_size]
@@ -434,8 +420,10 @@ def tma_umma_kernel_ts[
     comptime b_expected_bytes = b_size * size_of[b_type]()
     comptime expected_bytes = b_expected_bytes
 
-    var tma_mbar = (ptr_tmem_addr + 2).bitcast[SharedMemBarrier]()
-    var mma_mbar = tma_mbar + 1
+    var tma_mbar = ptr_tmem_addr.unsafe_offset(2).unsafe_bitcast[
+        SharedMemBarrier
+    ]()
+    var mma_mbar = tma_mbar.unsafe_offset(1)
 
     if thread_idx.x == 0:
         tma_mbar[0].init()
@@ -497,7 +485,7 @@ def tma_umma_kernel_ts[
     for i in range(num_iters):
         # Load A from global memory to registers.
         # Each thread loads 32 values
-        var a_gmem_tile = a.tile[BM, BK](Int(block_idx.y), i)
+        var a_gmem_tile = a.tile[BM, BK](block_idx.y, i)
         var a_gmem_warp_tile = a_gmem_tile.tile[BM // num_warps, BK](
             Int(warp_id), 0
         )
@@ -596,7 +584,7 @@ def tma_umma_kernel_ts[
         tcgen05_release_allocation_lock[1]()
         tcgen05_dealloc[1](tmem_addr, max_tmem_cols)
 
-    var ctile = c.tile[BM, BN](Int(block_idx.y), Int(block_idx.x))
+    var ctile = c.tile[BM, BN](block_idx.y, block_idx.x)
 
     comptime for m_mma in range(num_m_mmas):
         comptime for n_mma in range(num_n_mmas):
@@ -707,12 +695,19 @@ def test_tma_umma[
     var a_dev = a.device_tensor()
     var c_dev = c.device_tensor()
 
+    # Int-folded dims: selecting between two distinct Coord types does not
+    # fold at comptime; selecting Ints does. Matches the pre-migration
+    # `Index(BK, BM) if transpose_a else Index(BM, BK)` semantics.
+    comptime a_rows = BK if transpose_a else BM
+    comptime a_cols = BM if transpose_a else BK
     var a_tma_op = create_tensor_tile[
-        Index(BK, BM) if transpose_a else Index(BM, BK),
+        coord[a_rows, a_cols],
         swizzle_mode=a_swizzle,
     ](ctx, a_dev)
+    comptime b_rows = BN if transpose_b else BK
+    comptime b_cols = BK if transpose_b else BN
     var b_tma_op = create_tensor_tile[
-        Index(BN, BK) if transpose_b else Index(BK, BN),
+        coord[b_rows, b_cols],
         swizzle_mode=b_swizzle,
     ](ctx, b.device_tensor())
 
@@ -724,10 +719,8 @@ def test_tma_umma[
             a_type,
             b_type,
             c_type,
-            type_of(a_tma_op).rank,
             type_of(a_tma_op).tile_shape,
             type_of(a_tma_op).desc_shape,
-            type_of(b_tma_op).rank,
             type_of(b_tma_op).tile_shape,
             type_of(b_tma_op).desc_shape,
             type_of(c_dev).LayoutType,
@@ -760,7 +753,6 @@ def test_tma_umma[
             b_type,
             c_type,
             type_of(a_dev).LayoutType,
-            type_of(b_tma_op).rank,
             type_of(b_tma_op).tile_shape,
             type_of(b_tma_op).desc_shape,
             type_of(c_dev).LayoutType,

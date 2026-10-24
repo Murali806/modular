@@ -13,7 +13,6 @@
 """Implements the `StringSpan` type and related utilities for efficient string operations."""
 
 from std.builtin.builtin_slice import ContiguousSlice
-from std.builtin.format_int import _write_int
 from std.reflection import call_location
 from std.collections import check_bounds, check_slice_bounds, Span
 from std.collections.string._unicode import (
@@ -38,7 +37,7 @@ from std.collections.string.iterators import (
     GraphemeIndicesIter,
     GraphemeSliceIter,
 )
-from std.hashlib.hasher import Hasher
+from std.hash.hasher import Hasher
 from std.format._utils import _TotalWritableBytes, _FlushingWriteBuffer
 from std.math import align_down
 from std.os import PathLike, abort
@@ -48,11 +47,8 @@ from std.sys.intrinsics import likely, unlikely
 
 from std.bit import count_trailing_zeros
 from std.bit.mask import is_negative, splat
-from std.memory import (
-    unsafe_memcmp,
-    unsafe_memcpy,
-    pack_bits,
-)
+from std.memory import unsafe_memcmp, pack_bits, MaybeUninit
+from std.utils._nicheable import NicheIndex, UnsafeNicheable, _FieldNiche
 from std.python import Python, PythonObject
 from std.format._utils import _write_hex
 
@@ -109,6 +105,7 @@ struct StringSpan[origin: ImmOrigin](
     KeyElement,
     PathLike,
     TrivialRegisterPassable,
+    UnsafeNicheable,
     Writable,
 ):
     """An immutable, non-owning view into encoded string data.
@@ -519,6 +516,26 @@ struct StringSpan[origin: ImmOrigin](
         except:
             raise cpython.get_error()
 
+    comptime _Niche = _FieldNiche[Self, "_slice"]
+
+    @staticmethod
+    @inline(.always)
+    @doc_hidden
+    def niche_count() -> Int:
+        return Self._Niche.niche_count()
+
+    @staticmethod
+    @inline(.always)
+    @doc_hidden
+    def write_niche[index: Int](memory: MutPointer[MaybeUninit[Self], _]):
+        Self._Niche.write_niche[index](memory)
+
+    @staticmethod
+    @inline(.always)
+    @doc_hidden
+    def classify_niche(memory: ImmPointer[MaybeUninit[Self], _]) -> NicheIndex:
+        return Self._Niche.classify_niche(memory)
+
     # ===------------------------------------------------------------------===#
     # Operator dunders
     # ===------------------------------------------------------------------===#
@@ -563,6 +580,17 @@ struct StringSpan[origin: ImmOrigin](
             If the `StringSpan` is equal to the input in length and contents.
         """
         return self == StringSpan(rhs)
+
+    def __eq__(self, rhs: StringLiteral) -> Bool:
+        """Verify if a `StringSpan` is equal to a `StringLiteral`.
+
+        Args:
+            rhs: The `StringLiteral` to compare against.
+
+        Returns:
+            If the `StringSpan` is equal to the input in length and contents.
+        """
+        return self == StaticString(rhs)
 
     # This decorator informs the compiler that indirect address spaces are not
     # dereferenced by the method.
@@ -610,6 +638,19 @@ struct StringSpan[origin: ImmOrigin](
 
         Args:
             rhs: The `StringSpan` to compare against.
+
+        Returns:
+            If the `StringSpan` is not equal to the input in length and
+            contents.
+        """
+        return not self == rhs
+
+    @inline(.always)
+    def __ne__(self, rhs: StringLiteral) -> Bool:
+        """Verify if a `StringSpan` is not equal to a `StringLiteral`.
+
+        Args:
+            rhs: The `StringLiteral` to compare against.
 
         Returns:
             If the `StringSpan` is not equal to the input in length and
@@ -1029,7 +1070,7 @@ struct StringSpan[origin: ImmOrigin](
         Returns:
             A c-compatible CStringSpan.
         """
-        return {unsafe_from_ptr = self.unsafe_ptr().unsafe_bitcast[Int8]()}
+        return {unsafe_from_ptr = self.unsafe_ptr().unsafe_bitcast[c_char]()}
 
     @inline(.always)
     def as_imm(self) -> Self.Immutable:
@@ -2161,7 +2202,9 @@ struct StringSpan[origin: ImmOrigin](
                     str_len += is_r_n
                 else:
                     str_len -= splat(likely(is_new_line)) & char_len
-                    var is_r_n = unlikely(prev_b0 == `\r` and b0 == `\n`)
+                    var is_r_n = unlikely(
+                        prev_b0 == `\r` and b0 == `\n` and str_len == 0
+                    )
                     prev_b0 = b0
                     if is_r_n:  # the line was already appended
                         line_start = line_end

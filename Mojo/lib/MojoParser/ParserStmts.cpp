@@ -16,6 +16,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ExprNodes.h"
+#include "ExprPatterns.h"
 #include "IREmitter.h"
 #include "Mojo/MojoParser/ASTDecl.h"
 #include "Mojo/MojoParser/Constraints.h"
@@ -24,7 +25,6 @@
 #include "MojoUtils.h"
 #include "OverloadSet.h"
 #include "ParserBase.h"
-#include "PatternMatchIR.h"
 #include "Support/Compiler/OperationUtils.h"
 
 #include "Mojo/HLCFDialect/HLCFOps.h"
@@ -111,11 +111,13 @@ static bool isStatementThatMightHaveDecorators(Token::Kind tokenKind) {
   case Token::kw_while:
   case Token::kw_try:
   case Token::kw_with:
+  case Token::kw_match:
   case Token::kw___match:
   case Token::kw___async:
   case Token::kw_def:
   case Token::kw_fn:
   case Token::kw_struct:
+  case Token::kw___enum:
   case Token::kw_class:
   case Token::kw_from:
   case Token::kw_import:
@@ -161,7 +163,8 @@ ParserBase::parseDecorators(ssize_t indentation) {
 
     ExprNode *decoratorExpr;
     LexerCursor cursor = lexer.getCursor();
-    if (parseExpression(decoratorExpr, indentation)) {
+    if (parseExpression(decoratorExpr, shared.persistentAllocator,
+                        indentation)) {
       skipUntilIndentation(indentation, /*stopOnSemicolon=*/false,
                            stopOnStatement);
       break;
@@ -185,7 +188,8 @@ ParserBase::parseDecorators(ssize_t indentation) {
 static void initializeBuilderForFunctions(ASTDecl &curDeclScope,
                                           OpBuilder &builder) {
   // Special logic for functions.
-  if (auto funcOp = dyn_cast_or_null<FnOp>(curDeclScope.getIfOperation())) {
+  if (auto *defDecl = dyn_cast<DefASTDecl>(&curDeclScope)) {
+    auto funcOp = defDecl->getOp();
     // The default of inserting at the end of the function isn't right,
     // because it will have an lit.endfn: insert before that instead.
     assert(isa<EndFnOp>(funcOp.getBody()->back()) &&
@@ -245,17 +249,23 @@ struct FromImportDecorators {
   bool docInline = false;
 };
 
+static OpBuilder getScopeEndBuilder(ASTDecl &decl) {
+  if (auto *functionDecl = dyn_cast<DefASTDecl>(&decl))
+    return OpBuilder::atBlockEnd(functionDecl->getOp().getBody());
+  return cast<OpASTDecl>(decl).getDeclEndBuilder();
+}
+
 struct StmtParser : public ParserBase {
   StmtParser(Lexer &lexer, ASTDecl &curDeclScope)
       : ParserBase(curDeclScope.getShared(), lexer), parentDecl(curDeclScope),
-        curDeclScope(&curDeclScope), builder(curDeclScope.getDeclEndBuilder()) {
+        curDeclScope(&curDeclScope), builder(getScopeEndBuilder(curDeclScope)) {
     initializeBuilderForFunctions(curDeclScope, builder);
   }
   StmtParser(Lexer &lexer, IREmitter &emitter)
       : ParserBase(emitter.shared, lexer), parentDecl(emitter.getDeclScope()),
         curDeclScope(&emitter.getDeclScope()),
         builder(emitter.builder ? emitter.builder.value()
-                                : curDeclScope->getDeclEndBuilder()) {
+                                : getScopeEndBuilder(*curDeclScope)) {
     if (!emitter.builder)
       initializeBuilderForFunctions(emitter.getDeclScope(), builder);
   }
@@ -288,28 +298,30 @@ struct StmtParser : public ParserBase {
 
   // Compound statements.
   ParseResult parseIfStmt(LexerCursor startCursor, size_t curIndent);
-  ParseResult parseElif(Location ifLoc, LexerCursor startCursor,
-                        size_t curIndent);
-  ParseResult parseComptimeIf(Location ifLoc, LexerCursor startCursor,
-                              size_t curIndent);
+  ParseResult parseIf(Location ifLoc, LexerCursor startCursor, size_t curIndent,
+                      bool isComptime);
   ParseResult parseWhileStmt(size_t curIndent);
   ParseResult parseMatchStmt(size_t curIndent, bool isComptime);
 
   /// Emit a non-empty list of match case entries as one `hlcf.match`. Each
   /// entry's command list is tested in its own case region; the match else is
   /// a no-op fallthrough. `emissionState` is shared across the cases so path
-  /// projections are memoized for the whole match.
+  /// projections are memoized for the whole match. `matchBuilder` owns
+  /// residual command lists and recomputes their local coverage.
   void emitCases(ArrayRef<MatchCaseEntry> caseEntries,
+                 PatternMatchBuilder &matchBuilder,
                  PatternEmitState &emissionState, bool inMatchCase);
 
   /// Emit a cluster of cases that share a leading pattern test. When
   /// `inMatchCase` is true, emission is already inside an `hlcf.match` case
   /// region; otherwise a fresh match (or equivalent CF) may be created.
+  /// `matchBuilder` owns residual command lists and coverage state;
   /// `emissionState` is the match-wide path memo and emitter.
   void emitCaseCluster(ArrayRef<MatchCaseEntry> caseEntries,
+                       PatternMatchBuilder &matchBuilder,
                        PatternEmitState &emissionState, bool inMatchCase);
 
-  /// Emit `comptime __match` as an `hlcf.comptime.if` elif chain: each case's
+  /// Emit `comptime match` as an `hlcf.comptime.if` elif chain: each case's
   /// pattern tests (and optional guard, AND'd in) become a PValue bool
   /// condition; bodies fill then/else regions. Pattern bindings are installed
   /// as PValues before the guard is evaluated and remain visible in the body.
@@ -376,6 +388,7 @@ struct StmtParser : public ParserBase {
                                     bool allowRelativeImport);
   ParseResult parseDefFnStmt(LexerCursor startCursor, size_t curIndent);
   ParseResult parseStructStmt(LexerCursor startCursor, size_t curIndent);
+  ParseResult parseEnumCaseStmt(size_t stmtIndent);
   ParseResult parseTraitStmt(LexerCursor startCursor, size_t curIndent);
   ParseResult parseExtensionStmt(LexerCursor startCursor, size_t curIndent);
   ParseResult parseClassStmt(LexerCursor startCursor, size_t curIndent);
@@ -423,13 +436,11 @@ void StmtParser::pushLocalScope(DebugInfo::DIBuilder::ScopeGuard &scopeGuard) {
 }
 
 bool StmtParser::isInTypeBody() const {
-  Operation *parent = parentDecl.getIfOperation();
-  return parent && isa<StructDeclOp, TraitDeclOp, ExtensionDeclOp>(parent);
+  return isa<TypeScopeASTDecl>(parentDecl);
 }
 
 bool StmtParser::isInModuleScope() const {
-  Operation *parent = parentDecl.getIfOperation();
-  return isa_and_nonnull<LIT::FileModuleOp>(parent);
+  return isa<FileModuleASTDecl>(parentDecl);
 }
 
 void StmtParser::emitControlFlowNotInFunctionError(SMLoc loc,
@@ -583,7 +594,7 @@ static void diagnoseIgnoredResult(const ExprNode *expr, CValue value,
     // Get the result type without any error handling in the way.
     Type resultType = sig->getUserResultType();
     if ((sig->getNumArguments() ==
-         ((unsigned)sig->hasMemoryOnlyResult() + (unsigned)sig->isThrows())) &&
+         ((size_t)sig->hasMemoryOnlyResult() + (size_t)sig->isThrows())) &&
         isImplicitlyIgnorableType(resultType)) {
       shared.emitWarning(expr->getLoc())
           << "function is not called; add '()' after name" << expr->getRange()
@@ -738,6 +749,11 @@ ParseResult StmtParser::parseStmt(bool onlySimpleStmt, bool &parsedCompound,
          << "does not support decorators; remove the decorator";
   };
 
+  // The stmtAllocator is an area of memory that statements can use for scratch
+  // allocations, e.g. the temporary expression parse trees they need.  We
+  // deallocate this memory when we're done parsing the statement using RAII.
+  auto statementCheckpoint = shared.stmtAllocator.checkpoint();
+
   switch (getToken().getKind()) {
     //===------------------------------------------------------------------===//
     // Compound statements.
@@ -760,6 +776,7 @@ ParseResult StmtParser::parseStmt(bool onlySimpleStmt, bool &parsedCompound,
     if (rejectInNonFunctionScope())
       return success();
     return parseWhileStmt(stmtIndent);
+  case Token::kw_match:
   case Token::kw___match:
     rejectDecorator();  // Decorators not allowed.
     rejectSimpleStmt(); // Not a simple_stmt.
@@ -784,6 +801,7 @@ ParseResult StmtParser::parseStmt(bool onlySimpleStmt, bool &parsedCompound,
     rejectSimpleStmt(); // Not a simple_stmt.
     return parseDefFnStmt(startCursor, stmtIndent);
   case Token::kw_struct:
+  case Token::kw___enum:
     rejectSimpleStmt(); // Not a simple_stmt.
     return parseStructStmt(startCursor, stmtIndent);
   case Token::kw_trait:
@@ -795,7 +813,6 @@ ParseResult StmtParser::parseStmt(bool onlySimpleStmt, bool &parsedCompound,
   case Token::kw_class:
     rejectSimpleStmt(); // Not a simple_stmt.
     return parseClassStmt(startCursor, stmtIndent);
-
     //===------------------------------------------------------------------===//
     // Simple statements.
     //===------------------------------------------------------------------===//
@@ -809,6 +826,12 @@ ParseResult StmtParser::parseStmt(bool onlySimpleStmt, bool &parsedCompound,
   case Token::kw_import:
     rejectDecorator(); // Decorators not allowed.
     return parseImportStmt();
+  case Token::kw_case:
+    if (auto *structDecl = dyn_cast<StructASTDecl>(&getParentDecl());
+        !structDecl || !structDecl->getOp().isEnum())
+      break;
+    rejectDecorator(); // Decorators not allowed.
+    return parseEnumCaseStmt(stmtIndent);
   case Token::kw_pass:
   case Token::dot_dot_dot:
     // pass_stmt ::= "pass"
@@ -817,7 +840,7 @@ ParseResult StmtParser::parseStmt(bool onlySimpleStmt, bool &parsedCompound,
   case Token::kw_var:
     // In function bodies, we parse 'var' as expressions, part of the pattern
     // grammar.  TODO: extend this to other contexts.
-    if (isa_and_nonnull<FnOp>(getParentDecl().getIfOperation()))
+    if (isa<DefASTDecl>(getParentDecl()))
       break;
     return parseVarStmt(startCursor, stmtIndent);
   case Token::kw_comptime:
@@ -857,22 +880,23 @@ ParseResult StmtParser::parseStmt(bool onlySimpleStmt, bool &parsedCompound,
     return failure();
 
   // We cannot emit general statements unless we're in a function body.
-  if (!isa_and_nonnull<FnOp, UnboundRegionOp>(
-          getParentDecl().getIfOperation())) {
+  auto *otherParent = dyn_cast<OtherOpASTDecl>(&getParentDecl());
+  if (!isa<DefASTDecl>(getParentDecl()) &&
+      !(otherParent && otherParent->isUnboundRegion())) {
     // TODO: Top level expressions will be supported in the future.
-    if (isa_and_nonnull<FileModuleOp>(parentDecl.getIfOperation())) {
+    if (isa<FileModuleASTDecl>(parentDecl)) {
       emitError(startCursor.getToken().getLoc())
           << "expressions must not appear at file scope; move this into a "
              "function body";
-    } else if (isa_and_nonnull<StructDeclOp>(parentDecl.getIfOperation())) {
+    } else if (isa<StructASTDecl>(parentDecl)) {
       emitError(startCursor.getToken().getLoc())
           << "bare expressions must not appear within structs; use 'var' for a "
              "field or move this into a method body";
-    } else if (isa_and_nonnull<TraitDeclOp>(parentDecl.getIfOperation())) {
+    } else if (isa<TraitASTDecl>(parentDecl)) {
       emitError(startCursor.getToken().getLoc())
           << "bare expressions must not appear within traits; use 'comptime' "
              "for an associated type or move this into a method body";
-    } else if (isa_and_nonnull<ExtensionDeclOp>(parentDecl.getIfOperation())) {
+    } else if (isa<ExtensionASTDecl>(parentDecl)) {
       emitError(startCursor.getToken().getLoc())
           << "bare expressions must not appear within extensions; move this "
              "into a method body";
@@ -964,6 +988,7 @@ ParseResult StmtParser::parseComptimeCompoundStmt(LexerCursor startCursor,
     if (rejectInNonFunctionScope("for"))
       return success();
     return parseComptimeForStmt(startCursor, curIndent);
+  case Token::kw_match:
   case Token::kw___match:
     rejectDecorator();
     if (rejectInNonFunctionScope("match"))
@@ -985,7 +1010,7 @@ ParseResult StmtParser::parseComptimeCompoundStmt(LexerCursor startCursor,
 
   // This is a comptime variable declaration (e.g., 'comptime x = 4').
   // Decorators on aliases are not allowed inside function bodies.
-  if (isa_and_present<FnOp>(getParentDecl().getIfOperation()))
+  if (isa<DefASTDecl>(getParentDecl()))
     rejectDecorator(/*inFunctionBody=*/true, /*isCompoundStmt=*/false);
   return parseAliasDeclStmtBody(startCursor, curIndent, kwLoc);
 }
@@ -997,16 +1022,16 @@ ParseResult StmtParser::parseIfStmt(LexerCursor startCursor, size_t curIndent) {
   Location ifLoc = translateLocation(getToken().getLoc());
   if (parseToken(Token::kw_if, "expected 'if' token after decorators"))
     return failure();
-  return parseElif(ifLoc, startCursor, curIndent);
+  return parseIf(ifLoc, startCursor, curIndent, /*isComptime=*/false);
 }
 
 /// Parses 'comptime if <condition>:' after 'comptime' has been consumed.
-/// Delegates to parseComptimeIf for the actual IR generation.
+/// Delegates to parseIf for the actual IR generation.
 ParseResult StmtParser::parseComptimeIfStmt(LexerCursor startCursor,
                                             size_t curIndent) {
   Location ifLoc = translateLocation(getToken().getLoc());
   consumeToken(Token::kw_if);
-  return parseComptimeIf(ifLoc, startCursor, curIndent);
+  return parseIf(ifLoc, startCursor, curIndent, /*isComptime=*/true);
 }
 
 /// Helper to parse 'for <target> in <seq>:' syntax, used by both regular
@@ -1070,7 +1095,7 @@ ParseResult StmtParser::parseComptimeAssertStmtBody(LexerCursor startCursor,
 
   // Ok, now that we parsed all the tokens for this statement, do semantic
   // analysis. First ensure we're in a function. This may be relaxed later.
-  if (!isa_and_nonnull<FnOp>(getParentDecl().getIfOperation())) {
+  if (!isa<DefASTDecl>(getParentDecl())) {
     emitError(kwLoc, "'comptime assert' must be inside a function; move this "
                      "into a function body");
     return success();
@@ -1139,8 +1164,8 @@ ParseResult StmtParser::parseReturnStmt(size_t returnIndent) {
 
   // Ok, now that we parsed all the tokens for this statement, do semantic
   // analysis.  First ensure we're in a function.
-  auto func = dyn_cast_or_null<FnOp>(getParentDecl().getIfOperation());
-  if (!func) {
+  auto *defDecl = dyn_cast<DefASTDecl>(&getParentDecl());
+  if (!defDecl) {
     emitError(
         loc,
         "'return' must be inside a function; move this into a function body");
@@ -1148,6 +1173,7 @@ ParseResult StmtParser::parseReturnStmt(size_t returnIndent) {
   }
 
   auto emitter = getEmitter();
+  auto func = defDecl->getOp();
   FnTypeGeneratorType declSig = func.getFuncTypeGenerator();
 
   // Next check the forms: We may or may not have a result expression.  If the
@@ -1439,7 +1465,7 @@ ParseResult StmtParser::parseAssertStmt(size_t assertIndent) {
   SMLoc kwLoc = consumeToken(Token::kw_assert).getLoc();
 
   // Must be inside a function body.
-  if (!isa_and_nonnull<FnOp>(getParentDecl().getIfOperation())) {
+  if (!isa<DefASTDecl>(getParentDecl())) {
     emitError(
         kwLoc,
         "'assert' must be inside a function; move this into a function body");
@@ -1508,13 +1534,26 @@ ParseResult StmtParser::parseBreakOrContinueStmt(Token::Kind kind,
 // Compound statements.
 //===----------------------------------------------------------------------===//
 
-/// while_stmt ::=  "while" assignment_expression ":" suite
+/// while_stmt ::=  "while" ("case" pattern "=" assignment_expression |
+///                           assignment_expression) ":" suite
 ///                 ["else" ":" suite]
 ParseResult StmtParser::parseWhileStmt(size_t curIndent) {
   Location whileLoc = translateLocation(consumeToken(Token::kw_while).getLoc());
 
+  ExprNode *patternExpr = nullptr;
   ExprNode *condExp = nullptr;
-  if (parseExpression(condExp, curIndent, Precedence::kAssignExpr))
+  if (consumeIf(Token::kw_case)) {
+    if (parseExpressionList(patternExpr, curIndent,
+                            /*terminators=*/{Token::equal}, Precedence::kAsPat))
+      return failure();
+    if (parseToken(Token::equal, "expected '=' after conditional pattern") ||
+        parseExpression(condExp, curIndent, Precedence::kAssignExpr))
+      return failure();
+  } else if (parseExpression(condExp, curIndent, Precedence::kAssignExpr)) {
+    return failure();
+  }
+
+  if (parseToken(Token::colon, "expected ':' after 'while' condition"))
     return failure();
 
   // We will be moving the builder into sub-regions that are created, make sure
@@ -1529,38 +1568,96 @@ ParseResult StmtParser::parseWhileStmt(size_t curIndent) {
   // Create the body region.
   builder.setInsertionPointToStart(bodyBlock);
 
-  // Emit the condition expression into an if/break pattern:
-  // if <cond>:
-  //   hlcf.yield
-  // else:
-  //   lit.loop.break.else  // Jump to the 'else' block.
-  auto emitter = getEmitter();
-  RValue condRVal = emitter.emitExprScalarBool(condExp, EC_BoolCondition);
-  Value condVal =
-      emitter.emitSRValue({AnyValue(condRVal), condExp}, EC_BoolCondition);
-
-  // After the condition is evaluated, validate the end of the statement.
-  if (parseToken(Token::colon, "expected ':' after expression"))
-    return failure();
-  if (!condVal)
-    return success(); // IRGen error already emitted; parse succeeded!
-
-  HLCF::IfOp condIf = HLCF::IfOp::create(
-      *emitter.builder, whileLoc, TypeRange{}, condVal,
-      [&]() -> LogicalResult {
-        HLCF::YieldOp::create(*emitter.builder, whileLoc);
+  if (patternExpr) {
+    CValue subject = getEmitter().emitExprCValue(condExp, EC_MatchSubject);
+    if (!subject)
+      return success();
+    if (subject.getIfRValue() || subject.getIfDLValue()) {
+      BValue subjectBValue =
+          getEmitter().emitBValue({subject, condExp}, EC_MatchSubject);
+      if (!subjectBValue)
         return success();
-      },
-      [&]() -> LogicalResult {
-        LoopBreakElseOp::create(*emitter.builder, whileLoc);
-        return success();
-      });
-  if (!condIf)
-    return success();
-  builder.setInsertionPointAfter(condIf);
+      subject = subjectBValue;
+    }
 
-  if (failed(parseLocalScopeSuite(curIndent)))
-    return failure();
+    PatternMatchBuilder matchBuilder(*curDeclScope, EC_Type);
+    const PatternPath *rootPath =
+        matchBuilder.getRootPath(subject.getRValueType());
+    SmallVector<const PatternCommand *, 8> commands;
+    if (failed(patternExpr->buildCheckList(matchBuilder, subject, rootPath,
+                                           commands)))
+      return failure();
+
+    PatternEmitState emissionState{*curDeclScope, subject, rootPath, whileLoc,
+                                   DenseMap<const PatternPath *, CValue>()};
+    auto matchOp = HLCF::MatchOp::create(builder, whileLoc, TypeRange(),
+                                         /*caseRegionsCount=*/1);
+    Block &caseBlock = matchOp.getCaseRegions().front().emplaceBlock();
+    Block &matchElseBlock = matchOp.getElseRegion().emplaceBlock();
+
+    builder.setInsertionPointToStart(&caseBlock);
+    SmallVector<PatternBoundName> bindings;
+    if (failed(emissionState.emitCommands(builder, commands, bindings)))
+      return success();
+
+    {
+      DebugInfo::DIBuilder::ScopeGuard scopeGuard;
+      llvm::SaveAndRestore<ASTDecl *> keepDecl(curDeclScope);
+      pushChildScope(scopeGuard, keepDecl);
+
+      IREmitter emitter = getEmitter();
+      for (const PatternBoundName &binding : bindings) {
+        DeclRefNode nameNode(binding.name);
+        ExprDest declDest(LValueInitializerType{binding.value.getRValueType()},
+                          EC_VarInit);
+        declDest.setPatternDeclKind(binding.bindingKind);
+        LValue bindingLV = emitter.emitExprLValue(&nameNode, declDest);
+        if (!bindingLV)
+          return success();
+
+        ExprDest storeDest(bindingLV, EC_VarInit);
+        if (!emitter.emitCResult(binding.value, &nameNode, storeDest))
+          return success();
+      }
+
+      if (failed(parseSuite(curIndent)))
+        return failure();
+    }
+    HLCF::MatchCompleteOp::create(builder, whileLoc);
+
+    builder.setInsertionPointToStart(&matchElseBlock);
+    LoopBreakElseOp::create(builder, whileLoc);
+    builder.setInsertionPointAfter(matchOp);
+  } else {
+    // Emit the condition expression into an if/break pattern:
+    // if <cond>:
+    //   hlcf.yield
+    // else:
+    //   lit.loop.break.else  // Jump to the 'else' block.
+    auto emitter = getEmitter();
+    RValue condRVal = emitter.emitExprScalarBool(condExp, EC_BoolCondition);
+    Value condVal =
+        emitter.emitSRValue({AnyValue(condRVal), condExp}, EC_BoolCondition);
+    if (!condVal)
+      return success(); // IRGen error already emitted; parse succeeded!
+
+    HLCF::IfOp condIf = HLCF::IfOp::create(
+        *emitter.builder, whileLoc, TypeRange{}, condVal,
+        [&]() -> LogicalResult {
+          HLCF::YieldOp::create(*emitter.builder, whileLoc);
+          return success();
+        },
+        [&]() -> LogicalResult {
+          LoopBreakElseOp::create(*emitter.builder, whileLoc);
+          return success();
+        });
+    if (!condIf)
+      return success();
+    builder.setInsertionPointAfter(condIf);
+
+    if (failed(parseLocalScopeSuite(curIndent)))
+      return failure();
+  }
   LIT::LoopContinueOp::create(builder, whileLoc);
 
   // Create the else region.
@@ -1576,6 +1673,29 @@ ParseResult StmtParser::parseWhileStmt(size_t curIndent) {
   return success();
 }
 
+/// Return the end of the last `case` body of a match whose following token
+/// starts at `next`. Backs up over whitespace and over comment lines indented
+/// at or left of `caseIndent`: those introduce whatever follows the match
+/// rather than close its last body, so arms appended here land before them.
+static const char *findEndOfLastCase(const char *next, const char *lowerBound,
+                                     size_t caseIndent) {
+  const char *end = next;
+  while (true) {
+    while (end > lowerBound && llvm::isSpace(end[-1]))
+      --end;
+    const char *lineStart = end;
+    while (lineStart > lowerBound && lineStart[-1] != '\n')
+      --lineStart;
+    const char *firstNonSpace = lineStart;
+    while (firstNonSpace < end && llvm::isSpace(*firstNonSpace))
+      ++firstNonSpace;
+    if (firstNonSpace == end || *firstNonSpace != '#' ||
+        size_t(firstNonSpace - lineStart) > caseIndent)
+      return end;
+    end = lineStart;
+  }
+}
+
 /// match_stmt ::=  "match" expression_list ":" NEWLINE
 ///                 case_block+
 /// case_block  ::= "case" pattern ["as" name] ["if" expression] ":" suite
@@ -1586,12 +1706,21 @@ ParseResult StmtParser::parseWhileStmt(size_t curIndent) {
 /// suffixes rather than ternary/`as`-pattern operators.
 ///
 ParseResult StmtParser::parseMatchStmt(size_t curIndent, bool isComptime) {
-  SMLoc matchLoc = consumeToken(Token::kw___match).getLoc();
+  Token matchToken = consumeToken();
+  assert((matchToken.is(Token::kw_match) || matchToken.is(Token::kw___match)) &&
+         "expected match keyword");
+  SMLoc matchLoc = matchToken.getLoc();
+  if (matchToken.is(Token::kw___match)) {
+    shared.emitWarning(matchLoc, "'__match' is deprecated; use 'match'")
+        << FixIt::replaceToken(matchLoc, "match");
+  }
 
   // Parse the match subject as an expression_list (commas form a tuple).
   ExprNode *subjectExpr = nullptr;
-  if (parseExpressionList(subjectExpr, curIndent, Token::colon) ||
-      parseToken(Token::colon, "expected ':' after match subject"))
+  if (parseExpressionList(subjectExpr, curIndent, Token::colon))
+    return failure();
+  SMLoc colonEndLoc = getToken().getEndLoc();
+  if (parseToken(Token::colon, "expected ':' after match subject"))
     return failure();
 
   Location matchLocation = translateLocation(matchLoc);
@@ -1622,15 +1751,16 @@ ParseResult StmtParser::parseMatchStmt(size_t curIndent, bool isComptime) {
     return success();
   }
 
-  // Because we don't know whether a case is allowed to consume an RValue, we
-  // convert the subject to a BValue before building patterns, so none of the
-  // later pattern emission can consume the RValue.  For example, any "var"
-  // bindings will have to do a copy. Comptime subjects stay as PValues.
-  if (!isComptime && subject.getIfRValue()) {
+  // Resolve lazy subjects once before branching into cases. Also borrow
+  // RValues because no individual pattern may consume the shared subject.
+  // Existing LValues already provide stable storage and retain mutability.
+  if (!isComptime && (subject.getIfRValue() || subject.getIfDLValue())) {
     // TODO: maintain RValueness for as long as we can.
-    subject = getEmitter().emitBValue({subject, subjectExpr}, EC_MatchSubject);
-    if (!subject)
+    BValue subjectBVal =
+        getEmitter().emitBValue({subject, subjectExpr}, EC_MatchSubject);
+    if (!subjectBVal)
       return failure();
+    subject = subjectBVal;
   }
 
   // Shared path uniquing across all cases. Command lists are built while
@@ -1651,33 +1781,14 @@ ParseResult StmtParser::parseMatchStmt(size_t curIndent, bool isComptime) {
     consumeToken(Token::kw_case);
 
     // Parse the case pattern as an expression_list. Stop before `if` so a
-    // trailing match guard is not absorbed as a ternary `x if y else z`, and
-    // before `as` so a top-level `case <pattern> as name` is attached here.
-    // Item precedence is tighter than `if`/`as` for the same reason.
+    // trailing match guard is not absorbed as a ternary `x if y else z`.
     ExprNode *patternExpr = nullptr;
-    if (parseExpressionList(
-            patternExpr, caseIndent,
-            /*terminators=*/{Token::colon, Token::kw_if, Token::kw_as},
-            Precedence(int(Precedence::kIfElse) + 1))) {
+    if (parseExpressionList(patternExpr, caseIndent,
+                            /*terminators=*/{Token::colon, Token::kw_if},
+                            Precedence::kAsPat)) {
       skipUntilIndentation(caseIndent);
       hadError = true;
       continue;
-    }
-
-    // Optional `as` binding: `case <pattern> as name`. Nested `as` inside
-    // parentheses is handled by the expression parser.
-    SMLoc asLoc;
-    if (consumeIf(Token::kw_as, &asLoc)) {
-      Token nameTok = getToken();
-      if (parseIdentifier("expected a name after 'as'")) {
-        hadError = true;
-        skipUntilIndentation(caseIndent);
-        continue;
-      }
-      auto *name = shared.allocPersistent<DeclRefNode>(
-          nameTok.getSpelling(), nameTok.is(Token::escaped_identifier));
-      patternExpr = shared.allocPersistent<BinOpNode>(ExprNode::kAsPat,
-                                                      patternExpr, asLoc, name);
     }
 
     // Optional match guard: `case <pattern> if <cond>:`.
@@ -1704,9 +1815,12 @@ ParseResult StmtParser::parseMatchStmt(size_t curIndent, bool isComptime) {
       continue;
     }
 
-    // Okay, we successfully parsed a case block. Remember it for later.
+    // Okay, we successfully parsed a case block. Remember it for later. A
+    // same-line body (`case x: pass`) has no indentation of its own, so it
+    // counts as one level below `case`.
+    size_t bodyIndent = getToken().getIndentation().value_or(caseIndent + 4);
     caseEntries.push_back({patternExpr, guardExpr, getLexer().getCursor(),
-                           caseIndent,
+                           caseIndent, bodyIndent,
                            checkListBuilder.internCommandList(commands)});
     skipUntilIndentation(caseIndent);
   }
@@ -1714,17 +1828,35 @@ ParseResult StmtParser::parseMatchStmt(size_t curIndent, bool isComptime) {
   if (caseEntries.empty()) {
     // Pattern-type failures still count as a case being present; only diagnose
     // a missing case when no `case` header parsed successfully.
-    if (!hadError)
+    if (!hadError) {
       emitError(matchLoc) << "'match' statement must have at least one "
                              "'case' block";
+      if (shared.parserListener) {
+        SmallVector<std::string, 4> patterns;
+        checkListBuilder.spellSubjectPatterns(rootPath, matchLoc, patterns);
+        if (!patterns.empty())
+          shared.notifyListenerOnMatchMissingCases(
+              llvm::SMRange(matchLoc, colonEndLoc), colonEndLoc,
+              PatternMatchBuilder::formatCaseArms(patterns, curIndent,
+                                                  curIndent + 4));
+      }
+    }
     return success();
   }
 
   // Now that we have all the cases together, diagnose whether enum cases are
   // exhaustively covering the subject.  While here, diagnose unreachable cases,
-  // and mark them as such.
-  checkListBuilder.checkCaseExhaustivityAndUnreachability(caseEntries, rootPath,
-                                                          matchLoc);
+  // and mark them as such.  Arms for any missing values go right after the
+  // last case body.
+  SMLoc casesEndLoc = SMLoc::getFromPointer(
+      findEndOfLastCase(getToken().getLoc().getPointer(), matchLoc.getPointer(),
+                        caseEntries.back().caseIndent));
+  std::string missingArms =
+      checkListBuilder.checkCaseExhaustivityAndUnreachability(
+          caseEntries, rootPath, matchLoc, shared.parserListener != nullptr);
+  if (!missingArms.empty())
+    shared.notifyListenerOnMatchMissingCases(
+        llvm::SMRange(matchLoc, colonEndLoc), casesEndLoc, missingArms);
 
   auto afterCaseCursor = getLexer().getCursor();
 
@@ -1737,13 +1869,14 @@ ParseResult StmtParser::parseMatchStmt(size_t curIndent, bool isComptime) {
   if (isComptime)
     emitComptimeCases(caseEntries, emissionState, curIndent);
   else
-    emitCases(caseEntries, emissionState, /*inMatchCase=*/false);
+    emitCases(caseEntries, checkListBuilder, emissionState,
+              /*inMatchCase=*/false);
 
   afterCaseCursor.restore(getLexer());
   return success();
 }
 
-/// Emit `comptime __match` as a flat `hlcf.comptime.if` / elif / else chain.
+/// Emit `comptime match` as a flat `hlcf.comptime.if` / elif / else chain.
 /// Each tested case contributes one condition attribute; a trailing
 /// always-matching case (`_` / bare binding) becomes the else arm. Pattern
 /// bindings are PValues installed before any guard runs and kept for the body;
@@ -1837,7 +1970,8 @@ void StmtParser::emitComptimeCases(ArrayRef<MatchCaseEntry> caseEntries,
 
   // Single always-matching case (typically `case _:` / `case x:`): emit the
   // body inline with no comptime.if.
-  if (caseEntries.size() == 1 && caseEntries.front().alwaysMatches()) {
+  if (caseEntries.size() == 1 && (caseEntries.front().commandList.empty() ||
+                                  caseEntries.front().alwaysMatches())) {
     const MatchCaseEntry &entry = caseEntries.front();
     SmallVector<PatternBoundName, 4> bindings;
     if (failed(
@@ -2075,6 +2209,7 @@ struct SpellingOrEnumCase {
 /// produce a terminator. Otherwise, all scenarios fall through and no
 /// terminator is added.
 void StmtParser::emitCaseCluster(ArrayRef<MatchCaseEntry> caseEntries,
+                                 PatternMatchBuilder &matchBuilder,
                                  PatternEmitState &emissionState,
                                  bool inMatchCase) {
   assert(caseEntries.size() > 1 &&
@@ -2085,15 +2220,14 @@ void StmtParser::emitCaseCluster(ArrayRef<MatchCaseEntry> caseEntries,
         return entry.isConcluding;
       });
 
-  // A trailing always-matching case (`_` or bind-only) is the exclusive
-  // complement of the tested leading values (e.g. `case False: ...; case _:
-  // ...` is `False` then everything else). findClusterSize only includes it
-  // when every tested case is fully decided by the leading test; emit it as
-  // the elif else, not as another tested arm.
-  const MatchCaseEntry *trailingWildcard = nullptr;
+  // A trailing wildcard, or a constructor that locally completes coverage, is
+  // the exclusive complement of the tested leading values. Emit it as the
+  // else arm instead of redundantly testing the final constructor.
+  ArrayRef<MatchCaseEntry> trailingComplement;
+  bool dropComplementTest = false;
   ArrayRef<MatchCaseEntry> testedEntries = caseEntries;
   if (caseEntries.back().alwaysMatches(/*skipFirstCommand=*/false)) {
-    trailingWildcard = &caseEntries.back();
+    trailingComplement = caseEntries.take_back();
     testedEntries = caseEntries.drop_back();
     assert(
         llvm::all_of(testedEntries,
@@ -2101,6 +2235,27 @@ void StmtParser::emitCaseCluster(ArrayRef<MatchCaseEntry> caseEntries,
                        return e.alwaysMatches(/*skipFirstCommand=*/true);
                      }) &&
         "trailing catch-all requires tested cases with no residual patterns");
+  } else if (caseEntries.back().isConcluding) {
+    SpellingOrEnumCase complementTest =
+        SpellingOrEnumCase::getLeadingTest(caseEntries.back());
+    size_t complementStart = caseEntries.size() - 1;
+    while (complementStart != 0 &&
+           SpellingOrEnumCase::getLeadingTest(
+               caseEntries[complementStart - 1]) == complementTest)
+      --complementStart;
+
+    // Only fold a contiguous trailing cluster. A repeated earlier test would
+    // also belong in the complement arm and requires general regrouping.
+    bool testOccursEarlier = llvm::any_of(
+        caseEntries.take_front(complementStart),
+        [&](const MatchCaseEntry &entry) {
+          return SpellingOrEnumCase::getLeadingTest(entry) == complementTest;
+        });
+    if (!testOccursEarlier && complementStart != 0) {
+      trailingComplement = caseEntries.drop_front(complementStart);
+      testedEntries = caseEntries.take_front(complementStart);
+      dropComplementTest = true;
+    }
   }
   assert(!testedEntries.empty() &&
          "cluster must contain at least one tested case");
@@ -2201,12 +2356,18 @@ void StmtParser::emitCaseCluster(ArrayRef<MatchCaseEntry> caseEntries,
     SmallVector<MatchCaseEntry, 4> residuals;
     for (size_t j = i; j != groupEnd; ++j) {
       MatchCaseEntry subCaseEntry = orderedCases[j].second;
-      subCaseEntry.commandList = subCaseEntry.commandList.drop_front();
+      subCaseEntry.commandList =
+          matchBuilder.internResidualCommandList(subCaseEntry.commandList);
       residuals.push_back(subCaseEntry);
     }
 
+    matchBuilder.markResidualConcludingCase(
+        residuals, emissionState.rootPath,
+        orderedCases[i].second.patternExpr->getLoc());
+
     auto caseEmissionState = emissionState;
-    emitCases(residuals, caseEmissionState, /*inMatchCase*/ inMatchCase);
+    emitCases(residuals, matchBuilder, caseEmissionState,
+              /*inMatchCase*/ inMatchCase);
 
     // Emit cases will emit a terminator if inMatchCase is true but unreachable
     // arm may already have terminated this block with `hlcf.unreachable`. Only
@@ -2221,9 +2382,20 @@ void StmtParser::emitCaseCluster(ArrayRef<MatchCaseEntry> caseEntries,
   // Else is the trailing `_` (exclusive complement) when present; otherwise
   // fall through / match.next — or unreachable when coverage already concluded.
   builder.setInsertionPointToStart(&ifOp.getElseRegion().emplaceBlock());
-  if (trailingWildcard) {
+  if (!trailingComplement.empty()) {
+    SmallVector<MatchCaseEntry, 4> complementCases;
+    complementCases.reserve(trailingComplement.size());
+    for (MatchCaseEntry complement : trailingComplement) {
+      if (dropComplementTest)
+        complement.commandList =
+            matchBuilder.internResidualCommandList(complement.commandList);
+      complementCases.push_back(complement);
+    }
+    matchBuilder.markResidualConcludingCase(
+        complementCases, emissionState.rootPath,
+        trailingComplement.front().patternExpr->getLoc());
     auto caseEmissionState = emissionState;
-    emitCases(*trailingWildcard, caseEmissionState,
+    emitCases(complementCases, matchBuilder, caseEmissionState,
               /*inMatchCase*/ inMatchCase);
     if (!builder.getInsertionBlock()->mightHaveTerminator())
       HLCF::YieldOp::create(builder, loc);
@@ -2254,6 +2426,7 @@ void StmtParser::emitCaseCluster(ArrayRef<MatchCaseEntry> caseEntries,
 /// produce a terminator. Otherwise, all scenarios fall through and no
 /// terminator is added.
 void StmtParser::emitCases(ArrayRef<MatchCaseEntry> caseEntries,
+                           PatternMatchBuilder &matchBuilder,
                            PatternEmitState &emissionState, bool inMatchCase) {
   assert(!caseEntries.empty() && "emitCases requires a non-empty list");
 
@@ -2345,11 +2518,45 @@ void StmtParser::emitCases(ArrayRef<MatchCaseEntry> caseEntries,
     }
   };
 
-  // If there is one entry and it has no commands, then we have a _ pattern
-  // only, which is a trivial base case in recursive matching.  Emit it
-  // efficiently.
-  if (caseEntries.size() == 1 && caseEntries.front().commandList.empty()) {
-    emitCaseBody(caseEntries.front(), inMatchCase);
+  auto materializeBindings =
+      [&](ArrayRef<PatternBoundName> bindings) -> LogicalResult {
+    IREmitter emitter = getEmitter();
+    for (const PatternBoundName &binding : bindings) {
+      DeclRefNode nameNode(binding.name);
+      ExprDest declDest(LValueInitializerType{binding.value.getRValueType()},
+                        EC_VarInit);
+      declDest.setPatternDeclKind(binding.bindingKind);
+      LValue bindingLV = emitter.emitExprLValue(&nameNode, declDest);
+      if (!bindingLV)
+        return failure();
+
+      ExprDest storeDest(bindingLV, EC_VarInit);
+      if (!emitter.emitCResult(binding.value, &nameNode, storeDest))
+        return failure();
+    }
+    return success();
+  };
+
+  // A single case with no pattern tests needs no match operation. Emit any
+  // bindings and its body directly into the enclosing block.
+  if (caseEntries.size() == 1 &&
+      llvm::all_of(caseEntries.front().commandList,
+                   [](const PatternCommand *command) {
+                     return command->kind == PatternCommand::Bind;
+                   })) {
+    const MatchCaseEntry &caseEntry = caseEntries.front();
+    SmallVector<PatternBoundName> bindings;
+    if (failed(emissionState.emitCommands(builder, caseEntry.commandList,
+                                          bindings)))
+      return;
+
+    DebugInfo::DIBuilder::ScopeGuard scopeGuard;
+    llvm::SaveAndRestore<ASTDecl *> keepDecl(curDeclScope);
+    pushChildScope(scopeGuard, keepDecl);
+    if (failed(materializeBindings(bindings)))
+      return;
+
+    emitCaseBody(caseEntry, inMatchCase, /*needsScope=*/false);
     return;
   }
 
@@ -2369,7 +2576,8 @@ void StmtParser::emitCases(ArrayRef<MatchCaseEntry> caseEntries,
 
   // If all of the cases are a cluster, emit them together.
   if (caseEntries.size() > 1 && clusterSizes.size() == 1) {
-    emitCaseCluster(caseEntries, emissionState, /*inMatchCase*/ inMatchCase);
+    emitCaseCluster(caseEntries, matchBuilder, emissionState,
+                    /*inMatchCase*/ inMatchCase);
     return;
   }
 
@@ -2397,7 +2605,8 @@ void StmtParser::emitCases(ArrayRef<MatchCaseEntry> caseEntries,
     // share case guards and diagnose situations with overlapping or
     // non-exhaustive clusters.
     if (thisCluster.size() > 1) {
-      emitCaseCluster(thisCluster, caseEmissionState, /*inMatchCase*/ true);
+      emitCaseCluster(thisCluster, matchBuilder, caseEmissionState,
+                      /*inMatchCase*/ true);
       continue;
     }
 
@@ -2410,32 +2619,13 @@ void StmtParser::emitCases(ArrayRef<MatchCaseEntry> caseEntries,
     DebugInfo::DIBuilder::ScopeGuard scopeGuard;
     llvm::SaveAndRestore<ASTDecl *> keepDecl(curDeclScope);
     pushChildScope(scopeGuard, keepDecl);
-    IREmitter emitter = getEmitter();
 
     // Materialize pattern bindings before the guard so guards can refer to
     // them. Match subjects are borrowed (BValues), so `var` bindings copy and
     // `ref` bindings borrow — same machinery as `var x = ...` / `ref x = ...`.
     // On failure, treat like a pattern emission error so later cases/statements
     // still parse (recovery), rather than aborting the whole match.
-    bool hadFailure = false;
-    for (const PatternBoundName &bn : bindings) {
-      DeclRefNode nameNode(bn.name);
-      ExprDest declDest(LValueInitializerType{bn.value.getRValueType()},
-                        EC_VarInit);
-      declDest.setPatternDeclKind(bn.bindingKind);
-      LValue bindingLV = emitter.emitExprLValue(&nameNode, declDest);
-      if (!bindingLV) {
-        hadFailure = true;
-        break;
-      }
-
-      ExprDest storeDest(bindingLV, EC_VarInit);
-      if (!emitter.emitCResult(bn.value, &nameNode, storeDest)) {
-        hadFailure = true;
-        break;
-      }
-    }
-    if (hadFailure)
+    if (failed(materializeBindings(bindings)))
       continue;
 
     // Emit the pattern guard and body of the case. Scope already opened above
@@ -3041,9 +3231,9 @@ ParseResult StmtParser::parseTryStmt(size_t curIndent) {
 
           // Add an ASTDecl for the error name. TODO: Generalize to an
           // arbitrary pattern.
-          auto &vd = getDeclResolver().addFullyResolvedDecl(
-              DeclIRValue(errDecl), errDecl.getNameAttr(), errExpr->getLoc(),
-              curDeclScope);
+          auto &vd = cast<VarASTDecl>(getDeclResolver().addFullyResolvedDecl(
+              errDecl.getOperation(), errDecl.getNameAttr(), errExpr->getLoc(),
+              curDeclScope));
           getEmitter().shared.notifyListenerOnVariableDecl(vd,
                                                            errExpr->getLoc());
         }
@@ -3065,7 +3255,9 @@ ParseResult StmtParser::parseTryStmt(size_t curIndent) {
     }
     TryYieldOp::create(builder, translateLocation(getToken().getLoc()));
 
-    hasFinally = consumeIf(Token::kw_finally);
+    hasFinally =
+        isTokenInCurrentStatement(curIndent, /*allowSameIndent=*/true) &&
+        consumeIf(Token::kw_finally);
   } else {
     SMLoc finallyLoc;
     hasFinally = consumeIf(Token::kw_finally, &finallyLoc);
@@ -3141,19 +3333,20 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
   //     with EXPRESSION as TARGET:
   //       SUITE
   // Into:
-  //     contextMgr = EXPRESSION
+  //     ref/var contextMgr = EXPRESSION
   //     TARGET = contextMgr.__enter__()
+  //     exc = False
   //     try {
   //       SUITE
   //     } except(errorVal : Error) {
-  //       hlcf.if (contextMgr.__exit__(errorVal)) {
-  //         hlcf.yield
+  //       exc = True
+  //       excValue = errorVal^
+  //     } finally {
+  //       if exc {
+  //         if not contextMgr.__exit__(excValue) { raise excValue^ }
   //       } else {
-  //         raise errorVal
+  //         contextMgr.__exit__()
   //       }
-  //       try.yield
-  //     } else {
-  //       contextMgr.__exit__()
   //     }
   // We elide the try and except logic when in a context that doesn't support
   // raising an error (like a non-raising fn).
@@ -3163,13 +3356,36 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
   if (parseExpression(contextExp))
     return failure();
 
-  // Emit the context manager expression into a var with an inferred type.
-  VarDeclOp contextMgrDecl = getEmitter().emitVarDecl(
-      "$CONTEXTMGR", UnresolvedType::get(getContext()),
-      shared.translateLocation(contextExp->getLoc()), VarDeclKind::Synthesized);
-  ExprDest contextMgrDest(contextMgrDecl, EC_WithContextMgr);
-  if (!getEmitter().emitExpr(contextExp, contextMgrDest))
+  // For an RValue we want to create a new variable, otherwise we want to
+  // reuse the original borrowed variable instead of creating new bindings.
+  CValue contextCVal =
+      getEmitter().emitExprCValue(contextExp, EC_WithContextMgr);
+  if (!contextCVal)
     return failure();
+
+  ASTType contextRVType = contextCVal.getRValueType();
+
+  VarDeclOp contextMgrDecl;
+  if (!contextCVal.isMValue() || contextCVal.getIfRValue()) {
+    MRValue owned =
+        getEmitter().emitMRValue({contextCVal, contextExp}, EC_WithContextMgr);
+    if (!owned)
+      return failure();
+
+    contextMgrDecl = owned.getDefiningOp<VarDeclOp>();
+    if (!contextMgrDecl || !contextMgrDecl.isSynthetic()) {
+      contextMgrDecl = getEmitter().emitVarDecl(
+          "$CONTEXTMGR", contextRVType,
+          shared.translateLocation(contextExp->getLoc()),
+          VarDeclKind::Synthesized);
+      ExprDest contextMgrDest(MLValue(contextMgrDecl), EC_WithContextMgr);
+      if (!getEmitter().emitRValue({owned, contextExp}, contextMgrDest))
+        return failure();
+    }
+  }
+
+  AnyValue contextVal = contextMgrDecl ? AnyValue(MLValue(contextMgrDecl))
+                                       : AnyValue(contextCVal);
 
   // Determine if the context manager has an __exit__ method.  If not, that is
   // fine, we silently just don't call it.  This mode of supporting context
@@ -3187,7 +3403,6 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
   // The latter works because of Mojo's strong early-destruction guarantees and
   // lack of frame-objects-capturing-variables problems, but the former is more
   // familiar to Pythonistas.
-  ASTType contextRVType = MLValue(contextMgrDecl).getRValueType();
   bool hasExitMethod =
       shared.typeHasMember(contextRVType, "__exit__", contextExp->getLoc());
 
@@ -3203,12 +3418,6 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
     if (parseExpression(targetExpr, curIndent, Precedence::kVarRefPat))
       return failure();
   }
-
-  // We are about to generate the call to __enter__ but need to decide how to
-  // pass the context expression, either as an LValue referring to the bound
-  // variable, or as a transferred RValue if it takes it owned (enabling some
-  // advanced use cases with unique context managers).
-  AnyValue contextVal = MLValue(contextMgrDecl);
 
   // If there is an explicit target specified, use it.
   ExprDest enterDest(EC_WithContextMgr);
@@ -3228,22 +3437,21 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
   auto enterEmitter = getEmitter();
   if (PValue enterMethod = OverloadSet::lookupAndResolve(
           contextRVType, "__enter__", enterOperands, enterEmitter)) {
-    // If there is no exit method, we can pass the argument as an RValue so the
-    // enter method can consume the value... unless __enter__ takes self 'mut'.
+    // If the with statement owns the context manager and there is no exit
+    // method, we can pass the argument as an RValue so the enter method can
+    // consume the value... unless __enter__ takes self 'mut'.
     auto sig = FnOrFnLiteralTypeGeneratorType::tryGet(enterMethod.getType());
     if (sig.has_value() && !sig->getArgConventions().empty()) {
       auto firstArgConvention = sig->getArgConventions()[0];
-      if (firstArgConvention != ArgConvention::Mut && !hasExitMethod)
-        contextVal = MRValue(contextMgrDecl);
+      assert(firstArgConvention != ArgConvention::OwnedReg &&
+             "not used by the mojo parser");
+      bool ownedSelf = firstArgConvention == ArgConvention::OwnedMem ||
+                       firstArgConvention == ArgConvention::DeinitMem;
 
       // One error that people hit is defining a context manager with both an
       // owned enter method and an exit method.  This will generate a terrible
       // error message in CheckLifetimes, so cut that off here.
-      assert(firstArgConvention != ArgConvention::OwnedReg &&
-             "not used by the mojo parser");
-      if ((firstArgConvention == ArgConvention::OwnedMem ||
-           firstArgConvention == ArgConvention::DeinitMem) &&
-          hasExitMethod) {
+      if (ownedSelf && hasExitMethod) {
         auto diag =
             emitError(contextExp->getLoc(), "context manager of type ")
             << contextRVType
@@ -3254,11 +3462,12 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
         if (ASTDecl *contextDecl = contextRVType.getDecl(shared))
           diag.attachNote(contextDecl->getLoc())
               << contextRVType << " declared here";
-
-        // Make the emission work even if the type isn't copyable.
-        contextVal = MRValue(contextMgrDecl);
       }
-      enterOperands[0].ir = contextVal;
+
+      if (contextMgrDecl &&
+          (ownedSelf ||
+           (firstArgConvention != ArgConvention::Mut && !hasExitMethod)))
+        enterOperands[0].ir = MRValue(contextMgrDecl);
     }
   }
 
@@ -3291,27 +3500,33 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
   builder.createBlock(&tryOp.getTryRegion());
 
   // Check to see if we have to emit a conditional finally because there is an
-  // __exit__ method that accepts an error.  PEP343 states that the general
-  // 'with' statement corresponds to:
+  // __exit__ method that accepts an error.  We emit:
   //
-  //   contextMgr = EXPRESSION
+  //   ref/var contextMgr = EXPRESSION
   //   TARGET = contextMgr.__enter__()
-  //   exc = True
+  //   exc = False
+  //   var excValue: ErrorType
   //   try:
   //     try:
   //       SUITE
   //     except e:
-  //       exc = False
-  //       if not contextMgr.__exit__(e):
-  //         raise e
+  //       exc = True
+  //       excValue = e^
   //   finally:
   //     if exc:
+  //       if not contextMgr.__exit__(excValue):
+  //         raise excValue^
+  //     else:
   //       contextMgr.__exit__()
-  // If the context manager has no __exit__ taking an error, then we know the
-  // exit is unconditional.
+  //
+  // Unlike PEP343, both __exit__ calls are in the finally region so that
+  // __exit__ may take 'var self'.  If the context manager has no __exit__
+  // taking an error, then we know the exit is unconditional.
   Value excVar;
+  VarDeclOp excValueDecl;
   TryOp nestedTryOp;
   VarDeclOp nestedErrDecl;
+  PValue conditionalExit;
   if (inExceptRegion && hasExitMethod) {
     CallOperands exitCallOperands(CallSyntax::kMethodCall, contextExp,
                                   EC_WithExitResult);
@@ -3325,25 +3540,10 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
     exitCallOperands.add({PValue(UnknownAttr::get(wildcardType)), contextExp});
 
     IREmitter exitEmitter = getEmitter();
-    PValue conditionalExit = OverloadSet::lookupAndResolve(
+    conditionalExit = OverloadSet::lookupAndResolve(
         contextRVType, "__exit__", exitCallOperands, exitEmitter);
 
     if (conditionalExit) {
-      // Insert the flag ahead of our try and initialize it to 'True'.
-      OpBuilder::InsertPoint ip = builder.saveInsertionPoint();
-      builder.setInsertionPoint(tryOp);
-
-      auto boolType = SIMDType::getScalarBoolType(builder.getContext());
-      excVar = getEmitter().emitVarDecl("__with_exc__", boolType, loc,
-                                        VarDeclKind::Synthesized);
-      RefStoreOp::create(
-          builder, loc,
-          ParamConstantOp::create(
-              builder, loc,
-              SIMDAttr::getScalarBool(builder.getContext(), true)),
-          excVar);
-      builder.restoreInsertionPoint(ip);
-
       // If the __exit__ method accepts a concrete error type, impose that on
       // the error VarDecl so that throws within the region will conform to it.
       // If it is something generic, then allow the try to resolve it, and the
@@ -3359,6 +3559,26 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
       // to the wildcard type.  Just leave it as Unresolved if so.
       if (!sugarIsa<NameLookupArgWildcardType>(argType))
         errorType = argType;
+
+      // Insert the flag and the caught error stash ahead of our try.
+      OpBuilder::InsertPoint ip = builder.saveInsertionPoint();
+      builder.setInsertionPoint(tryOp);
+
+      auto boolType = SIMDType::getScalarBoolType(builder.getContext());
+      excVar = getEmitter().emitVarDecl("__with_exc__", boolType, loc,
+                                        VarDeclKind::Synthesized);
+
+      auto falseValue = SIMDAttr::getScalarBool(builder.getContext(), false);
+      auto falseParam = ParamConstantOp::create(builder, loc, falseValue);
+      RefStoreOp::create(builder, loc, falseParam, excVar);
+
+      // The finally region is cloned onto every exit of the try, so we must
+      // manually mark the error value initialized/consumed for CheckLifetimes
+      // not to error.
+      excValueDecl = getEmitter().emitVarDecl("__with_exc_value__", errorType,
+                                              loc, VarDeclKind::Synthesized);
+      OwnershipMarkInitializedOp::create(builder, loc, excValueDecl);
+      builder.restoreInsertionPoint(ip);
 
       // Generate the nested try. Stub the 'else' and 'finally' regions.
       nestedErrDecl = getEmitter().emitVarDecl("__inner_error__", errorType,
@@ -3410,6 +3630,9 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
             shared.lookupBuiltinType("Error", getParentDecl(), smLoc))
       errorVarDecl.changeElementType(errorType);
   }
+  if (excValueDecl &&
+      isa<UnresolvedType>(excValueDecl.getType().getElementType()))
+    excValueDecl.changeElementType(nestedErrDecl.getType().getElementType());
 
   // This emits the call to the 'contextMgr.__exit__()' methods on the
   // context managers in the normal path.  If the type has no __exit__ method,
@@ -3420,6 +3643,21 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
   //     SUITE
   //   finally:
   //     lit.ownership.use(TARGET)
+  //
+  // Each __exit__ call is the last use of the context manager on its path.  The
+  // exit method may take any of "ref", "mut", or "var".  If it is "var", we
+  // pass in an RValue for it so it can consume the context manager.
+  auto getExitSelf = [&](PValue exitMethod) -> AnyValue {
+    if (!contextMgrDecl || !exitMethod)
+      return contextVal;
+    auto signature =
+        FnOrFnLiteralTypeGeneratorType::tryGet(exitMethod.getType());
+    if (signature.has_value() && !signature->getArgConventions().empty() &&
+        signature->getArgConventions()[0] != ArgConvention::Mut)
+      return MRValue(contextMgrDecl);
+    return contextVal;
+  };
+
   auto emitNormalExitLogic = [&]() {
     // If the target value has no __exit__ method, we need it to be
     // live all the way across the suite, so add an extra use so it isn't
@@ -3434,31 +3672,17 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
       return;
     }
 
-    // The normal exit logic could be the last use of the context manager.  The
-    // exit method may take any of "ref", "mut", or "var".  If it is "var", we
-    // pass in an RValue for it so it can consume the context manager.
-    AnyValue contextVal = MLValue(contextMgrDecl);
     auto exitEmitter = getEmitter();
     CallOperands operands(CallSyntax::kMethodCall, contextExp,
                           EC_WithExitResult);
     operands.addSelf({contextVal, contextExp});
-    if (PValue exitMethod = OverloadSet::lookupAndResolve(
-            contextRVType, "__exit__", operands, exitEmitter)) {
-      // Pass the argument as an RValue so the exit method can consume the
-      // value... unless it takes self 'mut'.
-      auto signature =
-          FnOrFnLiteralTypeGeneratorType::tryGet(exitMethod.getType());
-      if (signature.has_value() && !signature->getArgConventions().empty())
-        if (signature->getArgConventions()[0] != ArgConvention::Mut) {
-          contextVal = MRValue(contextMgrDecl);
-        }
-    }
+    AnyValue exitSelf = getExitSelf(OverloadSet::lookupAndResolve(
+        contextRVType, "__exit__", operands, exitEmitter));
 
     // Ok, emit the call the __exit__.
     (void)getEmitter().emitNamedMethodCall(
-        "__exit__",
-        CallOperands(CallSyntax::kMethodCall, contextExp, EC_WithExitResult,
-                     {{contextVal, contextExp}}));
+        "__exit__", CallOperands(CallSyntax::kMethodCall, contextExp,
+                                 EC_WithExitResult, {{exitSelf, contextExp}}));
   };
 
   // If the body of this try can throw, then the "except" block in it needs to
@@ -3495,7 +3719,7 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
 
   // If we're in a non-raising region (or have no __exit__ method), then we have
   // a simple pattern to emit:
-  //   contextMgr = EXPRESSION
+  //   ref/var contextMgr = EXPRESSION
   //   TARGET = contextMgr.__enter__()
   //   try:
   //     SUITE
@@ -3510,33 +3734,42 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
   }
 
   // Handle the case when we have a nested try due to an __exit__ method that
-  // takes an error.
+  // takes an error.  Its except region only records the error, the __exit__
+  // calls happen in the finally region:
+  //  except(%__inner_error__ : Error) {
+  //    __with_exc__ = True
+  //    __with_exc_value__ = %__inner_error__^
+  //  }
   if (nestedTryOp) {
-    // Set up the except region for the nested try.  Pseudo code:
-    //  except(%__inner_error__ : Error) {
-    //    %stop_rethrow = contextMgr.__exit__(%__inner_error__);
-    //    hlcf.if %stop_rethrow {
-    //      hlcf.yield
-    //    } else {
-    //      raise %inner_error
-    //    }
     builder.createBlock(&nestedTryOp.getExceptRegion());
 
-    // Set the flag to 'False'.
     RefStoreOp::create(
         builder, loc,
         ParamConstantOp::create(
-            builder, loc, SIMDAttr::getScalarBool(builder.getContext(), false)),
+            builder, loc, SIMDAttr::getScalarBool(builder.getContext(), true)),
         excVar);
 
-    // Pass the error value to the __exit__ method.
+    // Drop the placeholder initialization before moving the real error in.
+    OwnershipMarkConsumedOp::create(builder, loc, excValueDecl);
+    ExprDest stashDest(MLValue(excValueDecl), EC_RaiseValue);
+    getEmitter().emitResult(MRValue(nestedErrDecl), contextExp, stashDest);
+    TryYieldOp::create(builder, loc);
+  }
+
+  // Now that we have seen the body of the try, we can have inferred the thrown
+  // type, so we can emit the rethrow logic in except {}
+  emitExceptBody();
+
+  // Emit the call to __exit__ that takes the stashed error, re-raising the
+  // error if it returns false.
+  auto emitErrorExitLogic = [&]() {
     // TODO: this isn't using the same convention that Python does.  We support
     // overloading though and this is going to be way better for anything real
     // that wants to implement this. We can support both styles when we need to.
     CallOperands exitOperandList(CallSyntax::kMethodCall, contextExp,
                                  EC_WithExitResult,
-                                 {{MLValue(contextMgrDecl), contextExp},
-                                  {MBValue(nestedErrDecl), contextExp}});
+                                 {{getExitSelf(conditionalExit), contextExp},
+                                  {MBValue(excValueDecl), contextExp}});
     auto emitter = getEmitter();
     CValue exitResult =
         emitter.emitNamedMethodCall("__exit__", std::move(exitOperandList));
@@ -3544,10 +3777,10 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
         emitter.emitScalarBool({exitResult, contextExp}, EC_WithExitResult);
     SRValue exitI1Val =
         emitter.emitSRValue({exitI1RVal, contextExp}, EC_WithExitResult);
+    // On failure a diagnostic was emitted; keep the IR well formed.
     if (!exitI1Val)
-      // Fail, but non-fatal so return success to keep parsing.
-      return success();
-    // If __exit__ returns false, then re-raise the error.
+      return;
+
     HLCF::IfOp stopRethrowIf = HLCF::IfOp::create(
         *emitter.builder, loc, TypeRange{}, exitI1Val,
         [&]() -> LogicalResult {
@@ -3559,25 +3792,21 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
           // On false, we re-raise the error. Sync the statement builder so
           // getEmitter() emits into this else region.
           builder = *emitter.builder;
-          ExprDest dest(MLValue(errDecl), EC_RaiseValue);
+          MLValue raiseSlot = getEmitter().findNearestErrorSlot();
+          ExprDest dest(raiseSlot, EC_RaiseValue);
           // If the error type is unresolved, resolve it to whatever we
           // propagate.
-          if (isa<UnresolvedType>(errDecl.getType().getElementType()))
-            dest = ExprDest(errDecl, EC_RaiseValue);
-          getEmitter().emitResult(MRValue(nestedErrDecl), contextExp, dest);
+          if (isa<UnresolvedType>(raiseSlot.getRValueType()))
+            dest = ExprDest(cast<VarDeclOp>(raiseSlot.getDefiningOp()),
+                            EC_RaiseValue);
+          getEmitter().emitResult(MRValue(excValueDecl), contextExp, dest);
           LIT::RaiseOp::create(builder, loc);
           HLCF::YieldOp::create(builder, loc);
           return success();
         });
-    if (!stopRethrowIf)
-      return success();
-    builder.setInsertionPointAfter(stopRethrowIf);
-    TryYieldOp::create(builder, loc);
-  }
-
-  // Now that we have seen the body of the try, we can have inferred the thrown
-  // type, so we can emit the rethrow logic in except {}
-  emitExceptBody();
+    if (stopRethrowIf)
+      builder.setInsertionPointAfter(stopRethrowIf);
+  };
 
   // Emit the conditional call to __exit__.
   builder.createBlock(&tryOp.getFinallyRegion());
@@ -3587,20 +3816,22 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
       return success();
     }
 
-    // Only call the no-error __exit__ when the suite completed without an
-    // exception (exc flag still true).
     Value excFlag = RefLoadOp::create(builder, loc, excVar);
     auto emitter = getEmitter();
     HLCF::IfOp excIf = HLCF::IfOp::create(
         *emitter.builder, loc, TypeRange{}, excFlag,
         [&]() -> LogicalResult {
           builder = *emitter.builder;
-          emitNormalExitLogic();
+          emitErrorExitLogic();
           HLCF::YieldOp::create(builder, loc);
           return success();
         },
         [&]() -> LogicalResult {
-          HLCF::YieldOp::create(*emitter.builder, loc);
+          builder = *emitter.builder;
+          // No error was stashed on this path, drop the placeholder.
+          OwnershipMarkConsumedOp::create(builder, loc, excValueDecl);
+          emitNormalExitLogic();
+          HLCF::YieldOp::create(builder, loc);
           return success();
         });
     if (!excIf)
@@ -3613,38 +3844,54 @@ ParseResult StmtParser::parseSingleWithStmt(size_t curIndent, SMLoc smLoc,
   return success();
 }
 
-ParseResult StmtParser::parseComptimeIf(Location ifLoc, LexerCursor startCursor,
-                                        size_t curIndent) {
-  // Mirror parseElif: collect all arms first, create a flat hlcf.comptime.if
-  // attached to the enclosing function, then re-parse suites into its regions.
-  // Bodies must be parsed under an attached op so emitNormalReturn can walk
-  // from the insertion block up to the enclosing FnOp.
+ParseResult StmtParser::parseIf(Location ifLoc, LexerCursor startCursor,
+                                size_t curIndent, bool isComptime) {
+  // Collect all arms first, then re-parse their suites into the selected
+  // runtime or compile-time control-flow operation.
   llvm::SaveAndRestore builderSaver(builder);
 
   struct ArmEntry {
     ExprNode *condExpr;
+    ExprNode *patternExpr;
     LexerCursor bodyCursor;
     Location keywordLoc;
+    SmallVector<PatternBoundName, 4> patternBindings;
   };
 
   SmallVector<ArmEntry, 4> arms;
 
-  ExprNode *firstCondExpr = nullptr;
-  if (parseExpression(firstCondExpr, curIndent, Precedence::kAssignExpr) ||
-      parseToken(Token::colon, "expected ':' after 'if' expression"))
+  auto parseArm = [&](Location keywordLoc, StringRef keyword) -> ParseResult {
+    ExprNode *condExpr = nullptr;
+    ExprNode *patternExpr = nullptr;
+    if (consumeIf(Token::kw_case)) {
+      if (parseExpressionList(patternExpr, curIndent,
+                              /*terminators=*/{Token::equal},
+                              Precedence::kAsPat))
+        return failure();
+      if (parseToken(Token::equal, "expected '=' after conditional pattern") ||
+          parseExpression(condExpr, curIndent, Precedence::kAssignExpr))
+        return failure();
+    } else if (parseExpression(condExpr, curIndent, Precedence::kAssignExpr)) {
+      return failure();
+    }
+
+    if (parseToken(Token::colon,
+                   "expected ':' after '" + keyword + "' condition"))
+      return failure();
+    arms.push_back(
+        {condExpr, patternExpr, getLexer().getCursor(), keywordLoc, {}});
+    skipUntilIndentation(curIndent);
+    return success();
+  };
+
+  if (failed(parseArm(ifLoc, "if")))
     return failure();
-  arms.push_back({firstCondExpr, getLexer().getCursor(), ifLoc});
-  skipUntilIndentation(curIndent);
 
   while (getToken().is(Token::kw_elif) &&
          isTokenInCurrentStatement(curIndent, /*allowSameIndent=*/true)) {
     Location elifLoc = translateLocation(consumeToken(Token::kw_elif).getLoc());
-    ExprNode *condExpr = nullptr;
-    if (parseExpression(condExpr, curIndent, Precedence::kAssignExpr) ||
-        parseToken(Token::colon, "expected ':' after 'elif' expression"))
+    if (failed(parseArm(elifLoc, "elif")))
       return failure();
-    arms.push_back({condExpr, getLexer().getCursor(), elifLoc});
-    skipUntilIndentation(curIndent);
   }
 
   std::optional<LexerCursor> elseBodyCursor;
@@ -3657,79 +3904,248 @@ ParseResult StmtParser::parseComptimeIf(Location ifLoc, LexerCursor startCursor,
   }
   auto afterCursor = getLexer().getCursor();
 
-  auto emitComptimeCondAttr = [&](ExprNode *condExp) -> FailureOr<TypedAttr> {
-    RValue condRVal = getParamEmitter(EC_ComptimeIfCondition)
-                          .emitExprScalarBool(condExp, EC_ComptimeIfCondition);
-    if (!condRVal)
-      return failure();
-    PValue condPVal = condRVal.getIfPValue();
-    if (!condPVal) {
-      emitError(condExp->getLoc(),
-                "'comptime if' condition must be evaluable at compile-time")
-          << condExp->getRange();
-      return failure();
+  if (isComptime) {
+    auto emitComptimeCondAttr = [&](ExprNode *condExp) -> FailureOr<TypedAttr> {
+      RValue condRVal =
+          getParamEmitter(EC_ComptimeIfCondition)
+              .emitExprScalarBool(condExp, EC_ComptimeIfCondition);
+      if (!condRVal)
+        return failure();
+      PValue condPVal = condRVal.getIfPValue();
+      if (!condPVal) {
+        emitError(condExp->getLoc(),
+                  "'comptime if' condition must be evaluable at compile-time")
+            << condExp->getRange();
+        return failure();
+      }
+      return cast<TypedAttr>(condPVal.get());
+    };
+
+    SmallVector<Attribute, 4> conds;
+    conds.reserve(arms.size());
+    for (ArmEntry &arm : arms) {
+      FailureOr<TypedAttr> attr = [&]() -> FailureOr<TypedAttr> {
+        if (!arm.patternExpr)
+          return emitComptimeCondAttr(arm.condExpr);
+
+        PValue subject = getParamEmitter(EC_MatchSubject)
+                             .emitExprPValue(arm.condExpr, EC_MatchSubject);
+        if (!subject)
+          return failure();
+
+        PatternMatchBuilder matchBuilder(*curDeclScope, EC_Type);
+        const PatternPath *rootPath =
+            matchBuilder.getRootPath(subject.getRValueType());
+        SmallVector<const PatternCommand *, 8> commands;
+        if (failed(arm.patternExpr->buildCheckList(matchBuilder, subject,
+                                                   rootPath, commands)))
+          return failure();
+
+        PatternEmitState emissionState{*curDeclScope, subject, rootPath,
+                                       arm.keywordLoc,
+                                       DenseMap<const PatternPath *, CValue>()};
+        return emissionState.emitComptimeCondition(commands,
+                                                   arm.patternBindings);
+      }();
+      if (failed(attr))
+        return failure();
+      conds.push_back(*attr);
     }
-    return cast<TypedAttr>(condPVal.get());
-  };
 
-  SmallVector<Attribute, 4> conds;
-  conds.reserve(arms.size());
-  for (const ArmEntry &arm : arms) {
-    FailureOr<TypedAttr> attr = emitComptimeCondAttr(arm.condExpr);
-    if (failed(attr))
-      return failure();
-    conds.push_back(*attr);
-  }
+    auto comptimeIfOp = HLCF::ComptimeIfOp::create(builder, ifLoc, TypeRange{},
+                                                   builder.getArrayAttr(conds));
 
-  auto comptimeIfOp = HLCF::ComptimeIfOp::create(builder, ifLoc, TypeRange{},
-                                                 builder.getArrayAttr(conds));
+    auto parseComptimeIfRegion = [&](ArrayRef<ConstraintAttr> assumptions,
+                                     ArrayRef<PatternBoundName> bindings,
+                                     SMLoc bindingLoc) -> ParseResult {
+      DebugInfo::DIBuilder::ScopeGuard scopeGuard;
+      llvm::SaveAndRestore<ASTDecl *> keepDecl(curDeclScope);
+      pushChildScope(scopeGuard, keepDecl);
+      IREmitter emitter = getParamEmitter(EC_MatchSubject);
+      for (const PatternBoundName &binding : bindings) {
+        PValue value = binding.value.getIfPValue();
+        if (!value) {
+          emitError(bindingLoc)
+              << "binding '" << binding.name
+              << "' in 'comptime if case' must be a compile-time value";
+          return failure();
+        }
+        DeclRefNode nameNode(binding.name);
+        if (failed(emitter.emitDestructuringPValue(value, &nameNode)))
+          return failure();
+      }
+      curDeclScope->insertKnownAssumptions(assumptions);
+      return parseSuite(curIndent);
+    };
 
-  auto parseComptimeIfRegion =
-      [&](ArrayRef<ConstraintAttr> assumptions) -> ParseResult {
-    DebugInfo::DIBuilder::ScopeGuard scopeGuard;
-    llvm::SaveAndRestore<ASTDecl *> keepDecl(curDeclScope);
-    pushChildScope(scopeGuard, keepDecl);
-    curDeclScope->insertKnownAssumptions(assumptions);
-    return parseSuite(curIndent);
-  };
+    auto emitArmBody =
+        [&](Region &thenRegion, const ArmEntry &entry,
+            ArrayRef<ConstraintAttr> assumptions) -> ParseResult {
+      builder.createBlock(&thenRegion);
+      entry.bodyCursor.restore(getLexer());
+      SMLoc bindingLoc = entry.patternExpr ? entry.patternExpr->getLoc()
+                                           : entry.condExpr->getLoc();
+      if (failed(parseComptimeIfRegion(assumptions, entry.patternBindings,
+                                       bindingLoc)))
+        return failure();
+      HLCF::ComptimeYieldOp::create(builder, entry.keywordLoc);
+      return success();
+    };
 
-  auto emitArmBody = [&](Region &thenRegion, const ArmEntry &entry,
-                         ArrayRef<ConstraintAttr> assumptions) -> ParseResult {
-    builder.createBlock(&thenRegion);
-    entry.bodyCursor.restore(getLexer());
-    if (failed(parseComptimeIfRegion(assumptions)))
-      return failure();
-    HLCF::ComptimeYieldOp::create(builder, entry.keywordLoc);
+    SmallVector<ConstraintAttr, 4> falseAssumptions;
+    auto thenRegions = comptimeIfOp.getThenRegions();
+    for (auto [idx, entry] : llvm::enumerate(arms)) {
+      TypedAttr cond = cast<TypedAttr>(conds[idx]);
+      SmallVector<ConstraintAttr, 4> thenAssumptions(falseAssumptions);
+      thenAssumptions.push_back(LIT::buildBranchAssumption(
+          cond, /*invertCondition=*/false, entry.keywordLoc));
+      if (failed(emitArmBody(thenRegions[idx], entry, thenAssumptions)))
+        return failure();
+      falseAssumptions.push_back(LIT::buildBranchAssumption(
+          cond, /*invertCondition=*/true, entry.keywordLoc));
+    }
+
+    builder.createBlock(&comptimeIfOp.getElseRegion());
+    if (elseBodyCursor) {
+      elseBodyCursor->restore(getLexer());
+      if (failed(parseComptimeIfRegion(falseAssumptions, {}, SMLoc())))
+        return failure();
+    }
+    HLCF::ComptimeYieldOp::create(builder, ifLoc);
+
+    afterCursor.restore(getLexer());
     return success();
-  };
-
-  SmallVector<ConstraintAttr, 4> falseAssumptions;
-  auto thenRegions = comptimeIfOp.getThenRegions();
-  for (auto [idx, entry] : llvm::enumerate(arms)) {
-    TypedAttr cond = cast<TypedAttr>(conds[idx]);
-    SmallVector<ConstraintAttr, 4> thenAssumptions(falseAssumptions);
-    thenAssumptions.push_back(LIT::buildBranchAssumption(
-        cond, /*invertCondition=*/false, entry.keywordLoc));
-    if (failed(emitArmBody(thenRegions[idx], entry, thenAssumptions)))
-      return failure();
-    falseAssumptions.push_back(LIT::buildBranchAssumption(
-        cond, /*invertCondition=*/true, entry.keywordLoc));
   }
 
-  builder.createBlock(&comptimeIfOp.getElseRegion());
-  if (elseBodyCursor) {
-    elseBodyCursor->restore(getLexer());
-    if (failed(parseComptimeIfRegion(falseAssumptions)))
+  bool hasPatternCondition = llvm::any_of(
+      arms, [](const ArmEntry &arm) { return arm.patternExpr != nullptr; });
+  if (hasPatternCondition) {
+    auto materializeBindings =
+        [&](ArrayRef<PatternBoundName> bindings) -> LogicalResult {
+      IREmitter emitter = getEmitter();
+      for (const PatternBoundName &binding : bindings) {
+        DeclRefNode nameNode(binding.name);
+        ExprDest declDest(LValueInitializerType{binding.value.getRValueType()},
+                          EC_VarInit);
+        declDest.setPatternDeclKind(binding.bindingKind);
+        LValue bindingLV = emitter.emitExprLValue(&nameNode, declDest);
+        if (!bindingLV)
+          return failure();
+
+        ExprDest storeDest(bindingLV, EC_VarInit);
+        if (!emitter.emitCResult(binding.value, &nameNode, storeDest))
+          return failure();
+      }
+      return success();
+    };
+
+    auto emitBody = [&](const ArmEntry &entry) -> ParseResult {
+      entry.bodyCursor.restore(getLexer());
+      if (failed(parseLocalScopeSuite(curIndent)))
+        return failure();
+      return success();
+    };
+
+    auto emitArmChain = [&](auto &self, size_t armIndex) -> ParseResult {
+      if (armIndex == arms.size()) {
+        if (elseBodyCursor) {
+          elseBodyCursor->restore(getLexer());
+          if (failed(parseLocalScopeSuite(curIndent)))
+            return failure();
+        }
+        return success();
+      }
+
+      const ArmEntry &arm = arms[armIndex];
+      if (!arm.patternExpr) {
+        FailureOr<Value> condition = [&]() -> FailureOr<Value> {
+          auto emitter = getEmitter();
+          RValue conditionRValue =
+              emitter.emitExprScalarBool(arm.condExpr, EC_BoolCondition);
+          if (!conditionRValue)
+            return failure();
+          SRValue conditionValue = emitter.emitSRValue(
+              {conditionRValue, arm.condExpr}, EC_BoolCondition);
+          if (!conditionValue)
+            return failure();
+          return Value(conditionValue);
+        }();
+        if (failed(condition))
+          return failure();
+
+        HLCF::IfOp ifOp = HLCF::IfOp::create(builder, arm.keywordLoc,
+                                             TypeRange(), *condition);
+        Block &thenBlock = ifOp.getThenRegion().emplaceBlock();
+        Block &elseBlock = ifOp.getElseRegion().emplaceBlock();
+
+        builder.setInsertionPointToStart(&thenBlock);
+        if (failed(emitBody(arm)))
+          return failure();
+        HLCF::YieldOp::create(builder, arm.keywordLoc);
+
+        builder.setInsertionPointToStart(&elseBlock);
+        if (failed(self(self, armIndex + 1)))
+          return failure();
+        HLCF::YieldOp::create(builder, arm.keywordLoc);
+        builder.setInsertionPointAfter(ifOp);
+        return success();
+      }
+
+      CValue subject =
+          getEmitter().emitExprCValue(arm.condExpr, EC_MatchSubject);
+      if (!subject)
+        return failure();
+      if (subject.getIfRValue() || subject.getIfDLValue()) {
+        BValue subjectBValue =
+            getEmitter().emitBValue({subject, arm.condExpr}, EC_MatchSubject);
+        if (!subjectBValue)
+          return failure();
+        subject = subjectBValue;
+      }
+
+      PatternMatchBuilder matchBuilder(*curDeclScope, EC_Type);
+      const PatternPath *rootPath =
+          matchBuilder.getRootPath(subject.getRValueType());
+      SmallVector<const PatternCommand *, 8> commands;
+      if (failed(arm.patternExpr->buildCheckList(matchBuilder, subject,
+                                                 rootPath, commands)))
+        return failure();
+
+      PatternEmitState emissionState{*curDeclScope, subject, rootPath,
+                                     arm.keywordLoc,
+                                     DenseMap<const PatternPath *, CValue>()};
+      auto matchOp = HLCF::MatchOp::create(builder, arm.keywordLoc, TypeRange(),
+                                           /*caseRegionsCount=*/1);
+      Region &caseRegion = matchOp.getCaseRegions().front();
+      Block &caseBlock = caseRegion.emplaceBlock();
+      Block &matchElseBlock = matchOp.getElseRegion().emplaceBlock();
+
+      builder.setInsertionPointToStart(&caseBlock);
+      SmallVector<PatternBoundName> bindings;
+      if (failed(emissionState.emitCommands(builder, commands, bindings)))
+        return failure();
+      {
+        DebugInfo::DIBuilder::ScopeGuard scopeGuard;
+        llvm::SaveAndRestore<ASTDecl *> keepDecl(curDeclScope);
+        pushChildScope(scopeGuard, keepDecl);
+        if (failed(materializeBindings(bindings)) || failed(emitBody(arm)))
+          return failure();
+      }
+      HLCF::MatchCompleteOp::create(builder, arm.keywordLoc);
+
+      builder.setInsertionPointToStart(&matchElseBlock);
+      if (failed(self(self, armIndex + 1)))
+        return failure();
+      HLCF::YieldOp::create(builder, arm.keywordLoc);
+      builder.setInsertionPointAfter(matchOp);
+      return success();
+    };
+
+    if (failed(emitArmChain(emitArmChain, 0)))
       return failure();
+    afterCursor.restore(getLexer());
+    return success();
   }
-  HLCF::ComptimeYieldOp::create(builder, ifLoc);
-
-  afterCursor.restore(getLexer());
-  return success();
-}
-
-ParseResult StmtParser::parseElif(Location ifLoc, LexerCursor startCursor,
-                                  size_t curIndent) {
 
   struct DeadCodeInfo {
     /// The value of the constant condition.
@@ -3740,63 +4156,18 @@ ParseResult StmtParser::parseElif(Location ifLoc, LexerCursor startCursor,
 
     /// Index into elifRegions of the condition region, or ~0u for the first
     /// (operand) condition.
-    unsigned elifCondIndex;
+    size_t elifCondIndex;
   };
-
-  // One if/elif arm: condition AST + suite start so we can allocate the ElIf
-  // once, then emit conditions and re-parse suites in a second pass.
-  struct ElifEntry {
-    ExprNode *condExpr;
-    LexerCursor bodyCursor;
-    Location keywordLoc;
-  };
-
-  // We will be moving the builder into sub-regions that are created, make sure
-  // we end up after it when this is done.
-  llvm::SaveAndRestore builderSaver(builder);
-
-  // Parse all if/elif(/else) arms first so we know how many ElIf regions to
-  // allocate.
-  SmallVector<ElifEntry, 4> elifEntries;
-
-  ExprNode *firstCondExpr = nullptr;
-  if (parseExpression(firstCondExpr, curIndent, Precedence::kAssignExpr) ||
-      parseToken(Token::colon, "expected ':' after 'if' expression"))
-    return failure();
-  elifEntries.push_back({firstCondExpr, getLexer().getCursor(), ifLoc});
-  skipUntilIndentation(curIndent);
-
-  while (getToken().is(Token::kw_elif) &&
-         isTokenInCurrentStatement(curIndent, /*allowSameIndent=*/true)) {
-    Location elifLoc = translateLocation(consumeToken(Token::kw_elif).getLoc());
-    ExprNode *condExpr = nullptr;
-    if (parseExpression(condExpr, curIndent, Precedence::kAssignExpr) ||
-        parseToken(Token::colon, "expected ':' after 'elif' expression"))
-      return failure();
-    elifEntries.push_back({condExpr, getLexer().getCursor(), elifLoc});
-    skipUntilIndentation(curIndent);
-  }
-
-  std::optional<LexerCursor> elseBodyCursor;
-  if (isTokenInCurrentStatement(curIndent, /*allowSameIndent=*/true) &&
-      consumeIf(Token::kw_else)) {
-    if (parseToken(Token::colon, "expected ':' after else"))
-      return failure();
-    elseBodyCursor = getLexer().getCursor();
-    skipUntilIndentation(curIndent);
-  }
-
-  auto afterElifCursor = getLexer().getCursor();
 
   // Unreachable-arm metadata collected while emitting conditions; processed
-  // after the full elif is built so we can mark regions dead.
+  // after the full if is built so we can mark regions dead.
   SmallVector<DeadCodeInfo> ifOpsWithDeadCode;
 
   // Emit a previously-parsed condition at the current insertion point. The
   // first `if` condition is emitted before the elif; later `elif` conditions
   // stay in their regions.
   auto emitConditionExpr = [&](ExprNode *condExp,
-                               unsigned elifCondIndex) -> FailureOr<Value> {
+                               size_t elifCondIndex) -> FailureOr<Value> {
     auto emitter = getEmitter();
 
     RValue condI1RVal = emitter.emitExprScalarBool(condExp, EC_BoolCondition);
@@ -3816,7 +4187,7 @@ ParseResult StmtParser::parseElif(Location ifLoc, LexerCursor startCursor,
   };
 
   auto emitArmBody = [&](Block &bodyBlock,
-                         const ElifEntry &entry) -> ParseResult {
+                         const ArmEntry &entry) -> ParseResult {
     builder.setInsertionPointToStart(&bodyBlock);
     entry.bodyCursor.restore(getLexer());
     if (failed(parseLocalScopeSuite(curIndent)))
@@ -3827,12 +4198,11 @@ ParseResult StmtParser::parseElif(Location ifLoc, LexerCursor startCursor,
 
   // First condition is evaluated in the parent and becomes the elif operand.
   FailureOr<Value> firstCond =
-      emitConditionExpr(elifEntries.front().condExpr, /*elifCondIndex=*/~0u);
+      emitConditionExpr(arms.front().condExpr, /*elifCondIndex=*/~0u);
   if (failed(firstCond))
     return failure();
 
-  unsigned numExtraRegions =
-      elifEntries.size() > 1 ? (elifEntries.size() - 1) * 2 : 0;
+  size_t numExtraRegions = arms.size() > 1 ? (arms.size() - 1) * 2 : 0;
   HLCF::IfOp ifOp = HLCF::IfOp::create(builder, ifLoc, TypeRange(), *firstCond,
                                        numExtraRegions);
   ifOp.getThenRegion().emplaceBlock();
@@ -3840,14 +4210,14 @@ ParseResult StmtParser::parseElif(Location ifLoc, LexerCursor startCursor,
   for (Region &region : ifOp.getElifRegions())
     region.emplaceBlock();
 
-  if (failed(emitArmBody(ifOp.getThenRegion().front(), elifEntries.front())))
+  if (failed(emitArmBody(ifOp.getThenRegion().front(), arms.front())))
     return failure();
 
   // Subsequent conditions stay in their regions so they are only evaluated
   // when earlier arms fail.
   for (auto [idx, entry] :
-       llvm::enumerate(ArrayRef<ElifEntry>(elifEntries).drop_front())) {
-    unsigned condRegionIndex = idx * 2;
+       llvm::enumerate(ArrayRef<ArmEntry>(arms).drop_front())) {
+    size_t condRegionIndex = idx * 2;
     builder.setInsertionPointToStart(
         &ifOp.getElifRegions()[condRegionIndex].front());
     FailureOr<Value> elifCond =
@@ -3901,7 +4271,7 @@ ParseResult StmtParser::parseElif(Location ifLoc, LexerCursor startCursor,
     }
   }
 
-  afterElifCursor.restore(getLexer());
+  afterCursor.restore(getLexer());
   return success();
 }
 
@@ -3913,16 +4283,15 @@ ParseResult StmtParser::parseElif(Location ifLoc, LexerCursor startCursor,
 /// control flow and is rejected. Struct, trait, and extension bodies are also
 /// rejected.
 ParseResult StmtParser::checkImportScope(SMLoc kwLoc) {
-  Operation *parent = getParentDecl().getIfOperation();
   // Module scope is always valid.
-  if (isa_and_nonnull<FileModuleOp>(parent))
+  if (isa<FileModuleASTDecl>(getParentDecl()))
     return success();
   // Within a function, walk up the region chain from the current insertion
   // point to the FnOp. Comptime control-flow ops (HLCF::ComptimeIfOp,
   // HLCF::ComptimeForOp) are transparent — we continue walking through them.
   // Any other op in between (HLCF::IfOp, LIT::LoopOp, etc.) is runtime control
   // flow and the import is rejected.
-  if (isa_and_nonnull<FnOp>(parent)) {
+  if (isa<DefASTDecl>(getParentDecl())) {
     Block *block = builder.getInsertionBlock();
     while (block) {
       Operation *op = block->getParentOp();
@@ -4058,15 +4427,15 @@ ParseResult StmtParser::parseFromImportStmt(FromImportDecorators decorators) {
       // Resolve the module if we haven't yet.
       if (!currentResolvedModule) {
         ASTDecl *curModuleDecl = curDeclScope;
-        while (curModuleDecl &&
-               !isa_and_nonnull<FileModuleOp>(curModuleDecl->getIfOperation()))
+        while (curModuleDecl && !isa<FileModuleASTDecl>(curModuleDecl))
           curModuleDecl = curModuleDecl->getParentDecl();
 
         currentResolvedModule = &shared.importModule(
             modulePath,
-            curModuleDecl
-                ? curModuleDecl->getIfOperation()->getParentOfType<PackageOp>()
-                : PackageOp(),
+            curModuleDecl ? cast<FileModuleASTDecl>(curModuleDecl)
+                                ->getOp()
+                                ->getParentOfType<PackageOp>()
+                          : PackageOp(),
             importLoc);
       }
       return *currentResolvedModule;
@@ -4180,14 +4549,15 @@ static void buildImportChain(ParserBase &p, ASTDecl &dest, OpBuilder builder,
   assert(modulePath.relativeLevel == 0 && "import chains are absolute");
   ASTDecl *scope = &dest;
   ArrayRef<StringRef> components = modulePath.components;
-  for (unsigned i = 0, e = components.size(); i != e; ++i) {
+  for (size_t i = 0, e = components.size(); i != e; ++i) {
     auto segName = StringAttr::get(p.getContext(), components[i]);
 
     // Reuse the ImportOp already bound at this scope; otherwise create a new
     // one.
     ASTDecl *node = nullptr;
     for (ASTDecl *d : scope->lookupInCurrentScope(segName)) {
-      if (isa_and_nonnull<ImportOp>(d->getIfOperation())) {
+      auto *importDecl = dyn_cast<ImportASTDecl>(d);
+      if (importDecl && importDecl->isResolved()) {
         node = d;
         break;
       }
@@ -4202,7 +4572,7 @@ static void buildImportChain(ParserBase &p, ASTDecl &dest, OpBuilder builder,
 
     // Descend so the next segment is gated as a child of this node.
     scope = node;
-    builder = scope->getDeclEndBuilder();
+    builder = cast<ImportASTDecl>(scope)->getDeclEndBuilder();
   }
 
   p.shared.notifyListenerOnModuleImport(*scope, modulePath,
@@ -4252,9 +4622,10 @@ ParseResult StmtParser::parseImportStmt() {
     // Absolute `import`s are built into nested ImportOps at parse time, with no
     // UnresolvedImportOp placeholder. Resolve the target module first so a
     // missing module is reported eagerly (this locates the module file; it does
-    // not parse its body).
-    ASTDecl &module =
-        shared.importModule(modulePath, /*currentPackage=*/nullptr, importLoc);
+    // not parse its body). This one call records the dep edges for both
+    // binding forms below.
+    ModuleASTDecl &module = shared.importModule(
+        modulePath, /*currentPackage=*/nullptr, importLoc, curDeclScope);
 
     if (!boundModuleName.has_value()) {
       // 'import a.b.c' binds the chain 'a' -> 'a.b' -> 'a.b.c' under the
@@ -4301,7 +4672,8 @@ StmtParser::parseImportModuleName(SharedState::ImportPath &parsedName,
 
     // Otherwise, this is importing from within a package.
     shared.notifyListenerOnImport(loc, [&]() -> ASTDecl & {
-      auto curOp = curDeclScope->getIfOperation()->getParentOfType<PackageOp>();
+      auto *packageDecl = curDeclScope->getNearestDeclOfType<PackageASTDecl>();
+      PackageOp curOp = packageDecl ? packageDecl->getOp() : nullptr;
       return shared.importModule(parsedName, curOp, loc);
     });
   };
@@ -4387,6 +4759,7 @@ StmtParser::parseImportModuleName(SharedState::ImportPath &parsedName,
 
 ParseResult StmtParser::parseDefFnStmt(LexerCursor startCursor,
                                        size_t curIndent) {
+  warnIfUnprefixedAsyncSpelling(getToken());
   if (consumeIf(Token::kw___async) && rejectTokenAtStartOfLine("'def' keyword"))
     return failure();
   consumeToken(); // Consume either 'def' or 'fn'.
@@ -4468,7 +4841,7 @@ ParseResult StmtParser::parseDefFnStmt(LexerCursor startCursor,
 
   // Mark this function with an attribute if it's trait method with a non-empty
   // body.
-  if (isa_and_nonnull<TraitDeclOp>(curDeclScope->getIfOperation()))
+  if (isa<TraitASTDecl>(curDeclScope))
     maybeMarkDefaultedTraitMethod(fnOp);
 
   // Skip the body of this definition: go to a token at the start of the next
@@ -4486,7 +4859,7 @@ ParseResult StmtParser::parseDefFnStmt(LexerCursor startCursor,
 
   // If this is a nested function, parse its body right now so captures can be
   // resolved correctly.
-  if (curDeclScope->getNearestDeclOfType<FnOp>())
+  if (curDeclScope->getNearestDeclOfType<DefASTDecl>())
     (void)getDeclResolver().resolveBody(funcDecl, loc);
   return success();
 }
@@ -4508,8 +4881,8 @@ void StmtParser::maybeMarkDefaultedTraitMethod(FnOp fnOp) {
   // of the signature will result in a parser failure anyways and the simple
   // logic that is provided is capable of handling valid syntactic forms.
   auto skipSignature = [&]() {
-    unsigned parenDepth = 0;
-    unsigned squareDepth = 0;
+    size_t parenDepth = 0;
+    size_t squareDepth = 0;
     while (true) {
       switch (getToken().getKind()) {
       case Token::eof:
@@ -4564,7 +4937,7 @@ void StmtParser::maybeMarkDefaultedTraitMethod(FnOp fnOp) {
 ///                 | "var" identifier "=" expression
 ParseResult StmtParser::parseVarStmt(LexerCursor startCursor,
                                      size_t stmtIndent) {
-  assert(!isa_and_nonnull<FnOp>(getParentDecl().getIfOperation()) &&
+  assert(!isa<DefASTDecl>(getParentDecl()) &&
          "var decls in functions are processed as expression statements");
 
   // Global var decls are allowed to have decorators, but nothing else.
@@ -4585,7 +4958,7 @@ ParseResult StmtParser::parseVarStmt(LexerCursor startCursor,
                       &identifierLoc, /*forbidStartOfLine=*/true))
     return failure();
 
-  if (isa_and_nonnull<TraitDeclOp>(getParentDecl().getIfOperation())) {
+  if (isa<TraitASTDecl>(getParentDecl())) {
     rejectDecorator();
     emitError(loc, "traits do not support 'var' fields; use 'comptime' to "
                    "declare associated types");
@@ -4593,10 +4966,21 @@ ParseResult StmtParser::parseVarStmt(LexerCursor startCursor,
     return success();
   }
 
+  if (auto *structDecl = dyn_cast<StructASTDecl>(&getParentDecl());
+      structDecl && structDecl->getOp().isEnum()) {
+    rejectDecorator();
+    emitError(loc, "enums do not support 'var' fields; store state in a case "
+                   "payload");
+    skipUntilIndentation(stmtIndent, /*stopOnSemicolon=*/true);
+    StringRef ignoredDocString;
+    parseDocString(ignoredDocString);
+    return success();
+  }
+
   auto unresolvedType = UnresolvedType::get(getContext());
   // If we're in a struct, then this is a field declaration.
   Operation *declOp;
-  if (isa_and_nonnull<StructDeclOp>(getParentDecl().getIfOperation())) {
+  if (isa<StructASTDecl>(getParentDecl())) {
     declOp = StructFieldOp::create(builder, loc, name, unresolvedType);
 
     // Skip the body of this definition: go to a token the starts a line at the
@@ -4614,17 +4998,17 @@ ParseResult StmtParser::parseVarStmt(LexerCursor startCursor,
   // If the declaration is in a function body, we delay adding it until after
   // resolving the RHS, so that the RHS can reference any identifiers that the
   // decl is shadowing.
-  ASTDecl &decl = getDeclResolver().createUnlistedDecl(
-      declOp, smLoc, curDeclScope, startCursor, getLexer().getCursor(),
-      stmtIndent);
-  getDeclResolver().attachDeclToParentNameTable(&decl, name);
+  ASTDecl &decl =
+      getDeclResolver().addDecl(declOp, smLoc, name, curDeclScope, startCursor,
+                                getLexer().getCursor(), stmtIndent);
 
-  auto varOp = dyn_cast_or_null<VarDeclOp>(decl.getIfOperation());
-  if (!varOp) {
+  auto *varDecl = dyn_cast<VarASTDecl>(&decl);
+  if (!varDecl) {
     // Parse docstrings for struct fields here.
     parseDocString(decl);
     return success();
   }
+  VarDeclOp varOp = varDecl->getOp();
 
   // Local variable declarations inside functions are lexically resolved, so
   // fully resolve the decl now. If an error occurs, skip the declaration and
@@ -4745,10 +5129,9 @@ ParseResult StmtParser::parseAliasDeclStmtBody(LexerCursor startCursor,
 
     // Reject the stmt if it is in a struct/trait, resolving them eagerly can
     // easily lead to parser cycles.
-    if (isa_and_nonnull<StructDeclOp, TraitDeclOp>(
-            parentDecl.getIfOperation())) {
+    if (isa<StructASTDecl, TraitASTDecl>(parentDecl)) {
       emitError(kwLoc,
-                isa<StructDeclOp>(parentDecl.getIfOperation())
+                isa<StructASTDecl>(parentDecl)
                     ? "'comptime' constants inside structs must be declared "
                       "separately; break this into individual declarations"
                     : "a trait's associated types must be declared separately; "
@@ -4791,7 +5174,7 @@ ParseResult StmtParser::parseAliasDeclStmtBody(LexerCursor startCursor,
   // same indent level (or less) as the current definition.
   bool isDefaultedAlias = false;
   llvm::unique_function<bool()> defaultAliasDetector = {};
-  if (isa_and_nonnull<TraitDeclOp>(curDeclScope->getIfOperation())) {
+  if (isa<TraitASTDecl>(curDeclScope)) {
     defaultAliasDetector = [&]() -> bool {
       // if we found one `=`
       if (getToken().is(Token::equal))
@@ -4814,25 +5197,30 @@ ParseResult StmtParser::parseAliasDeclStmtBody(LexerCursor startCursor,
   return success();
 }
 
+/// Parse a `struct` or an `__enum` declaration. An enum is a struct whose
+/// state is declared by its cases.
 ParseResult StmtParser::parseStructStmt(LexerCursor startCursor,
                                         size_t curIndent) {
+  bool isEnum = getToken().is(Token::kw___enum);
+  StringRef kind = isEnum ? "enum" : "struct";
+
   // We don't support non-top level structs (yet?).
   bool nestFailure = false;
-  if (isa_and_nonnull<StructDeclOp>(getParentDecl().getIfOperation())) {
-    emitTokenError("nested struct not supported here");
+  if (isa<StructASTDecl>(getParentDecl())) {
+    emitTokenError("nested " + kind + " not supported here");
     nestFailure = true;
-  } else if (isa_and_nonnull<TraitDeclOp>(getParentDecl().getIfOperation())) {
-    emitTokenError("nested struct in a trait not supported here");
+  } else if (isa<TraitASTDecl>(getParentDecl())) {
+    emitTokenError("nested " + kind + " in a trait not supported here");
     nestFailure = true;
-  } else if (isa_and_nonnull<FnOp>(getParentDecl().getIfOperation())) {
-    emitTokenError("struct inside a function not supported here");
+  } else if (isa<DefASTDecl>(getParentDecl())) {
+    emitTokenError(kind + " inside a function not supported here");
     nestFailure = true;
   }
-  consumeToken(Token::kw_struct);
+  consumeToken(isEnum ? Token::kw___enum : Token::kw_struct);
 
   SMLoc smLoc;
   StringAttr nameAttr;
-  if (parseIdentifier(nameAttr, "expected struct name", &smLoc,
+  if (parseIdentifier(nameAttr, "expected " + kind + " name", &smLoc,
                       /*forbidStartOfLine=*/true)) {
     return failure();
   }
@@ -4848,6 +5236,7 @@ ParseResult StmtParser::parseStructStmt(LexerCursor startCursor,
   auto loc = translateLocation(smLoc);
 
   auto newStruct = StructDeclOp::create(builder, loc, nameAttr);
+  newStruct.setIsEnum(isEnum);
 
   // Skip the body of this definition: go to a token the starts a line at the
   // same indent level (or less) as the current definition.
@@ -4865,10 +5254,55 @@ ParseResult StmtParser::parseStructStmt(LexerCursor startCursor,
   return success();
 }
 
+/// enum_case ::= "case" identifier ["(" expression ("," expression)* [","] ")"]
+///
+/// As for a field, only the name is parsed here: the rest of the line is parsed
+/// when the enum resolves its cases, so that a payload can name any member.
+ParseResult StmtParser::parseEnumCaseStmt(size_t stmtIndent) {
+  LexerCursor caseCursor = getLexer().getCursor();
+  consumeToken(Token::kw_case);
+
+  if (!getToken().isIdentifier() || getToken().isStartOfLine()) {
+    emitError(getTokenLocOrEndOfPreviousLineIfOnNewLine())
+        << "enum case must have the form 'case name' or 'case name(T, ...)'";
+    skipUntilIndentation(stmtIndent, /*stopOnSemicolon=*/true);
+    StringRef ignoredDocString;
+    parseDocString(ignoredDocString);
+    return success();
+  }
+
+  StringAttr name;
+  SMLoc nameLoc;
+  if (parseIdentifier(name, "internal error: checked above", &nameLoc))
+    return failure();
+  skipUntilIndentation(stmtIndent, /*stopOnSemicolon=*/true);
+
+  auto caseOp = EnumCaseOp::create(builder, translateLocation(nameLoc), name,
+                                   /*payloadTypes=*/nullptr,
+                                   /*docString=*/nullptr);
+  // The decl is unlisted: a case is not itself a member but is used to
+  // generate the member of its name (a `comptime` value or a static
+  // constructor), which is the one that name lookup finds.
+  (void)getDeclResolver().addDecl(caseOp.getOperation(), nameLoc, StringAttr(),
+                                  curDeclScope, caseCursor,
+                                  getLexer().getCursor(), stmtIndent);
+  // A case op is not an `ASTDeclInterface`, so set its doc string here.
+  StringRef docString;
+  parseDocString(docString);
+  if (!docString.empty()) {
+    Location loc = shared.diags.translateLocation(
+        lexer.getStringLiteralStartLoc(docString));
+    caseOp.setDocStringAttr(DocStringAttr::get(
+        StringAttr::get(getContext(), lexer.getStringLiteralValue(docString)),
+        dyn_cast<FileLineColLoc>(loc)));
+  }
+  return success();
+}
+
 ParseResult StmtParser::parseTraitStmt(LexerCursor startCursor,
                                        size_t curIndent) {
   // We don't support non-top level traits (yet?).
-  if (!isa_and_nonnull<FileModuleOp>(getParentDecl().getIfOperation()))
+  if (!isa<FileModuleASTDecl>(getParentDecl()))
     emitTokenError("nested trait not supported here");
 
   consumeToken(Token::kw_trait);
@@ -4899,13 +5333,13 @@ ParseResult StmtParser::parseExtensionStmt(LexerCursor startCursor,
   // to enable the user to mimic implicit trait conformance. But this is not
   // that day.
   bool nestFailure = false;
-  if (isa_and_nonnull<StructDeclOp>(getParentDecl().getIfOperation())) {
+  if (isa<StructASTDecl>(getParentDecl())) {
     emitTokenError("nested extension not supported here");
     nestFailure = true;
-  } else if (isa_and_nonnull<TraitDeclOp>(getParentDecl().getIfOperation())) {
+  } else if (isa<TraitASTDecl>(getParentDecl())) {
     emitTokenError("nested extension in a trait not supported here");
     nestFailure = true;
-  } else if (isa_and_nonnull<FnOp>(getParentDecl().getIfOperation())) {
+  } else if (isa<DefASTDecl>(getParentDecl())) {
     emitTokenError("extension inside a function not supported here");
     nestFailure = true;
   }

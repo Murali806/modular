@@ -15,9 +15,10 @@
 from std.atomic import Atomic, Ordering, fence
 from std.math import align_up, ceildiv, exp, iota
 from std.math.uutils import ufloordiv, udivmod
-from std.memory import ThinAllocation, alloc, dealloc
+from std.memory import alloc, dealloc
 from std.memory.alloc import Layout as AllocLayout
 from std.sys import align_of, simd_width_of, size_of
+from std.collections import OptionalReg
 
 import max.gpu.primitives.warp as warp
 from max.algorithm.functional import parallelize_over_rows
@@ -33,18 +34,13 @@ from max.gpu import (
 )
 from max.gpu.sync import barrier
 from max.gpu.primitives.grid_controls import PDL, pdl_launch_attributes
-from max.gpu.host import DeviceContext, DeviceBuffer
+from max.gpu.host import DeviceAttribute, DeviceContext, FuncAttribute
 from max.gpu.host.info import is_cpu
 from max.gpu.memory import external_memory
-from std.sys.info import (
-    has_amd_gpu_accelerator,
-    is_apple_gpu,
-)
+from std.sys.info import current_accelerator, is_apple_gpu
 from std.random import Random
 from layout import (
     Coord,
-    CoordLike,
-    Idx,
     DefaultEngine,
     RowMajorLayout,
     TensorLayout,
@@ -83,6 +79,62 @@ comptime _APPLE_STATIC_SHMEM_RESERVE_BYTES = 2 * 1024
 comptime _APPLE_STATIC_SHMEM_USABLE_COUNT[T: AnyType] = (
     _APPLE_STATIC_SHMEM_MAX_BYTES - _APPLE_STATIC_SHMEM_RESERVE_BYTES
 ) // size_of[T]()
+
+# Headroom the two-stage top-k keeps below the device's shared-memory limit.
+# `topk_gpu` sizes stage 2 against the budget below, and `_topk_gpu` passes
+# that same budget as the stage-2 launch's `MAX_DYNAMIC_SHARED_SIZE_BYTES`
+# ceiling, so one compiled variant costs one CUDA function-cache key however
+# `max_k` and `num_blocks_per_input` vary. It covers the kernel's static
+# shared memory, which CUDA counts against the same limit.
+comptime _TOPK_STAGE2_SMEM_HEADROOM_BYTES = 8192
+
+# The most stage-1 partitions `topk_gpu` gives one input; stage 2 reduces
+# their candidates in one block.
+comptime _TOPK_MAX_BLOCKS_PER_INPUT = 8
+
+
+@inline(.always)
+def _topk_stage2_smem_budget(ctx: DeviceContext) raises -> Int:
+    """The most dynamic shared memory stage 2 may request on `ctx`'s device.
+
+    On NVIDIA, 8 KiB under the per-block opt-in limit
+    (`MAX_SHARED_MEMORY_PER_BLOCK_OPTIN`), the figure `cuFuncSetAttribute`
+    enforces. It is not a fixed offset from the SM's capacity: 48 KiB on
+    `sm_52` to `sm_61` whatever the SM holds, the whole SM on `sm_70` and
+    `sm_75`, and 1 KiB under it from `sm_80` on. Other targets pass no
+    ceiling and keep 8 KiB under the SM figure.
+    """
+    comptime if ctx.target.is_nvidia_gpu():
+        return (
+            ctx.get_attribute(DeviceAttribute.MAX_SHARED_MEMORY_PER_BLOCK_OPTIN)
+            - _TOPK_STAGE2_SMEM_HEADROOM_BYTES
+        )
+    else:
+        return (
+            Int(ctx.default_device_info.shared_memory_per_multiprocessor)
+            - _TOPK_STAGE2_SMEM_HEADROOM_BYTES
+        )
+
+
+@inline(.always)
+def _topk_stage2_smem_bytes[
+    dtype: DType
+](max_k: Int, num_blocks_per_input: Int) -> Int:
+    """Dynamic shared memory stage 2 requests to reduce its candidates.
+
+    A value and an `Int` index for each of the `num_blocks_per_input * max_k`
+    candidates, rounded up to whole warps, plus a value and two indices per
+    sample-cache slot, rounded up to `WARP_SIZE` bytes.
+    """
+    comptime warp_size = DeviceContext.default_device_info.warp_size
+    var num_elem_reduced = align_up(num_blocks_per_input * max_k, warp_size)
+    var candidate_bytes = num_elem_reduced * (
+        size_of[Scalar[dtype]]() + size_of[DType.int]()
+    )
+    var sample_cache_bytes = max_k * (
+        size_of[Scalar[dtype]]() + 2 * size_of[DType.int]()
+    )
+    return align_up(candidate_bytes + sample_cache_bytes, warp_size)
 
 
 @inline(.always)
@@ -130,7 +182,7 @@ def _adjust_top_p[
     address_space: AddressSpace = .GENERIC,
 ](
     top_p: Scalar[T],
-    values: UnsafePointer[Scalar[T], _, address_space=address_space],
+    values: Pointer[Scalar[T], _, address_space=address_space],
     k: Int,
     total_sum: Scalar[T],
 ) -> Scalar[T]:
@@ -238,7 +290,7 @@ def top_k[
                 out_idxs,
                 grain_size,
                 sorted=sorted,
-                ctx=Optional[DeviceContext](ctx),
+                ctx=Optional(ctx.assert_cpu_target()),
                 k=k,
             )
         else:
@@ -273,7 +325,7 @@ def _top_k_cpu[
     out_idxs: TileTensor[mut=True, out_idx_type, ...],
     parallelism_grain_size: Int,  # impl detail, exposed for testing
     sorted: Bool,
-    ctx: Optional[DeviceContext] = None,
+    ctx: Optional[DeviceContext.CPU] = None,
     k: Optional[
         TileTensor[.int64, KLayoutType, ImmutAnyOrigin, Engine=KEngine]
     ] = None,
@@ -297,8 +349,8 @@ def _top_k_cpu[
 
             var batch_idx = indices[0] if axis != 0 else 0
             var k_val = max_k
-            if k:
-                var k_raw = Int(k.value()[batch_idx])
+            if case .Some(k) = k:
+                var k_raw = Int(k[batch_idx])
                 k_val = max_k if k_raw == -1 else k_raw
 
             # Clamp k to the size of the axis to avoid out-of-bounds access
@@ -312,9 +364,9 @@ def _top_k_cpu[
                     lhs: Int64, rhs: Int64
                 ) {mut indices, input, axis} -> Bool:
                     indices[axis] = Int(lhs)
-                    var lhs_val = input.raw_load(input.layout(Coord(indices)))
+                    var lhs_val = input[Coord(indices)]
                     indices[axis] = Int(rhs)
-                    var rhs_val = input.raw_load(input.layout(Coord(indices)))
+                    var rhs_val = input[Coord(indices)]
                     return lhs_val > rhs_val
 
                 if sorted:
@@ -328,9 +380,9 @@ def _top_k_cpu[
                     lhs: Int64, rhs: Int64
                 ) {mut indices, input, axis} -> Bool:
                     indices[axis] = Int(lhs)
-                    var lhs_val = input.raw_load(input.layout(Coord(indices)))
+                    var lhs_val = input[Coord(indices)]
                     indices[axis] = Int(rhs)
-                    var rhs_val = input.raw_load(input.layout(Coord(indices)))
+                    var rhs_val = input[Coord(indices)]
                     return lhs_val < rhs_val
 
                 if sorted:
@@ -347,52 +399,34 @@ def _top_k_cpu[
                 var i = 0
                 while i < shape[axis] - 1:
                     indices[axis] = Int(idxs[i])
-                    var input_idx = input.layout(Coord(indices))
-                    var curr = input.raw_load(input_idx)
+                    var curr = input[Coord(indices)]
                     var num_equal = 1
                     for j in range(i + 1, shape[axis]):
                         indices[axis] = Int(idxs[j])
-                        var input_idx = input.layout(Coord(indices))
-                        var next = input.raw_load(input_idx)
+                        var next = input[Coord(indices)]
                         if curr != next:
                             break
                         num_equal += 1
                     if num_equal > 1:
-                        var idxs_ptr: UnsafePointer[
-                            idxs.T, origin_of(idxs)
-                        ] = idxs.unsafe_ptr()
-                        var ptr = idxs_ptr + i
-                        sort(
-                            Span[idxs.T, origin_of(idxs)](
-                                unsafe_ptr=ptr, length=num_equal
-                            )
-                        )
+                        var idxs_ptr = idxs.unsafe_ptr()
+                        var ptr = idxs_ptr.unsafe_offset(i)
+                        sort(Span(unsafe_ptr=ptr, length=num_equal))
                     i += num_equal
 
             for i in range(k_val):
                 indices[axis] = Int(idxs[i])
-                var input_idx = input.layout(Coord(indices))
-                var val = input.raw_load(input_idx)
+                var val = input.load[width=1](Coord(indices))
                 indices[axis] = i
-                var out_vals_idx = out_vals.layout(Coord(indices))
-                var out_idxs_idx = out_idxs.layout(Coord(indices))
-                out_vals.raw_store(out_vals_idx, val)
-                out_idxs.ptr[out_idxs_idx] = rebind[Scalar[out_idx_type]](
-                    idxs[i]
-                )
+                out_vals.store(Coord(indices), val)
+                out_idxs[Coord(indices)] = rebind[Scalar[out_idx_type]](idxs[i])
 
             # A row asking for fewer than the output width gets the padding
             # the GPU kernels write, not whatever the buffer held.
             var out_k = coord_to_index_list(out_idxs.layout.shape_coord())[axis]
             for i in range(k_val, out_k):
                 indices[axis] = i
-                out_vals.raw_store(
-                    out_vals.layout(Coord(indices)),
-                    _topk_dead_val[dtype, largest](),
-                )
-                out_idxs.ptr[out_idxs.layout(Coord(indices))] = Scalar[
-                    out_idx_type
-                ](-1)
+                out_vals[Coord(indices)] = _topk_dead_val[dtype, largest]()
+                out_idxs[Coord(indices)] = Scalar[out_idx_type](-1)
 
     parallelize_over_rows(
         process_rows, shape, axis, parallelism_grain_size, ctx
@@ -466,7 +500,9 @@ def fused_token_sampling_cpu[
         SeedEngine: Engine policy of the seed buffer.
 
     Args:
-        max_k: Largest number of top elements.
+        max_k: Largest `k` across the batch, or -1 if any row has no top-k
+            limit. Rows whose `k` is -1 then sample from the top 255
+            elements, and explicit rows keep their own `k`.
         input: TileTensor[dtype] (Any shape)- The input tensor.
         out_idxs: TileTensor[out_idx_type] (shape of [input_shape[:-1]] + [1]) - The output indices.
         k: Optional device buffer of top elements to keep for each batch element.
@@ -499,13 +535,26 @@ def fused_token_sampling_cpu[
     ):
         var bound_max_k = 255 if max_k == -1 else max_k
 
+        # A `max_k` of -1 means some row has no top-k limit, not that all do.
+        # `_top_k_sampling` resolves a row's -1 to the output width, which an
+        # explicit k above the cap widens, so resolve those rows to the cap.
+        var resolved_k = List[Int64]()
+        if max_k == -1 and k:
+            var k_in = k.value()
+            var cap = bound_max_k
+            for i in range(k_in.num_elements()):
+                var k_raw = Int(k_in[i])
+                var row_k = cap if k_raw == -1 else k_raw
+                resolved_k.append(Int64(row_k))
+                bound_max_k = max(bound_max_k, row_k)
+
         # materialize the out_vals which is of shape [input[:-1]] + [k]
         var out_vals_shape = coord_to_index_list(input.layout.shape_coord())
         out_vals_shape[input.rank - 1] = bound_max_k
         var out_vals_alloc = alloc(
-            AllocLayout[Scalar[dtype]](count=out_vals_shape.flattened_length())
+            AllocLayout[Scalar[dtype]](length=out_vals_shape.flattened_length())
         ).into_managed()
-        var out_vals_ptr: UnsafePointer[
+        var out_vals_ptr: MutPointer[
             Scalar[dtype], origin_of(out_vals_alloc)
         ] = out_vals_alloc.unsafe_ptr()
         var out_vals = TileTensor(
@@ -513,17 +562,34 @@ def fused_token_sampling_cpu[
             row_major(Coord(out_vals_shape)),
         )
 
-        _top_k_sampling(
-            bound_max_k,
-            input,
-            out_vals,
-            out_idxs.bitcast[.int64](),
-            k,
-            temperature,
-            top_p,
-            seed,
-        )
+        if resolved_k:
+            _top_k_sampling(
+                bound_max_k,
+                input,
+                out_vals,
+                out_idxs.bitcast[.int64](),
+                Optional(
+                    TileTensor(resolved_k, row_major(Int64(len(resolved_k))))
+                    .as_unsafe_any_origin()
+                    .as_imm()
+                ),
+                temperature,
+                top_p,
+                seed,
+            )
+        else:
+            _top_k_sampling(
+                bound_max_k,
+                input,
+                out_vals,
+                out_idxs.bitcast[.int64](),
+                k,
+                temperature,
+                top_p,
+                seed,
+            )
 
+        _ = resolved_k^
         dealloc(out_vals_alloc^)
 
 
@@ -644,9 +710,9 @@ def _top_k_sampling[
     var reshaped_out_vals = reshape(out_vals, internal_out_shape)
 
     var out_idxs_tmp_alloc = alloc(
-        AllocLayout[Int64](count=out_vals.num_elements())
+        AllocLayout[Int64](length=out_vals.num_elements())
     )
-    var out_idxs_tmp_ptr: UnsafePointer[
+    var out_idxs_tmp_ptr: MutPointer[
         Int64, origin_of(out_idxs_tmp_alloc._alloc)
     ] = out_idxs_tmp_alloc.unsafe_ptr()
     var out_idxs_tmp = TileTensor(
@@ -668,12 +734,12 @@ def _top_k_sampling[
     # Sample from the top K elements
     for batch in range(internal_bs):
         var temperature_val = Float32(1.0)
-        if temperature:
-            temperature_val = temperature.value()[batch][0]
+        if case .Some(temperature) = temperature:
+            temperature_val = temperature[batch][0]
 
         var k_val = max_k
-        if k:
-            var k_raw = Int(k.value()[batch])
+        if case .Some(k) = k:
+            var k_raw = Int(k[batch])
             k_val = max_k if k_raw == -1 else k_raw
 
         # Clamp k_val to the number of valid top-k entries available in internal_out_vals
@@ -684,8 +750,8 @@ def _top_k_sampling[
         # Calculate softmax normalization
         var max_val = reshaped_out_vals[batch, 0][0]
         var sum_exp = Scalar[dtype](0)
-        var exp_vals = alloc(AllocLayout[Scalar[dtype]](count=k_val))
-        var exp_vals_ptr: UnsafePointer[
+        var exp_vals = alloc(AllocLayout[Scalar[dtype]](length=k_val))
+        var exp_vals_ptr: MutPointer[
             Scalar[dtype], origin_of(exp_vals._alloc)
         ] = exp_vals.unsafe_ptr()
         var temp_val = temperature_val.cast[dtype]()
@@ -697,16 +763,16 @@ def _top_k_sampling[
 
         # Handle top_p parameter - extract scalar value from buffer
         var top_p_val = Scalar[dtype](1.0)
-        if top_p:
-            top_p_val = top_p.value()[batch][0].cast[dtype]()
+        if case .Some(top_p) = top_p:
+            top_p_val = top_p[batch][0].cast[dtype]()
         var _top_p = _adjust_top_p[dtype](
             top_p_val, exp_vals_ptr, k_val, sum_exp
         )
 
         # Handle seed parameter - extract scalar value from buffer
         var seed_val = UInt64(0)
-        if seed:
-            seed_val = seed.value()[batch][0]
+        if case .Some(seed) = seed:
+            seed_val = seed[batch][0]
 
         # Use the same RNG as the GPU sampling implementation
         var rng_state = Random(seed=seed_val)
@@ -1041,15 +1107,15 @@ def _topk_stage1[
     out_idx_type: DType,
     largest: Bool = True,
 ](
-    K: Optional[UnsafePointer[Int64, ImmutAnyOrigin]],
+    K: Optional[ImmPointer[Int64, ImmutAnyOrigin]],
     max_k: Int32,
     num_elements: Int32,
     num_blocks_per_input: Int32,
-    in_buffer_tmp: UnsafePointer[Scalar[T], MutAnyOrigin],
-    local_topk_vals: UnsafePointer[
+    in_buffer_tmp: MutPointer[Scalar[T], MutAnyOrigin],
+    local_topk_vals: MutPointer[
         Scalar[T], MutAnyOrigin
     ],  # Output buffer of size num_blocks_per_input * max_k
-    local_topk_idxs: UnsafePointer[
+    local_topk_idxs: MutPointer[
         Scalar[out_idx_type], MutAnyOrigin
     ],  # Output buffer of size num_blocks_per_input * max_k
 ):
@@ -1108,15 +1174,15 @@ def _topk_stage1[
         block_end = min(block_offset + block_len, _num_elements)
         stride = block_size
 
-    var _in_buffer_tmp = in_buffer_tmp + batch_id * _num_elements
+    var _in_buffer_tmp = in_buffer_tmp.unsafe_offset(batch_id * _num_elements)
 
     # Hoist per-block output base pointers out of the k loop.
-    var out_vals = local_topk_vals + bid * _max_k
-    var out_idxs = local_topk_idxs + bid * _max_k
+    var out_vals = local_topk_vals.unsafe_offset(bid * _max_k)
+    var out_idxs = local_topk_idxs.unsafe_offset(bid * _max_k)
 
     var k_batch = _max_k
-    if K:
-        var k_raw = Int(K.unsafe_value()[batch_id])
+    if case .Some(K) = K:
+        var k_raw = Int(K[batch_id])
         k_batch = _max_k if k_raw == -1 else k_raw
 
     # Clamp k_batch to the number of elements we can actually draw from
@@ -1199,26 +1265,26 @@ def _topk_stage2[
     sampling: Bool = True,
     largest: Bool = True,
 ](
-    K: Optional[UnsafePointer[Int64, ImmutAnyOrigin]],
+    K: Optional[ImmPointer[Int64, ImmutAnyOrigin]],
     max_k: Int32,
     num_blocks_per_input: Int32,
-    local_topk_vals: UnsafePointer[
+    local_topk_vals: ImmPointer[
         Scalar[T], ImmutAnyOrigin
     ],  # Input array of size n_batch * num_blocks_per_input * K
-    local_topk_idxs: UnsafePointer[
+    local_topk_idxs: ImmPointer[
         Scalar[out_idx_type], ImmutAnyOrigin
     ],  # Input array of size n_batch * num_blocks_per_input * K
-    global_topk_vals: UnsafePointer[
+    global_topk_vals: MutPointer[
         Scalar[T], MutAnyOrigin
     ],  # sampling ? undefined : output array of size K
-    global_topk_idxs: UnsafePointer[
+    global_topk_idxs: MutPointer[
         Scalar[out_idx_type], MutAnyOrigin
     ],  # sampling ? sampled token : Output array of size K
-    temperature: Optional[UnsafePointer[Float32, ImmutAnyOrigin]],
-    top_p: Optional[UnsafePointer[Float32, ImmutAnyOrigin]],
-    min_p: Optional[UnsafePointer[Float32, ImmutAnyOrigin]],
-    seed: Optional[UnsafePointer[UInt64, ImmutAnyOrigin]],
-    valid: Optional[UnsafePointer[Int8, MutAnyOrigin]] = None,
+    temperature: Optional[ImmPointer[Float32, ImmutAnyOrigin]],
+    top_p: Optional[ImmPointer[Float32, ImmutAnyOrigin]],
+    min_p: Optional[ImmPointer[Float32, ImmutAnyOrigin]],
+    seed: Optional[ImmPointer[UInt64, ImmutAnyOrigin]],
+    valid: Optional[MutPointer[Int8, MutAnyOrigin]] = None,
 ):
     """
     Computes the global Top-K elements from the local Top-K results produced by stage 1.
@@ -1261,12 +1327,16 @@ def _topk_stage2[
     var batch_id = block_idx.x
     # assert (block_idx.x == 0)
     # assert (grid_dim.x == 1)
-    var batch_i_topk_vals = global_topk_vals + batch_id * _max_k
-    var batch_i_topk_idxs = global_topk_idxs + batch_id * (
-        1 if sampling else _max_k
+    var batch_i_topk_vals = global_topk_vals.unsafe_offset(batch_id * _max_k)
+    var batch_i_topk_idxs = global_topk_idxs.unsafe_offset(
+        batch_id * (1 if sampling else _max_k)
     )
-    var _local_topk_vals = local_topk_vals + batch_id * num_elem_reduced
-    var _local_topk_idxs = local_topk_idxs + batch_id * num_elem_reduced
+    var _local_topk_vals = local_topk_vals.unsafe_offset(
+        batch_id * num_elem_reduced
+    )
+    var _local_topk_idxs = local_topk_idxs.unsafe_offset(
+        batch_id * num_elem_reduced
+    )
 
     # Allocate shared memory for values and indices
     var num_e_rounded = align_up(num_elem_reduced, WARP_SIZE)
@@ -1281,7 +1351,9 @@ def _topk_stage2[
         alignment=align_of[Scalar[T]](),
     ]()
 
-    var idxs_sram = (vals_sram + vals_smem_size).bitcast[Int]()
+    var idxs_sram = vals_sram.unsafe_offset(vals_smem_size).unsafe_bitcast[
+        Int
+    ]()
 
     # SAFETY: Only dereferenced inside `comptime if sampling` blocks;
     # overwritten with real pointers before use when sampling is enabled.
@@ -1291,8 +1363,8 @@ def _topk_stage2[
     with PDL():
         # Handle the case where stage 1 is executed with a single block
         var k_batch = _max_k
-        if K:
-            var k_raw = Int(K.unsafe_value()[batch_id])
+        if case .Some(K) = K:
+            var k_raw = Int(K[batch_id])
             k_batch = _max_k if k_raw == -1 else k_raw
 
         # Clamp k_batch to not exceed the reduced elements per batch and _max_k
@@ -1313,9 +1385,9 @@ def _topk_stage2[
 
         comptime if sampling:
             # Storing the top-K logits in shmem for sampling
-            s_id = (idxs_sram + vals_smem_size).bitcast[Int]()
+            s_id = idxs_sram.unsafe_offset(vals_smem_size).unsafe_bitcast[Int]()
             # The 2* below is for warp align safety
-            s_val2 = (s_id + 2 * k_batch).bitcast[Scalar[T]]()
+            s_val2 = s_id.unsafe_offset(2 * k_batch).unsafe_bitcast[Scalar[T]]()
 
         var s_sum = unsafe_stack_allocation[
             1, Scalar[T], address_space=.SHARED
@@ -1380,8 +1452,8 @@ def _topk_stage2[
                     batch_i_topk_vals[k] = total.u
                     s_id[k] = total.p
                     var temp_val = Float32(1.0)
-                    if temperature:
-                        temp_val = temperature.unsafe_value()[batch_id]
+                    if case .Some(temperature) = temperature:
+                        temp_val = temperature[batch_id]
                     total.u = exp(
                         (total.u - max_logit) / max(temp_val.cast[T](), 1e-6)
                     )
@@ -1423,10 +1495,8 @@ def _topk_stage2[
                 # Since s_val2[0] = exp(0/temp) = 1.0 is the max, the
                 # threshold in this unnormalized softmax domain is simply
                 # min_p_val.
-                if min_p:
-                    var min_p_val = Scalar[T](
-                        min_p.unsafe_value()[batch_id].cast[T]()
-                    )
+                if case .Some(min_p) = min_p:
+                    var min_p_val = Scalar[T](min_p[batch_id].cast[T]())
                     if min_p_val > 0:
                         for ki in range(k_batch):
                             if s_val2[ki] < min_p_val:
@@ -1434,8 +1504,8 @@ def _topk_stage2[
                                 s_val2[ki] = Scalar[T](0)
 
                 var top_p_val = Scalar[T](1.0)
-                if top_p:
-                    top_p_val = top_p.unsafe_value()[batch_id].cast[T]()
+                if case .Some(top_p) = top_p:
+                    top_p_val = top_p[batch_id].cast[T]()
                 var _top_p = _adjust_top_p[T](
                     top_p_val, s_val2, k_batch, s_sum[0]
                 )
@@ -1444,8 +1514,8 @@ def _topk_stage2[
                 # generator, so that we don't use the same random number for every
                 # token in the sequence.
                 var seed_val = UInt64(0)
-                if seed:
-                    seed_val = seed.unsafe_value()[batch_id]
+                if case .Some(seed) = seed:
+                    seed_val = seed[batch_id]
                 var rng_state = Random(seed=seed_val)
                 var rng = rng_state.step_uniform()
                 var softmax_norm = s_sum[0]
@@ -1462,9 +1532,9 @@ def _topk_stage2[
                         batch_i_topk_idxs[0] = token_id
 
                         # post-validation
-                        if valid:
+                        if case .Some(valid) = valid:
                             if max_logit == _topk_dead_val[T, largest]():
-                                valid.unsafe_value()[batch_id] = 0
+                                valid[batch_id] = 0
                         break
 
 
@@ -1490,12 +1560,12 @@ def _topk_warp[
     out_idx_type: DType,
     largest: Bool = True,
 ](
-    K: Optional[UnsafePointer[Int64, ImmutAnyOrigin]],
+    K: Optional[ImmPointer[Int64, ImmutAnyOrigin]],
     max_k: Int32,
     num_elements: Int32,
-    in_buffer: UnsafePointer[Scalar[T], ImmutAnyOrigin],
-    out_vals: UnsafePointer[Scalar[T], MutAnyOrigin],
-    out_idxs: UnsafePointer[Scalar[out_idx_type], MutAnyOrigin],
+    in_buffer: ImmPointer[Scalar[T], ImmutAnyOrigin],
+    out_vals: MutPointer[Scalar[T], MutAnyOrigin],
+    out_idxs: MutPointer[Scalar[out_idx_type], MutAnyOrigin],
 ):
     """Selects the top-K of a short row with a single warp, in one launch.
 
@@ -1529,16 +1599,16 @@ def _topk_warp[
     """
     var _max_k = Int(max_k)
     var _num_elements = Int(num_elements)
-    var lane = Int(thread_idx.x)
-    var batch_id = Int(block_idx.x)
+    var lane = thread_idx.x
+    var batch_id = block_idx.x
 
-    var row = in_buffer + batch_id * _num_elements
-    var row_vals = out_vals + batch_id * _max_k
-    var row_idxs = out_idxs + batch_id * _max_k
+    var row = in_buffer.unsafe_offset(batch_id * _num_elements)
+    var row_vals = out_vals.unsafe_offset(batch_id * _max_k)
+    var row_idxs = out_idxs.unsafe_offset(batch_id * _max_k)
 
     var k_batch = _max_k
-    if K:
-        var k_raw = Int(K.unsafe_value()[batch_id])
+    if case .Some(K) = K:
+        var k_raw = Int(K[batch_id])
         k_batch = _max_k if k_raw == -1 else k_raw
     if k_batch > _num_elements:
         k_batch = _num_elements
@@ -1637,7 +1707,7 @@ def _topk_gpu[
     seed: Optional[
         TileTensor[.uint64, SeedLayoutType, ImmutAnyOrigin, Engine=SeedEngine]
     ] = None,
-    valid: Optional[UnsafePointer[Int8, MutAnyOrigin]] = None,
+    valid: Optional[MutPointer[Int8, MutAnyOrigin]] = None,
 ) raises:
     """Computes the Top-K elements from the input tensor using a GPU-accelerated two-stage algorithm.
 
@@ -1719,19 +1789,20 @@ def _topk_gpu[
     if batch_size == 0:
         return
 
+    comptime warp_size = ctx.default_device_info.warp_size
     # On Apple GPUs, clamp block_size to a single warp so the shared-memory
     # top-k kernels stay within Apple's static shared-memory budget, then
     # recompute blocks.
     var effective_block_size = block_size
     comptime if ctx.target.is_apple_gpu():
-        effective_block_size = WARP_SIZE
+        effective_block_size = warp_size
 
     # Define the number of blocks per grid
-    var num_blocks_per_input_: Int = ceildiv(
-        N, effective_block_size
-    ) if not num_blocks_per_input else num_blocks_per_input.value()
+    var num_blocks_per_input_: Int = num_blocks_per_input.or_else(
+        ceildiv(N, effective_block_size)
+    )
     # Calculate largest num bytes of shmem for each stage
-    if effective_block_size % WARP_SIZE != 0:
+    if effective_block_size % warp_size != 0:
         # TODO: Need to pad in this case
         raise Error("block_size must be a multiple of WARP_SIZE")
 
@@ -1740,9 +1811,9 @@ def _topk_gpu[
     var block_dim_stage1 = effective_block_size
 
     # Handle optional k parameter
-    var k_ptr: Optional[UnsafePointer[Int64, ImmutAnyOrigin]] = None
-    if k:
-        k_ptr = rebind[UnsafePointer[Int64, ImmutAnyOrigin]](k.value().ptr)
+    var k_ptr: Optional[ImmPointer[Int64, ImmutAnyOrigin]] = None
+    if case .Some(k) = k:
+        k_ptr = rebind[ImmPointer[Int64, ImmutAnyOrigin]](k.ptr)
 
     # Enqueue the first kernel (stage 1)
     var input_buf_tmp = ctx.enqueue_create_buffer[dtype](batch_size * N)
@@ -1763,16 +1834,9 @@ def _topk_gpu[
     )
     _ = input_buf_tmp^
 
-    var num_elem_reduced = align_up(num_blocks_per_input_ * max_k, WARP_SIZE)
-    var num_bytes_sample_cache = max_k * (
-        size_of[Scalar[dtype]]() + 2 * size_of[DType.int]()
+    var shared_mem_bytes_2 = _topk_stage2_smem_bytes[dtype](
+        max_k, num_blocks_per_input_
     )
-    var shared_mem_bytes_2 = (
-        num_elem_reduced * (size_of[Scalar[dtype]]() + size_of[DType.int]())
-        + num_bytes_sample_cache
-    )
-    # align to warp size
-    shared_mem_bytes_2 = align_up(shared_mem_bytes_2, WARP_SIZE)
     comptime if ctx.target.is_apple_gpu():
         if shared_mem_bytes_2 > _APPLE_STATIC_SHMEM_MAX_BYTES:
             raise Error(
@@ -1789,30 +1853,41 @@ def _topk_gpu[
     var block_dim_stage2 = block_size
 
     # Handle optional temperature parameter
-    var temp_ptr: Optional[UnsafePointer[Float32, ImmutAnyOrigin]] = None
-    if temperature:
-        temp_ptr = rebind[UnsafePointer[Float32, ImmutAnyOrigin]](
-            temperature.value().ptr
-        )
+    var temp_ptr: Optional[ImmPointer[Float32, ImmutAnyOrigin]] = None
+    if case .Some(temperature) = temperature:
+        temp_ptr = rebind[ImmPointer[Float32, ImmutAnyOrigin]](temperature.ptr)
 
     # Handle optional top_p parameter
-    var top_p_ptr: Optional[UnsafePointer[Float32, ImmutAnyOrigin]] = None
-    if top_p:
-        top_p_ptr = rebind[UnsafePointer[Float32, ImmutAnyOrigin]](
-            top_p.value().ptr
-        )
+    var top_p_ptr: Optional[ImmPointer[Float32, ImmutAnyOrigin]] = None
+    if case .Some(top_p) = top_p:
+        top_p_ptr = rebind[ImmPointer[Float32, ImmutAnyOrigin]](top_p.ptr)
 
     # Handle optional min_p parameter
-    var min_p_ptr: Optional[UnsafePointer[Float32, ImmutAnyOrigin]] = None
-    if min_p:
-        min_p_ptr = rebind[UnsafePointer[Float32, ImmutAnyOrigin]](
-            min_p.value().ptr
-        )
+    var min_p_ptr: Optional[ImmPointer[Float32, ImmutAnyOrigin]] = None
+    if case .Some(min_p) = min_p:
+        min_p_ptr = rebind[ImmPointer[Float32, ImmutAnyOrigin]](min_p.ptr)
 
     # Handle optional seed parameter
-    var seed_ptr: Optional[UnsafePointer[UInt64, ImmutAnyOrigin]] = None
-    if seed:
-        seed_ptr = seed.value().ptr
+    var seed_ptr: Optional[ImmPointer[UInt64, ImmutAnyOrigin]] = None
+    if case .Some(seed) = seed:
+        seed_ptr = seed.ptr
+
+    # The stage-2 launch's function ceiling (`MAX_DYNAMIC_SHARED_SIZE_BYTES`)
+    # is the device budget `topk_gpu` sizes the request against, not the
+    # request itself. The ceiling is part of the CUDA function-cache key and
+    # the request is not, so a ceiling that tracks `max_k` and
+    # `num_blocks_per_input` loads one compiled variant once per distinct
+    # request, while the budget is one value per device and costs one key
+    # per variant. The allocation stays exact: that is what sets occupancy.
+    # `topk_gpu` keeps every request within the budget; a direct caller of
+    # this function may not, and `max` then keeps today's exact ceiling for
+    # it. Only CUDA keys on the attribute, so other targets are left as they
+    # were.
+    var stage2_func_attribute = OptionalReg[FuncAttribute]()
+    comptime if ctx.target.is_nvidia_gpu():
+        stage2_func_attribute = FuncAttribute.MAX_DYNAMIC_SHARED_SIZE_BYTES(
+            UInt32(max(_topk_stage2_smem_budget(ctx), shared_mem_bytes_2))
+        )
 
     # Enqueue the second kernel (stage 2)
     comptime kernel_2 = _topk_stage2[dtype, out_idx_type, sampling, largest]
@@ -1832,6 +1907,7 @@ def _topk_gpu[
         grid_dim=grid_dim_stage2,
         block_dim=block_dim_stage2,
         shared_mem_bytes=shared_mem_bytes_2,
+        func_attribute=stage2_func_attribute,
         attributes=pdl_launch_attributes(PDLLevel.ON),
     )
 
@@ -1881,7 +1957,7 @@ def topk_gpu[
     seed: Optional[
         TileTensor[.uint64, SeedLayoutType, ImmutAnyOrigin, Engine=SeedEngine]
     ] = None,
-    valid: Optional[UnsafePointer[Int8, MutAnyOrigin]] = None,
+    valid: Optional[MutPointer[Int8, MutAnyOrigin]] = None,
 ) raises:
     """
     Generalized implementation of the Top K algorithm with/without sampling.
@@ -1969,12 +2045,13 @@ def topk_gpu[
             block_size_ = 512
         else:
             block_size_ = 1024
-        block_size_ = block_size.value() if block_size else block_size_
+        block_size_ = block_size.or_else(block_size_)
 
+        comptime warp_size = ctx.default_device_info.warp_size
         # On Apple GPUs, clamp block_size to a single warp so the shared-memory
         # top-k kernels stay within Apple's static shared-memory budget.
         comptime if ctx.target.is_apple_gpu():
-            block_size_ = min(block_size_, WARP_SIZE)
+            block_size_ = min(block_size_, warp_size)
 
         # This section handles different input ranks by reshaping to a 2D tensor
         var internal_bs: Int  # Internal batch size
@@ -2072,11 +2149,11 @@ def topk_gpu[
                 and internal_bs > 0
             ):
                 var warp_k_ptr: Optional[
-                    UnsafePointer[Int64, ImmutAnyOrigin]
+                    ImmPointer[Int64, ImmutAnyOrigin]
                 ] = None
-                if k:
-                    warp_k_ptr = rebind[UnsafePointer[Int64, ImmutAnyOrigin]](
-                        k.value().ptr
+                if case .Some(k) = k:
+                    warp_k_ptr = rebind[ImmPointer[Int64, ImmutAnyOrigin]](
+                        k.ptr
                     )
 
                 comptime warp_kernel = _topk_warp[dtype, out_idx_type, largest]
@@ -2088,43 +2165,30 @@ def topk_gpu[
                     internal_out_vals.to_device_buffer(ctx),
                     internal_out_idxs.to_device_buffer(ctx),
                     grid_dim=internal_bs,
-                    block_dim=WARP_SIZE,
+                    block_dim=warp_size,
                     attributes=pdl_launch_attributes(PDLLevel.ON),
                 )
                 return
 
         # Calculate the number of blocks per input
-        var num_blocks_per_input_ = min(
-            ceildiv(N, block_size_), 8
-        ) if not num_blocks_per_input else num_blocks_per_input.value()
+        var num_blocks_per_input_ = num_blocks_per_input.or_else(
+            min(ceildiv(N, block_size_), _TOPK_MAX_BLOCKS_PER_INPUT)
+        )
 
-        # Bound stage-2 shared memory: `_topk_stage2` reduces
-        # `num_blocks_per_input * max_k` candidates inside a SINGLE block's
-        # dynamic shared memory. For large `max_k` (e.g. the MLA indexer's
-        # top_k=2048) the default of 8 blocks makes that request exceed the
-        # device per-block shared-memory limit, so the launch fails with
-        # CUDA_ERROR_INVALID_VALUE. Reduce `num_blocks_per_input` until the
-        # stage-2 request fits a conservative device budget. This runs BEFORE
-        # the cache buffers are sized below, so the buffers, the stage-1 grid
-        # and the stage-2 shared memory all stay consistent. It is a no-op for
-        # the common small-`max_k` case (8 blocks already fit).
-        var _topk_val_idx_bytes = (
-            size_of[Scalar[dtype]]() + size_of[DType.int]()
-        )
-        var _topk_cache_bytes = (
-            size_of[Scalar[dtype]]() + 2 * size_of[DType.int]()
-        )
-        var _topk_smem_budget = (
-            Int(ctx.default_device_info.shared_memory_per_multiprocessor) - 8192
-        )
-        if bound_max_k > 0 and num_blocks_per_input_ > 1:
-            var _topk_max_nb = (
-                _topk_smem_budget - bound_max_k * _topk_cache_bytes
-            ) // (bound_max_k * _topk_val_idx_bytes)
-            if _topk_max_nb < 1:
-                _topk_max_nb = 1
-            if num_blocks_per_input_ > _topk_max_nb:
-                num_blocks_per_input_ = _topk_max_nb
+        # Stage 2 reduces `num_blocks_per_input * max_k` candidates in one
+        # block's dynamic shared memory, so shrink the partition count until
+        # the launch's own request formula fits the budget `_topk_gpu` passes
+        # as the stage-2 ceiling. This must precede the cache sizing below,
+        # which the partition count also sets.
+        var _topk_smem_budget = _topk_stage2_smem_budget(ctx)
+        while (
+            num_blocks_per_input_ > 1
+            and _topk_stage2_smem_bytes[dtype](
+                bound_max_k, num_blocks_per_input_
+            )
+            > _topk_smem_budget
+        ):
+            num_blocks_per_input_ -= 1
 
         # Define shape for the kernel's internal cache buffers
         var internal_cache_shape = IndexList[2](
@@ -2320,7 +2384,7 @@ def fused_token_sampling_gpu[
 
         comptime assert input.flat_rank == 2
 
-        var vocab_size = Int(input.layout.shape[1]().value())
+        var vocab_size = Int(input.dim[1]())
         var adjusted_max_k = vocab_size if max_k == -1 else max_k
 
         # One kernel for every sampling configuration. Picking a narrower
@@ -2372,8 +2436,8 @@ def apply_gumbel_noise_kernel[
     input: TileTensor[
         dtype, InputLayoutType, ImmutAnyOrigin, Engine=InputEngine
     ],
-    temperature: Optional[UnsafePointer[Float32, ImmutAnyOrigin]],
-    seed: Optional[UnsafePointer[UInt64, ImmutAnyOrigin]],
+    temperature: Optional[ImmPointer[Float32, ImmutAnyOrigin]],
+    seed: Optional[ImmPointer[UInt64, ImmutAnyOrigin]],
 ):
     """Adds Gumbel(0,1) noise to logits for sampling via the Gumbel-max trick.
 
@@ -2420,16 +2484,14 @@ def apply_gumbel_noise_kernel[
 
         for tok_idx in range(group_id, Int(num_tokens), num_groups):
             var temp_val = Float32(1.0)
-            if temperature:
-                temp_val = temperature.unsafe_value()[tok_idx]
+            if case .Some(temperature) = temperature:
+                temp_val = temperature[tok_idx]
                 temp_val = max(temp_val, MIN_TEMP)
 
             var seed_val = UInt64(0)
-            if seed:
-                seed_val = seed.unsafe_value()[tok_idx]
+            if case .Some(seed) = seed:
+                seed_val = seed[tok_idx]
 
-            var ld_ptr = input.ptr + tok_idx * N
-            var st_ptr = output.ptr + tok_idx * N
             comptime align = align_of[SIMD[dtype, simd_width]]()
 
             for i in range(tid_in_group, N // simd_width, group_size):
@@ -2438,11 +2500,15 @@ def apply_gumbel_noise_kernel[
                 )
                 var input_val: SIMD[dtype, simd_width]
                 if N % simd_width == 0:
-                    input_val = ld_ptr.load[width=simd_width, alignment=align](
-                        i * simd_width
-                    )
+                    input_val = input.load[
+                        width=simd_width, alignment=align, invariant=False
+                    ]((tok_idx, i * simd_width))
                 else:
-                    input_val = ld_ptr.load[width=simd_width](i * simd_width)
+                    input_val = input.load[
+                        width=simd_width,
+                        alignment=align_of[dtype](),
+                        invariant=False,
+                    ]((tok_idx, i * simd_width))
                 var noised_logits = input_val.cast[.float32]() / temp_val
 
                 comptime for loop_i in range(simd_width // 4):
@@ -2453,12 +2519,12 @@ def apply_gumbel_noise_kernel[
                         noised_logits[4 * loop_i + vec_i] += rnd_val[vec_i]
 
                 if N % simd_width == 0:
-                    st_ptr.store[width=simd_width, alignment=align](
-                        i * simd_width, noised_logits.cast[dtype]()
+                    output.store[alignment=align](
+                        (tok_idx, i * simd_width), noised_logits.cast[dtype]()
                     )
                 else:
-                    st_ptr.store[width=simd_width](
-                        i * simd_width, noised_logits.cast[dtype]()
+                    output.store[alignment=align_of[dtype]()](
+                        (tok_idx, i * simd_width), noised_logits.cast[dtype]()
                     )
 
             # If N is not divisible by simd_width, handle remaining elements
@@ -2470,15 +2536,15 @@ def apply_gumbel_noise_kernel[
                     + UInt64(tid_in_group),
                 )
                 if tid_in_group < N_res:
-                    var input_val = ld_ptr.load(
-                        (N - N_res) + tid_in_group
+                    var input_val = input.load[invariant=False](
+                        (tok_idx, (N - N_res) + tid_in_group)
                     ).cast[.float32]()
                     var noised_logit = input_val / temp_val
                     var rnd_val = rng_state.step_uniform()[0]
                     rnd_val = -LOG2 * log2(-log2(rnd_val + EPS) + EPS)
                     noised_logit += rnd_val
-                    st_ptr.store(
-                        (N - N_res) + tid_in_group,
+                    output.store(
+                        (tok_idx, (N - N_res) + tid_in_group),
                         noised_logit.cast[dtype](),
                     )
 
@@ -2533,11 +2599,11 @@ def _gumbel_argmax_fused_kernel[
         MutAnyOrigin,
         Engine=OutIdxEngine,
     ],
-    temperature: Optional[UnsafePointer[Float32, ImmutAnyOrigin]],
-    seed: Optional[UnsafePointer[UInt64, ImmutAnyOrigin]],
+    temperature: Optional[ImmPointer[Float32, ImmutAnyOrigin]],
+    seed: Optional[ImmPointer[UInt64, ImmutAnyOrigin]],
     blocks_per_row: Int32 = Int32(1),
-    partials: Optional[UnsafePointer[UInt8, MutAnyOrigin]] = None,
-    counters: Optional[UnsafePointer[Int32, MutAnyOrigin]] = None,
+    partials: Optional[MutPointer[UInt8, MutAnyOrigin]] = None,
+    counters: Optional[MutPointer[Int32, MutAnyOrigin]] = None,
 ):
     """Fused Gumbel-noise + argmax.
 
@@ -2581,7 +2647,9 @@ def _gumbel_argmax_fused_kernel[
         not from_probs or not is_apple_gpu()
     ), "from_probs is not supported on Apple GPUs"
     comptime assert not multi_block or (
-        has_amd_gpu_accelerator() and from_probs and dtype == DType.float32
+        current_accelerator().is_amd_gpu()
+        and from_probs
+        and dtype == DType.float32
     ), "multi-block Gumbel requires AMD FP32 from-probs"
 
     comptime EPS = Float32(1e-20)
@@ -2597,22 +2665,21 @@ def _gumbel_argmax_fused_kernel[
     var tid = thread_idx.x
     var block_size = block_dim.x
     var blocks_per_row_int = Int(blocks_per_row)
-    var batch_id = Int(block_idx.x)
+    var batch_id = block_idx.x
     var block_in_row = 0
     comptime if multi_block:
-        batch_id = Int(block_idx.x) // blocks_per_row_int
-        block_in_row = Int(block_idx.x) % blocks_per_row_int
+        batch_id = block_idx.x // blocks_per_row_int
+        block_in_row = block_idx.x % blocks_per_row_int
 
     var temp_val = Float32(1.0)
-    if temperature:
-        temp_val = temperature.unsafe_value()[batch_id]
+    if case .Some(temperature) = temperature:
+        temp_val = temperature[batch_id]
         temp_val = max(temp_val, MIN_TEMP)
 
     var seed_val = UInt64(0)
-    if seed:
-        seed_val = seed.unsafe_value()[batch_id]
+    if case .Some(seed) = seed:
+        seed_val = seed[batch_id]
 
-    var ld_ptr = input.ptr + batch_id * N
     comptime align = align_of[SIMD[dtype, simd_width]]()
 
     var chunk_begin = 0
@@ -2635,11 +2702,15 @@ def _gumbel_argmax_fused_kernel[
             )
             var input_val: SIMD[dtype, simd_width]
             if N % simd_width == 0:
-                input_val = ld_ptr.load[width=simd_width, alignment=align](
-                    i * simd_width
-                )
+                input_val = input.load[
+                    width=simd_width, alignment=align, invariant=False
+                ]((batch_id, i * simd_width))
             else:
-                input_val = ld_ptr.load[width=simd_width](i * simd_width)
+                input_val = input.load[
+                    width=simd_width,
+                    alignment=align_of[dtype](),
+                    invariant=False,
+                ]((batch_id, i * simd_width))
             var noised_logits: SIMD[.float32, simd_width]
             comptime if from_probs:
                 noised_logits = LOG2 * log2(input_val.cast[.float32]())
@@ -2668,7 +2739,11 @@ def _gumbel_argmax_fused_kernel[
                 seed=seed_val * UInt64(N) + UInt64(N - N_res) + UInt64(tid),
             )
             if tid < N_res:
-                var input_val = ld_ptr.load((N - N_res) + tid).cast[.float32]()
+                var input_val = rebind[Float32](
+                    input.load[invariant=False](
+                        (batch_id, (N - N_res) + tid)
+                    ).cast[.float32]()
+                )
                 var noised_logit: Float32
                 comptime if from_probs:
                     noised_logit = LOG2 * log2(input_val)
@@ -2684,6 +2759,7 @@ def _gumbel_argmax_fused_kernel[
 
         # Block-level argmax reduction over per-thread winners.
         var total = _block_reduce_topk[ascending=True](partial)
+        var out_idxs_flat = out_idxs.reshape(row_major(out_idxs.num_elements()))
 
         comptime if multi_block:
             var is_last = unsafe_stack_allocation[
@@ -2691,14 +2767,16 @@ def _gumbel_argmax_fused_kernel[
             ]()
             if tid == 0:
                 var slot = batch_id * blocks_per_row_int + block_in_row
-                var slot_ptr = (
-                    partials.unsafe_value() + slot * _GUMBEL_PARTIAL_BYTES
+                var slot_ptr = partials.unsafe_value().unsafe_offset(
+                    slot * _GUMBEL_PARTIAL_BYTES
                 )
-                slot_ptr.bitcast[Float32]()[0] = total.u.cast[.float32]()
-                (slot_ptr + 8).bitcast[Int64]()[0] = Int64(total.p)
+                slot_ptr.unsafe_bitcast[Float32]()[0] = total.u.cast[.float32]()
+                (slot_ptr.unsafe_offset(8)).unsafe_bitcast[Int64]()[0] = Int64(
+                    total.p
+                )
                 var previous = Atomic[Int32].fetch_add[
                     ordering=Ordering.RELEASE
-                ](counters.unsafe_value() + batch_id, Int32(1))
+                ](counters.unsafe_value().unsafe_offset(batch_id), Int32(1))
                 is_last[0] = Int(previous) + 1 == blocks_per_row_int
             barrier()
 
@@ -2707,27 +2785,34 @@ def _gumbel_argmax_fused_kernel[
                 # each partial.
                 fence[Ordering.ACQUIRE]()
                 var row_base = batch_id * blocks_per_row_int
-                var first = (
-                    partials.unsafe_value() + row_base * _GUMBEL_PARTIAL_BYTES
+                var first = partials.unsafe_value().unsafe_offset(
+                    row_base * _GUMBEL_PARTIAL_BYTES
                 )
-                var best_value = first.bitcast[Float32]()[0]
-                var best_index = (first + 8).bitcast[Int64]()[0]
+                var best_value = first.unsafe_bitcast[Float32]()[0]
+                var best_index = first.unsafe_offset(8).unsafe_bitcast[Int64]()[
+                    0
+                ]
                 for block in range(1, blocks_per_row_int):
-                    var slot_ptr = (
-                        partials.unsafe_value()
-                        + (row_base + block) * _GUMBEL_PARTIAL_BYTES
+                    var slot_ptr = partials.unsafe_value().unsafe_offset(
+                        (row_base + block) * _GUMBEL_PARTIAL_BYTES
                     )
-                    var value = slot_ptr.bitcast[Float32]()[0]
-                    var index = (slot_ptr + 8).bitcast[Int64]()[0]
+                    var value = slot_ptr.unsafe_bitcast[Float32]()[0]
+                    var index = slot_ptr.unsafe_offset(8).unsafe_bitcast[
+                        Int64
+                    ]()[0]
                     if value > best_value or (
                         value == best_value and index < best_index
                     ):
                         best_value = value
                         best_index = index
-                out_idxs.ptr[batch_id] = best_index.cast[out_idx_type]()
+                out_idxs_flat.store(
+                    (batch_id,), best_index.cast[out_idx_type]()
+                )
         else:
             if tid == 0:
-                out_idxs.ptr[batch_id] = Int(total.p).cast[out_idx_type]()
+                out_idxs_flat.store(
+                    (batch_id,), Int(total.p).cast[out_idx_type]()
+                )
 
 
 @inline(.always)
@@ -2801,16 +2886,16 @@ def gumbel_sampling_fused_gpu[
         comptime block_size = hw_info.max_thread_block_size
 
         var temperature_ptr: Optional[
-            UnsafePointer[Float32, ImmutAnyOrigin]
+            ImmPointer[Float32, ImmutAnyOrigin]
         ] = None
-        if temperature:
-            temperature_ptr = temperature.value().ptr
-        var seed_ptr: Optional[UnsafePointer[UInt64, ImmutAnyOrigin]] = None
-        if seed:
-            seed_ptr = seed.value().ptr
+        if case .Some(temperature) = temperature:
+            temperature_ptr = temperature.ptr
+        var seed_ptr: Optional[ImmPointer[UInt64, ImmutAnyOrigin]] = None
+        if case .Some(seed) = seed:
+            seed_ptr = seed.ptr
 
         comptime split_capable = (
-            has_amd_gpu_accelerator() and from_probs and dtype == DType.float32
+            ctx.target.is_amd_gpu() and from_probs and dtype == DType.float32
         )
         comptime if split_capable:
             var vocab = Int(input.dim(1))
@@ -2821,10 +2906,10 @@ def gumbel_sampling_fused_gpu[
                 )
                 var counters_buf = ctx.enqueue_create_buffer[.int32](batch_size)
                 ctx.enqueue_memset(counters_buf, Int32(0))
-                var partials_ptr = Optional[UnsafePointer[UInt8, MutAnyOrigin]](
+                var partials_ptr = Optional[MutPointer[UInt8, MutAnyOrigin]](
                     partials_buf.unsafe_ptr().unsafe_origin_cast[MutAnyOrigin]()
                 )
-                var counters_ptr = Optional[UnsafePointer[Int32, MutAnyOrigin]](
+                var counters_ptr = Optional[MutPointer[Int32, MutAnyOrigin]](
                     counters_buf.unsafe_ptr().unsafe_origin_cast[MutAnyOrigin]()
                 )
                 comptime split_kernel = _gumbel_argmax_fused_kernel[
@@ -2869,8 +2954,8 @@ def gumbel_sampling_fused_gpu[
             temperature_ptr,
             seed_ptr,
             Int32(1),
-            Optional[UnsafePointer[UInt8, MutAnyOrigin]](None),
-            Optional[UnsafePointer[Int32, MutAnyOrigin]](None),
+            Optional[MutPointer[UInt8, MutAnyOrigin]](None),
+            Optional[MutPointer[Int32, MutAnyOrigin]](None),
             grid_dim=batch_size,
             block_dim=block_size,
             attributes=pdl_launch_attributes(PDLLevel.ON),
@@ -2947,13 +3032,13 @@ def gumbel_sampling_gpu[
         ]
 
         var temperature_ptr: Optional[
-            UnsafePointer[Float32, ImmutAnyOrigin]
+            ImmPointer[Float32, ImmutAnyOrigin]
         ] = None
-        if temperature:
-            temperature_ptr = temperature.value().ptr
-        var seed_ptr: Optional[UnsafePointer[UInt64, ImmutAnyOrigin]] = None
-        if seed:
-            seed_ptr = seed.value().ptr
+        if case .Some(temperature) = temperature:
+            temperature_ptr = temperature.ptr
+        var seed_ptr: Optional[ImmPointer[UInt64, ImmutAnyOrigin]] = None
+        if case .Some(seed) = seed:
+            seed_ptr = seed.ptr
 
         ctx.enqueue_function[gumbel_kernel](
             noised_input,

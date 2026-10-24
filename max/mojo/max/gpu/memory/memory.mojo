@@ -26,7 +26,7 @@ The module is designed for performance-critical code and requires careful usage 
 achieve optimal memory access patterns and cache utilization.
 """
 
-from std.collections.optional import Optional, OptionalReg
+from std.collections.optional import Optional
 from std.collections.string import StaticString
 from std.collections.string.string_span import (
     _get_kgen_string,
@@ -37,14 +37,12 @@ from std.sys import (
     bit_width_of,
     is_apple_gpu,
     is_amd_gpu,
-    is_gpu,
     is_nvidia_gpu,
     llvm_intrinsic,
     size_of,
 )
 from std.sys._assembly import inlined_assembly
 from std.sys.info import (
-    CompilationTarget,
     _is_sm_9x_or_newer,
     _is_sm_100x_or_newer,
     is_apple_gpu,
@@ -58,7 +56,8 @@ from std.memory.unsafe import bitcast
 from std.utils import IndexList, StaticTuple
 from std.utils.numerics import get_accum_type
 
-from std._gpu._utils import (
+from max._plugin import CurrentMaxPlugin
+from max.gpu._utils import (
     to_i16,
     to_i32,
     to_i64,
@@ -68,10 +67,7 @@ from std._gpu._utils import (
     to_llvm_shared_cluster_mem_ptr,
 )
 
-from std._gpu.intrinsics import Scope
-
-# Re-exports from the standard library
-from std._gpu.intrinsics import CacheOperation
+from max.gpu.intrinsics import Scope, CacheOperation
 
 # ===-----------------------------------------------------------------------===#
 # CacheEviction
@@ -79,7 +75,7 @@ from std._gpu.intrinsics import CacheOperation
 
 
 @fieldwise_init
-struct CacheEviction(Equatable, TrivialRegisterPassable):
+struct CacheEviction(EnumLike, Equatable, TrivialRegisterPassable):
     """Represents cache eviction policies for GPU memory operations.
 
     This struct defines different cache eviction priorities that control how data is
@@ -136,6 +132,30 @@ struct CacheEviction(Equatable, TrivialRegisterPassable):
     - Streaming operations with no data reuse
     """
 
+    comptime _enum_case_names = ParameterList.of[
+        "EVICT_NORMAL".value,
+        "EVICT_FIRST".value,
+        "EVICT_LAST".value,
+        "EVICT_UNCHANGED".value,
+        "NO_ALLOCATE".value,
+    ].values
+
+    comptime _enum_case_types = TypeList.splat[
+        ParameterList[Self._enum_case_names].length, NoneType
+    ].values
+
+    @inline(.always)
+    def _get_enum_discriminant(self) -> Int:
+        return Int(self._value)
+
+    @inline(.always)
+    def _unsafe_get_enum_payload[
+        id: Int
+    ](ref self) -> ref[self] TypeList[Trait=AnyType, Self._enum_case_types]()[
+        id
+    ]:
+        comptime assert False, "CacheEviction has no payload"
+
     def __eq__(self, other: Self) -> Bool:
         """Tests if two CacheEviction instances are equal.
 
@@ -176,7 +196,7 @@ struct CacheEviction(Equatable, TrivialRegisterPassable):
 
 
 @fieldwise_init
-struct Fill(Equatable, TrivialRegisterPassable, Writable):
+struct Fill(EnumLike, Equatable, TrivialRegisterPassable, Writable):
     """Represents memory fill patterns for GPU memory operations.
 
     This struct defines different fill patterns that can be used when allocating or
@@ -194,6 +214,28 @@ struct Fill(Equatable, TrivialRegisterPassable, Writable):
 
     comptime NAN = Self(2)
     """Fill memory with NaN values. Useful for debugging floating point computations."""
+
+    comptime _enum_case_names = ParameterList.of[
+        "NONE".value,
+        "ZERO".value,
+        "NAN".value,
+    ].values
+
+    comptime _enum_case_types = TypeList.splat[
+        ParameterList[Self._enum_case_names].length, NoneType
+    ].values
+
+    @inline(.always)
+    def _get_enum_discriminant(self) -> Int:
+        return Int(self._value)
+
+    @inline(.always)
+    def _unsafe_get_enum_payload[
+        id: Int
+    ](ref self) -> ref[self] TypeList[Trait=AnyType, Self._enum_case_types]()[
+        id
+    ]:
+        comptime assert False, "Fill has no payload"
 
     def __eq__(self, other: Self) -> Bool:
         """Tests if two Fill instances have the same fill pattern.
@@ -231,7 +273,7 @@ struct Fill(Equatable, TrivialRegisterPassable, Writable):
 
 
 @fieldwise_init
-struct Consistency(Equatable, TrivialRegisterPassable, Writable):
+struct Consistency(EnumLike, Equatable, TrivialRegisterPassable, Writable):
     """Represents memory consistency models for GPU memory operations.
 
     This struct defines different memory consistency levels that control how memory
@@ -264,6 +306,29 @@ struct Consistency(Equatable, TrivialRegisterPassable, Writable):
 
     Ensures all previous memory operations are ordered before this operation.
     Paired with acquire operations for synchronization."""
+
+    comptime _enum_case_names = ParameterList.of[
+        "WEAK".value,
+        "RELAXED".value,
+        "ACQUIRE".value,
+        "RELEASE".value,
+    ].values
+
+    comptime _enum_case_types = TypeList.splat[
+        ParameterList[Self._enum_case_names].length, NoneType
+    ].values
+
+    @inline(.always)
+    def _get_enum_discriminant(self) -> Int:
+        return Int(self._value)
+
+    @inline(.always)
+    def _unsafe_get_enum_payload[
+        id: Int
+    ](ref self) -> ref[self] TypeList[Trait=AnyType, Self._enum_case_types]()[
+        id
+    ]:
+        comptime assert False, "Consistency has no payload"
 
     def __eq__(self, other: Self) -> Bool:
         """Tests if two Consistency instances are equal.
@@ -317,7 +382,7 @@ struct Consistency(Equatable, TrivialRegisterPassable, Writable):
 
 
 @fieldwise_init
-struct ReduceOp(Equatable, TrivialRegisterPassable, Writable):
+struct ReduceOp(EnumLike, Equatable, TrivialRegisterPassable, Writable):
     """Represents reduction operations for parallel reduction algorithms.
 
     This struct defines different reduction operations that can be performed
@@ -356,6 +421,31 @@ struct ReduceOp(Equatable, TrivialRegisterPassable, Writable):
     """Bitwise XOR reduction operation.
 
     Performs bitwise XOR across all inputs."""
+
+    comptime _enum_case_names = ParameterList.of[
+        "ADD".value,
+        "MIN".value,
+        "MAX".value,
+        "AND".value,
+        "OR".value,
+        "XOR".value,
+    ].values
+
+    comptime _enum_case_types = TypeList.splat[
+        ParameterList[Self._enum_case_names].length, NoneType
+    ].values
+
+    @inline(.always)
+    def _get_enum_discriminant(self) -> Int:
+        return Int(self._value)
+
+    @inline(.always)
+    def _unsafe_get_enum_payload[
+        id: Int
+    ](ref self) -> ref[self] TypeList[Trait=AnyType, Self._enum_case_types]()[
+        id
+    ]:
+        comptime assert False, "ReduceOp has no payload"
 
     def __eq__(self, other: Self) -> Bool:
         """Tests if two ReduceOp instances are equal.
@@ -463,23 +553,24 @@ def _mark_eviction[
             - Non-zero handle for fractional L2 eviction policy.
     """
 
-    comptime if eviction_policy == CacheEviction.EVICT_NORMAL:
-        return 0
-    elif eviction_policy == CacheEviction.EVICT_LAST:
-        return inlined_assembly[
-            "createpolicy.fractional.L2::evict_last.b64 $0;",
-            UInt64,
-            constraints="=l",
-        ]()
-    else:
-        comptime assert (
-            eviction_policy == CacheEviction.EVICT_FIRST
-        ), "invalid eviction policy, only support normal, first, and last"
-        return inlined_assembly[
-            "createpolicy.fractional.L2::evict_first.b64 $0;",
-            UInt64,
-            constraints="=l",
-        ]()
+    comptime match eviction_policy:
+        case == CacheEviction.EVICT_NORMAL:
+            return 0
+        case == CacheEviction.EVICT_LAST:
+            return inlined_assembly[
+                "createpolicy.fractional.L2::evict_last.b64 $0;",
+                UInt64,
+                constraints="=l",
+            ]()
+        case _:
+            comptime assert (
+                eviction_policy == CacheEviction.EVICT_FIRST
+            ), "invalid eviction policy, only support normal, first, and last"
+            return inlined_assembly[
+                "createpolicy.fractional.L2::evict_first.b64 $0;",
+                UInt64,
+                constraints="=l",
+            ]()
 
 
 @inline(.nodebug)
@@ -540,11 +631,11 @@ def async_copy[
         comptime n_scalars = size // size_of[dtype]()
         var n_src_scalars = src_size // Int32(size_of[dtype]())
 
-        comptime if fill:
+        comptime if case .Some(fill_value) = fill:
             for i in range(n_src_scalars):
                 dst.unsafe_store(i, src.unsafe_load(i))
             for i in range(Int(n_src_scalars), n_scalars):
-                dst.unsafe_store(i, fill.value())
+                dst.unsafe_store(i, fill_value)
         else:
             comptime for i in range(n_scalars):
                 dst.unsafe_store(i, src.unsafe_load(i))
@@ -657,6 +748,14 @@ def async_copy[
             )
 
 
+comptime _AsyncCopyGroupPluginHookFnType = def() thin -> None
+"""Plugin-hook signature for `MaxPluginHooks.async_copy_commit_group_fn` and
+`MaxPluginHooks.async_copy_wait_all_fn`."""
+
+comptime _AsyncCopyWaitGroupPluginHookFnType = def(n: Int32) thin -> None
+"""Plugin-hook signature for `MaxPluginHooks.async_copy_wait_group_fn`."""
+
+
 @inline(.always)
 def async_copy_commit_group():
     """Commits all prior initiated but uncommitted cp.async instructions into a cp.async-group.
@@ -672,15 +771,10 @@ def async_copy_commit_group():
     - Should be paired with async_copy_wait_group() or async_copy_wait_all()
     """
 
-    comptime if is_nvidia_gpu():
-        llvm_intrinsic["llvm.nvvm.cp.async.commit.group", NoneType]()
-    elif is_amd_gpu() or is_apple_gpu() or not is_gpu():
-        # This operation is a no-op on AMD and CPU.
-        pass
-    else:
-        CompilationTarget.unsupported_target_error[
-            operation=__get_current_function_name()
-        ]()
+    comptime if case .Some(
+        _async_copy_commit_group
+    ) = CurrentMaxPlugin.async_copy_commit_group_fn:
+        _async_copy_commit_group()
 
 
 @inline(.always)
@@ -701,15 +795,10 @@ def async_copy_wait_group(n: Int32):
     - Can be used to implement a pipeline of asynchronous transfers.
     """
 
-    comptime if is_nvidia_gpu():
-        llvm_intrinsic["llvm.nvvm.cp.async.wait.group", NoneType](n)
-    elif is_amd_gpu() or is_apple_gpu() or not is_gpu():
-        # This operation is a no-op on AMD and CPU.
-        pass
-    else:
-        CompilationTarget.unsupported_target_error[
-            operation=__get_current_function_name()
-        ]()
+    comptime if case .Some(
+        _async_copy_wait_group
+    ) = CurrentMaxPlugin.async_copy_wait_group_fn:
+        _async_copy_wait_group(n)
 
 
 @inline(.always)
@@ -728,15 +817,10 @@ def async_copy_wait_all():
     - More coarse-grained than `async_copy_wait_group()`.
     """
 
-    comptime if is_nvidia_gpu():
-        llvm_intrinsic["llvm.nvvm.cp.async.wait.all", NoneType]()
-    elif is_amd_gpu() or is_apple_gpu() or not is_gpu():
-        # This operation is a no-op on AMD and CPU.
-        pass
-    else:
-        CompilationTarget.unsupported_target_error[
-            operation=__get_current_function_name()
-        ]()
+    comptime if case .Some(
+        _async_copy_wait_all
+    ) = CurrentMaxPlugin.async_copy_wait_all_fn:
+        _async_copy_wait_all()
 
 
 @inline(.always)
@@ -1055,6 +1139,74 @@ def cp_async_bulk_prefetch[
         __mlir_op.`nvvm.cp.async.bulk.prefetch`(
             to_llvm_global_mem_ptr(src_global),
             to_i32(size),
+        )
+
+
+@inline(.nodebug)
+def cp_async_bulk_prefetch_tensor[
+    rank: Int
+](tma_descriptor: OpaquePointer[mut=False, _], coords: IndexList[rank]):
+    """Initiates an asynchronous prefetch of a tensor tile into the L2 cache.
+
+    Reads the box that the TMA descriptor places at `coords` from global
+    memory into L2. There is no shared memory destination and no barrier.
+    This is a hint to the memory subsystem: a later TMA load of the same box
+    may hit L2.
+
+    Requires sm_90 or higher.
+
+    Parameters:
+        rank: The dimensionality of the tensor (1 to 5).
+
+    Args:
+        tma_descriptor: Pointer to the TMA descriptor of the tensor.
+        coords: The coordinates of the box, innermost dimension first.
+    """
+    comptime assert _is_sm_9x_or_newer(), "TMA prefetch requires sm_90 or newer"
+    comptime assert rank >= 1 and rank <= 5, "rank must be 1 to 5"
+    comptime asm = String(
+        "cp.async.bulk.prefetch.tensor.", rank, "d.L2.global.tile [$0, {"
+    )
+
+    comptime if rank == 1:
+        inlined_assembly[asm + "$1}];", NoneType, constraints="l,r"](
+            tma_descriptor, Int32(coords[0])
+        )
+    elif rank == 2:
+        inlined_assembly[asm + "$1, $2}];", NoneType, constraints="l,r,r"](
+            tma_descriptor, Int32(coords[0]), Int32(coords[1])
+        )
+    elif rank == 3:
+        inlined_assembly[
+            asm + "$1, $2, $3}];", NoneType, constraints="l,r,r,r"
+        ](
+            tma_descriptor,
+            Int32(coords[0]),
+            Int32(coords[1]),
+            Int32(coords[2]),
+        )
+    elif rank == 4:
+        inlined_assembly[
+            asm + "$1, $2, $3, $4}];", NoneType, constraints="l,r,r,r,r"
+        ](
+            tma_descriptor,
+            Int32(coords[0]),
+            Int32(coords[1]),
+            Int32(coords[2]),
+            Int32(coords[3]),
+        )
+    else:
+        inlined_assembly[
+            asm + "$1, $2, $3, $4, $5}];",
+            NoneType,
+            constraints="l,r,r,r,r,r",
+        ](
+            tma_descriptor,
+            Int32(coords[0]),
+            Int32(coords[1]),
+            Int32(coords[2]),
+            Int32(coords[3]),
+            Int32(coords[4]),
         )
 
 
@@ -2682,8 +2834,8 @@ def _load_impl[
         comptime assert read_only == False
         return ptr.unsafe_load[width=width]()
 
-    comptime if prefetch_size:
-        comptime assert prefetch_size.value() in (64, 128, 256)
+    comptime if case .Some(prefetch_bytes) = prefetch_size:
+        comptime assert prefetch_bytes in (64, 128, 256)
 
     comptime bytes_to_load = size_of[dtype]() * width
     comptime dtype_bitwidth = bit_width_of[dtype]()
@@ -3430,7 +3582,7 @@ def _get_type_mnemonic[dtype: DType]() -> StaticString:
     This internal utility function converts floating point DTypes into their
     corresponding string mnemonics used in GPU assembly instructions.
     """
-    __match dtype:
+    match dtype:
         case .float32:
             return "f32"
         case .float16:

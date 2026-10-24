@@ -1087,8 +1087,8 @@ def function_types():
   # CHECK: lit.var.decl "float5"{{.*}}(!Int, |, ?, "__error__": !lit.ref<!Error, mut *[0,0]> byref_error, "__result__": !lit.ref<none, mut *[0,1]> byref_result) throws -> !kgen.scalar<bool>
   var float5: def(Int) thin raises -> None
 
-  # CHECK: lit.var.decl "float6"{{.*}}(!Int, |, ?, "__result__": !lit.ref<none, mut *[0,0]> byref_result) async|capturing -> !kgen.none
-  var float6: __async def(Int) capturing thin -> None
+  # CHECK: lit.var.decl "float6"{{.*}}(!Int, |, ?, "__result__": !lit.ref<none, mut *[0,0]> byref_result) async -> !kgen.none
+  var float6: __async def(Int) thin -> None
 
   # CHECK: lit.var.decl "float7"{{.*}}(!lit.ref<!lit.struct<#VariadicList <:!Bool {:scalar<bool> false}, :origin<false> *(0,0), :!lit.struct<#Origin <:!Bool {:scalar<bool> false}, :origin<false> *(0,0)>> *(0,1), :!AnyType !Int, :!Bool {:scalar<bool> false}>>, imm *[0,0]> imm_mem|pos_vararg, ?, {{.*}}) throws -> !kgen.scalar<bool>
   var float7: def(*Int) thin raises -> None
@@ -1152,6 +1152,46 @@ def testTransferWarning():
 
   # expected-warning @+1 {{transfer from an owned value has no effect}}
   consume(MemoryOnlyInt()^)
+
+struct ConsumingCM(Movable):
+  def __init__(out self): pass
+  def __enter__(self): pass
+  def __exit__(self): pass
+
+struct ConsumingSetter:
+  def __init__(out self): pass
+  def __getitem__(self, idx: Int) -> MemoryOnlyInt: return MemoryOnlyInt()
+  def __setitem__(mut self, idx: Int, var value: MemoryOnlyInt): pass
+
+def consume_list(var *elts: MemoryOnlyInt): pass
+def consume_pack[*Ts: Movable](var *elts: *Ts): pass
+
+# Transfers that look like borrows but consume the value don't warn.
+# CHECK-LABEL: lit.fn @"transfer_into_consumers
+def transfer_into_consumers():
+  # The setter takes the value as `var`.
+  var setter = ConsumingSetter()
+  var a = MemoryOnlyInt()
+  setter[0] = a^
+
+  # The walrus borrows the value to copy it into the setter, then moves it into
+  # the result.
+  var b = MemoryOnlyInt()
+  var result = (setter[0] := b^)
+
+  # The context manager is moved into the `with` statement's own variable.
+  var cm = ConsumingCM()
+  with cm^:
+    pass
+
+# Forwarding a whole variadic list or pack passes ownership along.
+# CHECK-LABEL: lit.fn @"forward_var_list
+def forward_var_list(var *list: MemoryOnlyInt):
+  consume_list(*list^)
+
+# CHECK-LABEL: lit.fn @"forward_var_pack
+def forward_var_pack[*Ts: Movable](var *pack: *Ts):
+  consume_pack(*pack^)
 
 
 ##===----------------------------------------------------------------------===##
@@ -1300,3 +1340,11 @@ def testHasOverloadedFooMethods():
     foo.foo()
     # CHECK: lit.call {{.*}}@HasOverloadedFooMethods::@"foo{{.*}}(%foo){{.*}}owned_in_mem) -> !kgen.none>
     foo^.foo()
+
+# A variadic `def` type in a parameter list can reference an earlier parameter
+# of the same function before it is added to the parameter list.
+# CHECK-LABEL: lit.fn @"test_variadic_def_param_refs_outer_param
+def test_variadic_def_param_refs_outer_param[
+    Tr: type_of(AnyType), F: def[*Ts: Tr](*args: *Ts) thin -> None
+]():
+    pass

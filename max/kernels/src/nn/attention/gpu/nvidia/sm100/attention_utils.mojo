@@ -13,7 +13,7 @@
 """Shared SM100 attention primitives used by both MHA and MLA kernels.
 
 This module contains generic SM100 (Blackwell) GPU primitives including:
-- TMEM access helpers (TMemTile, STMatrixLayout)
+- TMEM access helpers (TMemTile)
 - Pipeline synchronization (StagedPipeline, RolePipeline, etc.)
 - FTZ arithmetic (add_ftz, sub_ftz, mul_ftz, etc.)
 - Barrier helpers (FA4MiscMBars)
@@ -24,7 +24,7 @@ This module contains generic SM100 (Blackwell) GPU primitives including:
 from std.builtin.dtype import _unsigned_integral_type_of
 from std.math import ceildiv, exp2, align_up, iota
 from std.math.constants import log2e
-from std.sys import size_of, _RegisterPackType, get_defined_bool
+from std.sys import align_of, size_of, _RegisterPackType
 from std.sys._assembly import inlined_assembly
 from std.sys.intrinsics import llvm_intrinsic
 from std.bit import prev_power_of_two, pop_count
@@ -40,9 +40,9 @@ from max.gpu.compute.arch.mma_nvidia_sm100 import (
 )
 from max.gpu.compute.arch.tcgen05 import tcgen05_ld, tcgen05_st
 from layout import (
+    Idx,
     IntTuple,
     Layout,
-    LayoutTensor,
     TensorEngine,
     TileTensor,
     row_major,
@@ -66,7 +66,6 @@ from nn.attention.gpu.nvidia.sm100.attention import FA4Config
 from nn.attention.gpu.nvidia.common import elect
 from nn.attention.mha_mask import MHAMask, MASK_VALUE, MaskStrategy
 from nn.attention.mha_operand import (
-    MHAOperand,
     PagedRowIndices,
     kv_sub_tile_rows,
     kv_num_sub_tiles,
@@ -114,17 +113,7 @@ comptime SharedMemTensor[
     address_space=.SHARED,
 ]
 
-# Legacy LayoutTensor aliases for TMA/MMA API boundaries
-comptime LocalLT[
-    dtype: DType, layout: Layout, element_layout: Layout = Layout(1, 1)
-] = LayoutTensor[
-    dtype,
-    layout,
-    MutAnyOrigin,
-    address_space=.LOCAL,
-    element_layout=element_layout,
-]
-comptime SharedMemPointer[type: AnyType] = UnsafePointer[
+comptime SharedMemPointer[type: AnyType] = Pointer[
     type, MutAnyOrigin, address_space=.SHARED
 ]
 comptime MBarType = SharedMemPointer[SharedMemBarrier]
@@ -161,22 +150,20 @@ def cumulative_power_of_two(N: Int, i: Int) -> Int:
 # to enable use of this function with pipelining.
 @inline(.nodebug)
 def break_into_powers_of_two[
-    origins: OriginSet,
-    //,
-    func: def[pow_two: Int, offset: Int]() capturing[origins] -> None,
     N: Int,
     *,
     max_value: Int = 128,
-]():
+](func: Some[def[pow_two: Int, offset: Int]() -> None]):
     """Calls `func` for each power-of-two-sized chunk of `N`, plus a final `pow_two=0` call for pipeline cleanup.
 
     Parameters:
-        origins: Origin set captured by the callback (inferred).
-        func: Callback invoked once per power-of-two chunk with the chunk
-            size and starting offset, plus a final `pow_two=0` cleanup call.
         N: Total size to decompose into power-of-two chunks.
         max_value: Upper bound on the largest power-of-two chunk size
             (defaults to 128).
+
+    Args:
+        func: Callback invoked once per power-of-two chunk with the chunk
+            size and starting offset, plus a final `pow_two=0` cleanup call.
     """
     comptime power_of_two = prev_power_of_two(min(max_value, N))
 
@@ -194,137 +181,6 @@ def break_into_powers_of_two[
                 func[pow_two, coffset]()
     # final call for possible pipeline cleanup
     func[0, N]()
-
-
-struct STMatrixLayout[
-    BM: Int,
-    BN: Int,
-    *,
-    num_threads: Int,
-    accum_dtype_size: Int,
-](TrivialRegisterPassable):
-    """
-    Layout for using `st_matrix` for writing the final accumulator to smem.
-
-    Parameters:
-        BM: Number of rows in the `BM` x `BN` output tile written via
-            `st_matrix`.
-        BN: Number of columns in the `BM` x `BN` output tile written via
-            `st_matrix`.
-        num_threads: Number of threads participating in the `st_matrix`
-            store, used to derive the warp-group count.
-        accum_dtype_size: Size in bytes of the accumulator element dtype,
-            used to compute the per-store bit width.
-    """
-
-    # We have a BM x BN tile
-    #
-    # The st_matrix layout wants to map it to threads in 16x8 blocks
-    # shape  (2,8), (2,4)
-    # stride (0,4), (0,1)
-    # Layout = ((2,8),(2,4)):((0,4),(0,1))
-    # Where `0` stride indicates that the same thread is repeated across these.
-    # We also need a layout for this local memory, which we define here.
-
-    # look at figure 108 https://docs.nvidia.com/cuda/parallel-thread-execution/#mma-stmatrix-fragments
-
-    # That first `2` is
-    comptime num_row_blocks_per_mma = 2
-    # The second `2` is
-    comptime frag_simdwidth: Int = 2
-
-    comptime thread_cols = 4
-    # When using tcgen05 ld/st we must repeat across all columns:
-    comptime repeat = Self.BN // (Self.thread_cols * Self.frag_simdwidth)
-
-    comptime num_warpgroups = ceildiv(Self.num_threads, 128)
-    # 2 = 32 // 16, i.e. we need to load 2 sets of 16
-    comptime num_m_tiles_total = ceildiv(2 * Self.BM, 128)
-    comptime num_m_tiles = Self.num_m_tiles_total // Self.num_warpgroups
-
-    comptime frag_size = Self.BN * Self.num_row_blocks_per_mma // Self.thread_cols
-
-    comptime elements_per_repeat = Self.frag_simdwidth * Self.num_row_blocks_per_mma
-
-    comptime vec_local_layout: Layout = Layout(
-        IntTuple(
-            IntTuple(Self.num_row_blocks_per_mma, Self.num_m_tiles),
-            IntTuple(Self.repeat),
-        ),
-        IntTuple(
-            IntTuple(
-                Self.frag_simdwidth, Self.frag_size
-            ),  # distance between vertical m tiles and local fragments
-            IntTuple(
-                Self.num_row_blocks_per_mma * Self.frag_simdwidth
-            ),  # distance between bn repeats
-        ),
-    )
-    comptime element_layout: Layout = Layout.row_major(1, Self.frag_simdwidth)
-    comptime TensorType[dtype: DType] = LocalLT[
-        dtype, Self.vec_local_layout, Self.element_layout
-    ]
-    comptime row_of_frags_layout: Layout = Layout.row_major(
-        Self.num_m_tiles, Self.frag_size
-    )
-
-    comptime bits_per_byte = 8
-    comptime bits = Self.bits_per_byte * Self.frag_simdwidth * Self.thread_cols * Self.accum_dtype_size
-
-    @inline(.always)
-    def __init__(out self):
-        pass
-
-
-struct STMatrixOffsets[
-    BM: Int,
-    BN: Int,
-    *,
-    num_threads: Int,
-    accum_dtype_size: Int,
-    curr_repeat: Int,
-    cumulative_repeat: Int,
-    m_mma: Int,
-](TrivialRegisterPassable):
-    """Precomputed TMEM and local-fragment offsets for one `st_matrix` repeat column.
-
-    Parameters:
-        BM: Number of rows in the `BM` x `BN` output tile (forwarded to
-            `STMatrixLayout`).
-        BN: Number of columns in the `BM` x `BN` output tile (forwarded to
-            `STMatrixLayout`).
-        num_threads: Number of threads participating in the `st_matrix` store
-            (forwarded to `STMatrixLayout`).
-        accum_dtype_size: Size in bytes of the accumulator element dtype
-            (forwarded to `STMatrixLayout`).
-        curr_repeat: Number of repeat columns in this power-of-two chunk of
-            the `st_matrix` store.
-        cumulative_repeat: Number of repeat columns already stored before
-            this chunk, used as the TMEM column and local-fragment base
-            offset.
-        m_mma: M-tile index of the `st_matrix` store within the `BM`-row
-            tile, selecting the 16-row TMEM quadrant.
-    """
-
-    comptime STLayout = STMatrixLayout[
-        Self.BM,
-        Self.BN,
-        num_threads=Self.num_threads,
-        accum_dtype_size=Self.accum_dtype_size,
-    ]
-
-    comptime tmem_col_offset = Self.cumulative_repeat * Self.STLayout.frag_simdwidth * Self.STLayout.thread_cols
-    comptime tmem_row_offset = 16 * Self.m_mma
-    comptime tmem_offset = (Self.tmem_row_offset << 16) + Self.tmem_col_offset
-    comptime b32_per_repeat = Self.STLayout.elements_per_repeat * Self.accum_dtype_size // 4
-    comptime local_frag_size_b32 = Self.curr_repeat * Self.b32_per_repeat
-    comptime ptr_offset = Self.b32_per_repeat * (
-        Self.STLayout.repeat * Self.m_mma + Self.cumulative_repeat
-    )
-
-    @inline(.always)
-    def __init__(out self):
-        pass
 
 
 @inline(.always)
@@ -534,7 +390,9 @@ def blasst_vote_unanimous(
     # (`kernel.mojo` zero-inits the region; `blasst_observe` writes 0/1), so
     # "all four nonzero" == "the word is 0x01010101".
     var base = (wg * UInt32(2) + phase) * UInt32(4)
-    return (blasst_vote + base).bitcast[UInt32]()[0] == UInt32(0x01010101)
+    return blasst_vote.unsafe_offset(base).unsafe_bitcast[UInt32]()[
+        0
+    ] == UInt32(0x01010101)
 
 
 @inline(.always)
@@ -614,7 +472,7 @@ def st_shared_v4_b32[
     dtype: DType,
     //,
 ](
-    dst: UnsafePointer[mut=True, Scalar[dtype], _, address_space=.SHARED],
+    dst: MutPointer[Scalar[dtype], _, address_space=.SHARED],
     elem_off: Int,
     packed: SIMD[.uint32, 4],
 ):
@@ -645,7 +503,7 @@ def st_shared_v4_b32[
         packed: Four `u32` words forming one 16 B SWIZZLE_NONE block to
             store.
     """
-    var dst_ptr = dst + elem_off
+    var dst_ptr = dst.unsafe_offset(elem_off)
     _ = inlined_assembly[
         "st.shared.v4.b32 [$0], {$1, $2, $3, $4};",
         NoneType,
@@ -666,9 +524,7 @@ def store_p_quadrant[
     # A-descriptor is built over (`BM` for the shared-key datapath).
     p_tile_rows: Int,
 ](
-    p_smem: UnsafePointer[
-        mut=True, Scalar[p_type], _, address_space=AddressSpace.SHARED
-    ],
+    p_smem: MutPointer[Scalar[p_type], _, address_space=AddressSpace.SHARED],
     p: Array[Scalar[DType.float32], cols],
     row: UInt32,
     warp_in_wg: UInt32,
@@ -758,7 +614,8 @@ struct TMemTile[
 
     @inline(.always)
     def __getitem__(self, i: UInt32) -> Self:
-        return {self.tmem_addr + i * UInt32(Self.BN)}
+        # TMEM columns are 32-bit words; `BN` counts elements.
+        return {self.tmem_addr + i * UInt32(Self.BN * Self.dtype_size // 4)}
 
     @inline(.always)
     def offset[m_mma: Int, n_mma: Int](self) -> UInt32:
@@ -771,201 +628,24 @@ struct TMemTile[
 
             return self.tmem_addr + UInt32(linear)
 
-    @staticmethod
-    @inline(.always)
-    def allocate_register_tile[
-        *, num_threads: Int
-    ](
-        out res: STMatrixLayout[
-            Self.BM,
-            Self.BN,
-            num_threads=num_threads,
-            accum_dtype_size=Self.dtype_size,
-        ].TensorType[Self.dtype],
-    ):
-        res = type_of(res).stack_allocation()
-
-    @inline(.always)
-    def store_async[
-        *, num_threads: Int
-    ](
-        self,
-        src: STMatrixLayout[
-            Self.BM,
-            Self.BN,
-            num_threads=num_threads,
-            accum_dtype_size=Self.dtype_size,
-        ].TensorType[Self.dtype],
-    ):
-        comptime assert Self.dtype_size <= 4
-        var ptr = src.ptr.bitcast[UInt32]()
-        comptime st_mat_layout = STMatrixLayout[
-            Self.BM,
-            Self.BN,
-            num_threads=num_threads,
-            accum_dtype_size=Self.dtype_size,
-        ]
-        comptime assert st_mat_layout.bits == 128 or st_mat_layout.bits == 256
-
-        @__parameter
-        @inline(.always)
-        def store_fn[pow_two: Int, offset: Int]():
-            # pow_two is current repeat, offset total so far
-            comptime if pow_two > 0:
-                comptime for m_mma in range(st_mat_layout.num_m_tiles):
-                    comptime offsets = STMatrixOffsets[
-                        Self.BM,
-                        Self.BN,
-                        num_threads=num_threads,
-                        accum_dtype_size=Self.dtype_size,
-                        curr_repeat=pow_two,
-                        cumulative_repeat=offset,
-                        m_mma=m_mma,
-                    ]()
-                    var tmem = self.tmem_addr + UInt32(offsets.tmem_offset)
-                    var frag = Array[_, offsets.local_frag_size_b32](
-                        fill_with_unrolled=lambda [i: Int]() -> UInt32: (
-                            ptr.load(offsets.ptr_offset + i)
-                        )
-                    )
-                    # 16 x 256b results in repeated 8x4 matrix of <1,2> vector pattern
-                    tcgen05_st[
-                        datapaths=16,  # first dimension of the shape
-                        bits=st_mat_layout.bits,  # second dimension of the shape
-                        repeat=pow_two,
-                        pack=False,
-                    ](tmem, frag)
-
-        comptime max_value = 64 if st_mat_layout.bits == 128 else 32
-        break_into_powers_of_two[
-            func=store_fn, N=st_mat_layout.repeat, max_value=max_value
-        ]()
-
-    @inline(.always)
-    def load_async_with_st_matrix_layout[
-        *, num_threads: Int
-    ](
-        self,
-        out dst: STMatrixLayout[
-            Self.BM,
-            Self.BN,
-            num_threads=num_threads,
-            accum_dtype_size=Self.dtype_size,
-        ].TensorType[Self.dtype],
-    ):
-        comptime assert (
-            Self.dtype_size <= 4
-        ), "Loading for st matrix requires elements to be <= 4 bytes."
-        comptime st_mat_layout = STMatrixLayout[
-            Self.BM,
-            Self.BN,
-            num_threads=num_threads,
-            accum_dtype_size=Self.dtype_size,
-        ]()
-        comptime assert (st_mat_layout.num_m_tiles == 1) or (
-            st_mat_layout.num_m_tiles == 2
-        ), (
-            "Only 1 or 2 m tiles are supported, but"
-            " st_mat_layout.num_m_tiles == "
-            + String(st_mat_layout.num_m_tiles)
-        )
-
-        dst = type_of(dst).stack_allocation()
-        self.load_st_matrix_chunk[
-            num_threads=num_threads,
-            start_repeat=0,
-            num_repeats=st_mat_layout.repeat,
-        ](dst)
-
-    @inline(.always)
-    def load_st_matrix_chunk[
-        *, num_threads: Int, start_repeat: Int, num_repeats: Int
-    ](
-        self,
-        dst: STMatrixLayout[
-            Self.BM,
-            Self.BN,
-            num_threads=num_threads,
-            accum_dtype_size=Self.dtype_size,
-        ].TensorType[Self.dtype],
-    ):
-        """Load a range of repeat columns from tmem into a pre-allocated
-        tensor.
-
-        Parameters:
-            num_threads: Number of threads in the warp group.
-            start_repeat: First repeat index to load (0-based).
-            num_repeats: Number of repeats to load.
-
-        Args:
-            dst: Pre-allocated register tensor.
-        """
-        comptime st_mat_layout = STMatrixLayout[
-            Self.BM,
-            Self.BN,
-            num_threads=num_threads,
-            accum_dtype_size=Self.dtype_size,
-        ]()
-        comptime load_dtype = DType.uint32
-        var ptr = rebind[
-            UnsafePointer[
-                Scalar[load_dtype], MutAnyOrigin, address_space=.LOCAL
-            ]
-        ](dst.ptr)
-
-        @__parameter
-        @inline(.always)
-        def load_fn[pow_two: Int, local_offset: Int]():
-            comptime assert pow_two + local_offset <= num_repeats
-            comptime if pow_two > 0:
-                comptime for m_mma in range(st_mat_layout.num_m_tiles):
-                    comptime offsets = STMatrixOffsets[
-                        Self.BM,
-                        Self.BN,
-                        num_threads=num_threads,
-                        accum_dtype_size=Self.dtype_size,
-                        curr_repeat=pow_two,
-                        cumulative_repeat=start_repeat + local_offset,
-                        m_mma=m_mma,
-                    ]()
-                    var tmem = self.tmem_addr + UInt32(offsets.tmem_offset)
-                    var frag = tcgen05_ld[
-                        datapaths=16,
-                        bits=st_mat_layout.bits,
-                        repeat=pow_two,
-                        dtype=load_dtype,
-                        pack=False,
-                        width=offsets.local_frag_size_b32,
-                    ](tmem)
-
-                    comptime for _i in range(offsets.local_frag_size_b32):
-                        ptr.store(offsets.ptr_offset + _i, frag[_i])
-
-        comptime max_value = 64 if st_mat_layout.bits == 128 else 32
-        break_into_powers_of_two[
-            func=load_fn, N=num_repeats, max_value=max_value
-        ]()
-
     @inline(.always)
     def load_async(
         self,
         out dst: Array[Scalar[Self.dtype], Self.BN],
     ):
         dst = Array[Scalar[Self.dtype], Self.BN](uninitialized=True)
-        # The uint32 bitcast path below assumes dtype_size == 4.
-        # Sub-32-bit types (bf16, f16) pack multiple elements per uint32
-        # and would need unpacking logic not yet implemented.
-        comptime assert (
-            Self.dtype_size == 4
-        ), "load_async only supports 32-bit dtypes"
-        comptime repeat = Self.dtype_size * Self.BN // 4
-        comptime dtype = Self.dtype if Self.dtype_size == 4 else DType.uint32
+        comptime assert 4 % Self.dtype_size == 0
+        # Each 32-bit TMEM word holds `per_word` elements, lowest element in
+        # the low bits -- the order `store_async` packs them in.
+        comptime per_word = 4 // Self.dtype_size
+        comptime assert Self.BN % per_word == 0
+        comptime repeat = Self.BN // per_word
 
-        @__parameter
+        # `pow_two` and `offset` count words, not elements.
         @inline(.always)
-        def load_fn[pow_two: Int, offset: Int]():
+        def load_fn[pow_two: Int, offset: Int]() {var, mut dst}:
             comptime if pow_two > 0:
-                comptime if dtype == Self.dtype:
+                comptime if per_word == 1:
                     var frag0 = tcgen05_ld[
                         datapaths=32,  # first dimension of the shape
                         bits=32,  # second dimension of the shape
@@ -988,24 +668,27 @@ struct TMemTile[
                     ](self.tmem_addr + UInt32(offset))
 
                     comptime for _i in range(pow_two):
-                        dst[offset + _i] = bitcast[Self.dtype](frag1[_i])
+                        var elems = bitcast[Self.dtype, per_word](frag1[_i])
+                        comptime for _j in range(per_word):
+                            dst[(offset + _i) * per_word + _j] = elems[_j]
 
-        break_into_powers_of_two[func=load_fn, N=repeat, max_value=128]()
+        break_into_powers_of_two[N=repeat, max_value=128](load_fn)
 
     @inline(.always)
     def store_async[
         src_type: DType
     ](self, src: LocalTensor[src_type, row_major[Self.BN](), _]):
-        @__parameter
         @inline(.always)
-        def store_fn[pow_two: Int, offset: Int]():
+        def store_fn[pow_two: Int, offset: Int]() {var}:
             comptime if pow_two > 0:
                 comptime frag_width = pow_two * Self.dtype_size // 4
                 var frag = Array[UInt32, frag_width](uninitialized=True)
 
                 comptime if src_type == Self.dtype:
                     comptime for _i in range(frag_width):
-                        frag[_i] = src.ptr.bitcast[UInt32]().load(offset + _i)
+                        frag[_i] = src.bitcast[.uint32]().load[width=1](
+                            (Idx[offset + _i],)
+                        )
                 elif pow_two > 1:
                     comptime size_ratio = size_of[src_type]() // Self.dtype_size
                     comptime cast_width = min(
@@ -1018,9 +701,10 @@ struct TMemTile[
 
                     comptime if u32_per_cast >= 1:
                         comptime for _i in range(num_casts):
-                            var src_vec = src.raw_load[width=cast_width](
-                                offset + _i * cast_width
-                            )
+                            var src_vec = src.load[
+                                width=cast_width,
+                                alignment=align_of[src_type](),
+                            ]((Idx[offset + _i * cast_width],))
                             var dst_vec = src_vec.cast[Self.dtype]()
                             var packed_chunk = bitcast[
                                 DType.uint32, u32_per_cast
@@ -1029,15 +713,15 @@ struct TMemTile[
                                 frag[_i * u32_per_cast + _j] = packed_chunk[_j]
                     else:
                         var packed = bitcast[.uint32, frag_width](
-                            src.raw_load[width=pow_two](offset).cast[
-                                Self.dtype
-                            ]()
+                            src.load[
+                                width=pow_two, alignment=align_of[src_type]()
+                            ]((Idx[offset],)).cast[Self.dtype]()
                         )
                         comptime for _i in range(frag_width):
                             frag[_i] = packed[_i]
                 else:
                     frag[0] = bitcast[.uint32](
-                        src.raw_load[width=1](0).cast[Self.dtype]()
+                        src.load[width=1]((Idx[0],)).cast[Self.dtype]()
                     )
 
                 tcgen05_st[
@@ -1047,7 +731,7 @@ struct TMemTile[
                     pack=False,
                 ](self.tmem_addr + UInt32(offset * Self.dtype_size // 4), frag)
 
-        break_into_powers_of_two[func=store_fn, N=Self.BN, max_value=128]()
+        break_into_powers_of_two[N=Self.BN, max_value=128](store_fn)
 
     @inline(.always)
     def store_async[
@@ -1055,14 +739,13 @@ struct TMemTile[
         src_len: Int,
         src_offset: Int = 0,
     ](self, src: Array[Scalar[src_type], src_len]):
-        @__parameter
         @inline(.always)
-        def store_fn[pow_two: Int, offset: Int]():
+        def store_fn[pow_two: Int, offset: Int]() {var, imm src}:
             comptime if pow_two > 0:
                 comptime frag_width = pow_two * Self.dtype_size // 4
                 var frag = Array[UInt32, frag_width](uninitialized=True)
 
-                comptime if src_type == Self.dtype:
+                comptime if src_type == Self.dtype and Self.dtype_size == 4:
                     comptime for _i in range(frag_width):
                         frag[_i] = bitcast[.uint32](
                             src[src_offset + offset + _i]
@@ -1107,7 +790,7 @@ struct TMemTile[
                     pack=False,
                 ](self.tmem_addr + UInt32(offset * Self.dtype_size // 4), frag)
 
-        break_into_powers_of_two[func=store_fn, N=Self.BN, max_value=128]()
+        break_into_powers_of_two[N=Self.BN, max_value=128](store_fn)
 
 
 struct SM100TensorAccumulator[
@@ -2842,7 +2525,7 @@ def exp2_emulation[
 @inline(.always)
 def elect_mma_arrive[
     cta_group: Int = 1
-](mbar_ptr: UnsafePointer[address_space=.SHARED, ...], elect: Int32,):
+](mbar_ptr: ImmPointer[address_space=.SHARED, ...], elect: Int32,):
     """Arrive at the mbar pointer for the MMA instruction.
 
     Parameters:
@@ -2875,7 +2558,7 @@ def elect_mma_arrive[
 
 @inline(.always)
 def expect_bytes_pred(
-    mbar_ptr: UnsafePointer[address_space=.SHARED, ...],
+    mbar_ptr: Pointer[address_space=.SHARED, ...],
     bytes: Int32,
     pred: Int32,
 ):
@@ -2920,7 +2603,7 @@ def store_global_pred[
     address_space: AddressSpace,
     //,
 ](
-    ptr: UnsafePointer[mut=True, Scalar[dtype], _, address_space=address_space],
+    ptr: MutPointer[Scalar[dtype], _, address_space=address_space],
     value: Scalar[dtype],
     pred: Int32,
 ):
@@ -3155,12 +2838,16 @@ struct StagedPipeline[num_kv_stages: Int, num_qk_stages: Int = 1](
     @inline(.always)
     def producer_mbar[qk_stage: Int = 0](self) -> MBarType:
         var idx: UInt32 = self.state.index()
-        return self.mbar + UInt32(Self.num_qk_stages) * idx + qk_stage
+        return self.mbar.unsafe_offset(
+            UInt32(Self.num_qk_stages) * idx
+        ).unsafe_offset(qk_stage)
 
     @inline(.always)
     def consumer_mbar[qk_stage: Int = 0](self, idx: UInt32) -> MBarType:
         comptime const_offset = qk_stage + Self.num_stages
-        return self.mbar + UInt32(Self.num_qk_stages) * idx + const_offset
+        return self.mbar.unsafe_offset(
+            UInt32(Self.num_qk_stages) * idx
+        ).unsafe_offset(const_offset)
 
     @inline(.always)
     def consumer_mbar[qk_stage: Int = 0](self) -> MBarType:
@@ -3219,7 +2906,9 @@ struct StagedPipeline[num_kv_stages: Int, num_qk_stages: Int = 1](
         """
         comptime qk_stage = Self.num_qk_stages - 1
         comptime const_offset = qk_stage + Self.num_stages
-        var mbar = self.mbar + UInt32(Self.num_qk_stages) * idx + const_offset
+        var mbar = self.mbar.unsafe_offset(
+            UInt32(Self.num_qk_stages) * idx
+        ).unsafe_offset(const_offset)
         elect_mma_arrive(mbar, e)
 
     @staticmethod
@@ -3358,12 +3047,14 @@ struct TMAProducerPipeline[dtype: DType, config: FA4Config, is_k: Bool = True](
             var dyn_offset: UInt32 = (
                 UInt32(Self.elements_full) * self.pipeline.state.index()
             )
-            return self.smem + stage_offset + dyn_offset
+            return self.smem.unsafe_offset(stage_offset).unsafe_offset(
+                dyn_offset
+            )
         else:
             var dyn_offset: UInt32 = (
                 UInt32(Self.elements) * self.pipeline.state.index()
             )
-            return self.smem + dyn_offset
+            return self.smem.unsafe_offset(dyn_offset)
 
     @inline(.always)
     def get_tile[*, qk_stage: Int = 0](self) -> Self.PairType:
@@ -3705,11 +3396,9 @@ struct RolePipeline[
         comptime assert (
             sub_stage_idx < Self.producer_sub_stages
         ), "sub_stage_idx out of range"
-        return (
-            self.producer_mbar_base
-            + self.state.index() * UInt32(Self.producer_sub_stages)
-            + sub_stage_idx
-        )
+        return self.producer_mbar_base.unsafe_offset(
+            self.state.index() * UInt32(Self.producer_sub_stages)
+        ).unsafe_offset(sub_stage_idx)
 
     @inline(.always)
     def consumer_mbar[sub_stage_idx: Int = 0](self) -> MBarType:
@@ -3721,11 +3410,9 @@ struct RolePipeline[
         comptime assert (
             sub_stage_idx < Self.consumer_sub_stages
         ), "sub_stage_idx out of range"
-        return (
-            self.consumer_mbar_base
-            + self.state.index() * UInt32(Self.consumer_sub_stages)
-            + sub_stage_idx
-        )
+        return self.consumer_mbar_base.unsafe_offset(
+            self.state.index() * UInt32(Self.consumer_sub_stages)
+        ).unsafe_offset(sub_stage_idx)
 
     # Producer methods
     @inline(.nodebug)
@@ -3910,7 +3597,7 @@ def apply_mask[
 ):
     """Applies bitmask, computed, and out-of-bounds masking strategies to a row of `BN` attention scores.
 
-    Scales by `scale_log2e` (unless `skip_scale`), then applies the mask strategy: the bitmask path uses `mask_select8` per 32-column batch, the computed path calls `mask.mask`, and both paths apply the out-of-bounds clip via `apply_oob_mask`.
+    Scales by `scale_log2e` (unless `skip_scale`), then applies the mask strategy: the bitmask path uses `mask_select8` per 32-column batch, the computed path calls `mask.visibility_mask` (after `mask.add_row_bias` on the whole row for a mask with `has_row_bias`), and both paths apply the out-of-bounds clip via `apply_oob_mask`.
 
     Parameters:
         BN: Number of scores in the row; must be a multiple of 32 for
@@ -4020,22 +3707,39 @@ def apply_mask[
 
     else:
         comptime block_size = BN // simd_size
+        # A mask with a row-wise bias takes the whole scaled row at once;
+        # each pair then only needs the visibility select.
+        comptime row_bias = (
+            MaskType.has_row_bias and MaskStrategy.COMPUTED in mask_strategy
+        )
+        comptime if row_bias:
+            comptime if not skip_scale:
+                comptime for n in range(block_size):
+                    comptime frag_col = simd_size * n
+                    var scaled = mul_ftz(
+                        F32x2(srow[frag_col], srow[frag_col + 1]), scale_log2e
+                    )
+                    srow[frag_col] = scaled[0]
+                    srow[frag_col + 1] = scaled[1]
+            mask.add_row_bias(
+                srow,
+                prompt_idx,
+                q_head_idx,
+                UInt32(score_row),
+                kv_tile_start_row,
+            )
 
         comptime for n in range(block_size):
             # score_col = mask_frag_col + j * 8
             comptime frag_col = simd_size * n
-            var s: F32x2
-
-            comptime if skip_scale:
-                s = F32x2(srow[frag_col], srow[frag_col + 1])
-            else:
-                s = mul_ftz(
-                    F32x2(srow[frag_col], srow[frag_col + 1]), scale_log2e
-                )
+            var s = F32x2(srow[frag_col], srow[frag_col + 1])
+            comptime if not (skip_scale or row_bias):
+                s = mul_ftz(s, scale_log2e)
             var score_col: Int32 = kv_tile_start_row + Int32(frag_col)
 
+            # `visibility_mask` is `mask` for every mask without a row bias.
             comptime if MaskStrategy.COMPUTED in mask_strategy:
-                s = mask.mask(
+                s = mask.visibility_mask(
                     IndexList[4, element_type=.uint32](
                         Int(prompt_idx),
                         Int(q_head_idx),
@@ -4085,16 +3789,17 @@ def clusters_per_wave[cluster_size: Int, sm_count: Int]() -> Int:
     the `else` branch is a comptime error on any other chip.
     """
     comptime C = cluster_size
-    comptime if sm_count == 148:
-        # B200: irregular 11-GPC layout -- three 20s, four 18s, one 10, three 2s.
-        return 3 * (20 // C) + 4 * (18 // C) + (10 // C) + 3 * (2 // C)
-    elif sm_count == 160:
-        # B300 / Blackwell Ultra: uniform 8 GPCs x 20 SMs.
-        return 8 * (20 // C)
-    else:
-        comptime assert (
-            False
-        ), "clusters_per_wave: only B200 (148) / B300 (160) modeled"
+    comptime match sm_count:
+        case 148:
+            # B200: irregular 11-GPC layout -- three 20s, four 18s, one 10, three 2s.
+            return 3 * (20 // C) + 4 * (18 // C) + (10 // C) + 3 * (2 // C)
+        case 160:
+            # B300 / Blackwell Ultra: uniform 8 GPCs x 20 SMs.
+            return 8 * (20 // C)
+        case _:
+            comptime assert (
+                False
+            ), "clusters_per_wave: only B200 (148) / B300 (160) modeled"
 
 
 @inline(.always)
@@ -4222,10 +3927,14 @@ def splitk_window(
 @inline(.always)
 def peel_mask[
     num_sets: Int,
+    LoadFnType: def[mask_strategy: MaskStrategy](UInt32) -> Float32,
     //,
     mask_strategies: StaticTuple[MaskStrategy, num_sets],
-    load_fn: def[mask_strategy: MaskStrategy](UInt32) capturing -> Float32,
-](mut mask_iters: StaticTuple[UInt32, num_sets], kv_row: UInt32,) -> Float32:
+](
+    load_fn: LoadFnType,
+    mut mask_iters: StaticTuple[UInt32, num_sets],
+    kv_row: UInt32,
+) -> Float32:
     """Determine which mask strategy applies to the peeled first iteration.
 
     Walks through mask sets to find the first with remaining iterations,
@@ -4235,39 +3944,41 @@ def peel_mask[
 
     Parameters:
         num_sets: Number of mask sets to walk through (inferred).
+        LoadFnType: Type of `load_fn` (inferred).
         mask_strategies: `MaskStrategy` per set, in evaluation order;
             the first set with remaining iterations supplies the
             strategy.
+
+    Args:
         load_fn: Callback invoked as
             `load_fn[strategy](kv_row)` to load the mask value for the
             selected strategy.
-
-    Args:
         mask_iters: Remaining iteration count per set; the selected
             set's count is decremented in place.
         kv_row: KV row index forwarded to `load_fn`.
     """
     comptime assert num_sets in (1, 2, 3)
-    comptime if num_sets == 1:
-        mask_iters[0] -= 1
-        return load_fn[mask_strategies[0]](kv_row)
-    elif num_sets == 2:
-        if mask_iters[0] > 0:
+    comptime match num_sets:
+        case 1:
             mask_iters[0] -= 1
             return load_fn[mask_strategies[0]](kv_row)
-        else:
-            mask_iters[1] -= 1
-            return load_fn[mask_strategies[1]](kv_row)
-    else:
-        if mask_iters[0] > 0:
-            mask_iters[0] -= 1
-            return load_fn[mask_strategies[0]](kv_row)
-        elif mask_iters[1] > 0:
-            mask_iters[1] -= 1
-            return load_fn[mask_strategies[1]](kv_row)
-        else:
-            mask_iters[2] -= 1
-            return load_fn[mask_strategies[2]](kv_row)
+        case 2:
+            if mask_iters[0] > 0:
+                mask_iters[0] -= 1
+                return load_fn[mask_strategies[0]](kv_row)
+            else:
+                mask_iters[1] -= 1
+                return load_fn[mask_strategies[1]](kv_row)
+        case _:
+            if mask_iters[0] > 0:
+                mask_iters[0] -= 1
+                return load_fn[mask_strategies[0]](kv_row)
+            elif mask_iters[1] > 0:
+                mask_iters[1] -= 1
+                return load_fn[mask_strategies[1]](kv_row)
+            else:
+                mask_iters[2] -= 1
+                return load_fn[mask_strategies[2]](kv_row)
 
 
 struct FA4MiscMBars[
@@ -4484,16 +4195,16 @@ struct FA4MiscMBars[
     def producer_s0(self) -> Self.SPipelineProducer:
         """Get S producer for warp group 0."""
         return {
-            self.mbar_base + Self.S0_producer_offset,
-            self.mbar_base + Self.S0_consumer_offset,
+            self.mbar_base.unsafe_offset(Self.S0_producer_offset),
+            self.mbar_base.unsafe_offset(Self.S0_consumer_offset),
         }
 
     @inline(.always)
     def producer_s1(self) -> Self.SPipelineProducer:
         """Get S producer for warp group 1."""
         return {
-            self.mbar_base + Self.S1_producer_offset,
-            self.mbar_base + Self.S1_consumer_offset,
+            self.mbar_base.unsafe_offset(Self.S1_producer_offset),
+            self.mbar_base.unsafe_offset(Self.S1_consumer_offset),
         }
 
     @inline(.always)
@@ -4505,36 +4216,45 @@ struct FA4MiscMBars[
                 pipeline.
         """
         return {
-            self.mbar_base + Self.S0_producer_offset + wg_idx,
-            self.mbar_base + UInt32(Self.num_pv_stages) * wg_idx,
+            self.mbar_base.unsafe_offset(Self.S0_producer_offset).unsafe_offset(
+                wg_idx
+            ),
+            self.mbar_base.unsafe_offset(UInt32(Self.num_pv_stages) * wg_idx),
         }
 
     @inline(.always)
     def consumer_c0(self) -> ConsumerPipeline[1]:
         return {
-            self.mbar_base + Self.C0_offset,
-            self.mbar_base + Self.C0_offset + 1,
+            self.mbar_base.unsafe_offset(Self.C0_offset),
+            self.mbar_base.unsafe_offset(Self.C0_offset).unsafe_offset(1),
         }
 
     @inline(.always)
     def consumer_c1(self) -> ConsumerPipeline[1]:
         return {
-            self.mbar_base + Self.C1_offset,
-            self.mbar_base + Self.C1_offset + 1,
+            self.mbar_base.unsafe_offset(Self.C1_offset),
+            self.mbar_base.unsafe_offset(Self.C1_offset).unsafe_offset(1),
         }
 
     @inline(.always)
     def producer_c(self, wg_idx: UInt32) -> ProducerPipeline[1]:
         var base = UInt32(Self.C0_offset) + 2 * wg_idx
-        return {self.mbar_base + base, self.mbar_base + base + 1}
+        return {
+            self.mbar_base.unsafe_offset(base),
+            self.mbar_base.unsafe_offset(base).unsafe_offset(1),
+        }
 
     @inline(.always)
     def pipeline_order_wait(self, wg_idx: UInt32) -> MBarType:
-        return self.mbar_base + Self.order_offset + wg_idx
+        return self.mbar_base.unsafe_offset(Self.order_offset).unsafe_offset(
+            wg_idx
+        )
 
     @inline(.always)
     def pipeline_order_arrive(self, wg_idx: UInt32) -> MBarType:
-        return self.mbar_base + (Self.order_offset + 1) - wg_idx
+        return self.mbar_base.unsafe_offset(
+            Self.order_offset + 1
+        ).unsafe_offset(-wg_idx)
 
     @inline(.always)
     def q1_wait_mbar(self) -> MBarType:
@@ -4542,13 +4262,13 @@ struct FA4MiscMBars[
             "q1_wait_mbar() requires num_q == 2; the Q1Sync slot is"
             " collapsed when num_q == 1."
         )
-        return self.mbar_base + Self.Q1SyncIdx
+        return self.mbar_base.unsafe_offset(Self.Q1SyncIdx)
 
     # K/V/O barrier accessors
     @inline(.nodebug)
     def get_k_mbars(self) -> MBarType:
         """Returns base pointer for K pipeline barriers."""
-        return self.mbar_base + Self.K_offset
+        return self.mbar_base.unsafe_offset(Self.K_offset)
 
     @inline(.nodebug)
     def get_v_mbars(self) -> MBarType:
@@ -4556,9 +4276,9 @@ struct FA4MiscMBars[
         In shared mode, returns the same as get_k_mbars (shared pipeline).
         """
         comptime if Self.use_shared_kv:
-            return self.mbar_base + Self.K_offset
+            return self.mbar_base.unsafe_offset(Self.K_offset)
         else:
-            return self.mbar_base + Self.V_offset
+            return self.mbar_base.unsafe_offset(Self.V_offset)
 
     @inline(.nodebug)
     def combined_p_o_consumer(self, wg_idx: UInt32) -> MBarType:
@@ -4571,7 +4291,7 @@ struct FA4MiscMBars[
             wg_idx: Warp group index (0 or 1) selecting the consumer
                 barrier slot.
         """
-        return self.mbar_base + UInt32(Self.num_pv_stages) * wg_idx
+        return self.mbar_base.unsafe_offset(UInt32(Self.num_pv_stages) * wg_idx)
 
     # ---- Cross-stage P handshake accessors (CrossP_enabled, 2Q, non-WS) ----
     comptime CrossPProducer = RolePipeline[1, True, 1, 1]
@@ -4588,12 +4308,16 @@ struct FA4MiscMBars[
     # acquires it (consumer .wait/.step) before overwriting S{wg}.
     @inline(.always)
     def sfree_producer(self, wg: UInt32) -> Self.CrossPProducer:
-        var m = self.mbar_base + UInt32(Self.CrossP_offset) + wg
+        var m = self.mbar_base.unsafe_offset(
+            UInt32(Self.CrossP_offset)
+        ).unsafe_offset(wg)
         return {m, m}
 
     @inline(.always)
     def sfree_consumer(self, wg: UInt32) -> Self.CrossPConsumer:
-        var m = self.mbar_base + UInt32(Self.CrossP_offset) + wg
+        var m = self.mbar_base.unsafe_offset(
+            UInt32(Self.CrossP_offset)
+        ).unsafe_offset(wg)
         return {m, m}
 
     # inplace{k}: k=0 -> s0_p1 (softmax0 produces "S0 window free", softmax1
@@ -4602,20 +4326,16 @@ struct FA4MiscMBars[
     # cycle them via state.index() (producer_mbar_base == consumer_mbar_base).
     @inline(.always)
     def inplace_producer(self, k: UInt32) -> Self.InplaceProducer:
-        var base = (
-            self.mbar_base
-            + UInt32(Self.CrossP_offset + 2)
-            + k * UInt32(Self.InplaceDepth)
-        )
+        var base = self.mbar_base.unsafe_offset(
+            UInt32(Self.CrossP_offset + 2)
+        ).unsafe_offset(k * UInt32(Self.InplaceDepth))
         return {base, base}
 
     @inline(.always)
     def inplace_consumer(self, k: UInt32) -> Self.InplaceConsumer:
-        var base = (
-            self.mbar_base
-            + UInt32(Self.CrossP_offset + 2)
-            + k * UInt32(Self.InplaceDepth)
-        )
+        var base = self.mbar_base.unsafe_offset(
+            UInt32(Self.CrossP_offset + 2)
+        ).unsafe_offset(k * UInt32(Self.InplaceDepth))
         return {base, base}
 
     # O pipeline convenience methods
@@ -4628,7 +4348,7 @@ struct FA4MiscMBars[
         stride num_pv_stages).
         """
         return {
-            self.mbar_base + Self.O_producer_offset,
+            self.mbar_base.unsafe_offset(Self.O_producer_offset),
             self.mbar_base,
         }
 
@@ -4647,7 +4367,7 @@ struct FA4MiscMBars[
         in `producer_o0`.
         """
         return {
-            self.mbar_base + Self.O_producer_offset,
+            self.mbar_base.unsafe_offset(Self.O_producer_offset),
             self.combined_p_o_consumer(0),
         }
 
@@ -4655,7 +4375,7 @@ struct FA4MiscMBars[
     def producer_o0(self) -> ProducerPipeline[1]:
         """Get O producer for warp group 0."""
         return {
-            self.mbar_base + Self.O_producer_offset,
+            self.mbar_base.unsafe_offset(Self.O_producer_offset),
             self.combined_p_o_consumer(0),
         }
 
@@ -4663,7 +4383,9 @@ struct FA4MiscMBars[
     def producer_o1(self) -> ProducerPipeline[1]:
         """Get O producer for warp group 1."""
         return {
-            self.mbar_base + Self.O_producer_offset + 1,
+            self.mbar_base.unsafe_offset(Self.O_producer_offset).unsafe_offset(
+                1
+            ),
             self.combined_p_o_consumer(1),
         }
 
@@ -4677,7 +4399,7 @@ struct FA4MiscMBars[
         the publish sites need no CTA-local `named_barrier` to collect rows. Only
         present for 1Q split-K (`Publish_count > 0`).
         """
-        return self.mbar_base + Self.Publish_offset
+        return self.mbar_base.unsafe_offset(Self.Publish_offset)
 
     @staticmethod
     @inline(.always)

@@ -59,15 +59,16 @@ sentinel LUT column.
 
 from std.math import align_up, ceildiv
 from std.memory import alloc
+from std.memory.alloc import unsafe_alloc
 from std.random import randn, seed
-from std.sys import get_defined_int, has_amd_gpu_accelerator
+from std.sys import get_defined_int
 from std.testing import assert_almost_equal
 from std.utils.index import IndexList
 
 from max.gpu.host import DeviceContext
 
 from kv_cache.types import KVCacheStaticParams, PagedKVCacheCollection
-from layout import Layout, LayoutTensor, RuntimeLayout, UNKNOWN_VALUE
+from layout import Idx, TileTensor, row_major
 from nn.kv_cache_ragged import (
     generic_flare_mla_decompress_k_cache_ragged_paged,
     generic_flare_mla_prefill_ragged_paged_plan,
@@ -94,7 +95,7 @@ comptime PRE_FILL_SENTINEL = -1.0
 
 def main() raises:
     with DeviceContext() as ctx:
-        comptime if has_amd_gpu_accelerator():
+        comptime if ctx.target.is_amd_gpu():
             test_gather_zeros_out_of_range_rows(ctx)
 
 
@@ -130,9 +131,9 @@ def test_gather_zeros_out_of_range_rows(ctx: DeviceContext) raises:
     var block_elems = paged_block_elems(total_pages, PAGE_SIZE, CACHE_DEPTH)
     var lut_size = batch_size * max_pages_per_batch
 
-    var blocks_host = alloc[Scalar[.bfloat16]](block_elems)
-    var cache_lengths_host = alloc[UInt32](batch_size)
-    var lookup_table_host = alloc[UInt32](lut_size)
+    var blocks_host = unsafe_alloc[Scalar[.bfloat16]](block_elems)
+    var cache_lengths_host = unsafe_alloc[UInt32](batch_size)
+    var lookup_table_host = unsafe_alloc[UInt32](lut_size)
 
     # Real pages [0, num_pages): random content + zero-filled page-alignment
     # tail, exactly as the sibling plan+gather test uses. This helper only
@@ -174,44 +175,37 @@ def test_gather_zeros_out_of_range_rows(ctx: DeviceContext) raises:
         kv_params.num_heads,
         kv_params.head_size,
     )
-    var blocks_lt = LayoutTensor[.bfloat16, Layout.row_major[6]()](
-        blocks_device.unsafe_ptr(),
-        RuntimeLayout[Layout.row_major[6]()].row_major(block_shape),
-    )
-    comptime cl_layout = Layout(UNKNOWN_VALUE)
-    var cache_lengths_lt = LayoutTensor[.uint32, cl_layout](
-        cache_lengths_device.unsafe_ptr(),
-        RuntimeLayout[cl_layout].row_major(IndexList[1](batch_size)),
-    )
-    comptime lt_layout_2d = Layout.row_major[2]()
-    var lookup_table_lt = LayoutTensor[.uint32, lt_layout_2d](
-        lookup_table_device.unsafe_ptr(),
-        RuntimeLayout[lt_layout_2d].row_major(
-            IndexList[2](batch_size, max_pages_per_batch)
+    var blocks_tt = TileTensor(
+        blocks_device,
+        row_major(
+            Int64(block_shape[0]),
+            Idx[1],
+            Int64(block_shape[2]),
+            Idx[PAGE_SIZE],
+            Idx[kv_params.num_heads],
+            Idx[kv_params.head_size],
         ),
     )
-    var kv_collection = PagedKVCacheCollection[.bfloat16, kv_params, PAGE_SIZE](
-        LayoutTensor[.bfloat16, Layout.row_major[6](), MutAnyOrigin](
-            blocks_lt.ptr.as_unsafe_any_origin(),
-            RuntimeLayout[Layout.row_major[6]()](
-                blocks_lt.runtime_layout.shape.value,
-                blocks_lt.runtime_layout.stride.value,
-            ),
-        ),
-        LayoutTensor[.uint32, cl_layout, ImmutAnyOrigin](
-            cache_lengths_lt.ptr.as_unsafe_any_origin(),
-            RuntimeLayout[cl_layout](
-                cache_lengths_lt.runtime_layout.shape.value,
-                cache_lengths_lt.runtime_layout.stride.value,
-            ),
-        ),
-        LayoutTensor[.uint32, lt_layout_2d, ImmutAnyOrigin](
-            lookup_table_lt.ptr.as_unsafe_any_origin(),
-            RuntimeLayout[lt_layout_2d](
-                lookup_table_lt.runtime_layout.shape.value,
-                lookup_table_lt.runtime_layout.stride.value,
-            ),
-        ),
+    var cache_lengths_tt = TileTensor(
+        cache_lengths_device, row_major(Int64(batch_size))
+    )
+    var lookup_table_tt = TileTensor(
+        lookup_table_device,
+        row_major(Int64(batch_size), Int64(max_pages_per_batch)),
+    )
+    comptime Collection = PagedKVCacheCollection[
+        .bfloat16,
+        kv_params,
+        PAGE_SIZE,
+        MutAnyOrigin,
+        ImmutAnyOrigin,
+        ImmutAnyOrigin,
+        MutAnyOrigin,
+    ]
+    var kv_collection = Collection(
+        rebind[Collection.blocks_tt_type](blocks_tt.as_unsafe_any_origin()),
+        cache_lengths_tt.as_imm().as_unsafe_any_origin(),
+        lookup_table_tt.as_imm().as_unsafe_any_origin(),
         UInt32(seq_len),
         UInt32(num_keys),
     )
@@ -220,7 +214,7 @@ def test_gather_zeros_out_of_range_rows(ctx: DeviceContext) raises:
     # Step 2: plan. Gives the real total (`buffer_row_offsets`'s last
     # entry / `buffer_lengths[0]`) that the guard must key on.
     # ------------------------------------------------------------------
-    var input_row_offsets_host = alloc[UInt32](batch_size + 1)
+    var input_row_offsets_host = unsafe_alloc[UInt32](batch_size + 1)
     input_row_offsets_host[0] = UInt32(0)
     input_row_offsets_host[1] = UInt32(seq_len)
     var input_row_offsets_device = ctx.enqueue_create_buffer[.uint32](
@@ -239,46 +233,35 @@ def test_gather_zeros_out_of_range_rows(ctx: DeviceContext) raises:
     var buffer_lengths_device = ctx.enqueue_create_buffer[.int32](MAX_CHUNKS)
     ctx.synchronize()
 
-    comptime iro_layout = Layout.row_major(UNKNOWN_VALUE)
-    var input_row_offsets_lt = LayoutTensor[.uint32, iro_layout](
-        input_row_offsets_device.unsafe_ptr(),
-        RuntimeLayout[iro_layout].row_major(IndexList[1](batch_size + 1)),
+    var input_row_offsets_tt = TileTensor(
+        input_row_offsets_device, row_major(Int64(batch_size + 1))
     )
-    comptime bro_layout = Layout.row_major[2]()
-    var buffer_row_offsets_lt = LayoutTensor[.uint32, bro_layout](
-        buffer_row_offsets_device.unsafe_ptr(),
-        RuntimeLayout[bro_layout].row_major(
-            IndexList[2](MAX_CHUNKS, batch_size + 1)
-        ),
+    var buffer_row_offsets_tt = TileTensor(
+        buffer_row_offsets_device,
+        row_major(Int64(MAX_CHUNKS), Int64(batch_size + 1)),
     )
-    comptime co_layout = Layout.row_major[2]()
-    var cache_offsets_lt = LayoutTensor[.uint32, co_layout](
-        cache_offsets_device.unsafe_ptr(),
-        RuntimeLayout[co_layout].row_major(
-            IndexList[2](MAX_CHUNKS, batch_size)
-        ),
+    var cache_offsets_tt = TileTensor(
+        cache_offsets_device,
+        row_major(Int64(MAX_CHUNKS), Int64(batch_size)),
     )
-    # See `test_mla_prefill_amd_plan_gather.mojo`'s note on why this needs a
-    # genuinely static `MAX_CHUNKS` shape rather than `Layout.row_major[N]()`.
-    comptime bl_layout = Layout.row_major(MAX_CHUNKS)
-    var buffer_lengths_lt = LayoutTensor[.int32, bl_layout](
-        buffer_lengths_device.unsafe_ptr(),
-        RuntimeLayout[bl_layout].row_major(IndexList[1](MAX_CHUNKS)),
+    # The plan kernel unrolls MAX_CHUNKS from this static shape.
+    var buffer_lengths_tt = TileTensor(
+        buffer_lengths_device, row_major(Idx[MAX_CHUNKS])
     )
 
     generic_flare_mla_prefill_ragged_paged_plan[target="gpu"](
-        input_row_offsets_lt,
+        input_row_offsets_tt,
         kv_collection,
         UInt32(0),  # layer_idx
         buffer_token_size,
-        buffer_row_offsets_lt,
-        cache_offsets_lt,
-        buffer_lengths_lt,
+        buffer_row_offsets_tt,
+        cache_offsets_tt,
+        buffer_lengths_tt,
         ctx,
     )
     ctx.synchronize()
 
-    var buffer_lengths_host = alloc[Int32](MAX_CHUNKS)
+    var buffer_lengths_host = unsafe_alloc[Int32](MAX_CHUNKS)
     ctx.enqueue_copy(buffer_lengths_host, buffer_lengths_device)
     ctx.synchronize()
 
@@ -307,17 +290,10 @@ def test_gather_zeros_out_of_range_rows(ctx: DeviceContext) raises:
         inflated_length,
     )
 
-    var buffer_row_offsets_1d_lt = LayoutTensor[.uint32, iro_layout](
-        buffer_row_offsets_device.unsafe_ptr(),
-        RuntimeLayout[iro_layout].row_major(IndexList[1](batch_size + 1)),
-    )
-    comptime co_1d_layout = Layout.row_major(UNKNOWN_VALUE)
-    var cache_offsets_1d_lt = LayoutTensor[.uint32, co_1d_layout](
-        cache_offsets_device.unsafe_ptr(),
-        RuntimeLayout[co_1d_layout].row_major(IndexList[1](batch_size)),
-    )
+    var buffer_row_offsets_1d_tt = buffer_row_offsets_tt[0, :]
+    var cache_offsets_1d_tt = cache_offsets_tt[0, :]
 
-    var weight_host = alloc[Scalar[.bfloat16]](OUT_DIM * LATENT_DIM)
+    var weight_host = unsafe_alloc[Scalar[.bfloat16]](OUT_DIM * LATENT_DIM)
     randn[.bfloat16](weight_host, OUT_DIM * LATENT_DIM)
     var weight_device = ctx.enqueue_create_buffer[.bfloat16](
         OUT_DIM * LATENT_DIM
@@ -332,48 +308,43 @@ def test_gather_zeros_out_of_range_rows(ctx: DeviceContext) raises:
     )
     # Sentinel distinct from zero and the null page's value: proves the
     # zero asserted below came from an active write, not luck.
-    var sentinel_host = alloc[Scalar[.bfloat16]](inflated_length * LATENT_DIM)
+    var sentinel_host = unsafe_alloc[Scalar[.bfloat16]](
+        inflated_length * LATENT_DIM
+    )
     for i in range(inflated_length * LATENT_DIM):
         sentinel_host[i] = PRE_FILL_SENTINEL
     ctx.enqueue_copy(k_latent_device, sentinel_host)
     ctx.synchronize()
 
-    comptime w_layout = Layout.row_major[2]()
-    var weight_lt = LayoutTensor[.bfloat16, w_layout](
-        weight_device.unsafe_ptr(),
-        RuntimeLayout[w_layout].row_major(IndexList[2](OUT_DIM, LATENT_DIM)),
+    var weight_tt = TileTensor(
+        weight_device, row_major(Int64(OUT_DIM), Int64(LATENT_DIM))
     )
-    comptime kl_layout = Layout.row_major(UNKNOWN_VALUE, LATENT_DIM)
-    var k_latent_lt = LayoutTensor[.bfloat16, kl_layout](
-        k_latent_device.unsafe_ptr(),
-        RuntimeLayout[kl_layout].row_major(
-            IndexList[2](inflated_length, LATENT_DIM)
-        ),
+    var k_latent_tt = TileTensor(
+        k_latent_device,
+        row_major(Int64(inflated_length), Idx[LATENT_DIM]),
     )
-    comptime kb_layout = Layout.row_major(UNKNOWN_VALUE, OUT_DIM)
-    var k_buffer_lt = LayoutTensor[.bfloat16, kb_layout](
-        k_buffer_device.unsafe_ptr(),
-        RuntimeLayout[kb_layout].row_major(
-            IndexList[2](inflated_length, OUT_DIM)
-        ),
+    var k_buffer_tt = TileTensor(
+        k_buffer_device, row_major(Int64(inflated_length), Idx[OUT_DIM])
     )
 
     generic_flare_mla_decompress_k_cache_ragged_paged[
         target="gpu", dtype=DType.bfloat16
     ](
-        buffer_row_offsets_1d_lt,
-        cache_offsets_1d_lt,
+        buffer_row_offsets_1d_tt,
+        cache_offsets_1d_tt,
         Int32(inflated_length),
-        weight_lt,
+        weight_tt,
         kv_collection,
         UInt32(0),  # layer_idx
-        k_latent_lt,
-        k_buffer_lt,
+        k_latent_tt,
+        k_buffer_tt,
         ctx,
     )
     ctx.synchronize()
 
-    var k_latent_host = alloc[Scalar[.bfloat16]](inflated_length * LATENT_DIM)
+    var k_latent_host = unsafe_alloc[Scalar[.bfloat16]](
+        inflated_length * LATENT_DIM
+    )
     ctx.enqueue_copy(k_latent_host, k_latent_device)
     ctx.synchronize()
 
@@ -415,14 +386,14 @@ def test_gather_zeros_out_of_range_rows(ctx: DeviceContext) raises:
 
     print("  RESULT: PASS")
 
-    blocks_host.free()
-    cache_lengths_host.free()
-    lookup_table_host.free()
-    input_row_offsets_host.free()
-    buffer_lengths_host.free()
-    weight_host.free()
-    sentinel_host.free()
-    k_latent_host.free()
+    blocks_host.unsafe_free()
+    cache_lengths_host.unsafe_free()
+    lookup_table_host.unsafe_free()
+    input_row_offsets_host.unsafe_free()
+    buffer_lengths_host.unsafe_free()
+    weight_host.unsafe_free()
+    sentinel_host.unsafe_free()
+    k_latent_host.unsafe_free()
 
     _ = blocks_device
     _ = cache_lengths_device

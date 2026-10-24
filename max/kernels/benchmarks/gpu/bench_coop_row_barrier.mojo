@@ -38,12 +38,12 @@ def _sum(x: SIMD, y: type_of(x)) -> type_of(x):
 def coop_combine_kernel[
     group_size: Int
 ](
-    workspace: UnsafePointer[Int32, MutAnyOrigin],
-    sink: UnsafePointer[Float32, MutAnyOrigin],
+    workspace: MutPointer[Int32, MutAnyOrigin],
+    sink: MutPointer[Float32, MutAnyOrigin],
     iters: Int32,
 ):
-    var rank = Int(block_idx.x) % group_size
-    var row = Int(block_idx.x) // group_size
+    var rank = block_idx.x % group_size
+    var row = block_idx.x // group_size
     var coop = CoopRow[group_size](row, rank)
     var table = unsafe_stack_allocation[
         group_size * COOP_SLOT_FLOATS,
