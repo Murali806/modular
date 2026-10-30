@@ -1,0 +1,16 @@
+{
+  "name": "llama-setup-gpu-deck",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Reproducible PowerPoint and interactive HTML generator for the MAX Llama setup-to-GPU call flow.",
+  "scripts": {
+    "build": "node generate.cjs"
+  },
+  "dependencies": {
+    "adm-zip": "0.6.1",
+    "pptxgenjs": "4.0.1"
+  },
+  "overrides": {
+    "image-size": "2.0.4"
+  }
+}
