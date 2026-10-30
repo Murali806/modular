@@ -5,7 +5,7 @@
   "description": "Source-driven 500+ slide MAX graph, compiler, kernel, driver, and serving masterclass.",
   "scripts": {
     "build": "node generate.cjs",
-    "check": "node --check generate.cjs && node --check curriculum.cjs && node --check ../html/assets/course.js && node validate.cjs"
+    "check": "node --check generate.cjs && node --check curriculum.cjs && node --check animate.cjs && node --check course.js && node --check ../html/assets/course.js && node validate.cjs"
   },
   "dependencies": {
     "adm-zip": "0.6.1",

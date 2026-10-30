@@ -1,45 +1,60 @@
 {
-  "revision": "eab325f81bdbcf0195c511a56510f65c37540798",
-  "generatedAt": "2026-10-30T15:25:22.926Z",
-  "totalSlides": 546,
-  "totalScenes": 132,
-  "sourceFiles": 37,
+  "revision": "e9818b79ea73b498ec4b438a24ecd8d853307d0d",
+  "generatedAt": "2026-10-30T18:21:39.148Z",
+  "totalSlides": 586,
+  "totalScenes": 142,
+  "totalUnits": 71,
+  "sourceFiles": 41,
+  "animatedSlides": 568,
+  "clickGroups": 1704,
   "decks": [
     {
       "part": 1,
       "title": "Graph Construction and Finalization",
       "file": "decks/PART_01_GRAPH-CONSTRUCTION-FINALIZATION.pptx",
-      "slides": 91
+      "slides": 91,
+      "animatedSlides": 88,
+      "clickGroups": 264
     },
     {
       "part": 2,
       "title": "Graph Compiler Transformations",
       "file": "decks/PART_02_COMPILER-TRANSFORMATIONS.pptx",
-      "slides": 91
+      "slides": 91,
+      "animatedSlides": 88,
+      "clickGroups": 264
     },
     {
       "part": 3,
       "title": "Kernel Development and Optimization",
       "file": "decks/PART_03_KERNEL-DEVELOPMENT-OPTIMIZATION.pptx",
-      "slides": 91
+      "slides": 107,
+      "animatedSlides": 104,
+      "clickGroups": 312
     },
     {
       "part": 4,
       "title": "Driver, Offload, Memory, and Backends",
       "file": "decks/PART_04_DRIVER-OFFLOAD-BACKENDS.pptx",
-      "slides": 91
+      "slides": 115,
+      "animatedSlides": 112,
+      "clickGroups": 336
     },
     {
       "part": 5,
       "title": "MAX Serve Scheduling and Contexts",
       "file": "decks/PART_05_MAX-SERVE-SCHEDULING.pptx",
-      "slides": 91
+      "slides": 91,
+      "animatedSlides": 88,
+      "clickGroups": 264
     },
     {
       "part": 6,
       "title": "Source Atlas, Debugging, and Invariants",
       "file": "decks/PART_06_SOURCE-ATLAS-DEBUGGING.pptx",
-      "slides": 91
+      "slides": 91,
+      "animatedSlides": 88,
+      "clickGroups": 264
     }
   ],
   "html": [

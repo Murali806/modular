@@ -5,8 +5,8 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 const PptxGenJS = require("pptxgenjs");
-const AdmZip = require("adm-zip");
 const { parts } = require("./curriculum.cjs");
+const { injectAnimations } = require("./animate.cjs");
 
 const ROOT = path.resolve(__dirname, "../../../../..");
 const OUT = path.resolve(__dirname, "..");
@@ -17,18 +17,21 @@ const REV = execFileSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "u
 const SHAPE = new PptxGenJS().ShapeType;
 
 const C = {
-  ink: "121416", panel: "1B1F22", panel2: "23282C", paper: "F4F1EA",
-  muted: "A9B0B4", line: "3B4348", green: "36D17D", teal: "20C997",
-  coral: "FF6B4A", yellow: "FFD166", blue: "5AB2FF", violet: "A78BFA",
-  red: "FF4D67", white: "FFFFFF", black: "000000",
+  paper: "F2F0EA", panel: "FBFAF7", white: "FFFFFF", ink: "171C1E",
+  dark: "172023", dark2: "222D31", muted: "687277", line: "CBC7BD",
+  lineDark: "99A1A3", source: "087D70", boundary: "B64A35",
+  compile: "7053A3", gpu: "246FA2", orange: "C25E25", yellow: "D39C20",
 };
 
 const ensure = (dir) => fs.mkdirSync(dir, { recursive: true });
 const esc = (value) => String(value)
   .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
   .replaceAll(">", "&gt;").replaceAll('"', "&quot;");
-const clip = (value, n = 95) => value.length > n ? value.slice(0, n - 1) + "..." : value;
-const slugify = (value) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const clip = (value, length = 95) => String(value).length > length
+  ? `${String(value).slice(0, length - 3)}...` : String(value);
+const slugify = (value) => String(value).toLowerCase()
+  .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const animName = (slide, group, suffix) => `anim-s${String(slide).padStart(3, "0")}-g${String(group).padStart(2, "0")}-${slugify(suffix)}`;
 
 function readSource(file) {
   const full = path.join(ROOT, file);
@@ -57,10 +60,10 @@ function sourceWindow(unit, half) {
     let bestStart = searchStart;
     for (let candidate = searchStart; candidate <= searchEnd; candidate += 1) {
       const window = lines.slice(candidate, candidate + 8);
-      let score = window.reduce((sum, lineText) => {
-        const trimmed = lineText.trim();
+      let score = window.reduce((sum, text) => {
+        const trimmed = text.trim();
         let lineScore = trimmed ? 1 : -0.5;
-        for (const term of terms) if (lineText.includes(term)) lineScore += 3;
+        for (const term of terms) if (text.includes(term)) lineScore += 3;
         if (/^(if|for|while|return|comptime if)\b/.test(trimmed)) lineScore += 2;
         if (trimmed.startsWith("#") || trimmed.startsWith("//")) lineScore += 0.5;
         return sum + lineScore;
@@ -73,27 +76,27 @@ function sourceWindow(unit, half) {
     }
     start = bestStart;
   }
-  return Array.from({ length: 8 }, (_, i) => ({
-    number: start + i + 1,
-    text: lines[start + i] === undefined ? "" : lines[start + i],
+  return Array.from({ length: 8 }, (_, index) => ({
+    number: start + index + 1,
+    text: lines[start + index] === undefined ? "" : lines[start + index],
   }));
 }
 
 function explainLine(text) {
-  const s = text.trim();
-  if (!s) return "A visual separator keeps the source block readable; no runtime action occurs here.";
-  if (s.startsWith("#") || s.startsWith("//")) return "The source comment records an invariant, intent, or boundary that constrains the implementation below.";
-  if (s.startsWith("@")) return "A decorator or annotation attaches compile-time registration and dispatch metadata to the declaration that follows.";
-  if (/^(async\s+)?def\s/.test(s) || /^[\w:<>,*&\s]+\([^;]*\)\s*\{?$/.test(s)) return "This declaration defines a callable boundary; parameters and return type form the contract used by the next layer.";
-  if (/^(class|struct)\s/.test(s)) return "This type creates an ownership and behavior boundary for the state used by later calls.";
-  if (/^(if|elif|else|switch|case|comptime if)\b/.test(s)) return "This branch selects behavior from runtime or compile-time facts such as shape, device, target, or scheduling state.";
-  if (/^(for|while|comptime for)\b/.test(s)) return "This loop expands repeated work while preserving the surrounding ordering and dependency rules.";
-  if (s.includes("addPass") || s.includes("buildStage")) return "This line fixes transformation order; downstream passes consume the invariants produced here.";
-  if (s.includes("enqueue_")) return "This enqueues asynchronous device work; host completion is not implied until an explicit synchronization or dependency requires it.";
-  if (s.includes("verify")) return "This validates the current IR or object contract and surfaces diagnostics close to the originating source operation.";
-  if (s.startsWith("return")) return "The return value crosses this function boundary and becomes state consumed by the caller or the next compiler/runtime stage.";
-  if (s.includes("=")) return "This binds derived state or materializes an intermediate object that later lines transform, validate, or submit.";
-  return "This statement invokes or composes the next operation in the local dataflow; inspect its arguments to see which state crosses the boundary.";
+  const value = text.trim();
+  if (!value) return "This blank line separates logical source blocks; it performs no runtime work.";
+  if (value.startsWith("#") || value.startsWith("//")) return "The source comment records an invariant, intent, target distinction, or implementation boundary.";
+  if (value.startsWith("@")) return "The annotation attaches compile-time registration or dispatch metadata to the declaration that follows.";
+  if (/^(async\s+)?def\s/.test(value) || /^[\w:<>,*&\s]+\([^;]*\)\s*\{?$/.test(value)) return "This declaration defines a callable contract. Its parameters and return type determine which state can cross the boundary.";
+  if (/^(class|struct)\s/.test(value)) return "This type creates an ownership and behavior boundary for state used by later compiler or runtime calls.";
+  if (/^(if|elif|else|switch|case|comptime if)\b/.test(value)) return "This branch selects behavior from runtime or compile-time facts such as shape, target, device, or scheduler state.";
+  if (/^(for|while|comptime for)\b/.test(value)) return "This loop expands repeated work while preserving the ordering and dependency rules of the surrounding operation.";
+  if (value.includes("addPass") || value.includes("buildStage")) return "This fixes transformation order. The next pass consumes invariants produced by the pass registered here.";
+  if (value.includes("enqueue_")) return "This enqueues asynchronous work. Host completion is not implied until a dependency or explicit synchronization requires it.";
+  if (value.includes("verify")) return "This validates the current object or IR contract and surfaces diagnostics close to the source that created it.";
+  if (value.startsWith("return")) return "The returned object becomes state consumed by the caller or the next compiler/runtime stage.";
+  if (value.includes("=")) return "This binds derived state or materializes an intermediate object that later lines transform, validate, or submit.";
+  return "This statement invokes or composes the next operation in the local dataflow; its arguments identify the state crossing the boundary.";
 }
 
 function buildScenes(part) {
@@ -115,299 +118,373 @@ function buildScenes(part) {
         evidence: unit.evidence,
         formula: unit.formula,
         lines,
+        explanations: lines.map((line) => explainLine(line.text)),
       });
     }
   });
   return scenes;
 }
 
-const course = parts.map((p) => ({ ...p, scenes: buildScenes(p) }));
+const course = parts.map((part) => ({ ...part, scenes: buildScenes(part) }));
 
-function addText(slide, text, x, y, w, h, opt = {}) {
+function addText(slide, text, x, y, w, h, options = {}) {
   slide.addText(text, {
-    x, y, w, h, fontFace: opt.mono ? "Aptos Mono" : "Aptos",
-    fontSize: opt.size || 13, color: opt.color || C.paper,
-    bold: !!opt.bold, margin: opt.margin === undefined ? 0 : opt.margin,
-    valign: opt.valign || "mid", align: opt.align || "left",
-    fit: "shrink", breakLine: false, ...opt,
-  });
-}
-
-function rect(slide, x, y, w, h, fill, line = fill, radius = false) {
-  slide.addShape(radius ? SHAPE.roundRect : SHAPE.rect, {
-    x, y, w, h, fill: { color: fill }, line: { color: line, width: 1 },
-    radius: radius ? 0.05 : undefined,
-  });
-}
-
-function line(slide, x, y, w, h, color = C.line, arrow = false, width = 1.5) {
-  slide.addShape(SHAPE.line, {
     x, y, w, h,
-    line: { color, width, endArrowType: arrow ? "triangle" : "none" },
+    fontFace: options.mono ? "Aptos Mono" : "Aptos",
+    fontSize: options.size || 10,
+    color: options.color || C.ink,
+    bold: !!options.bold,
+    margin: options.margin === undefined ? 0 : options.margin,
+    valign: options.valign || "mid",
+    align: options.align || "left",
+    fit: "shrink",
+    breakLine: false,
+    paraSpaceAfterPt: 0,
+    objectName: options.name,
+    ...options.extra,
   });
 }
 
-function circle(slide, x, y, d, fill, label, opt = {}) {
-  slide.addShape(SHAPE.ellipse, { x, y, w: d, h: d, fill: { color: fill }, line: { color: opt.line || fill, width: 1.2 } });
-  addText(slide, label, x + 0.04, y + 0.04, d - 0.08, d - 0.08, { size: opt.size || 10, bold: true, color: opt.color || C.ink, align: "center" });
+function shape(slide, type, x, y, w, h, options = {}) {
+  const transparent = { color: C.white, transparency: 100 };
+  slide.addShape(type, {
+    x, y, w, h,
+    fill: options.fill === null ? transparent : { color: options.fill || C.white, transparency: options.transparency || 0 },
+    line: options.line === null ? transparent : {
+      color: options.line || options.fill || C.line,
+      width: options.width || 1,
+      dash: options.dash || "solid",
+      beginArrowType: options.beginArrowType || "none",
+      endArrowType: options.endArrowType || "none",
+    },
+    objectName: options.name,
+    radius: options.radius,
+    ...options.extra,
+  });
 }
 
-function notes(slide, text) {
-  if (typeof slide.addNotes === "function") slide.addNotes(text);
+function notes(slide, value) {
+  if (typeof slide.addNotes === "function") slide.addNotes(value);
 }
 
-function header(slide, part, scene, build) {
-  slide.background = { color: C.ink };
-  rect(slide, 0, 0, 0.14, 7.5, part.color);
-  addText(slide, `PART ${part.id}  /  ${scene.diagram.toUpperCase()}`, 0.42, 0.22, 4.4, 0.26, { size: 9.5, color: part.color, bold: true });
-  addText(slide, scene.title, 0.42, 0.52, 9.9, 0.52, { size: 25, bold: true });
-  addText(slide, clip(scene.role, 150), 0.44, 1.07, 11.6, 0.38, { size: 10.5, color: C.muted });
-  rect(slide, 11.65, 0.27, 1.15, 0.34, C.panel2, part.color, true);
-  addText(slide, `BUILD ${build}/4`, 11.65, 0.27, 1.15, 0.34, { size: 8.5, color: part.color, bold: true, align: "center" });
+function evidenceColor(scene) {
+  if (scene.evidence.includes("BOUNDARY")) return C.boundary;
+  if (scene.evidence.includes("GPU-LAB")) return C.gpu;
+  if (scene.evidence.includes("COMPILE-ONLY")) return C.compile;
+  return C.source;
 }
 
-function footer(slide, part, scene, slideNo, total) {
-  addText(slide, scene.evidence, 0.43, 7.15, 2.6, 0.16, { size: 7.5, color: scene.evidence.includes("BOUNDARY") ? C.yellow : part.color, bold: true });
-  addText(slide, `${REV.slice(0, 10)}  |  ${scene.file}:${scene.lines[0].number}`, 3.1, 7.15, 7.1, 0.16, { size: 7.2, color: C.muted, mono: true, align: "center" });
-  addText(slide, `${slideNo} / ${total}`, 11.55, 7.15, 1.2, 0.16, { size: 7.5, color: C.muted, align: "right" });
+function slideHeader(slide, part, scene, build, slideNo, total) {
+  shape(slide, SHAPE.rect, 0, 0, 13.333, 0.76, { fill: C.panel, line: C.line });
+  shape(slide, SHAPE.rect, 0, 0, 0.12, 0.76, { fill: part.color, line: part.color });
+  addText(slide, `PART ${String(part.id).padStart(2, "0")} / ${scene.diagram.toUpperCase()}`, 0.28, 0.1, 2.4, 0.18, { size: 7.5, color: part.color, bold: true });
+  addText(slide, scene.title, 0.28, 0.3, 7.85, 0.31, { size: 17, bold: true });
+  addText(slide, clip(scene.role, 115), 8.25, 0.17, 3.45, 0.38, { size: 7.3, color: C.muted, valign: "top" });
+  shape(slide, SHAPE.roundRect, 11.85, 0.13, 0.72, 0.28, { fill: C.white, line: evidenceColor(scene), radius: 0.03 });
+  addText(slide, clip(scene.evidence, 14), 11.88, 0.15, 0.66, 0.23, { size: 5.7, color: evidenceColor(scene), bold: true, align: "center" });
+  addText(slide, `${build}/4`, 12.68, 0.15, 0.42, 0.23, { size: 8.5, color: part.color, bold: true, mono: true, align: "right" });
+  addText(slide, `${slideNo}/${total}`, 12.62, 0.47, 0.48, 0.14, { size: 6.2, color: C.muted, mono: true, align: "right" });
 }
 
-function codePanel(slide, scene, build, part) {
-  rect(slide, 0.43, 1.62, 7.36, 4.78, C.panel, C.line, true);
-  rect(slide, 0.43, 1.62, 7.36, 0.42, C.panel2, C.line);
-  addText(slide, clip(scene.file, 78), 0.66, 1.7, 6.85, 0.2, { size: 8.2, color: part.color, mono: true, bold: true });
+function sourcePanel(slide, scene, build, part, slideNo) {
+  const x = 0.16, y = 0.86, w = 4.37, h = 6.08;
+  shape(slide, SHAPE.rect, x, y, w, h, { fill: C.dark, line: C.lineDark });
+  shape(slide, SHAPE.rect, x, y, w, 0.37, { fill: C.dark2, line: C.dark2 });
+  addText(slide, clip(scene.file, 73), x + 0.13, y + 0.08, 3.48, 0.18, { size: 6.5, color: "AAB5B8", mono: true });
+  addText(slide, `L${scene.lines[0].number}-L${scene.lines.at(-1).number}`, x + 3.62, y + 0.08, 0.58, 0.18, { size: 6.1, color: "AAB5B8", mono: true, align: "right" });
   const visible = build * 2;
-  scene.lines.forEach((entry, i) => {
-    const y = 2.13 + i * 0.5;
-    const shown = i < visible;
-    const newest = shown && i >= visible - 2;
-    if (newest) rect(slide, 0.51, y - 0.03, 7.18, 0.43, "293238", part.color);
-    else if (shown) rect(slide, 0.51, y - 0.03, 7.18, 0.43, i % 2 ? "1D2225" : C.panel);
-    else rect(slide, 0.51, y - 0.03, 7.18, 0.43, "171A1C");
-    addText(slide, String(entry.number), 0.63, y, 0.42, 0.24, { size: 8.5, color: shown ? C.muted : C.line, mono: true, align: "right" });
-    addText(slide, shown ? clip(entry.text, 94) : "", 1.18, y, 6.3, 0.25, { size: 8.8, color: newest ? C.white : C.paper, mono: true });
+  scene.lines.forEach((entry, index) => {
+    const lineY = y + 0.47 + index * 0.53;
+    const shown = index < visible;
+    const current = index >= visible - 2 && index < visible;
+    shape(slide, SHAPE.rect, x, lineY, w, 0.5, {
+      fill: current ? "2B3A3E" : shown ? (index % 2 ? "192225" : C.dark) : "13191B",
+      line: null,
+      transparency: shown ? 0 : 12,
+      name: current ? animName(slideNo, 1, `source-bg-${index}`) : undefined,
+    });
+    if (current) shape(slide, SHAPE.rect, x, lineY, 0.04, 0.5, { fill: part.color, line: part.color, name: animName(slideNo, 1, `source-bar-${index}`) });
+    addText(slide, String(entry.number), x + 0.08, lineY + 0.11, 0.36, 0.19, {
+      size: 6.5, color: shown ? "768489" : "3B474B", mono: true, align: "right",
+      name: current ? animName(slideNo, 1, `source-number-${index}`) : undefined,
+    });
+    addText(slide, shown ? clip(entry.text, 70) : "", x + 0.56, lineY + 0.08, 3.65, 0.28, {
+      size: 7.15, color: current ? C.white : shown ? "D8DEDF" : "4C585C", mono: true,
+      name: current ? animName(slideNo, 1, `source-text-${index}`) : undefined,
+    });
   });
-  const focus = scene.lines[Math.min(visible - 1, scene.lines.length - 1)];
-  rect(slide, 0.43, 6.54, 7.36, 0.43, C.panel2, part.color, true);
-  addText(slide, `L${focus.number}: ${clip(explainLine(focus.text), 145)}`, 0.62, 6.61, 6.95, 0.23, { size: 7.9, color: C.paper });
+  const focusIndex = visible - 1;
+  const focus = scene.lines[focusIndex];
+  shape(slide, SHAPE.rect, x, y + 4.83, w, 1.25, { fill: "F1EFE9", line: C.line });
+  addText(slide, `L${focus.number}`, x + 0.16, y + 4.98, 0.43, 0.18, { size: 6.8, color: part.color, bold: true, mono: true });
+  addText(slide, scene.explanations[focusIndex], x + 0.68, y + 4.91, 3.48, 0.74, { size: 7.1, color: C.ink, valign: "top" });
+  addText(slide, `ANCHOR  ${clip(scene.anchor.replaceAll("\n", " "), 58)}`, x + 0.16, y + 5.78, 4.03, 0.16, { size: 5.8, color: C.muted, mono: true });
 }
 
-function conceptLabel(slide, text, x, y, w, h, part, active = true, opt = {}) {
-  rect(slide, x, y, w, h, active ? C.panel2 : "191C1E", active ? part.color : C.line, true);
-  addText(slide, text, x + 0.08, y + 0.05, w - 0.16, h - 0.1, { size: opt.size || 9, color: active ? C.paper : C.line, bold: active, align: opt.align || "center" });
+function stepChips(slide, scene, build, part) {
+  scene.concepts.forEach((concept, index) => {
+    const chipX = 4.78 + index * 1.28;
+    const active = index === build - 1;
+    const done = index < build;
+    shape(slide, SHAPE.roundRect, chipX, 0.98, 1.2, 0.32, {
+      fill: active ? part.color : done ? "EDF6F3" : C.white,
+      line: done ? part.color : C.line,
+      radius: 0.03,
+    });
+    addText(slide, clip(concept, 18), chipX + 0.05, 1.02, 1.1, 0.21, { size: 5.8, color: active ? C.white : done ? part.color : C.muted, bold: done, align: "center" });
+  });
 }
 
-function diagramFlow(slide, scene, build, part, vertical = false) {
-  const visible = build;
-  scene.concepts.forEach((c, i) => {
-    const x = vertical ? 8.52 : 8.08 + (i % 2) * 2.32;
-    const y = vertical ? 1.9 + i * 1.02 : 2.0 + Math.floor(i / 2) * 1.65;
-    conceptLabel(slide, c, x, y, vertical ? 3.7 : 2.05, 0.68, part, i < visible);
-    if (i > 0 && i < visible) {
-      if (vertical) line(slide, 10.37, y - 0.34, 0, 0.32, part.color, true, 2);
-      else if (i % 2 === 1) line(slide, x - 0.26, y + 0.34, 0.22, 0, part.color, true, 2);
+function conceptBox(slide, text, x, y, w, h, part, status, slideNo, suffix) {
+  const current = status === "current";
+  const revealed = current || status === "done";
+  shape(slide, SHAPE.roundRect, x, y, w, h, {
+    fill: current ? "EAF6F2" : revealed ? C.white : "F3F1EC",
+    line: revealed ? part.color : C.line,
+    transparency: revealed ? 0 : 18,
+    radius: 0.04,
+    name: current ? animName(slideNo, 2, `${suffix}-box`) : undefined,
+  });
+  addText(slide, text, x + 0.09, y + 0.08, w - 0.18, h - 0.16, {
+    size: 8, color: revealed ? C.ink : C.muted, bold: revealed, align: "center",
+    name: current ? animName(slideNo, 2, `${suffix}-text`) : undefined,
+  });
+}
+
+function flowDiagram(slide, scene, build, part, slideNo, vertical = false, boundary = false) {
+  scene.concepts.forEach((concept, index) => {
+    const x = vertical ? 6.15 : 4.93 + (index % 2) * 2.48;
+    const y = vertical ? 1.65 + index * 1.15 : 1.75 + Math.floor(index / 2) * 2.0;
+    const status = index === build - 1 ? "current" : index < build ? "done" : "future";
+    conceptBox(slide, concept, x, y, vertical ? 2.65 : 2.2, vertical ? 0.74 : 1.18, part, status, slideNo, `flow-${index}`);
+    if (boundary) shape(slide, SHAPE.line, x + 0.05, y + (vertical ? 0.63 : 1.07), vertical ? 2.55 : 2.1, 0, { line: C.boundary, dash: "dash" });
+    if (index > 0 && index < build) {
+      const current = index === build - 1;
+      if (vertical) shape(slide, SHAPE.line, 7.47, y - 0.35, 0, 0.32, { line: part.color, endArrowType: "triangle", width: 1.6, name: current ? animName(slideNo, 2, `flow-arrow-${index}`) : undefined });
+      else if (index % 2 === 1) shape(slide, SHAPE.line, x - 0.24, y + 0.58, 0.2, 0, { line: part.color, endArrowType: "triangle", width: 1.6, name: current ? animName(slideNo, 2, `flow-arrow-${index}`) : undefined });
+      else shape(slide, SHAPE.line, x + 1.1, y - 0.72, 0, 0.68, { line: part.color, endArrowType: "triangle", width: 1.6, name: current ? animName(slideNo, 2, `flow-arrow-${index}`) : undefined });
     }
   });
 }
 
-function diagramIR(slide, scene, build, part) {
-  addText(slide, "BEFORE", 8.04, 1.77, 1.2, 0.22, { size: 8, color: C.muted, bold: true });
-  addText(slide, "AFTER", 10.72, 1.77, 1.2, 0.22, { size: 8, color: part.color, bold: true });
-  conceptLabel(slide, scene.concepts[0], 8.02, 2.13, 1.75, 0.72, part, build >= 1);
-  conceptLabel(slide, scene.concepts[1], 8.02, 3.17, 1.75, 0.72, part, build >= 2);
-  line(slide, 9.92, 2.95, 0.58, 0, part.color, build >= 3, 2.5);
-  conceptLabel(slide, scene.concepts[2], 10.67, 2.13, 1.78, 0.72, part, build >= 3);
-  conceptLabel(slide, scene.concepts[3], 10.67, 3.17, 1.78, 0.72, part, build >= 4);
-  if (build >= 3) {
-    addText(slide, "PASS", 9.79, 2.47, 0.82, 0.28, { size: 8, color: part.color, bold: true, align: "center" });
-  }
+function irDiagram(slide, scene, build, part, slideNo) {
+  addText(slide, "BEFORE", 4.92, 1.52, 1.2, 0.18, { size: 6.4, color: C.muted, bold: true });
+  addText(slide, "AFTER", 8.45, 1.52, 1.2, 0.18, { size: 6.4, color: part.color, bold: true });
+  scene.concepts.forEach((concept, index) => {
+    const x = index < 2 ? 4.93 : 8.2;
+    const y = 1.88 + (index % 2) * 1.35;
+    const status = index === build - 1 ? "current" : index < build ? "done" : "future";
+    conceptBox(slide, `%${index}  ${concept}`, x, y, 1.78, 0.86, part, status, slideNo, `ir-${index}`);
+  });
+  shape(slide, SHAPE.chevron, 6.96, 2.32, 0.92, 1.12, { fill: build >= 3 ? part.color : "DEDAD1", line: build >= 3 ? part.color : C.line, name: build === 3 ? animName(slideNo, 2, "ir-pass") : undefined });
+  addText(slide, "PASS", 7.05, 2.7, 0.68, 0.18, { size: 7, color: build >= 3 ? C.white : C.muted, bold: true, align: "center", name: build === 3 ? animName(slideNo, 2, "ir-pass-text") : undefined });
 }
 
-function diagramMemory(slide, scene, build, part) {
-  const labels = scene.concepts;
-  addText(slide, "HOST / OWNER", 8.02, 2.02, 1.35, 0.2, { size: 7.5, color: C.muted, bold: true });
-  addText(slide, "DEVICE / NEXT STATE", 10.55, 2.02, 1.7, 0.2, { size: 7.5, color: part.color, bold: true });
-  for (let i = 0; i < 4; i += 1) {
-    const y = 2.36 + i * 0.75;
-    rect(slide, 8.04, y, 1.62, 0.48, i < build ? "2B3236" : "191C1E", i < build ? C.muted : C.line, true);
-    rect(slide, 10.74, y, 1.62, 0.48, i < build ? C.panel2 : "191C1E", i < build ? part.color : C.line, true);
-    addText(slide, clip(labels[i], 22), 8.12, y + 0.07, 1.46, 0.3, { size: 7.5, color: i < build ? C.paper : C.line, align: "center" });
-    addText(slide, i < build ? `next: ${clip(labels[i], 16)}` : "", 10.82, y + 0.07, 1.46, 0.3, { size: 7.2, color: i < build ? C.paper : C.line, align: "center" });
-    if (i < build) line(slide, 9.72, y + 0.24, 0.92, 0, i % 2 ? C.yellow : part.color, true, 2);
-  }
-}
-
-function diagramTile(slide, scene, build, part) {
-  const x0 = 8.15, y0 = 1.98, cell = 0.52;
-  for (let r = 0; r < 6; r += 1) {
-    for (let c = 0; c < 7; c += 1) {
-      const stage = Math.floor(c / 2) + 1;
-      rect(slide, x0 + c * cell, y0 + r * cell, cell - 0.04, cell - 0.04, stage <= build ? (r < 3 ? part.color : C.panel2) : "191C1E", stage <= build ? C.line : "2A2F32");
-    }
-  }
-  for (let i = 0; i < 4; i += 1) addText(slide, scene.concepts[i], 8.1 + (i % 2) * 2.1, 5.3 + Math.floor(i / 2) * 0.45, 1.9, 0.28, { size: 7.5, color: i < build ? part.color : C.line, bold: i < build, align: "center" });
-}
-
-function diagramTimeline(slide, scene, build, part) {
-  const lanes = ["CPU", "COPY", "GPU", "RETIRE"];
-  lanes.forEach((laneName, i) => {
-    const y = 2.0 + i * 0.85;
-    addText(slide, laneName, 8.02, y, 0.72, 0.28, { size: 7.5, color: C.muted, bold: true });
-    line(slide, 8.82, y + 0.16, 3.62, 0, C.line, false, 1);
-    if (i < build) {
-      const x = 8.9 + i * 0.46;
-      rect(slide, x, y - 0.02, 1.58 + (3 - i) * 0.18, 0.36, i % 2 ? part.color : C.panel2, i % 2 ? part.color : C.muted, true);
-      addText(slide, clip(scene.concepts[i], 25), x + 0.08, y + 0.03, 1.65, 0.23, { size: 7.2, color: i % 2 ? C.ink : C.paper, bold: true, align: "center" });
+function memoryDiagram(slide, scene, build, part, slideNo) {
+  addText(slide, "OWNER / SOURCE", 4.95, 1.53, 1.5, 0.18, { size: 6.2, color: C.muted, bold: true });
+  addText(slide, "NEXT RESIDENCE", 8.5, 1.53, 1.4, 0.18, { size: 6.2, color: part.color, bold: true });
+  scene.concepts.forEach((concept, index) => {
+    const y = 1.84 + index * 0.94;
+    const current = index === build - 1;
+    const revealed = index < build;
+    conceptBox(slide, concept, 4.94, y, 1.78, 0.57, part, current ? "current" : revealed ? "done" : "future", slideNo, `mem-left-${index}`);
+    conceptBox(slide, index === 3 ? "consumer result" : scene.concepts[Math.min(3, index + 1)], 8.28, y, 1.78, 0.57, part, current ? "current" : revealed ? "done" : "future", slideNo, `mem-right-${index}`);
+    if (revealed) {
+      shape(slide, SHAPE.line, 6.9, y + 0.29, 1.18, 0, { line: part.color, endArrowType: "triangle", width: 1.8, name: current ? animName(slideNo, 2, `mem-arrow-${index}`) : undefined });
+      if (current) shape(slide, SHAPE.ellipse, 7.1, y + 0.18, 0.2, 0.2, { fill: part.color, line: part.color, name: animName(slideNo, 2, `mem-packet-${index}`) });
     }
   });
 }
 
-function diagramRoofline(slide, scene, build, part) {
-  const x = 8.25, y = 5.02, w = 3.75, h = 2.75;
-  line(slide, x, y, w, 0, C.muted, true, 1.5);
-  line(slide, x, y, 0, -h, C.muted, true, 1.5);
-  if (build >= 1) line(slide, x + 0.12, y - 0.12, 2.05, -1.92, part.color, false, 3);
-  if (build >= 2) line(slide, x + 2.17, y - 2.04, 1.46, 0, C.yellow, false, 3);
-  if (build >= 3) circle(slide, x + 1.61, y - 1.71, 0.28, C.red, "", { line: C.white });
-  if (build >= 4) circle(slide, x + 2.55, y - 2.18, 0.28, C.green, "", { line: C.white });
-  addText(slide, "Arithmetic intensity ->", 8.73, 5.18, 2.9, 0.22, { size: 7.5, color: C.muted, align: "center" });
-  addText(slide, "Performance", 7.9, 2.3, 0.3, 1.3, { size: 7.5, color: C.muted, rotate: 270, align: "center" });
-}
-
-function diagramBackend(slide, scene, build, part) {
-  conceptLabel(slide, scene.concepts[0], 9.25, 1.83, 2.0, 0.58, part, build >= 1);
-  for (let i = 1; i < 4; i += 1) {
-    const y = 2.74 + (i - 1) * 0.92;
-    if (i < build) line(slide, 10.23, 2.4, (i - 2) * 0.58, y - 2.42, part.color, true, 1.8);
-    conceptLabel(slide, scene.concepts[i], 8.12 + (i % 2) * 2.25, y, 2.02, 0.58, part, i < build);
-  }
-}
-
-function diagramState(slide, scene, build, part) {
-  scene.concepts.forEach((c, i) => {
-    const x = 8.08 + (i % 2) * 2.28;
-    const y = 2.0 + Math.floor(i / 2) * 1.55;
-    circle(slide, x + 0.48, y, 0.82, i < build ? part.color : C.panel2, String(i + 1), { color: i < build ? C.ink : C.line, line: i < build ? part.color : C.line });
-    addText(slide, c, x, y + 0.91, 1.78, 0.35, { size: 7.7, color: i < build ? C.paper : C.line, bold: i < build, align: "center" });
+function tileDiagram(slide, scene, build, part, slideNo) {
+  const matrices = [{ x: 4.84, label: "A / INPUT" }, { x: 8.25, label: "B / OUTPUT" }];
+  matrices.forEach((matrix, matrixIndex) => {
+    shape(slide, SHAPE.rect, matrix.x, 1.62, 1.92, 3.25, { fill: C.white, line: C.lineDark });
+    addText(slide, matrix.label, matrix.x + 0.12, 1.74, 1.6, 0.18, { size: 6.5, color: C.ink, bold: true, mono: true });
+    for (let row = 0; row < 8; row += 1) {
+      for (let col = 0; col < 8; col += 1) {
+        const active = build > 0 && ((row + col + matrixIndex) % Math.max(2, 6 - build) === 0 || (row < build + 1 && col < build + 1));
+        shape(slide, SHAPE.rect, matrix.x + 0.12 + col * 0.205, 2.08 + row * 0.31, 0.17, 0.26, { fill: active ? (matrixIndex ? "D9CFF3" : "7BC4AE") : "F0EEE8", line: active ? part.color : "D8D5CE", width: 0.5 });
+      }
+    }
   });
-  if (build >= 2) line(slide, 9.42, 2.41, 0.9, 0, part.color, true, 1.8);
-  if (build >= 3) line(slide, 10.77, 2.85, 0, 0.68, part.color, true, 1.8);
-  if (build >= 4) line(slide, 10.32, 3.96, -0.9, 0, part.color, true, 1.8);
+  scene.concepts.forEach((concept, index) => conceptBox(slide, concept, 6.99, 1.72 + index * 0.82, 1.04, 0.55, part, index === build - 1 ? "current" : index < build ? "done" : "future", slideNo, `tile-${index}`));
 }
 
-function diagramFor(slide, scene, build, part) {
-  rect(slide, 7.98, 1.62, 4.82, 4.78, C.panel, C.line, true);
-  const type = scene.diagram;
-  if (!["memory", "buffers", "cache"].includes(type)) {
-    addText(slide, scene.diagram.toUpperCase(), 8.18, 1.72, 2.0, 0.2, { size: 8, color: part.color, bold: true });
-  }
-  if (["pipeline", "sequence", "graph"].includes(type)) diagramFlow(slide, scene, build, part, type === "sequence");
-  else if (type === "ir") diagramIR(slide, scene, build, part);
-  else if (["memory", "buffers", "cache"].includes(type)) diagramMemory(slide, scene, build, part);
-  else if (type === "tile") diagramTile(slide, scene, build, part);
-  else if (["timeline", "schedule", "queue"].includes(type)) diagramTimeline(slide, scene, build, part);
-  else if (type === "roofline") diagramRoofline(slide, scene, build, part);
-  else if (["backend", "dispatch", "boundary"].includes(type)) diagramBackend(slide, scene, build, part);
-  else diagramState(slide, scene, build, part);
-  rect(slide, 7.98, 6.54, 4.82, 0.43, C.panel2, part.color, true);
-  addText(slide, scene.formula, 8.13, 6.61, 4.52, 0.23, { size: 8.2, color: C.paper, mono: true, align: "center" });
+function timelineDiagram(slide, scene, build, part, slideNo) {
+  const lanes = ["HOST", "COPY", "QUEUE", "GPU"];
+  lanes.forEach((lane, index) => {
+    const y = 1.72 + index * 0.91;
+    addText(slide, lane, 4.88, y + 0.12, 0.62, 0.18, { size: 6.3, color: C.muted, bold: true, mono: true });
+    shape(slide, SHAPE.line, 5.56, y + 0.24, 4.42, 0, { line: C.line, width: 0.8 });
+    const current = index === build - 1;
+    if (index < build) {
+      shape(slide, SHAPE.roundRect, 5.72 + index * 0.55, y, 2.0 + (3 - index) * 0.28, 0.48, { fill: current ? "EAF6F2" : C.white, line: part.color, radius: 0.03, name: current ? animName(slideNo, 2, `timeline-${index}`) : undefined });
+      addText(slide, scene.concepts[index], 5.82 + index * 0.55, y + 0.08, 1.8 + (3 - index) * 0.28, 0.26, { size: 6.5, bold: true, align: "center", name: current ? animName(slideNo, 2, `timeline-text-${index}`) : undefined });
+    }
+  });
+  shape(slide, SHAPE.line, 5.68 + build * 0.85, 1.55, 0, 4.0, { line: part.color, width: 1.6, name: animName(slideNo, 2, "timeline-playhead") });
 }
 
-function titleSlide(pptx, part, slideNo, total) {
+function rooflineDiagram(slide, scene, build, part, slideNo) {
+  const x = 5.08, y = 5.37, w = 3.72, h = 3.35;
+  shape(slide, SHAPE.line, x, y, w, 0, { line: C.ink, width: 1.2 });
+  shape(slide, SHAPE.line, x, y, 0, -h, { line: C.ink, width: 1.2 });
+  [0.8, 1.6, 2.4].forEach((offset) => shape(slide, SHAPE.line, x, y - offset, w, 0, { line: "DDD8CF", dash: "dash", width: 0.6 }));
+  shape(slide, SHAPE.line, x + 0.08, y - 0.08, 2.35, -2.45, { line: part.color, width: 2.8 });
+  shape(slide, SHAPE.line, x + 2.43, y - 2.53, 1.18, 0, { line: C.yellow, width: 2.8 });
+  shape(slide, SHAPE.ellipse, x + 0.45 + build * 0.62, y - 0.38 - build * 0.56, 0.22, 0.22, { fill: C.orange, line: C.white, width: 1.2, name: animName(slideNo, 2, "roof-point") });
+  addText(slide, "Arithmetic intensity ->", 5.75, 5.56, 2.7, 0.18, { size: 6.2, color: C.muted, mono: true, align: "center" });
+  scene.concepts.forEach((concept, index) => conceptBox(slide, concept, 8.98, 1.65 + index * 0.88, 1.0, 0.58, part, index === build - 1 ? "current" : index < build ? "done" : "future", slideNo, `roof-${index}`));
+}
+
+function backendDiagram(slide, scene, build, part, slideNo) {
+  conceptBox(slide, scene.concepts[0], 6.23, 1.65, 2.25, 0.78, part, build >= 1 ? (build === 1 ? "current" : "done") : "future", slideNo, "backend-core");
+  scene.concepts.slice(1).forEach((concept, local) => {
+    const index = local + 1;
+    const x = local % 2 ? 7.55 : 4.96;
+    const y = 3.08 + Math.floor(local / 2) * 1.2;
+    conceptBox(slide, concept, x, y, 2.25, 0.76, part, index === build - 1 ? "current" : index < build ? "done" : "future", slideNo, `backend-${index}`);
+    if (index < build) shape(slide, SHAPE.line, 7.34, 2.42, x + 1.12 - 7.34, y - 2.42, { line: part.color, endArrowType: "triangle", width: 1.4, dash: "dash", name: index === build - 1 ? animName(slideNo, 2, `backend-arrow-${index}`) : undefined });
+  });
+  shape(slide, SHAPE.rect, 5.15, 5.37, 4.62, 0.58, { fill: "FFF0EB", line: C.boundary, dash: "dash" });
+  addText(slide, "NATIVE / VENDOR IMPLEMENTATION BOUNDARY", 5.28, 5.53, 4.35, 0.18, { size: 6.4, color: C.boundary, bold: true, align: "center" });
+}
+
+function stateDiagram(slide, scene, build, part, slideNo) {
+  scene.concepts.forEach((concept, index) => {
+    const x = 5.0 + (index % 2) * 2.52;
+    const y = 1.72 + Math.floor(index / 2) * 2.0;
+    const status = index === build - 1 ? "current" : index < build ? "done" : "future";
+    conceptBox(slide, concept, x, y, 2.17, 1.22, part, status, slideNo, `state-${index}`);
+    shape(slide, SHAPE.ellipse, x + 0.12, y - 0.14, 0.38, 0.38, { fill: status === "current" ? part.color : C.white, line: part.color, name: status === "current" ? animName(slideNo, 2, `state-index-${index}`) : undefined });
+    addText(slide, String(index + 1), x + 0.12, y - 0.12, 0.38, 0.3, { size: 6.6, color: status === "current" ? C.white : part.color, bold: true, align: "center", name: status === "current" ? animName(slideNo, 2, `state-index-text-${index}`) : undefined });
+  });
+}
+
+function diagramPanel(slide, scene, build, part, slideNo) {
+  const x = 4.64, y = 0.86, w = 5.62, h = 6.08;
+  shape(slide, SHAPE.rect, x, y, w, h, { fill: "FAF9F6", line: C.line });
+  shape(slide, SHAPE.rect, x, y, w, 0.48, { fill: "F6F4EF", line: C.line });
+  addText(slide, scene.diagram.toUpperCase(), x + 0.14, y + 0.12, 0.82, 0.18, { size: 6.2, color: part.color, bold: true });
+  addText(slide, scene.unitTitle, x + 1.02, y + 0.1, 2.78, 0.22, { size: 8.3, bold: true });
+  stepChips(slide, scene, build, part);
+  if (scene.diagram === "ir") irDiagram(slide, scene, build, part, slideNo);
+  else if (["memory", "buffers", "cache", "ownership"].includes(scene.diagram)) memoryDiagram(slide, scene, build, part, slideNo);
+  else if (scene.diagram === "tile") tileDiagram(slide, scene, build, part, slideNo);
+  else if (["timeline", "schedule", "queue"].includes(scene.diagram)) timelineDiagram(slide, scene, build, part, slideNo);
+  else if (scene.diagram === "roofline") rooflineDiagram(slide, scene, build, part, slideNo);
+  else if (["backend", "dispatch"].includes(scene.diagram)) backendDiagram(slide, scene, build, part, slideNo);
+  else if (["state", "tree"].includes(scene.diagram)) stateDiagram(slide, scene, build, part, slideNo);
+  else flowDiagram(slide, scene, build, part, slideNo, scene.diagram === "sequence", scene.diagram === "boundary");
+}
+
+function inspectorPanel(slide, scene, build, part, slideNo) {
+  const x = 10.37, y = 0.86, w = 2.8, h = 6.08;
+  const focusIndex = build * 2 - 1;
+  const focus = scene.lines[focusIndex];
+  shape(slide, SHAPE.rect, x, y, w, h, { fill: C.panel, line: C.line });
+  shape(slide, SHAPE.rect, x, y, w, 0.48, { fill: C.white, line: C.line });
+  addText(slide, `STATE ${String(build).padStart(2, "0")}`, x + 0.14, y + 0.12, 0.82, 0.18, { size: 6.3, color: part.color, bold: true, mono: true });
+  addText(slide, scene.concepts[build - 1], x + 0.92, y + 0.1, 1.7, 0.22, { size: 8, bold: true, align: "right" });
+  shape(slide, SHAPE.rect, x + 0.12, y + 0.62, w - 0.24, 0.82, { fill: "F3F1EC", line: part.color, name: animName(slideNo, 3, "inspector-summary") });
+  addText(slide, scene.explanations[focusIndex], x + 0.23, y + 0.72, w - 0.46, 0.58, { size: 6.8, valign: "top", name: animName(slideNo, 3, "inspector-summary-text") });
+  addText(slide, "OBJECT STATE", x + 0.14, y + 1.62, 1.1, 0.16, { size: 6.1, color: C.muted, bold: true });
+  scene.concepts.forEach((concept, index) => {
+    const rowY = y + 1.86 + index * 0.44;
+    shape(slide, SHAPE.line, x + 0.13, rowY + 0.35, w - 0.26, 0, { line: "DDD9D0", width: 0.5 });
+    addText(slide, clip(concept, 25), x + 0.16, rowY, 1.62, 0.25, { size: 6.4, color: index === build - 1 ? part.color : C.ink, bold: index < build });
+    addText(slide, index < build ? "materialized" : index === build ? "next" : "pending", x + 1.82, rowY, 0.78, 0.25, { size: 5.7, color: C.muted, align: "right" });
+  });
+  addText(slide, "MATH / INVARIANT", x + 0.14, y + 3.78, 1.2, 0.16, { size: 6.1, color: C.muted, bold: true });
+  shape(slide, SHAPE.rect, x + 0.12, y + 4.02, w - 0.24, 0.68, { fill: C.dark, line: part.color, name: animName(slideNo, 3, "inspector-formula") });
+  addText(slide, scene.formula, x + 0.22, y + 4.1, w - 0.44, 0.48, { size: 6.3, color: C.white, mono: true, align: "center", name: animName(slideNo, 3, "inspector-formula-text") });
+  addText(slide, "EVIDENCE BOUNDARY", x + 0.14, y + 4.9, 1.25, 0.16, { size: 6.1, color: C.muted, bold: true });
+  const boundaryText = scene.evidence.includes("GPU-LAB")
+    ? "Structure is source-visible. Timing, traffic, occupancy, and achieved overlap require a target GPU measurement."
+    : scene.evidence.includes("BOUNDARY")
+      ? "The handoff is source-visible; native or vendor implementation details remain below the marked boundary."
+      : "The current claim is proven by the displayed repository lines.";
+  addText(slide, boundaryText, x + 0.14, y + 5.12, w - 0.28, 0.58, { size: 6.2, color: C.muted, valign: "top" });
+  addText(slide, `FOCUS L${focus.number}`, x + 0.14, y + 5.78, 1.0, 0.15, { size: 5.8, color: part.color, bold: true, mono: true });
+}
+
+function contentSlide(pptx, part, scene, build, slideNo, total) {
   const slide = pptx.addSlide();
-  slide.background = { color: C.ink };
-  rect(slide, 0.7, 0.6, 0.17, 5.95, part.color);
-  addText(slide, `LLAMA / MAX / GPU MASTERCLASS  |  PART ${part.id}`, 1.12, 0.75, 7.7, 0.32, { size: 12, color: part.color, bold: true });
-  addText(slide, part.title, 1.08, 1.32, 8.2, 1.3, { size: 37, bold: true, valign: "top" });
-  addText(slide, part.subtitle, 1.12, 2.93, 7.35, 0.78, { size: 17, color: C.muted, valign: "top" });
-  const stages = part.units.slice(0, 4);
-  stages.forEach((u, i) => {
-    conceptLabel(slide, u.title, 9.28, 1.0 + i * 1.18, 3.25, 0.72, part, true, { size: 10 });
-    if (i < stages.length - 1) line(slide, 10.9, 1.73 + i * 1.18, 0, 0.42, part.color, true, 2);
-  });
-  addText(slide, `${part.scenes.length} source scenes  /  4 progressive builds each`, 1.12, 5.76, 6.4, 0.3, { size: 12, color: C.yellow, bold: true });
-  addText(slide, `SOURCE REV ${REV.slice(0, 12)}`, 1.12, 6.24, 4.2, 0.24, { size: 9, color: C.muted, mono: true });
-  footer(slide, part, { evidence: "SOURCE + BOUNDARY", file: "course manifest", lines: [{ number: 1 }] }, slideNo, total);
-  notes(slide, `${part.title}\n\n${part.subtitle}\n\nThis deck contains ${part.scenes.length} source scenes. Each scene uses four progressive slides so PowerPoint transitions reveal source lines and object interactions in order.`);
+  slide.background = { color: C.paper };
+  slideHeader(slide, part, scene, build, slideNo, total);
+  sourcePanel(slide, scene, build, part, slideNo);
+  diagramPanel(slide, scene, build, part, slideNo);
+  inspectorPanel(slide, scene, build, part, slideNo);
+  addText(slide, `${REV.slice(0, 12)}  |  ${scene.file}:${scene.lines[0].number}`, 0.2, 7.14, 8.6, 0.14, { size: 5.8, color: C.muted, mono: true });
+  addText(slide, "CLICK 1: SOURCE  ·  CLICK 2: SYSTEM  ·  CLICK 3: STATE", 8.85, 7.14, 4.28, 0.14, { size: 5.8, color: part.color, bold: true, align: "right" });
+  const visible = scene.lines.slice(0, build * 2);
+  notes(slide, [
+    scene.title, "", scene.role, "", `Evidence: ${scene.evidence}`,
+    `Source: ${scene.file}:${scene.lines[0].number}-${scene.lines.at(-1).number}`,
+    `Function/anchor: ${scene.anchor.replaceAll("\n", " ")}`, "", "Click sequence:",
+    "1. Reveal the two source lines introduced by this build.",
+    `2. Reveal the system object or transformation: ${scene.concepts[build - 1]}.`,
+    "3. Reveal the object-state explanation and mathematical invariant.", "",
+    ...visible.map((entry, index) => `L${entry.number}: ${entry.text.trim()}\n  ${scene.explanations[index]}`),
+    "", `Mathematical model: ${scene.formula}`, "",
+    "GPU-LAB statements require measurement on the selected target. Source inspection is not presented as measured device performance.",
+  ].join("\n"));
 }
 
-function routeSlide(pptx, part, slideNo, total) {
+function titleSlide(pptx, part, total) {
   const slide = pptx.addSlide();
-  slide.background = { color: C.ink };
-  addText(slide, `PART ${part.id} SOURCE ROUTE`, 0.65, 0.45, 4.2, 0.28, { size: 10, color: part.color, bold: true });
-  addText(slide, "Objects and functions in execution order", 0.65, 0.85, 8.8, 0.58, { size: 27, bold: true });
-  part.units.forEach((u, i) => {
-    const col = i < 6 ? 0 : 1;
-    const row = i < 6 ? i : i - 6;
-    const x = 0.72 + col * 6.18;
-    const y = 1.72 + row * 0.82;
-    circle(slide, x, y, 0.45, part.color, String(i + 1), { size: 8.5 });
-    addText(slide, u.title, x + 0.62, y - 0.01, 4.95, 0.24, { size: 10.2, bold: true });
-    addText(slide, clip(u.anchor.replaceAll("\n", " "), 64), x + 0.62, y + 0.27, 4.95, 0.2, { size: 7.4, color: C.muted, mono: true });
-    if (row < 5 && (i < 5 || i >= 6)) line(slide, x + 0.22, y + 0.47, 0, 0.31, C.line, true, 1.3);
-  });
-  footer(slide, part, { evidence: "SOURCE", file: "curriculum.cjs", lines: [{ number: 1 }] }, slideNo, total);
-  notes(slide, `Source route for ${part.title}. The numbered functions form the teaching order. Each function is split into two eight-line source scenes.`);
+  slide.background = { color: C.dark };
+  shape(slide, SHAPE.rect, 0.62, 0.55, 0.14, 6.18, { fill: part.color, line: part.color });
+  addText(slide, `LLAMA / MAX / GPU MASTERCLASS  ·  PART ${String(part.id).padStart(2, "0")}`, 1.02, 0.72, 7.4, 0.28, { size: 10, color: part.color, bold: true });
+  addText(slide, part.title, 1.0, 1.25, 7.35, 1.15, { size: 34, color: C.white, bold: true, valign: "top" });
+  addText(slide, part.subtitle, 1.03, 2.67, 6.8, 0.82, { size: 15, color: "AAB5B8", valign: "top" });
+  addText(slide, `${part.units.length} source units  ·  ${part.scenes.length} source scenes  ·  ${total} slides`, 1.03, 5.62, 6.5, 0.28, { size: 11, color: C.yellow, bold: true });
+  addText(slide, `SOURCE REV ${REV.slice(0, 12)}`, 1.03, 6.13, 4.3, 0.22, { size: 8, color: "839094", mono: true });
+  part.units.slice(0, 5).forEach((unit, index) => conceptBox(slide, unit.title, 8.72, 0.88 + index * 1.1, 3.72, 0.7, part, "done", 0, `title-${index}`));
+  notes(slide, `${part.title}\n\n${part.subtitle}\n\nThis deck uses the approved synchronized source/system/state teaching grammar. Content slides contain three On Click groups.`);
 }
 
-function sourceIndexSlide(pptx, part, slideNo, total) {
+function routeSlide(pptx, part, total) {
   const slide = pptx.addSlide();
-  slide.background = { color: C.ink };
-  addText(slide, `PART ${part.id} SOURCE INDEX`, 0.65, 0.45, 4.2, 0.28, { size: 10, color: part.color, bold: true });
-  addText(slide, "Files, anchors, and evidence", 0.65, 0.84, 7.2, 0.54, { size: 27, bold: true });
-  part.units.forEach((u, i) => {
-    const col = i % 2, row = Math.floor(i / 2);
-    const x = 0.72 + col * 6.18, y = 1.64 + row * 0.86;
-    rect(slide, x, y, 5.78, 0.66, C.panel, C.line, true);
-    addText(slide, `${String(i + 1).padStart(2, "0")}  ${u.title}`, x + 0.15, y + 0.07, 5.38, 0.22, { size: 9.4, color: part.color, bold: true });
-    addText(slide, clip(`${u.file} :: ${u.anchor.replaceAll("\n", " ")}`, 85), x + 0.15, y + 0.35, 5.38, 0.18, { size: 6.9, color: C.muted, mono: true });
+  slide.background = { color: C.paper };
+  addText(slide, `PART ${part.id} / SOURCE ROUTE`, 0.55, 0.35, 3.7, 0.22, { size: 8, color: part.color, bold: true });
+  addText(slide, "Objects and functions in execution order", 0.55, 0.67, 8.8, 0.48, { size: 25, bold: true });
+  addText(slide, `${part.units.length} functions or source anchors · ${part.scenes.length} exact source windows · ${total - 3} animated build slides`, 0.57, 1.18, 9.8, 0.27, { size: 8.5, color: C.muted });
+  const columns = part.units.length > 12 ? 3 : 2;
+  const rows = Math.ceil(part.units.length / columns);
+  part.units.forEach((unit, index) => {
+    const col = Math.floor(index / rows);
+    const row = index % rows;
+    const x = 0.62 + col * (12.1 / columns);
+    const y = 1.72 + row * (4.95 / rows);
+    shape(slide, SHAPE.ellipse, x, y, 0.35, 0.35, { fill: part.color, line: part.color });
+    addText(slide, String(index + 1), x, y + 0.02, 0.35, 0.26, { size: 6.5, color: C.white, bold: true, align: "center" });
+    addText(slide, unit.title, x + 0.48, y - 0.02, 3.05, 0.19, { size: 7.3, bold: true });
+    addText(slide, clip(unit.anchor.replaceAll("\n", " "), 46), x + 0.48, y + 0.18, 3.05, 0.15, { size: 5.7, color: C.muted, mono: true });
   });
-  footer(slide, part, { evidence: "SOURCE", file: "source index", lines: [{ number: 1 }] }, slideNo, total);
-  notes(slide, `File and function index for ${part.title}. Use the browser source index for search and direct navigation to each animated scene.`);
+  notes(slide, `Source route for ${part.title}. Each unit becomes a contract scene and implementation scene; each scene becomes four build slides.`);
 }
 
-function sceneSlides(pptx, part, scene, startNo, total) {
-  for (let build = 1; build <= 4; build += 1) {
-    const slide = pptx.addSlide();
-    header(slide, part, scene, build);
-    codePanel(slide, scene, build, part);
-    diagramFor(slide, scene, build, part);
-    footer(slide, part, scene, startNo + build - 1, total);
-    const visible = scene.lines.slice(0, build * 2);
-    const current = visible[visible.length - 1];
-    notes(slide, [
-      scene.title,
-      "",
-      scene.role,
-      "",
-      `Evidence: ${scene.evidence}`,
-      `Source: ${scene.file}:${scene.lines[0].number}-${scene.lines[scene.lines.length - 1].number}`,
-      `Anchor: ${scene.anchor.replaceAll("\n", " ")}`,
-      `Build ${build}/4 focuses through line ${current.number}.`,
-      "",
-      ...visible.map((entry) => `L${entry.number}: ${entry.text.trim()}\n  ${explainLine(entry.text)}`),
-      "",
-      `Mathematical model: ${scene.formula}`,
-      "",
-      "Performance durations and achieved overlap are not claimed unless separately measured on a target GPU; GPU-LAB marks those experiments.",
-    ].join("\n"));
-  }
-}
-
-function injectTransitions(file) {
-  const zip = new AdmZip(file);
-  const entries = zip.getEntries().filter((entry) => /^ppt\/slides\/slide\d+\.xml$/.test(entry.entryName));
-  entries.forEach((entry, i) => {
-    let xml = entry.getData().toString("utf8");
-    if (xml.includes("<p:transition")) return;
-    const effect = i % 3 === 0 ? "fade" : i % 3 === 1 ? "wipe dir=\"r\"" : "push dir=\"l\"";
-    const [tag, attrs = ""] = effect.split(" ", 2);
-    const transition = `<p:transition spd="fast" advClick="1"><p:${tag}${attrs ? " " + attrs : ""}/></p:transition>`;
-    if (xml.includes("<p:clrMapOvr")) xml = xml.replace("<p:clrMapOvr", transition + "<p:clrMapOvr");
-    else xml = xml.replace("</p:sld>", transition + "</p:sld>");
-    zip.updateFile(entry.entryName, Buffer.from(xml, "utf8"));
+function sourceIndexSlide(pptx, part) {
+  const slide = pptx.addSlide();
+  slide.background = { color: C.paper };
+  addText(slide, `PART ${part.id} / SOURCE INDEX`, 0.55, 0.35, 3.7, 0.22, { size: 8, color: part.color, bold: true });
+  addText(slide, "Files, functions, evidence, and mathematical models", 0.55, 0.67, 10.3, 0.48, { size: 24, bold: true });
+  const columns = part.units.length > 12 ? 3 : 2;
+  const rows = Math.ceil(part.units.length / columns);
+  part.units.forEach((unit, index) => {
+    const col = Math.floor(index / rows);
+    const row = index % rows;
+    const cellW = 12.1 / columns;
+    const x = 0.62 + col * cellW;
+    const y = 1.48 + row * (5.55 / rows);
+    addText(slide, `${String(index + 1).padStart(2, "0")}  ${unit.title}`, x, y, cellW - 0.28, 0.18, { size: 6.8, color: part.color, bold: true });
+    addText(slide, clip(unit.file, columns === 3 ? 48 : 70), x, y + 0.19, cellW - 0.28, 0.14, { size: 5.3, color: C.muted, mono: true });
+    addText(slide, `${clip(unit.evidence, 22)}  ·  ${clip(unit.formula, columns === 3 ? 34 : 52)}`, x, y + 0.34, cellW - 0.28, 0.15, { size: 5.2, color: C.ink, mono: true });
+    shape(slide, SHAPE.line, x, y + 0.54, cellW - 0.28, 0, { line: C.line, width: 0.5 });
   });
-  zip.writeZip(file);
+  notes(slide, `Source index for ${part.title}. The HTML course links every entry to an interactive source scene.`);
 }
 
 async function writeDeck(part) {
@@ -420,148 +497,148 @@ async function writeDeck(part) {
   pptx.lang = "en-US";
   pptx.theme = { headFontFace: "Aptos Display", bodyFontFace: "Aptos", lang: "en-US" };
   const total = 3 + part.scenes.length * 4;
-  titleSlide(pptx, part, 1, total);
-  routeSlide(pptx, part, 2, total);
-  let slideNo = 3;
-  part.scenes.forEach((scene) => {
-    sceneSlides(pptx, part, scene, slideNo, total);
-    slideNo += 4;
-  });
-  sourceIndexSlide(pptx, part, total, total);
+  titleSlide(pptx, part, total);
+  routeSlide(pptx, part, total);
+  sourceIndexSlide(pptx, part);
+  let slideNo = 4;
+  for (const scene of part.scenes) {
+    for (let build = 1; build <= 4; build += 1) {
+      contentSlide(pptx, part, scene, build, slideNo, total);
+      slideNo += 1;
+    }
+  }
   const file = path.join(DECKS, `PART_${String(part.id).padStart(2, "0")}_${part.slug.toUpperCase()}.pptx`);
   await pptx.writeFile({ fileName: file });
-  injectTransitions(file);
-  return { file: path.relative(OUT, file), slides: total };
+  const animation = injectAnimations(file);
+  return {
+    file: path.relative(OUT, file), slides: total,
+    animatedSlides: animation.slides.length,
+    clickGroups: animation.slides.reduce((count, entry) => count + entry.groups.length, 0),
+    animation,
+  };
 }
 
-function htmlDiagram(scene) {
-  const nodes = scene.concepts.map((concept, i) =>
-    `<button class="d-node" data-step="${i + 1}" data-detail="${esc(concept)}" title="Inspect ${esc(concept)}"><b>${i + 1}</b><span>${esc(concept)}</span></button>`,
-  ).join("");
-  if (scene.diagram === "roofline") {
-    return `<div class="diagram roofline" data-kind="roofline"><i class="axis-x"></i><i class="axis-y"></i><i class="memory-roof" data-step="1"></i><i class="compute-roof" data-step="2"></i><i class="point p1" data-step="3"></i><i class="point p2" data-step="4"></i><small>Arithmetic intensity</small></div>`;
-  }
-  if (scene.diagram === "tile") {
-    return `<div class="diagram tile" data-kind="tile">${Array.from({ length: 48 }, (_, i) => `<i data-step="${Math.min(4, Math.floor((i % 8) / 2) + 1)}"></i>`).join("")}<div class="tile-labels">${nodes}</div></div>`;
-  }
-  if (["memory", "buffers", "cache"].includes(scene.diagram)) {
-    return `<div class="diagram memory" data-kind="${scene.diagram}"><header><span>HOST / OWNER</span><span>DEVICE / CACHE</span></header>${scene.concepts.map((c, i) => `<div class="mem-row" data-step="${i + 1}"><i>${esc(c)}</i><em></em><b>${esc(c)}</b></div>`).join("")}</div>`;
-  }
-  if (["timeline", "schedule", "queue"].includes(scene.diagram)) {
-    return `<div class="diagram timeline" data-kind="${scene.diagram}">${scene.concepts.map((c, i) => `<div class="lane" data-step="${i + 1}"><small>${["CPU", "COPY", "GPU", "RETIRE"][i]}</small><i style="--offset:${i};--span:${4 - i}">${esc(c)}</i></div>`).join("")}</div>`;
-  }
-  return `<div class="diagram nodes kind-${esc(scene.diagram)}" data-kind="${esc(scene.diagram)}">${nodes}</div>`;
+function moduleLinks(activePart) {
+  return course.map((part) => `<a class="module-link ${part.id === activePart.id ? "active" : ""}" href="part-${String(part.id).padStart(2, "0")}-${part.slug}.html"><b>${String(part.id).padStart(2, "0")}</b><span>${esc(part.title)}</span></a>`).join("");
 }
 
-function htmlScene(scene, part) {
-  const code = scene.lines.map((entry, i) => {
-    const step = Math.floor(i / 2) + 1;
-    return `<button class="code-line" data-step="${step}" data-line="${entry.number}" data-detail="${esc(explainLine(entry.text))}" title="Inspect source line ${entry.number}"><span>${entry.number}</span><code>${esc(entry.text || " ")}</code></button>`;
-  }).join("");
-  return `<article class="scene" id="scene-${scene.id}" data-scene="${scene.number - 1}" data-steps="4" style="--accent:#${part.color}">
-    <header class="scene-head"><div><b>PART ${part.id} / ${esc(scene.diagram.toUpperCase())}</b><h1>${esc(scene.title)}</h1><p>${esc(scene.role)}</p></div><span class="evidence">${esc(scene.evidence)}</span></header>
-    <div class="scene-body">
-      <section class="source-pane"><div class="source-title"><a href="../../../../../${esc(scene.file)}" title="Open repository source">${esc(scene.file)}</a><span>${scene.lines[0].number}-${scene.lines[7].number}</span></div>${code}</section>
-      <section class="visual-pane">${htmlDiagram(scene)}<div class="formula"><span>MATH</span><code>${esc(scene.formula)}</code></div></section>
-    </div>
-    <footer><code>${REV.slice(0, 12)}</code><span>${scene.number} / ${part.scenes.length}</span></footer>
-  </article>`;
+function courseData(part) {
+  return JSON.stringify({
+    revision: REV,
+    part: { id: part.id, title: part.title, subtitle: part.subtitle, color: part.color },
+    scenes: part.scenes,
+  }).replaceAll("<", "\\u003c");
 }
 
 function partPage(part) {
-  const nav = course.map((p) => `<a class="part-link ${p.id === part.id ? "active" : ""}" href="part-${String(p.id).padStart(2, "0")}-${p.slug}.html" title="Part ${p.id}: ${esc(p.title)}">${p.id}</a>`).join("");
-  const dots = part.scenes.map((s, i) => `<button class="scene-dot" data-target="${i}" title="${esc(s.title)}"></button>`).join("");
-  const scenes = part.scenes.map((s) => htmlScene(s, part)).join("");
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Part ${part.id}: ${esc(part.title)}</title><link rel="stylesheet" href="assets/course.css"></head>
-  <body class="course-page"><div class="course-shell">
-    <nav class="topbar"><a class="brand" href="index.html">LLAMA / MAX / GPU</a><div class="part-nav">${nav}</div><a class="source-link" href="source-index.html">SOURCE INDEX</a></nav>
-    <aside class="rail">${dots}</aside><main class="viewport">${scenes}</main>
-    <div class="controls"><span class="build-label"></span><button class="prev" title="Previous build" aria-label="Previous build">&#9664;</button><button class="play" title="Auto play" aria-label="Auto play">&#9654;</button><button class="next" title="Next build" aria-label="Next build">&#9654;&#9654;</button><button class="reset" title="Restart scene" aria-label="Restart scene">&#8634;</button><button class="full" title="Full screen" aria-label="Full screen">&#9974;</button><span class="scene-count"></span></div>
-    <aside class="inspector"><button class="close" title="Close inspector" aria-label="Close inspector">&#10005;</button><b>OBJECT / LINE</b><h2></h2><h3>Source</h3><code class="inspect-source"></code><h3>Explanation</h3><p class="inspect-detail"></p><h3>Invariant</h3><code class="inspect-formula"></code></aside>
-  </div><script src="assets/course.js"></script></body></html>`;
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="${esc(part.subtitle)}"><title>Part ${part.id}: ${esc(part.title)}</title><link rel="stylesheet" href="assets/course.css"><script src="assets/course.js" defer></script></head>
+<body><div class="course-shell">
+  <header class="course-topbar"><a class="course-brand" href="index.html"><span class="brand-index">P${String(part.id).padStart(2, "0")}</span><div><strong>LLAMA / MAX / GPU</strong><span>Source-grounded systems masterclass</span></div></a><div class="part-heading"><small id="scene-title">SOURCE SCENE</small><strong id="part-title">${esc(part.title)}</strong><span id="part-subtitle">${esc(part.subtitle)}</span></div><div class="evidence-legend"><span class="evidence source">SOURCE</span><span class="evidence boundary">BOUNDARY</span><span class="evidence compile-only">COMPILE</span><span class="evidence gpu-lab">GPU-LAB</span><code>${REV.slice(0, 12)}</code></div></header>
+  <nav class="module-bar" aria-label="Course modules">${moduleLinks(part)}</nav>
+  <main class="workbench">
+    <section class="source-pane" aria-label="Repository source"><header class="pane-header"><div><span id="source-evidence" class="evidence source">SOURCE</span><strong id="source-symbol">Source symbol</strong></div><span class="kind-tag">EXACT</span></header><div class="source-path-row"><code id="source-path">path</code><span id="source-range">range</span></div><div id="source-code" class="source-code"></div><footer id="line-explanation" class="line-explanation"></footer></section>
+    <section class="visual-pane" aria-label="Interactive system visualization"><header class="visual-toolbar"><div class="diagram-heading"><span id="diagram-kind" class="kind-tag">SYSTEM</span><strong id="diagram-title">Object interaction</strong></div><div class="segmented" role="group" aria-label="Visualization view"><button class="active" data-view="system">System</button><button data-view="math">Math</button><button data-view="evidence">Evidence</button></div></header><div id="visual-canvas" class="visual-canvas"></div><nav id="scene-rail" class="scene-rail" aria-label="Source scenes"></nav></section>
+    <aside class="inspector-pane" aria-label="Current state inspector"><header class="pane-header"><div><span id="focus-line" class="kind-tag">L0</span><strong id="step-title">Contract overview</strong></div><span id="step-number" class="step-number">00</span></header><p id="step-summary" class="step-summary"></p><section class="inspector-section"><h2>Object State</h2><div id="object-ledger" class="object-ledger"></div></section><section class="inspector-section"><h2>Measured / Modeled</h2><div id="metric-grid" class="metric-grid"></div></section><section class="inspector-section"><h2>Mathematical Model</h2><code id="formula" class="formula-box"></code></section><section class="inspector-section"><h2>Evidence Boundary</h2><p id="boundary-note" class="boundary-copy"></p></section></aside>
+  </main>
+  <footer class="transport"><div class="transport-buttons"><button id="previous" title="Previous state" aria-label="Previous state">←</button><button id="play" class="primary" title="Play" aria-label="Play">▶</button><button id="next" title="Next state" aria-label="Next state">→</button><button id="reset" title="Reset scene" aria-label="Reset scene">↺</button></div><div class="build-buttons" aria-label="Build state"><button data-build="0">C</button><button data-build="1">1</button><button data-build="2">2</button><button data-build="3">3</button><button data-build="4">4</button></div><input id="step-slider" type="range" min="0" max="4" value="0" aria-label="Current build"><div class="transport-readout"><strong id="transport-label">Contract overview</strong><span id="transport-count">1/1 · 0/4</span></div></footer>
+</div><script id="course-data" type="application/json">${courseData(part)}</script></body></html>`;
 }
 
 function indexPage(manifest) {
-  const rows = course.map((p) => {
-    const deck = manifest.decks.find((d) => d.part === p.id);
-    return `<a class="part-row" href="part-${String(p.id).padStart(2, "0")}-${p.slug}.html" style="--accent:#${p.color}"><b>0${p.id}</b><span><strong>${esc(p.title)}</strong><small>${esc(p.subtitle)}</small></span><em>${p.scenes.length} scenes<br>${deck.slides} slides</em></a>`;
+  const moduleRows = course.map((part) => {
+    const deck = manifest.decks.find((entry) => entry.part === part.id);
+    return `<a class="module-row" style="--module-color:#${part.color}" href="part-${String(part.id).padStart(2, "0")}-${part.slug}.html"><b>${String(part.id).padStart(2, "0")}</b><div><strong>${esc(part.title)}</strong><span>${esc(part.subtitle)}</span></div><em>${part.units.length} units<br>${part.scenes.length} scenes<br>${deck.slides} slides</em></a>`;
   }).join("");
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Llama MAX GPU Masterclass</title><link rel="stylesheet" href="assets/course.css"></head><body class="index-page">
-    <header class="index-hero"><div><b>SOURCE-DRIVEN TECHNICAL COURSE</b><h1>Llama / MAX / GPU<br>Masterclass</h1><p>Graph construction, compiler transformations, Mojo kernels, device offload, backend targets, and MAX Serve scheduling traced through repository source.</p></div><div class="stack-viz"><i>MAX SERVE</i><i>MAX GRAPH</i><i>GRAPH COMPILER</i><i>MOJO + HAL</i><i>GPU / DEVICE</i></div></header>
-    <main class="index-main"><section class="stats"><span><b>${manifest.totalSlides}</b> PowerPoint slides</span><span><b>${manifest.totalScenes}</b> animated source scenes</span><span><b>${manifest.sourceFiles}</b> source files</span><span><b>6</b> navigable modules</span></section><section class="part-list">${rows}</section></main>
-    <footer class="index-footer"><a href="source-index.html">Search source and functions</a><code>REV ${REV.slice(0, 12)}</code></footer></body></html>`;
+  const stack = [
+    ["Llama request", "Tokens, row offsets, model configuration, weights", course[0]],
+    ["MAX Graph", "Symbolic values, GraphOp, output ABI, verification", course[0]],
+    ["Graph compiler", "MO -> MAP -> MOGG -> MGP/JIT -> MEF", course[1]],
+    ["Mojo kernels", "Registration, tiling, memory movement, matrix instructions", course[2]],
+    ["HAL and driver", "Buffers, bundles, queues, CUDA/HIP/Metal plugins", course[3]],
+    ["MAX Serve", "Admission, CE/TG batching, chunked prefill, paged KV", course[4]],
+  ].map(([title, description, part]) => `<a style="--stack-color:#${part.color}" href="part-${String(part.id).padStart(2, "0")}-${part.slug}.html"><b>${esc(title)}</b><span>${esc(description)}</span></a>`).join("");
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Source-grounded MAX graph, compiler, GPU, and serving masterclass."><title>Llama / MAX / GPU Masterclass</title><link rel="stylesheet" href="assets/course.css"></head><body class="index-page"><header class="console-topbar"><div><h1>Llama / MAX / GPU Masterclass</h1><p>Graph construction, compiler lowering, Mojo kernels, device runtime, and MAX Serve in execution order.</p></div><div class="evidence-legend"><span class="evidence source">SOURCE</span><span class="evidence boundary">BOUNDARY</span><span class="evidence gpu-lab">GPU-LAB</span><code>${REV.slice(0, 12)}</code></div></header><main class="console-main"><section class="console-column"><h2>Course Modules</h2><div class="module-list">${moduleRows}</div></section><section class="console-column"><h2>End-to-End Execution Stack</h2><div class="system-stack">${stack}</div></section><aside class="console-column"><h2>Course Inventory</h2><div class="course-stats"><div class="course-stat"><strong>${manifest.totalSlides}</strong><span>PowerPoint slides</span></div><div class="course-stat"><strong>${manifest.totalScenes}</strong><span>interactive source scenes</span></div><div class="course-stat"><strong>${manifest.totalUnits}</strong><span>functions / anchors</span></div><div class="course-stat"><strong>${manifest.sourceFiles}</strong><span>repository files</span></div><div class="course-stat"><strong>${manifest.animatedSlides}</strong><span>slides with click groups</span></div><div class="course-stat"><strong>${manifest.clickGroups}</strong><span>On Click groups</span></div></div><a class="start-link" href="part-01-graph-construction-finalization.html">Start with graph construction</a><a class="source-link" href="source-index.html">Search files and functions</a></aside></main></body></html>`;
 }
 
 function sourceIndexPage() {
-  const rows = course.flatMap((p) => p.units.map((u, i) => {
-    const firstScene = p.scenes[i * 2];
-    return `<tr data-search="${esc(`${p.title} ${u.title} ${u.file} ${u.anchor} ${u.role}`.toLowerCase())}"><td>${p.id}</td><td><a href="part-${String(p.id).padStart(2, "0")}-${p.slug}.html#scene-${firstScene.id}">${esc(u.title)}</a></td><td><code>${esc(u.file)}</code></td><td><code>${esc(u.anchor.replaceAll("\n", " "))}</code></td><td>${esc(u.evidence)}</td></tr>`;
-  })).join("");
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Source Index</title><link rel="stylesheet" href="assets/course.css"></head><body class="source-page"><header class="source-head"><a href="index.html">LLAMA / MAX / GPU</a><h1>Source and function index</h1><input id="source-search" type="search" placeholder="Filter by file, function, object, or concept" aria-label="Filter source index"></header><main><table><thead><tr><th>Part</th><th>Topic</th><th>File</th><th>Function / anchor</th><th>Evidence</th></tr></thead><tbody>${rows}</tbody></table></main><script>const q=document.querySelector('#source-search');q.addEventListener('input',()=>{const v=q.value.toLowerCase();document.querySelectorAll('tbody tr').forEach(r=>r.hidden=!r.dataset.search.includes(v))});</script></body></html>`;
+  const rows = course.flatMap((part) => part.scenes.map((scene) => `<tr data-search="${esc(`${part.title} ${scene.title} ${scene.file} ${scene.anchor} ${scene.evidence}`.toLowerCase())}"><td>${part.id}</td><td><a href="part-${String(part.id).padStart(2, "0")}-${part.slug}.html#scene-${scene.id}/build-4">${esc(scene.title)}</a></td><td><code>${esc(scene.file)}</code></td><td><code>${esc(scene.anchor.replaceAll("\n", " "))}</code></td><td>${esc(scene.evidence)}</td><td><code>L${scene.lines[0].number}-L${scene.lines.at(-1).number}</code></td></tr>`)).join("");
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Source Index · Llama MAX GPU Masterclass</title><link rel="stylesheet" href="assets/course.css"></head><body class="source-page"><header class="console-topbar"><div><a href="index.html">← Course console</a><h1>Source and Function Index</h1><p>Search every exact source window used by the HTML course and PowerPoint decks.</p></div><input id="source-search" class="source-search" type="search" placeholder="Filter by file, function, concept, or evidence"></header><main class="source-table-wrap"><table class="source-table"><thead><tr><th>Part</th><th>Scene</th><th>File</th><th>Function / anchor</th><th>Evidence</th><th>Lines</th></tr></thead><tbody>${rows}</tbody></table></main><script>(()=>{const input=document.querySelector('#source-search'),rows=[...document.querySelectorAll('tbody tr')];input.addEventListener('input',()=>{const q=input.value.trim().toLowerCase();rows.forEach(row=>row.hidden=q&&!row.dataset.search.includes(q));});})();</script></body></html>`;
 }
 
-const COURSE_CSS = String.raw`
-:root{--ink:#121416;--panel:#1b1f22;--panel2:#23282c;--paper:#f4f1ea;--muted:#a9b0b4;--line:#3b4348;--green:#36d17d;--teal:#20c997;--coral:#ff6b4a;--yellow:#ffd166;--blue:#5ab2ff;--violet:#a78bfa;--red:#ff4d67}*{box-sizing:border-box;letter-spacing:0}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper);font-family:Arial,Helvetica,sans-serif}button,input{font:inherit}.course-page{height:100vh;overflow:hidden}.course-shell{height:100%;display:grid;grid-template-columns:32px 1fr;grid-template-rows:48px 1fr 58px}.topbar{grid-column:1/3;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 22px;border-bottom:1px solid #292f32;background:#15181a}.brand,.source-link{color:var(--paper);text-decoration:none;font-size:10px;font-weight:800}.source-link{justify-self:end;color:var(--muted)}.part-nav{display:flex;gap:6px}.part-link{display:grid;place-items:center;width:25px;height:25px;border:1px solid var(--line);color:var(--muted);text-decoration:none;font-size:10px}.part-link.active{border-color:var(--accent,#36d17d);color:var(--paper);background:#242a2e}.rail{grid-row:2;border-right:1px solid #292f32;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px}.scene-dot{width:7px;height:7px;padding:0;border:1px solid #667076;background:transparent;cursor:pointer}.scene-dot.active{background:var(--accent,#36d17d);border-color:var(--accent,#36d17d)}.viewport{grid-row:2;position:relative;overflow:hidden}.scene{position:absolute;inset:0;padding:22px 34px 14px;display:grid;grid-template-rows:auto 1fr auto;opacity:0;transform:translateY(12px);pointer-events:none;transition:opacity .34s,transform .34s}.scene.active{opacity:1;transform:none;pointer-events:auto}.scene-head{display:flex;justify-content:space-between;gap:24px;align-items:start}.scene-head b{display:block;color:var(--accent);font-size:10px;margin-bottom:7px}.scene-head h1{font-size:28px;line-height:1.05;margin:0 0 7px}.scene-head p{max-width:980px;margin:0;color:var(--muted);font-size:12px;line-height:1.4}.evidence{border:1px solid var(--accent);padding:7px 9px;color:var(--accent);font-size:8px;font-weight:800;white-space:nowrap}.scene-body{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(330px,1fr);gap:15px;min-height:0;padding:16px 0 10px}.source-pane,.visual-pane{min-height:0;border:1px solid var(--line);background:var(--panel);overflow:hidden}.source-pane{display:grid;grid-template-rows:38px repeat(8,1fr)}.source-title{display:flex;align-items:center;justify-content:space-between;padding:0 13px;background:var(--panel2);font:9px monospace;color:var(--muted)}.source-title a{color:var(--accent);text-decoration:none}.code-line{display:grid;grid-template-columns:50px 1fr;text-align:left;align-items:center;width:100%;min-height:0;padding:0;border:0;border-top:1px solid #252b2e;background:#1a1e20;color:var(--paper);opacity:.16;transform:translateX(-8px);transition:opacity .35s,transform .35s,background .25s;cursor:pointer}.code-line.revealed{opacity:1;transform:none}.code-line.current{background:#293238;box-shadow:inset 4px 0 var(--accent)}.code-line span{padding-right:12px;text-align:right;color:var(--muted);font:9px monospace}.code-line code{padding-right:12px;white-space:pre;overflow:hidden;text-overflow:ellipsis;font:10px/1.2 monospace}.visual-pane{display:grid;grid-template-rows:1fr 46px;padding:13px}.formula{display:grid;grid-template-columns:54px 1fr;align-items:center;border-top:1px solid var(--line)}.formula span{color:var(--accent);font-size:8px;font-weight:800}.formula code{font:9px monospace;color:var(--paper);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.diagram{position:relative;min-height:0}.diagram.nodes{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-content:center;padding:18px}.d-node{position:relative;min-height:82px;border:1px solid var(--line);background:#191d1f;color:var(--line);opacity:.25;transform:scale(.96);transition:opacity .4s,transform .4s,color .4s,border-color .4s,background .4s;cursor:pointer}.d-node.revealed{opacity:1;transform:none;color:var(--paper);border-color:var(--accent);background:var(--panel2)}.d-node b{position:absolute;left:8px;top:7px;color:var(--accent);font-size:8px}.d-node span{display:block;padding:22px 10px 10px;font-size:11px;font-weight:700}.kind-sequence{grid-template-columns:1fr!important;padding-left:76px!important}.kind-sequence .d-node{min-height:52px}.kind-pipeline .d-node.revealed:after,.kind-graph .d-node.revealed:after,.kind-dispatch .d-node.revealed:after{content:'';position:absolute;right:-19px;top:50%;width:18px;height:2px;background:var(--accent);animation:pulse 1.25s infinite}.kind-boundary .d-node{border-style:dashed}.memory{display:grid;grid-template-rows:28px repeat(4,1fr);gap:8px;padding:16px}.memory header{display:flex;justify-content:space-between;color:var(--muted);font-size:8px;font-weight:800}.mem-row{display:grid;grid-template-columns:1fr 46px 1fr;align-items:center;opacity:.15;transition:opacity .4s}.mem-row.revealed{opacity:1}.mem-row i,.mem-row b{display:grid;place-items:center;min-height:42px;border:1px solid var(--line);font-size:9px;font-style:normal}.mem-row b{border-color:var(--accent);background:var(--panel2)}.mem-row em{height:2px;background:var(--accent);position:relative;animation:pulse 1.2s infinite}.mem-row em:after{content:'';position:absolute;right:-1px;top:-3px;border-left:6px solid var(--accent);border-top:4px solid transparent;border-bottom:4px solid transparent}.timeline{display:grid;align-content:center;gap:17px;padding:20px}.lane{display:grid;grid-template-columns:48px 1fr;align-items:center;opacity:.15;transition:opacity .4s}.lane.revealed{opacity:1}.lane small{color:var(--muted);font-size:8px;font-weight:800}.lane i{display:block;margin-left:calc(var(--offset)*9%);width:calc(28% + var(--span)*8%);padding:10px;background:var(--panel2);border:1px solid var(--accent);font-size:9px;font-style:normal;text-align:center}.tile{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(6,1fr);gap:4px;padding:15px 18px 86px}.tile>i{border:1px solid #30373b;background:#171a1c;opacity:.2;transition:opacity .4s,background .4s}.tile>i.revealed{opacity:1;background:var(--accent)}.tile-labels{position:absolute;left:18px;right:18px;bottom:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.tile-labels .d-node{min-height:46px}.roofline{margin:28px}.roofline .axis-x,.roofline .axis-y{position:absolute;background:var(--muted)}.roofline .axis-x{left:14%;right:4%;bottom:15%;height:2px}.roofline .axis-y{left:14%;top:6%;bottom:15%;width:2px}.roofline .memory-roof,.roofline .compute-roof{position:absolute;height:3px;background:var(--accent);transform-origin:left;opacity:.15;transition:opacity .4s}.roofline .memory-roof{left:17%;bottom:18%;width:52%;transform:rotate(-38deg)}.roofline .compute-roof{left:58%;right:8%;top:23%;background:var(--yellow)}.roofline .point{position:absolute;width:15px;height:15px;border-radius:50%;background:var(--red);opacity:.15}.roofline .p1{left:47%;top:48%}.roofline .p2{left:73%;top:17%;background:var(--green)}.roofline .revealed{opacity:1}.roofline small{position:absolute;bottom:3%;left:35%;color:var(--muted);font-size:8px}.scene footer{display:flex;justify-content:space-between;color:var(--muted);font-size:8px}.controls{grid-column:1/3;grid-row:3;border-top:1px solid #292f32;background:#15181a;display:flex;align-items:center;justify-content:center;gap:7px;position:relative}.controls button{width:35px;height:35px;border:1px solid var(--line);background:var(--panel);color:var(--paper);cursor:pointer}.controls button:hover,.controls button.active{border-color:var(--accent);color:var(--accent)}.build-label,.scene-count{position:absolute;color:var(--muted);font:9px monospace}.build-label{left:20px}.scene-count{right:20px}.inspector{position:absolute;right:0;top:48px;bottom:58px;width:min(390px,88vw);z-index:8;background:#191d1f;border-left:1px solid var(--accent,#36d17d);padding:24px;transform:translateX(100%);transition:transform .3s}.inspector.open{transform:none}.inspector .close{position:absolute;right:13px;top:13px;width:30px;height:30px;border:1px solid var(--line);background:var(--panel);color:var(--paper)}.inspector>b{font-size:8px;color:var(--accent)}.inspector h2{margin:28px 0 18px;font-size:19px}.inspector h3{margin:18px 0 6px;color:var(--muted);font-size:8px;text-transform:uppercase}.inspector code,.inspector p{font:10px/1.55 monospace;color:var(--paper);white-space:pre-wrap}.index-page{min-height:100vh}.index-hero{min-height:62vh;display:grid;grid-template-columns:1.35fr 1fr;gap:70px;align-items:center;padding:8vh 9vw;border-bottom:1px solid var(--line)}.index-hero>div>b{color:var(--green);font-size:10px}.index-hero h1{margin:18px 0;font-size:clamp(42px,6vw,78px);line-height:.96}.index-hero p{max-width:700px;color:var(--muted);font-size:16px;line-height:1.55}.stack-viz{display:grid;gap:9px}.stack-viz i{display:block;padding:17px 20px;border-left:5px solid var(--green);background:var(--panel);font-style:normal;font-size:11px;font-weight:800}.stack-viz i:nth-child(2){border-color:var(--teal)}.stack-viz i:nth-child(3){border-color:var(--violet)}.stack-viz i:nth-child(4){border-color:var(--yellow)}.stack-viz i:nth-child(5){border-color:var(--red)}.index-main{padding:0 9vw 7vh}.stats{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}.stats span{padding:28px 12px;color:var(--muted);font-size:11px}.stats b{display:block;color:var(--paper);font-size:29px;margin-bottom:5px}.part-list{display:grid}.part-row{display:grid;grid-template-columns:80px 1fr 120px;align-items:center;gap:24px;padding:28px 8px;border-bottom:1px solid var(--line);color:var(--paper);text-decoration:none}.part-row:hover{background:#171b1d}.part-row>b{font-size:31px;color:var(--accent)}.part-row strong{display:block;font-size:19px;margin-bottom:7px}.part-row small{display:block;color:var(--muted);font-size:11px}.part-row em{color:var(--muted);font-size:10px;font-style:normal;text-align:right;line-height:1.5}.index-footer{display:flex;justify-content:space-between;padding:24px 9vw;border-top:1px solid var(--line);font-size:10px}.index-footer a{color:var(--green)}.index-footer code{color:var(--muted)}.source-page{min-height:100vh}.source-head{position:sticky;top:0;z-index:3;display:grid;grid-template-columns:180px 1fr minmax(260px,420px);gap:25px;align-items:center;padding:20px 4vw;background:#15181a;border-bottom:1px solid var(--line)}.source-head a{color:var(--green);font-size:10px;font-weight:800;text-decoration:none}.source-head h1{font-size:24px;margin:0}.source-head input{width:100%;padding:11px 13px;background:var(--panel);border:1px solid var(--line);color:var(--paper)}.source-page main{padding:24px 4vw 70px}.source-page table{width:100%;border-collapse:collapse;font-size:10px}.source-page th{text-align:left;color:var(--muted);font-size:8px;text-transform:uppercase;padding:12px 10px;border-bottom:1px solid var(--line)}.source-page td{padding:14px 10px;border-bottom:1px solid #292f32;vertical-align:top}.source-page td:first-child{color:var(--green);font-weight:800}.source-page a{color:var(--paper)}.source-page code{font-size:9px;color:var(--muted)}@keyframes pulse{50%{filter:brightness(1.8)}}@media(max-width:900px){.scene-body{grid-template-columns:1fr}.visual-pane{display:none}.source-pane{min-height:0}.scene{padding:18px}.scene-head h1{font-size:22px}.index-hero{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.source-head{grid-template-columns:1fr}.source-head a{display:none}}@media(max-width:620px){.topbar{grid-template-columns:1fr auto}.part-nav{display:none}.scene-head p{display:none}.scene-body{padding-top:10px}.scene{padding:13px}.code-line code{font-size:8px}.part-row{grid-template-columns:50px 1fr}.part-row em{display:none}.stats{grid-template-columns:1fr 1fr}.index-hero{padding:6vh 7vw}.index-main{padding:0 7vw 7vh}}
-`;
-
-const COURSE_JS = String.raw`
-(()=>{const scenes=[...document.querySelectorAll('.scene')],dots=[...document.querySelectorAll('.scene-dot')],inspector=document.querySelector('.inspector');if(!scenes.length)return;let index=0,step=0,timer=null;const hash=location.hash.replace('#scene-','');const found=scenes.findIndex(s=>s.id==='scene-'+hash);if(found>=0)index=found;const max=()=>Number(scenes[index].dataset.steps||4);function render(){scenes.forEach((s,i)=>s.classList.toggle('active',i===index));dots.forEach((d,i)=>d.classList.toggle('active',i===index));const scene=scenes[index];document.documentElement.style.setProperty('--accent',getComputedStyle(scene).getPropertyValue('--accent'));scene.querySelectorAll('[data-step]').forEach(el=>{const n=Number(el.dataset.step);el.classList.toggle('revealed',n<=step);el.classList.toggle('current',n===step)});document.querySelector('.build-label').textContent='BUILD '+step+' / '+max();document.querySelector('.scene-count').textContent=String(index+1).padStart(2,'0')+' / '+String(scenes.length).padStart(2,'0');history.replaceState(null,'','#scene-'+scene.id.replace('scene-',''));inspector.classList.remove('open')}function next(){if(step<max())step++;else if(index<scenes.length-1){index++;step=0}else{index=0;step=0}render()}function prev(){if(step>0)step--;else if(index>0){index--;step=max()}render()}function play(){const b=document.querySelector('.play');if(timer){clearInterval(timer);timer=null;b.classList.remove('active');b.innerHTML='&#9654;'}else{timer=setInterval(next,1300);b.classList.add('active');b.innerHTML='&#10074;&#10074;'}}document.querySelector('.next').onclick=next;document.querySelector('.prev').onclick=prev;document.querySelector('.play').onclick=play;document.querySelector('.reset').onclick=()=>{step=0;render()};document.querySelector('.full').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();dots.forEach(d=>d.onclick=()=>{index=Number(d.dataset.target);step=0;render()});document.addEventListener('keydown',e=>{if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();next()}if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();prev()}if(e.key.toLowerCase()==='p')play();if(e.key==='Escape')inspector.classList.remove('open')});document.addEventListener('click',e=>{const el=e.target.closest('.code-line,.d-node');if(!el||!el.classList.contains('revealed'))return;const scene=scenes[index],line=el.dataset.line;inspector.querySelector('h2').textContent=line?'Line '+line:el.dataset.detail;inspector.querySelector('.inspect-source').textContent=scene.querySelector('.source-title a').textContent+(line?':'+line:'');inspector.querySelector('.inspect-detail').textContent=el.dataset.detail||scene.querySelector('.scene-head p').textContent;inspector.querySelector('.inspect-formula').textContent=scene.querySelector('.formula code').textContent;inspector.classList.add('open')});inspector.querySelector('.close').onclick=()=>inspector.classList.remove('open');render()})();
-`;
-
 function courseMap(manifest) {
-  const sections = course.map((p) => {
-    const units = p.units.map((u, i) => `    ${String(i + 1).padStart(2, "0")}. ${u.title}\n        File: \`${u.file}\`\n        Function/anchor: \`${u.anchor.replaceAll("\n", " ")}\`\n        Role: ${u.role}\n        Evidence: \`${u.evidence}\``).join("\n");
-    return `- Part ${p.id}: ${p.title} (${p.scenes.length} scenes, ${manifest.decks.find((d) => d.part === p.id).slides} slides)\n${units}`;
+  const tree = course.map((part) => {
+    const deck = manifest.decks.find((entry) => entry.part === part.id);
+    const units = part.units.map((unit, index) => `    ${String(index + 1).padStart(2, "0")}. ${unit.title}\n        File: \`${unit.file}\`\n        Function/anchor: \`${unit.anchor.replaceAll("\n", " ")}\`\n        Role: ${unit.role}\n        Evidence: \`${unit.evidence}\`\n        Math: \`${unit.formula}\``).join("\n");
+    return `- Part ${part.id}: ${part.title} (${part.units.length} units, ${part.scenes.length} scenes, ${deck.slides} slides)\n${units}`;
   }).join("\n\n");
-  return `# Llama / MAX / GPU Masterclass Course Map\n\nRevision: \`${REV}\`\n\nTotal: **${manifest.totalSlides} PowerPoint slides**, **${manifest.totalScenes} animated source scenes**, and **${manifest.sourceFiles} unique source files**.\n\nEach source unit becomes two eight-line scenes. Each scene becomes four progressive PowerPoint builds and one four-step HTML animation. Claims are labeled \`SOURCE\`, \`BOUNDARY\`, \`COMPILE-ONLY\`, or \`GPU-LAB\`.\n\n## Tree\n\n${sections}\n`;
+  return `# Llama / MAX / GPU Masterclass Course Map\n\nRevision: \`${REV}\`\n\nTotal: **${manifest.totalSlides} PowerPoint slides**, **${manifest.totalScenes} interactive source scenes**, **${manifest.totalUnits} source units**, and **${manifest.sourceFiles} unique source files**.\n\nEach source unit becomes a contract scene and implementation scene. Each scene becomes four progressive PowerPoint builds with three real On Click groups and one five-state HTML laboratory. Evidence is labeled \`SOURCE\`, \`BOUNDARY\`, \`COMPILE-ONLY\`, or \`GPU-LAB\`. Qualcomm is documented only as a boundary; this course does not claim a supported MAX Qualcomm GPU backend.\n\n## Tree\n\n${tree}\n`;
 }
 
 function lineByLineAtlas() {
   const sections = course.map((part) => {
     const scenes = part.scenes.map((scene) => {
-      const rows = scene.lines.map((entry) => {
-        const source = entry.text.trim().replaceAll("`", "\\`");
-        return `- \`L${entry.number}\` \`${source}\`\n  ${explainLine(entry.text)}`;
-      }).join("\n");
-      return `### ${scene.title}\n\n- File: \`${scene.file}\`\n- Source range: \`${scene.lines[0].number}-${scene.lines[7].number}\`\n- Function/anchor: \`${scene.anchor.replaceAll("\n", " ")}\`\n- Evidence: \`${scene.evidence}\`\n- Mathematical model: \`${scene.formula}\`\n\n${rows}`;
+      const rows = scene.lines.map((entry, index) => `- \`L${entry.number}\` \`${entry.text.trim().replaceAll("`", "\\`")}\`\n  ${scene.explanations[index]}`).join("\n");
+      return `### ${scene.title}\n\n- File: \`${scene.file}\`\n- Source range: \`${scene.lines[0].number}-${scene.lines.at(-1).number}\`\n- Function/anchor: \`${scene.anchor.replaceAll("\n", " ")}\`\n- Evidence: \`${scene.evidence}\`\n- Mathematical model: \`${scene.formula}\`\n\n${rows}`;
     }).join("\n\n");
     return `## Part ${part.id}: ${part.title}\n\n${scenes}`;
   }).join("\n\n");
-  return `# Line-by-Line Source Atlas\n\nRevision: \`${REV}\`\n\nThis atlas explains every source line displayed by the 132 animated scenes. The first window captures each callable's contract; the second selects a high-signal implementation block nearby. Follow the file link for the complete source body.\n\n${sections}\n`;
+  return `# Line-by-Line Source Atlas\n\nRevision: \`${REV}\`\n\nThis atlas explains every source line displayed in the ${course.reduce((count, part) => count + part.scenes.length, 0)} interactive scenes. The first window captures each callable's contract; the second selects a high-signal implementation block nearby.\n\n${sections}\n`;
 }
 
 function readme(manifest) {
-  return `# Llama / MAX / GPU Masterclass\n\nA source-driven course covering MAX graph construction, graph compiler transformations, Mojo GPU kernels, driver offload, target backends, and MAX Serve scheduling.\n\n- PowerPoint: \`decks/\` (${manifest.totalSlides} slides across six files)\n- Browser course: \`html/index.html\`\n- Searchable source index: \`html/source-index.html\`\n- Source/function map: \`COURSE_MAP.md\`\n- Displayed source line explanations: \`LINE_BY_LINE_SOURCE_ATLAS.md\`\n- Reproducible generator: \`src/\`\n\n## Build\n\n\`\`\`bash\ncd murali_docs/artifacts/ModularTechTalk/LLAMA_MAX_GPU_MASTERCLASS/src\nnpm install\nnpm run build\nnpm run check\n\`\`\`\n\nRevision used for source excerpts: \`${REV}\`. GPU timing and achieved overlap remain \`GPU-LAB\` items; source inspection is not presented as measured GPU performance.\n`;
+  return `# Llama / MAX / GPU Masterclass\n\nA source-driven course covering MAX graph construction, graph compiler transformations, Mojo GPU kernels, driver offload, target backends, and MAX Serve scheduling. The final interface follows the approved V4 synchronized-laboratory model.\n\n- PowerPoint: \`decks/\` (${manifest.totalSlides} slides across six files)\n- Browser course: \`html/index.html\`\n- Searchable source index: \`html/source-index.html\`\n- Source/function map: \`COURSE_MAP.md\`\n- Displayed source line explanations: \`LINE_BY_LINE_SOURCE_ATLAS.md\`\n- Animation inventory: \`animation_manifest.json\`\n- Reproducible generator: \`src/\`\n\n## Build\n\n\`\`\`bash\ncd murali_docs/artifacts/ModularTechTalk/LLAMA_MAX_GPU_MASTERCLASS/src\nnpm install\nnpm run build\nnpm run check\n\`\`\`\n\nRevision used for source excerpts: \`${REV}\`. The decks contain ${manifest.animatedSlides} animated content slides and ${manifest.clickGroups} On Click groups. GPU timing, occupancy, achieved overlap, and bandwidth remain \`GPU-LAB\` items; source inspection is not presented as measured device performance.\n`;
+}
+
+function designGuide(manifest) {
+  return `# Final Course Design and Validation\n\n## Interaction Grammar\n\nThe HTML and PowerPoint outputs use the same synchronized model:\n\n\`\`\`text\nexact source  <->  object / IR / hardware visualization  <->  state + math + evidence\n                                  |\n                           shared build state\n\`\`\`\n\nEach HTML scene has a contract state plus four progressive builds. Each PowerPoint build slide contains three On Click groups: newly introduced source lines, the corresponding system transition, and the state/math explanation.\n\n## Inventory\n\n- ${manifest.totalSlides} slides across six decks\n- ${manifest.animatedSlides} animated slides\n- ${manifest.clickGroups} click groups\n- ${manifest.totalScenes} HTML source scenes\n- ${manifest.totalUnits} source units\n- ${manifest.sourceFiles} source files\n\n## Evidence Rules\n\n- \`SOURCE\`: exact source proves the displayed contract or transformation.\n- \`BOUNDARY\`: a native compiler, serialized artifact, vendor API, or hardware implementation is below the displayed source.\n- \`COMPILE-ONLY\`: target lowering is inspected without claiming target execution.\n- \`GPU-LAB\`: timing, traffic, overlap, occupancy, and throughput require a future target GPU measurement.\n- Qualcomm is not presented as a supported MAX GPU backend. The source atlas marks the Hexagon/HTP discussion as a boundary.\n\n## Validation\n\nRun \`npm run check\` after generation. It verifies source/anchor resolution, slide counts, notes, transitions, animation timing XML, HTML links, and generated asset syntax. Browser screenshots and PowerPoint rendering checks are performed separately before delivery.\n`;
 }
 
 async function main() {
-  ensure(DECKS); ensure(ASSETS);
+  ensure(DECKS);
+  ensure(ASSETS);
   const deckRecords = [];
+  const animationManifest = { revision: REV, decks: [] };
   for (const part of course) {
     process.stdout.write(`Generating part ${part.id}: ${part.title}\n`);
-    const record = await writeDeck(part);
-    deckRecords.push({ part: part.id, title: part.title, ...record });
+    const result = await writeDeck(part);
+    deckRecords.push({
+      part: part.id, title: part.title, file: result.file, slides: result.slides,
+      animatedSlides: result.animatedSlides, clickGroups: result.clickGroups,
+    });
+    animationManifest.decks.push({
+      part: part.id, file: result.file, animatedSlides: result.animatedSlides,
+      clickGroups: result.clickGroups,
+      slides: result.animation.slides.map((entry) => ({
+        slide: entry.slide,
+        groups: entry.groups.map((group) => ({ group: group.group, shapes: group.shapeIds.length })),
+      })),
+    });
     fs.writeFileSync(path.join(HTML, `part-${String(part.id).padStart(2, "0")}-${part.slug}.html`), partPage(part), "utf8");
   }
-  const uniqueFiles = new Set(course.flatMap((p) => p.units.map((u) => u.file)));
+  const uniqueFiles = new Set(course.flatMap((part) => part.units.map((unit) => unit.file)));
   const manifest = {
-    revision: REV,
-    generatedAt: new Date().toISOString(),
-    totalSlides: deckRecords.reduce((n, d) => n + d.slides, 0),
-    totalScenes: course.reduce((n, p) => n + p.scenes.length, 0),
+    revision: REV, generatedAt: new Date().toISOString(),
+    totalSlides: deckRecords.reduce((count, deck) => count + deck.slides, 0),
+    totalScenes: course.reduce((count, part) => count + part.scenes.length, 0),
+    totalUnits: course.reduce((count, part) => count + part.units.length, 0),
     sourceFiles: uniqueFiles.size,
+    animatedSlides: deckRecords.reduce((count, deck) => count + deck.animatedSlides, 0),
+    clickGroups: deckRecords.reduce((count, deck) => count + deck.clickGroups, 0),
     decks: deckRecords,
-    html: ["html/index.html", "html/source-index.html", ...course.map((p) => `html/part-${String(p.id).padStart(2, "0")}-${p.slug}.html`)],
+    html: ["html/index.html", "html/source-index.html", ...course.map((part) => `html/part-${String(part.id).padStart(2, "0")}-${part.slug}.html`)],
   };
-  fs.writeFileSync(path.join(ASSETS, "course.css"), COURSE_CSS, "utf8");
-  fs.writeFileSync(path.join(ASSETS, "course.js"), COURSE_JS, "utf8");
+  fs.copyFileSync(path.join(__dirname, "course.css"), path.join(ASSETS, "course.css"));
+  fs.copyFileSync(path.join(__dirname, "course.js"), path.join(ASSETS, "course.js"));
   fs.writeFileSync(path.join(HTML, "index.html"), indexPage(manifest), "utf8");
   fs.writeFileSync(path.join(HTML, "source-index.html"), sourceIndexPage(), "utf8");
-  fs.writeFileSync(path.join(OUT, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n", "utf8");
+  fs.writeFileSync(path.join(OUT, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  fs.writeFileSync(path.join(OUT, "animation_manifest.json"), `${JSON.stringify(animationManifest, null, 2)}\n`, "utf8");
   fs.writeFileSync(path.join(OUT, "COURSE_MAP.md"), courseMap(manifest), "utf8");
   fs.writeFileSync(path.join(OUT, "LINE_BY_LINE_SOURCE_ATLAS.md"), lineByLineAtlas(), "utf8");
   fs.writeFileSync(path.join(OUT, "README.md"), readme(manifest), "utf8");
-  process.stdout.write(`Generated ${manifest.totalSlides} slides and ${manifest.totalScenes} HTML scenes.\n`);
+  fs.writeFileSync(path.join(OUT, "DESIGN_AND_VALIDATION.md"), designGuide(manifest), "utf8");
+  process.stdout.write(`Generated ${manifest.totalSlides} slides, ${manifest.animatedSlides} animated slides, and ${manifest.totalScenes} HTML scenes.\n`);
 }
 
 main().catch((error) => {

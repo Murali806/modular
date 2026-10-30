@@ -1,0 +1,9709 @@
+{
+  "revision": "e9818b79ea73b498ec4b438a24ecd8d853307d0d",
+  "decks": [
+    {
+      "part": 1,
+      "file": "decks/PART_01_GRAPH-CONSTRUCTION-FINALIZATION.pptx",
+      "animatedSlides": 88,
+      "clickGroups": 264,
+      "slides": [
+        {
+          "slide": 4,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 5,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 6,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 7,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 8,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 9,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 10,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 11,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 12,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 13,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 14,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 15,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 16,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 17,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 18,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 19,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 20,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 21,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 22,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 23,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 24,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 25,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 26,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 27,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 28,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 29,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 30,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 31,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 32,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 33,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 34,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 35,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 36,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 37,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 38,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 39,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 40,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 41,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 42,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 43,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 44,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 45,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 46,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 47,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 48,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 49,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 50,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 51,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 52,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 53,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 54,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 55,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 56,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 57,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 58,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 59,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 60,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 61,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 62,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 63,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 64,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 65,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 66,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 67,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 68,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 69,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 70,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 71,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 72,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 73,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 74,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 75,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 76,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 77,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 78,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 79,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 80,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 81,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 82,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 83,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 84,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 85,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 86,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 87,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 88,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 89,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 90,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 91,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "part": 2,
+      "file": "decks/PART_02_COMPILER-TRANSFORMATIONS.pptx",
+      "animatedSlides": 88,
+      "clickGroups": 264,
+      "slides": [
+        {
+          "slide": 4,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 5,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 6,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 7,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 8,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 9,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 10,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 11,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 12,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 13,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 14,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 15,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 16,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 17,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 18,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 19,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 20,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 21,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 22,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 23,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 24,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 25,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 26,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 27,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 28,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 29,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 30,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 31,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 32,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 33,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 34,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 35,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 36,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 37,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 38,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 39,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 40,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 41,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 42,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 43,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 44,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 45,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 46,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 47,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 48,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 49,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 50,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 51,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 52,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 53,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 54,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 55,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 56,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 57,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 58,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 59,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 60,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 61,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 62,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 63,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 64,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 65,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 66,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 67,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 68,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 69,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 70,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 71,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 72,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 73,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 74,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 75,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 76,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 77,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 78,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 79,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 80,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 81,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 82,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 83,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 84,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 85,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 86,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 87,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 88,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 89,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 90,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 91,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "part": 3,
+      "file": "decks/PART_03_KERNEL-DEVELOPMENT-OPTIMIZATION.pptx",
+      "animatedSlides": 104,
+      "clickGroups": 312,
+      "slides": [
+        {
+          "slide": 4,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 5,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 6,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 7,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 8,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 9,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 10,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 11,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 12,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 13,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 14,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 15,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 16,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 17,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 18,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 19,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 20,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 21,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 22,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 23,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 24,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 25,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 26,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 27,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 28,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 29,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 30,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 31,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 32,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 33,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 34,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 35,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 36,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 37,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 38,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 39,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 40,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 41,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 42,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 43,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 44,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 45,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 46,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 47,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 48,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 49,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 50,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 51,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 52,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 53,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 54,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 55,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 56,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 57,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 58,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 59,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 60,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 61,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 62,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 63,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 64,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 65,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 66,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 67,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 68,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 69,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 70,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 71,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 72,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 73,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 74,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 75,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 76,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 77,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 78,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 79,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 80,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 81,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 82,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 83,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 84,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 85,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 86,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 87,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 88,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 89,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 90,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 91,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 92,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 93,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 94,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 95,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 96,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 97,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 98,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 99,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 100,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 101,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 102,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 103,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 104,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 105,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 106,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 107,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "part": 4,
+      "file": "decks/PART_04_DRIVER-OFFLOAD-BACKENDS.pptx",
+      "animatedSlides": 112,
+      "clickGroups": 336,
+      "slides": [
+        {
+          "slide": 4,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 5,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 6,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 7,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 8,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 9,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 10,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 11,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 12,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 13,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 14,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 15,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 16,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 17,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 18,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 19,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 20,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 21,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 22,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 23,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 24,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 25,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 26,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 27,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 28,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 29,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 30,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 31,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 32,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 33,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 34,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 35,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 36,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 37,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 38,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 39,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 40,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 41,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 42,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 43,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 44,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 45,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 46,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 47,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 48,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 49,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 50,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 51,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 52,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 53,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 54,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 55,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 56,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 57,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 58,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 59,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 60,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 61,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 62,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 63,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 64,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 65,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 66,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 67,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 68,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 69,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 70,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 71,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 72,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 73,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 74,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 75,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 76,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 77,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 78,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 79,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 80,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 81,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 82,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 83,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 84,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 85,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 86,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 87,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 88,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 89,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 90,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 91,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 92,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 93,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 94,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 95,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 96,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 97,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 98,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 99,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 100,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 101,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 102,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 103,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 104,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 105,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 106,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 107,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 108,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 109,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 110,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 111,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 112,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 113,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 114,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 115,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "part": 5,
+      "file": "decks/PART_05_MAX-SERVE-SCHEDULING.pptx",
+      "animatedSlides": 88,
+      "clickGroups": 264,
+      "slides": [
+        {
+          "slide": 4,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 5,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 6,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 7,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 8,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 9,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 10,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 11,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 12,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 13,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 14,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 15,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 16,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 17,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 18,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 19,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 20,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 21,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 22,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 23,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 24,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 25,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 26,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 27,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 28,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 29,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 30,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 31,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 32,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 33,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 34,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 35,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 36,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 37,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 38,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 39,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 40,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 41,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 42,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 43,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 44,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 45,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 46,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 47,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 48,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 49,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 50,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 51,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 52,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 53,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 54,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 55,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 56,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 57,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 58,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 59,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 60,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 61,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 62,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 63,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 64,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 65,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 66,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 67,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 68,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 69,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 70,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 71,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 72,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 73,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 74,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 75,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 76,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 77,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 78,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 79,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 80,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 81,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 82,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 83,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 84,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 85,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 86,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 87,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 88,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 89,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 90,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 91,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "part": 6,
+      "file": "decks/PART_06_SOURCE-ATLAS-DEBUGGING.pptx",
+      "animatedSlides": 88,
+      "clickGroups": 264,
+      "slides": [
+        {
+          "slide": 4,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 5,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 6,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 7,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 8,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 9,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 10,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 11,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 12,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 13,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 14,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 15,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 16,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 17,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 18,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 19,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 20,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 21,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 22,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 23,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 24,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 25,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 26,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 27,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 28,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 29,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 30,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 31,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 32,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 33,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 34,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 35,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 36,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 37,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 38,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 39,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 40,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 41,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 42,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 43,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 44,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 45,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 46,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 47,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 48,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 49,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 50,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 51,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 52,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 53,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 54,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 55,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 56,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 57,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 58,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 59,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 4
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 60,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 61,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 62,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 63,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 64,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 65,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 66,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 67,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 68,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 69,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 70,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 71,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 72,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 73,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 74,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 75,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 6
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 76,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 77,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 78,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 79,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 80,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 81,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 82,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 83,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 84,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 85,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 86,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 87,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 88,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 2
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 89,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 90,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        },
+        {
+          "slide": 91,
+          "groups": [
+            {
+              "group": 1,
+              "shapes": 8
+            },
+            {
+              "group": 2,
+              "shapes": 3
+            },
+            {
+              "group": 3,
+              "shapes": 4
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
