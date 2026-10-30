@@ -76,3 +76,17 @@ qwen3_5_text_arch = dataclasses.replace(
     example_repo_ids=["Mapika/decider-0.8b", "Mapika/decider-2b"],
     input_modalities={InputModality.TEXT},
 )
+
+
+# Qwen3.8-Flash-Next advertises the experimental Qwen4 architecture name.
+# This alias exposes the model to config discovery, while Qwen3_5Config rejects
+# qwen4_exp before graph construction. A private or future public qwen4_exp
+# implementation can register the name eagerly and take precedence.
+qwen4_exp_arch = dataclasses.replace(
+    qwen3_5_arch,
+    name="Qwen4ExpForConditionalGeneration",
+    example_repo_ids=[
+        "Qwen/Qwen3.8-Flash-Next",
+        "Qwen/Qwen3.8-Flash-Next-FP8",
+    ],
+)

@@ -458,7 +458,7 @@ class Qwen3_5(DistributedLogitsPostprocessMixin, Module):
                         mlp_quant_config=mlp_quant_config,
                     )
                 )
-            else:
+            elif lt == "linear_attention":
                 layers.append(
                     Qwen3_5LinearAttentionBlock(
                         config=config,
@@ -467,6 +467,10 @@ class Qwen3_5(DistributedLogitsPostprocessMixin, Module):
                         attn_quant_config=attn_quant_config,
                         mlp_quant_config=mlp_quant_config,
                     )
+                )
+            else:
+                raise NotImplementedError(
+                    f"Unsupported Qwen3.5 layer type {lt!r} at layer {i}."
                 )
         self.layers = LayerList(layers)
 

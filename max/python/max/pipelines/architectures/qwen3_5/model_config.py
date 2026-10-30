@@ -57,6 +57,8 @@ _POOL_DTYPE_MAP = {
 }
 """Storage dtypes a state pool may be declared at."""
 
+_SUPPORTED_LAYER_TYPES = {"full_attention", "linear_attention"}
+
 __all__ = ["Qwen3_5Config", "VisionConfig"]
 
 _DECLARED_DTYPES: dict[str, DType] = {
@@ -370,7 +372,23 @@ class Qwen3_5Config(Llama3Config, ArchConfigWithVisionCache):
         """
         layer_types = getattr(text_config, "layer_types", [])
         if layer_types:
-            return list(layer_types)
+            layer_types = list(layer_types)
+            unsupported = sorted(set(layer_types) - _SUPPORTED_LAYER_TYPES)
+            if unsupported:
+                if "qwen_sparse_attention" in unsupported:
+                    raise NotImplementedError(
+                        "The public Qwen3.5 graph does not implement the "
+                        "qwen_sparse_attention layer type. Qwen Sparse "
+                        "Attention needs its own layer, cache metadata, and "
+                        "weight mapping before such a checkpoint can be "
+                        "served."
+                    )
+                raise ValueError(
+                    "Unsupported Qwen3.5 layer_types "
+                    f"{unsupported}; supported values are "
+                    f"{sorted(_SUPPORTED_LAYER_TYPES)}."
+                )
+            return layer_types
         full_interval = getattr(text_config, "full_attention_interval", 4)
         num_layers = text_config.num_hidden_layers
         return [
@@ -666,6 +684,7 @@ class Qwen3_5Config(Llama3Config, ArchConfigWithVisionCache):
         Handles both multimodal (Qwen3_5ForConditionalGeneration) and
         text-only (Qwen3_5ForCausalLM) configs by extracting the text config.
         """
+        cls._validate_hf_config(huggingface_config)
         model_config = model_config or pipeline_config.model
         text_config = Qwen3_5Config._get_text_config(huggingface_config)
 
@@ -846,3 +865,22 @@ class Qwen3_5Config(Llama3Config, ArchConfigWithVisionCache):
         )
 
         return config_instance
+
+    @classmethod
+    def _validate_hf_config(cls, huggingface_config: AutoConfig) -> None:
+        """Reject model families whose graph only resembles Qwen3.5 superficially."""
+        text_config = cls._get_text_config(huggingface_config)
+        model_types = {
+            getattr(huggingface_config, "model_type", None),
+            getattr(text_config, "model_type", None),
+        }
+        if model_types & {"qwen4_exp", "qwen4_exp_text"}:
+            raise NotImplementedError(
+                "Qwen4Exp (including Qwen3.8-Flash-Next) is registered for "
+                "config discovery only and cannot be served by the public "
+                "Qwen3.5 graph. Its computation requires Qwen Sparse "
+                "Attention indexing, gated hyper-connections, n-gram PLE "
+                "embeddings, Qwen4 MoE/shared-expert routing, and its own "
+                "multimodal path. Port those graph operations, cache "
+                "metadata, and weight mappings before enabling this model."
+            )

@@ -15,7 +15,7 @@
 attention with full attention, plus a vision encoder.
 """
 
-from .arch import qwen3_5_arch, qwen3_5_text_arch
+from .arch import qwen3_5_arch, qwen3_5_text_arch, qwen4_exp_arch
 from .model import Qwen3_5Inputs, Qwen3_5Model
 from .model_config import Qwen3_5Config
 from .reasoning import Qwen3_5ReasoningParser
@@ -29,4 +29,5 @@ __all__ = [
     "Qwen3_5ToolParser",
     "qwen3_5_arch",
     "qwen3_5_text_arch",
+    "qwen4_exp_arch",
 ]

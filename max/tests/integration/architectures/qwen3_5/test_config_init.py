@@ -39,6 +39,7 @@ from max.nn.kv_cache import (
     MultiKVCacheParams,
     recurrent_leaf,
 )
+from max.pipelines.architectures.qwen3_5 import qwen4_exp_arch
 from max.pipelines.architectures.qwen3_5.model_config import (
     Qwen3_5Config,
     _declared_dtype,
@@ -200,3 +201,43 @@ def test_the_state_pool_dtype_knob_still_wins() -> None:
         KVCacheConfig(state_pool_dtype="float32"),
         cache_dtype=DType.float8_e4m3fn,
     ) == {DType.float32}
+
+
+def test_qwen4_exp_arch_alias_uses_qwen3_5_config() -> None:
+    assert qwen4_exp_arch.name == "Qwen4ExpForConditionalGeneration"
+    assert qwen4_exp_arch.config is Qwen3_5Config
+    assert "Qwen/Qwen3.8-Flash-Next" in qwen4_exp_arch.example_repo_ids
+
+
+def test_qwen_sparse_attention_fails_closed() -> None:
+    text_config = _text_config(128)
+    text_config.layer_types = ["linear_attention", "qwen_sparse_attention"]
+
+    try:
+        Qwen3_5Config._get_layer_types(text_config)
+    except NotImplementedError as exc:
+        message = str(exc)
+        assert "qwen_sparse_attention" in message
+        assert "Qwen Sparse Attention" in message
+    else:
+        raise AssertionError("qwen_sparse_attention should fail closed")
+
+
+def test_qwen4_exp_config_fails_before_qwen3_5_graph_construction() -> None:
+    huggingface_config = SimpleNamespace(
+        model_type="qwen4_exp",
+        text_config=SimpleNamespace(model_type="qwen4_exp_text"),
+    )
+
+    try:
+        Qwen3_5Config.initialize_from_config(
+            _pipeline_config(), huggingface_config, max_seq_len=128
+        )
+    except NotImplementedError as exc:
+        message = str(exc)
+        assert "Qwen Sparse Attention" in message
+        assert "hyper-connections" in message
+        assert "PLE" in message
+        assert "MoE/shared-expert" in message
+    else:
+        raise AssertionError("qwen4_exp should fail before graph construction")
