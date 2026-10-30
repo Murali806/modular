@@ -136,7 +136,8 @@
             "develop/read-model-config",
             "develop/weight-adapters",
             "develop/pipelines",
-            "develop/quantize"
+            "develop/quantize",
+            "develop/quantization-visual-guide"
           ]
         },
         {

@@ -1,0 +1,812 @@
+---
+title: Quantization visual guide
+sidebar_label: Quantization visual guide
+description: See how lower-precision weights reduce memory and flow through MAX qmatmul
+---
+
+import {useEffect, useMemo, useState} from 'react';
+
+export const VISUAL_VALUES = [-1.0, -0.72, -0.31, 0.0, 0.27, 0.63, 0.91, 1.0];
+
+export const VISUAL_STAGES = [
+  {
+    title: 'FP32 weights',
+    detail: 'Start with full-precision floating-point values.',
+  },
+  {
+    title: 'Choose a scale',
+    detail: 'Map the floating-point range onto the available integer codes.',
+  },
+  {
+    title: 'Round to codes',
+    detail: 'Each weight becomes a small signed integer.',
+  },
+  {
+    title: 'Pack the weights',
+    detail: 'Store fewer bits per weight, plus encoding metadata.',
+  },
+  {
+    title: 'Run qmatmul',
+    detail: 'MAX uses the encoding while computing the matrix multiplication.',
+  },
+];
+
+export function QuantizationAnimation() {
+  const [bits, setBits] = useState(4);
+  const [stage, setStage] = useState(0);
+  const [playing, setPlaying] = useState(true);
+
+  const calculation = useMemo(() => {
+    const maximum = Math.max(...VISUAL_VALUES.map((value) => Math.abs(value)));
+    const maximumCode = 2 ** (bits - 1) - 1;
+    const scale = maximum / maximumCode;
+    const codes = VISUAL_VALUES.map((value) =>
+      Math.max(-maximumCode, Math.min(maximumCode, Math.round(value / scale))),
+    );
+    const reconstructed = codes.map((code) => code * scale);
+    const errors = reconstructed.map((value, index) =>
+      Math.abs(value - VISUAL_VALUES[index]),
+    );
+
+    return {
+      maximum,
+      maximumCode,
+      scale,
+      codes,
+      reconstructed,
+      errors,
+      originalBytes: VISUAL_VALUES.length * 4,
+      packedBytes: (VISUAL_VALUES.length * bits) / 8,
+    };
+  }, [bits]);
+
+  useEffect(() => {
+    if (!playing) {
+      return undefined;
+    }
+
+    const reducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    );
+    if (reducedMotion.matches) {
+      setPlaying(false);
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setStage((current) => (current + 1) % VISUAL_STAGES.length);
+    }, 1800);
+
+    return () => window.clearInterval(timer);
+  }, [playing]);
+
+  const chooseBits = (nextBits) => {
+    setBits(nextBits);
+    setStage(0);
+  };
+
+  const chooseStage = (nextStage) => {
+    setStage(nextStage);
+    setPlaying(false);
+  };
+
+  return (
+    <section className="qvz-shell" aria-label="Interactive quantization walkthrough">
+      <style>{`
+        .qvz-shell {
+          --qvz-ink: #182230;
+          --qvz-muted: #52606d;
+          --qvz-line: #c8d0d9;
+          --qvz-surface: #f7f9fb;
+          --qvz-surface-strong: #ffffff;
+          --qvz-teal: #087f8c;
+          --qvz-coral: #c84c3a;
+          --qvz-gold: #b7791f;
+          --qvz-green: #2f855a;
+          color: var(--qvz-ink);
+          margin: 1.5rem 0 2rem;
+        }
+
+        html[data-theme='dark'] .qvz-shell {
+          --qvz-ink: #edf2f7;
+          --qvz-muted: #b8c2cc;
+          --qvz-line: #4a5568;
+          --qvz-surface: #182230;
+          --qvz-surface-strong: #111820;
+          --qvz-teal: #45b8c4;
+          --qvz-coral: #f08a78;
+          --qvz-gold: #f2c14e;
+          --qvz-green: #68d391;
+        }
+
+        .qvz-toolbar {
+          align-items: center;
+          border-bottom: 1px solid var(--qvz-line);
+          border-top: 1px solid var(--qvz-line);
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.75rem;
+          justify-content: space-between;
+          padding: 0.75rem 0;
+        }
+
+        .qvz-control-group {
+          align-items: center;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+
+        .qvz-label {
+          color: var(--qvz-muted);
+          font-size: 0.82rem;
+          font-weight: 700;
+        }
+
+        .qvz-button {
+          background: var(--qvz-surface-strong);
+          border: 1px solid var(--qvz-line);
+          border-radius: 6px;
+          color: var(--qvz-ink);
+          cursor: pointer;
+          font: inherit;
+          font-size: 0.84rem;
+          font-weight: 700;
+          min-height: 2.25rem;
+          padding: 0.4rem 0.75rem;
+        }
+
+        .qvz-button:hover,
+        .qvz-button:focus-visible {
+          border-color: var(--qvz-teal);
+          outline: 2px solid color-mix(in srgb, var(--qvz-teal) 35%, transparent);
+          outline-offset: 2px;
+        }
+
+        .qvz-button[aria-pressed='true'] {
+          background: var(--qvz-teal);
+          border-color: var(--qvz-teal);
+          color: #ffffff;
+        }
+
+        .qvz-stage-list {
+          display: grid;
+          gap: 0.5rem;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          margin: 1rem 0;
+        }
+
+        .qvz-stage {
+          background: var(--qvz-surface);
+          border: 1px solid var(--qvz-line);
+          border-radius: 6px;
+          color: var(--qvz-muted);
+          cursor: pointer;
+          font: inherit;
+          min-height: 5.5rem;
+          padding: 0.7rem;
+          text-align: left;
+          transition: border-color 180ms ease, opacity 180ms ease,
+            transform 180ms ease;
+        }
+
+        .qvz-stage[data-complete='false'] {
+          opacity: 0.48;
+        }
+
+        .qvz-stage[data-current='true'] {
+          border-color: var(--qvz-coral);
+          box-shadow: inset 0 0 0 1px var(--qvz-coral);
+          color: var(--qvz-ink);
+          transform: translateY(-2px);
+        }
+
+        .qvz-stage:hover,
+        .qvz-stage:focus-visible {
+          border-color: var(--qvz-coral);
+          outline: 2px solid color-mix(in srgb, var(--qvz-coral) 35%, transparent);
+          outline-offset: 2px;
+        }
+
+        .qvz-stage-number {
+          color: var(--qvz-coral);
+          display: block;
+          font-size: 0.75rem;
+          font-weight: 800;
+          margin-bottom: 0.35rem;
+        }
+
+        .qvz-stage-title {
+          display: block;
+          font-size: 0.9rem;
+          font-weight: 800;
+          line-height: 1.25;
+        }
+
+        .qvz-current {
+          background: var(--qvz-surface);
+          border-left: 4px solid var(--qvz-coral);
+          min-height: 4.8rem;
+          padding: 0.8rem 1rem;
+        }
+
+        .qvz-current strong {
+          display: block;
+          margin-bottom: 0.2rem;
+        }
+
+        .qvz-current p {
+          color: var(--qvz-muted);
+          margin: 0;
+        }
+
+        .qvz-grid {
+          display: grid;
+          gap: 1rem;
+          grid-template-columns: minmax(0, 1.2fr) minmax(15rem, 0.8fr);
+          margin-top: 1rem;
+        }
+
+        .qvz-panel {
+          border: 1px solid var(--qvz-line);
+          border-radius: 8px;
+          padding: 1rem;
+        }
+
+        .qvz-panel h3 {
+          font-size: 1rem;
+          margin: 0 0 0.75rem;
+        }
+
+        .qvz-values {
+          display: grid;
+          gap: 0.45rem;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .qvz-value {
+          background: var(--qvz-surface);
+          border: 1px solid var(--qvz-line);
+          border-radius: 5px;
+          min-width: 0;
+          padding: 0.5rem;
+          text-align: center;
+        }
+
+        .qvz-value-label {
+          color: var(--qvz-muted);
+          display: block;
+          font-size: 0.68rem;
+          margin-bottom: 0.2rem;
+        }
+
+        .qvz-value-number {
+          display: block;
+          font-family: var(--ifm-font-family-monospace);
+          font-size: 0.82rem;
+          font-weight: 700;
+          overflow-wrap: anywhere;
+        }
+
+        .qvz-value[data-visible='false'] .qvz-value-number {
+          color: transparent;
+        }
+
+        .qvz-value[data-error='true'] {
+          border-color: var(--qvz-gold);
+        }
+
+        .qvz-formula {
+          background: var(--qvz-surface);
+          border-radius: 6px;
+          color: var(--qvz-ink);
+          font-family: var(--ifm-font-family-monospace);
+          font-size: 0.78rem;
+          line-height: 1.65;
+          margin-top: 0.75rem;
+          overflow-x: auto;
+          padding: 0.65rem 0.75rem;
+          white-space: nowrap;
+        }
+
+        .qvz-memory-row {
+          align-items: center;
+          display: grid;
+          gap: 0.55rem;
+          grid-template-columns: 3.4rem minmax(0, 1fr) 4.2rem;
+          margin: 0.65rem 0;
+        }
+
+        .qvz-memory-track {
+          background: var(--qvz-surface);
+          border: 1px solid var(--qvz-line);
+          border-radius: 4px;
+          height: 1.25rem;
+          overflow: hidden;
+        }
+
+        .qvz-memory-row[data-selected='true'] .qvz-memory-track {
+          border-color: var(--qvz-green);
+          box-shadow: 0 0 0 1px var(--qvz-green);
+        }
+
+        .qvz-memory-fill {
+          height: 100%;
+          transition: width 500ms ease;
+        }
+
+        .qvz-memory-fill.fp32 {
+          background: var(--qvz-coral);
+        }
+
+        .qvz-memory-fill.int8 {
+          background: var(--qvz-teal);
+        }
+
+        .qvz-memory-fill.int4 {
+          background: var(--qvz-green);
+        }
+
+        .qvz-memory-name,
+        .qvz-memory-size {
+          font-family: var(--ifm-font-family-monospace);
+          font-size: 0.76rem;
+          font-weight: 700;
+        }
+
+        .qvz-memory-size {
+          text-align: right;
+        }
+
+        .qvz-path {
+          align-items: center;
+          display: grid;
+          gap: 0.5rem;
+          grid-template-columns: 1fr auto 1fr auto 1fr;
+          margin-top: 1rem;
+        }
+
+        .qvz-path-node {
+          background: var(--qvz-surface);
+          border: 1px solid var(--qvz-line);
+          border-radius: 6px;
+          min-height: 4.25rem;
+          padding: 0.65rem;
+          text-align: center;
+        }
+
+        .qvz-path-node[data-active='true'] {
+          border-color: var(--qvz-green);
+          box-shadow: inset 0 0 0 1px var(--qvz-green);
+          animation: qvz-pulse 900ms ease-in-out infinite alternate;
+        }
+
+        .qvz-path-node strong {
+          display: block;
+          font-size: 0.84rem;
+          margin-bottom: 0.2rem;
+        }
+
+        .qvz-path-node span {
+          color: var(--qvz-muted);
+          display: block;
+          font-size: 0.72rem;
+        }
+
+        .qvz-arrow {
+          color: var(--qvz-muted);
+          font-family: var(--ifm-font-family-monospace);
+          font-weight: 800;
+        }
+
+        .qvz-note {
+          color: var(--qvz-muted);
+          font-size: 0.78rem;
+          line-height: 1.45;
+          margin: 0.75rem 0 0;
+        }
+
+        @keyframes qvz-pulse {
+          from { transform: scale(1); }
+          to { transform: scale(1.015); }
+        }
+
+        @media (max-width: 820px) {
+          .qvz-stage-list {
+            grid-template-columns: 1fr;
+          }
+
+          .qvz-stage {
+            min-height: 0;
+          }
+
+          .qvz-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .qvz-path {
+            grid-template-columns: 1fr;
+          }
+
+          .qvz-arrow {
+            transform: rotate(90deg);
+            text-align: center;
+          }
+        }
+
+        @media (max-width: 520px) {
+          .qvz-values {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .qvz-memory-row {
+            grid-template-columns: 3rem minmax(0, 1fr) 3.8rem;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .qvz-shell *,
+          .qvz-shell *::before,
+          .qvz-shell *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            scroll-behavior: auto !important;
+            transition-duration: 0.01ms !important;
+          }
+        }
+      `}</style>
+
+      <div className="qvz-toolbar">
+        <div className="qvz-control-group" role="group" aria-label="Encoding">
+          <span className="qvz-label">Encoding</span>
+          {[4, 8].map((option) => (
+            <button
+              className="qvz-button"
+              type="button"
+              aria-pressed={bits === option}
+              onClick={() => chooseBits(option)}
+              key={option}
+            >
+              INT{option}
+            </button>
+          ))}
+        </div>
+
+        <div className="qvz-control-group" role="group" aria-label="Animation">
+          <button
+            className="qvz-button"
+            type="button"
+            aria-pressed={playing}
+            onClick={() => setPlaying((current) => !current)}
+          >
+            {playing ? 'Pause' : 'Play'}
+          </button>
+          <button
+            className="qvz-button"
+            type="button"
+            onClick={() => {
+              setStage(0);
+              setPlaying(false);
+            }}
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <div className="qvz-stage-list" aria-label="Quantization stages">
+        {VISUAL_STAGES.map((item, index) => (
+          <button
+            className="qvz-stage"
+            type="button"
+            data-complete={index <= stage}
+            data-current={index === stage}
+            onClick={() => chooseStage(index)}
+            key={item.title}
+          >
+            <span className="qvz-stage-number">STEP {index + 1}</span>
+            <span className="qvz-stage-title">{item.title}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="qvz-current" aria-live="polite">
+        <strong>{VISUAL_STAGES[stage].title}</strong>
+        <p>{VISUAL_STAGES[stage].detail}</p>
+      </div>
+
+      <div className="qvz-grid">
+        <div className="qvz-panel">
+          <h3>Eight illustrative weights</h3>
+          <div className="qvz-values">
+            {VISUAL_VALUES.map((value, index) => {
+              let label = 'FP32';
+              let displayed = value.toFixed(2);
+              let visible = stage === 0;
+              let hasError = false;
+
+              if (stage === 1) {
+                label = 'range';
+                displayed = Math.abs(value).toFixed(2);
+                visible = true;
+              } else if (stage === 2 || stage === 3) {
+                label = `INT${bits}`;
+                displayed = String(calculation.codes[index]);
+                visible = true;
+              } else if (stage === 4) {
+                label = 'approx FP32';
+                displayed = calculation.reconstructed[index].toFixed(2);
+                visible = true;
+                hasError = calculation.errors[index] > 0.001;
+              }
+
+              return (
+                <div
+                  className="qvz-value"
+                  data-visible={visible}
+                  data-error={hasError}
+                  key={`${value}-${index}`}
+                >
+                  <span className="qvz-value-label">{label}</span>
+                  <span className="qvz-value-number">{displayed}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="qvz-formula">
+            max_abs = {calculation.maximum.toFixed(2)}<br />
+            max_code = 2^({bits} - 1) - 1 = {calculation.maximumCode}<br />
+            scale = max_abs / max_code = {calculation.scale.toFixed(5)}<br />
+            code = round(weight / scale)
+          </div>
+
+          <p className="qvz-note">
+            This animation uses simple symmetric quantization for teaching.
+            Formats such as Q4_0, Q4_K, and GPTQ use format-specific blocks and
+            metadata.
+          </p>
+        </div>
+
+        <div className="qvz-panel">
+          <h3>Storage for one billion weights</h3>
+
+          <div className="qvz-memory-row" data-selected={false}>
+            <span className="qvz-memory-name">FP32</span>
+            <span className="qvz-memory-track">
+              <span className="qvz-memory-fill fp32" style={{width: '100%'}} />
+            </span>
+            <span className="qvz-memory-size">4 GB</span>
+          </div>
+
+          <div className="qvz-memory-row" data-selected={bits === 8}>
+            <span className="qvz-memory-name">INT8</span>
+            <span className="qvz-memory-track">
+              <span className="qvz-memory-fill int8" style={{width: '25%'}} />
+            </span>
+            <span className="qvz-memory-size">1 GB</span>
+          </div>
+
+          <div className="qvz-memory-row" data-selected={bits === 4}>
+            <span className="qvz-memory-name">INT4</span>
+            <span className="qvz-memory-track">
+              <span className="qvz-memory-fill int4" style={{width: '12.5%'}} />
+            </span>
+            <span className="qvz-memory-size">0.5 GB</span>
+          </div>
+
+          <div className="qvz-formula">
+            animation input: {calculation.originalBytes} bytes FP32<br />
+            packed INT{bits}: {calculation.packedBytes} bytes + metadata
+          </div>
+
+          <p className="qvz-note">
+            The bars show raw weight storage. Real checkpoints also contain
+            scales, zero points, block metadata, and non-quantized tensors.
+          </p>
+        </div>
+      </div>
+
+      <div className="qvz-path" aria-label="MAX quantized execution path">
+        <div className="qvz-path-node" data-active={stage === 3}>
+          <strong>uint8 weight storage</strong>
+          <span>Packed codes and metadata</span>
+        </div>
+        <span className="qvz-arrow" aria-hidden="true">-&gt;</span>
+        <div className="qvz-path-node" data-active={stage === 4}>
+          <strong>ops.qmatmul</strong>
+          <span>Encoding-aware matrix multiplication</span>
+        </div>
+        <span className="qvz-arrow" aria-hidden="true">-&gt;</span>
+        <div className="qvz-path-node" data-active={stage === 4}>
+          <strong>activation output</strong>
+          <span>Higher-precision result tensor</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+Quantization stores model weights with fewer bits. The goal is to reduce memory
+traffic and storage while keeping the inference result close enough to the
+full-precision model.
+
+This page is a visual companion to the main
+[Quantization guide](/develop/quantize/). Use that page for the canonical CLI
+commands and API reference links.
+
+:::note
+The numeric animation below teaches the general idea with symmetric integer
+quantization. It is not a byte-for-byte decoder for Q4_0, Q4_K, GPTQ, or another
+specific checkpoint format.
+:::
+
+<QuantizationAnimation />
+
+## Read the animation
+
+```text
+FP32 weights
+    |
+    | choose scale and encoding
+    v
+small integer codes
+    |
+    | pack codes into uint8 storage
+    v
+quantized checkpoint weights
+    |
+    | ops.qmatmul(encoding, ..., activation, weight)
+    v
+output activation tensor
+```
+
+The quantized values are approximations. A lower bit width provides fewer
+integer codes, so it usually saves more memory but can introduce more rounding
+error.
+
+## Standard and quantized linear layers
+
+| Concern                  | Standard linear layer              | Quantized linear layer       |
+|--------------------------|------------------------------------|------------------------------|
+| Weight dtype             | `float32` or another floating type | `uint8` packed storage       |
+| Weight shape in this API | `[in_dim, out_dim]`                | `[out_dim, in_dim]`          |
+| Graph operation          | `x @ weight.T`                     | `ops.qmatmul(...)`           |
+| Extra metadata           | None                               | `QuantizationEncoding`       |
+| Bias                     | Usually floating point             | Usually still floating point |
+
+```python
+from max import nn
+from max.dtype import DType
+from max.graph import DeviceRef, Weight, ops
+from max.graph.quantization import QuantizationEncoding
+
+
+class QuantizedLinear(nn.Module):
+    def __init__(self, in_dim, out_dim, encoding):
+        super().__init__()
+        self.weight = Weight(
+            name="weight",
+            dtype=DType.uint8,
+            shape=[out_dim, in_dim],
+            device=DeviceRef.CPU(),
+            quantization_encoding=encoding,
+        )
+        self.bias = Weight(
+            name="bias",
+            dtype=DType.float32,
+            shape=[out_dim],
+            device=DeviceRef.CPU(),
+        )
+
+    def __call__(self, x):
+        quantized_product = ops.qmatmul(
+            self.weight.quantization_encoding,
+            None,
+            x,
+            self.weight.to(x.device),
+        )
+        return quantized_product + self.bias.to(x.device)
+
+
+layer = QuantizedLinear(64, 32, QuantizationEncoding.Q4_0)
+```
+
+```text
+x: floating activation
+        |
+        v
+ops.qmatmul(
+    encoding=Q4_0,
+    activation=x,
+    packed_weight=uint8[out_dim, in_dim],
+)
+        |
+        +-- interpret packed blocks using Q4_0 metadata
+        +-- perform the encoding-aware matrix multiplication
+        v
+floating activation result
+        |
+        | add floating-point bias
+        v
+layer output
+```
+
+`qmatmul` handles the quantized representation during inference. Application
+code does not need to unpack every weight into a Python tensor before running
+the operation.
+
+## Load a pre-quantized model
+
+### Quantized weight file
+
+```text
+model configuration + GGUF/AWQ weight file
+                    |
+                    | MAX detects weight encoding
+                    v
+             compiled MAX model
+```
+
+```bash
+max serve --model meta-llama/Llama-3.1-8B-Instruct \
+    --weight-path=bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf
+```
+
+### Explicit encoding
+
+```text
+quantized checkpoint + --quantization-encoding=gptq
+                           |
+                           v
+                 GPTQ-aware model loading
+```
+
+```bash
+max generate --model hugging-quants/Meta-Llama-3.1-8B-Instruct-GPTQ-INT4 \
+    --quantization-encoding=gptq \
+    --prompt "What is the meaning of life?"
+```
+
+## Choose an encoding
+
+| Encoding        | Weight precision | Typical reason to choose it                     |
+|-----------------|-----------------:|-------------------------------------------------|
+| `float32`       |          32 bits | Highest precision and largest memory footprint  |
+| `bfloat16`      |          16 bits | Lower memory with a wide floating-point range   |
+| `float8_e4m3fn` |           8 bits | FP8 checkpoints and supported FP8 operations    |
+| `q6_k`          |           6 bits | More precision than four-bit K-family formats   |
+| `q4_0`          |           4 bits | Compact, commonly used GGUF quantization        |
+| `q4_k`          |           4 bits | K-family four-bit checkpoint representation     |
+| `gptq`          |  Commonly 4 bits | Transformer-oriented post-training quantization |
+
+The best format depends on the model, hardware, kernel support, memory budget,
+and acceptable accuracy loss. A model may also mix encodings so sensitive
+operations retain higher precision.
+
+## Accuracy and performance trade-off
+
+```text
+more bits                                          fewer bits
+   |                                                   |
+   v                                                   v
+more representable values                         fewer values
+usually less rounding error                       usually more rounding error
+more weight memory                                less weight memory
+more memory bandwidth                             less memory bandwidth
+```
+
+Quantization can reduce weight traffic substantially, but speedup is not
+guaranteed for every graph. Performance also depends on whether the target
+hardware and MAX kernels have an efficient implementation for the selected
+encoding.
+
+## Next steps
+
+- Review the canonical [Quantization guide](/develop/quantize/).
+- See the supported
+  [`QuantizationEncoding`](/api/python/generated/max.graph.quantization.QuantizationEncoding)
+  values.
+- Follow
+  [Map checkpoint weights](/develop/model-bringup-workflow/#map-checkpoint-weights)
+  when bringing up an FP8 or FP4 architecture.
