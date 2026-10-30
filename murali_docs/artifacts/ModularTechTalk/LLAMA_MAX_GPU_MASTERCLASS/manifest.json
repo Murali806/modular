@@ -1,0 +1,55 @@
+{
+  "revision": "eab325f81bdbcf0195c511a56510f65c37540798",
+  "generatedAt": "2026-10-30T15:25:22.926Z",
+  "totalSlides": 546,
+  "totalScenes": 132,
+  "sourceFiles": 37,
+  "decks": [
+    {
+      "part": 1,
+      "title": "Graph Construction and Finalization",
+      "file": "decks/PART_01_GRAPH-CONSTRUCTION-FINALIZATION.pptx",
+      "slides": 91
+    },
+    {
+      "part": 2,
+      "title": "Graph Compiler Transformations",
+      "file": "decks/PART_02_COMPILER-TRANSFORMATIONS.pptx",
+      "slides": 91
+    },
+    {
+      "part": 3,
+      "title": "Kernel Development and Optimization",
+      "file": "decks/PART_03_KERNEL-DEVELOPMENT-OPTIMIZATION.pptx",
+      "slides": 91
+    },
+    {
+      "part": 4,
+      "title": "Driver, Offload, Memory, and Backends",
+      "file": "decks/PART_04_DRIVER-OFFLOAD-BACKENDS.pptx",
+      "slides": 91
+    },
+    {
+      "part": 5,
+      "title": "MAX Serve Scheduling and Contexts",
+      "file": "decks/PART_05_MAX-SERVE-SCHEDULING.pptx",
+      "slides": 91
+    },
+    {
+      "part": 6,
+      "title": "Source Atlas, Debugging, and Invariants",
+      "file": "decks/PART_06_SOURCE-ATLAS-DEBUGGING.pptx",
+      "slides": 91
+    }
+  ],
+  "html": [
+    "html/index.html",
+    "html/source-index.html",
+    "html/part-01-graph-construction-finalization.html",
+    "html/part-02-compiler-transformations.html",
+    "html/part-03-kernel-development-optimization.html",
+    "html/part-04-driver-offload-backends.html",
+    "html/part-05-max-serve-scheduling.html",
+    "html/part-06-source-atlas-debugging.html"
+  ]
+}
