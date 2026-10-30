@@ -1447,6 +1447,7 @@ Python Graph object
 
 </details>
 
+
 </details>
 
 <details>
@@ -2119,6 +2120,501 @@ _compile_module()
 
 </details>
 
+<details>
+<summary><strong>Step 6.4: How The Mojo Kernel Becomes CPU Or GPU Machine Code</strong></summary>
+
+**Question:** At `self._impl.compile(...)`, how do our Mojo kernels get converted to CPU machine code and GPU machine code?
+
+`self._impl.compile(...)` is the boundary where Python hands the prepared MLIR
+module and custom-extension paths to the native MAX compiler. The source for
+that native `max._core` implementation is not present in this checkout, but the
+code before and after that boundary shows this call flow:
+
+```text
+InferenceSession.compile(graph)
+    |
+    v
+compile_async()
+    |
+    +-- Seed declarations for kernels used by mo.custom
+    +-- Add KernelLibrary/custom-extension paths
+    v
+_compile_module()
+    |
+    v
+self._impl.compile(module.mlir_module._CAPIPtr, ...)
+    |
+    +-- Enter native MAX graph compiler
+    +-- Resolve mo.custom "demo_add_one"
+    +-- Specialize DemoAddOne.execute[target=...]
+    v
++---------------------------+-----------------------------+
+| CPU placement             | GPU placement               |
++---------------------------+-----------------------------+
+| target = "cpu"            | target = "gpu"              |
+| foreach[target="cpu"]     | foreach[target="gpu"]      |
+| _elementwise_impl_cpu     | _elementwise_impl_gpu       |
+| sync_parallelize          | grid-stride or SM100 CLC    |
+| SIMD vectorize            | ctx.enqueue_function(...)   |
+| host LLVM backend         | GPU LLVM backend            |
+| x86-64/AArch64 code       | NVIDIA or AMD device code   |
++---------------------------+-----------------------------+
+```
+
+The custom kernel is registered here:
+
+```mojo
+@extensibility.register("demo_add_one")
+struct DemoAddOne:
+    @staticmethod
+    def execute[target: StaticString](
+        output: OutputTensor,
+        x: InputTensor[dtype=output.dtype, rank=output.rank, ...],
+        ctx: DeviceContext,
+    ) raises:
+        ...
+        foreach[target=target](add_one, output, ctx)
+```
+
+`target` is a compile-time Mojo parameter. MAX specializes the same generic
+kernel implementation for the graph's selected device:
+
+```text
+CPU graph/device
+    -> DemoAddOne.execute[target="cpu"]
+    -> CPU implementation of foreach
+    -> native host machine code
+
+GPU graph/device
+    -> DemoAddOne.execute[target="gpu"]
+    -> GPU implementation of foreach
+    -> accelerator device code plus a host-side launcher
+```
+
+The CPU path is:
+
+```text
+foreach[target="cpu"]
+    |
+    v
+_elementwise_impl_cpu
+    |
+    +-- Divide work among CPU workers with sync_parallelize
+    +-- Vectorize inner work with CPU SIMD
+    v
+Mojo/MLIR lowering
+    |
+    v
+LLVM host target backend
+    |
+    v
+x86-64 or AArch64 machine code
+```
+
+The GPU path is:
+
+```text
+foreach[target="gpu"]
+    |
+    v
+_elementwise_impl_gpu
+    |
+    +-- Choose block size and grid size
+    +-- Build a GPU kernel closure
+    +-- Emit ctx.enqueue_function(...)
+    v
+DeviceFunction / _compile_code / compile_info
+    |
+    v
+kgen.compile_offload
+    |
+    v
+GPU-oriented Mojo/MLIR -> LLVM IR -> target GPU backend
+    |
+    +-- NVIDIA: NVPTX/PTX and a loadable CUDA module image
+    +-- AMD: AMDGPU code object/HSACO
+```
+
+The `.mojoc` file is a precompiled Mojo package. It makes the registered Mojo
+definitions available to the MAX compiler, but it is not necessarily the final
+CPU or GPU machine-code image. Final specialization and target code generation
+happen when MAX compiles the graph for the selected device.
+
+MAX does not necessarily generate both CPU and GPU versions on every compile.
+It compiles the specialization required by the graph placement and available
+target configuration.
+
+Relevant source paths:
+
+- `murali_docs/artifacts/source_code_walkthrough/max_kernel_lib/kernels/add_one.mojo:24`
+- `max/mojo/max/algorithm/functional.mojo:362`
+- `max/mojo/max/algorithm/backend/cpu/elementwise.mojo:33`
+- `max/mojo/max/algorithm/backend/gpu/elementwise.mojo:830`
+- `max/mojo/max/gpu/host/_device_context_extras.mojo:123`
+- `max/mojo/max/gpu/host/compile.mojo:36`
+- `Mojo/stdlib/std/compile/compile.mojo:210`
+
+</details>
+
+<details>
+<summary><strong>Step 6.5: End-To-End Call Flow From <code>_compile_module()</code> To GPU Code</strong></summary>
+
+**End-To-End Call Flow**
+
+Starting from the Python code:
+
+```python
+def _compile_module(
+    self,
+    module: Module,
+    custom_extensions_final: list[CustomExtensionType],
+    tile_based_fusion: bool = False,
+) -> _AsyncValue[_CompiledModels]:
+    _COMPILATION_LOCK.acquire()
+
+    try:
+        handle = self._impl.compile(
+            module.mlir_module._CAPIPtr,
+            custom_extensions_final,
+            _derive_pipeline_name(module),
+            tile_based_fusion,
+        )
+```
+
+the complete GPU path is:
+
+```text
+Python InferenceSession._compile_module()
+|
++-- module.mlir_module._CAPIPtr
+|   +-- Native pointer to builtin.module
+|   +-- Contains mo.graph @add_one_demo
+|   +-- Contains mo.custom "demo_add_one"
+|
++-- custom_extensions_final
+|   +-- Contains the compiled custom Mojo package/library path
+|
+v
+self._impl.compile(...)
+|
++-- Crosses from Python into compiled max._core
++-- Runs the native MAX graph compiler
++-- Resolves mo.custom "demo_add_one" through KernelLibrary
++-- Selects/specializes the kernel for the operation's device
+v
+DemoAddOne.execute[target="gpu"]
+|
++-- target is a compile-time StaticString
++-- add_one is captured as the elementwise body
+v
+foreach[target="gpu"](add_one, output, ctx)
+|
+v
+elementwise[target="gpu"]
+|
+v
+_elementwise_impl(...)
+|
++-- CPU target -> _elementwise_impl_cpu
++-- GPU target -> _elementwise_impl_gpu
+v
+_elementwise_impl_gpu
+|
++-- Implemented in:
+|   max/mojo/max/algorithm/backend/gpu/elementwise.mojo:830
+|
++-- Reads compile-time GPU information
+|   +-- warp/wavefront size
+|   +-- register count
+|   +-- SM/CU count
+|   +-- threads per multiprocessor
+|
++-- Chooses launch strategy
+|   +-- normal grid-stride kernel
+|   +-- SM100 CLC work-stealing kernel when enabled/suitable
+|
++-- Chooses block size and number of blocks
+v
+ctx.enqueue_function(...)
+|
++-- Visible at elementwise.mojo:378, :563, and :814
++-- Captures the generated GPU kernel closure
++-- Supplies grid dimensions, block dimensions, arguments, and shared memory
+v
+DeviceFunction.__init__
+|
++-- Calls _compile_code[func, ...]
+v
+max.gpu.host.compile._compile_code
+|
++-- Implemented in max/mojo/max/gpu/host/compile.mojo:36
++-- Selects CompilationTarget.current_accelerator()
++-- Calls compile_info[...] with that target
+v
+std.compile.compile_info
+|
++-- Materializes kgen.compile_offload
++-- Records the requested target, emission kind, and compiler options
+v
+Mojo compiler parametric elaboration
+|
++-- Finds kgen.compile_offload operations
++-- Groups them by TargetInfoAttr
++-- Compiles each offload group for its requested target
++-- Replaces the compile_offload result with generated code bytes
+v
+ObjectCompiler::emitOffloadKernels
+|
++-- Splits offload kernels as required
++-- Lowers the GPU MLIR module to LLVM IR
++-- Creates the target-specific LLVM backend from the target triple
+v
+LLVM TargetRegistry::lookupTarget(targetTriple)
+|
++-- NVIDIA target triple/features -> NVPTX backend
++-- AMD target triple/features    -> AMDGPU backend
+v
+TargetMachine::createTargetMachine(...)
+|
++-- Uses target CPU/GPU architecture and feature strings
++-- Runs target optimization and assembly/object emission
+v
++-----------------------------+--------------------------------+
+| NVIDIA                      | AMD                            |
++-----------------------------+--------------------------------+
+| NVPTX LLVM backend          | AMDGPU LLVM backend            |
+| emits PTX/object image      | emits AMD GPU code object      |
+| driver may JIT PTX          | HSACO/code object is loadable  |
+| module loaded by CUDA       | module loaded by HIP           |
++-----------------------------+--------------------------------+
+|
+v
+Generated device-code bytes are returned to the Mojo/MAX host artifact
+|
+v
+AsyncRT_DeviceContext_loadFunction(...)
+|
++-- Loads the module image through the active accelerator runtime
++-- Looks up the generated kernel function
++-- Returns an opaque DeviceFunction handle
+v
+AsyncRT_DeviceContext_enqueueFunctionDirect(...)
+|
++-- Passes function handle
++-- Passes grid and block dimensions
++-- Passes kernel argument pointers
++-- Enqueues work on the device stream
+v
+GPU executes demo_add_one
+```
+
+`_elementwise_impl_gpu` is implemented in
+`max/mojo/max/algorithm/backend/gpu/elementwise.mojo:830`. It is not inside the
+closed-source `max._core` Python extension. The native graph compiler reaches
+this Mojo implementation after it resolves `demo_add_one` and specializes its
+`execute[target]` function for a GPU target.
+
+The backend is not selected by a Python `if nvidia` statement. The selected
+accelerator contributes a `CompilationTarget` containing a target triple,
+architecture, features, and compile options. The Mojo offload compiler carries
+that target into `ObjectCompiler`; LLVM then selects the registered backend by
+the target triple:
+
+```cpp
+const llvm::Target *target = llvm::TargetRegistry::lookupTarget(
+    llvm::Triple(options.targetTriple), errorMessage);
+
+target->createTargetMachine(
+    llvm::Triple(options.targetTriple),
+    options.targetCpu,
+    options.targetFeatures,
+    ...
+);
+```
+
+Conceptually:
+
+```text
+NVIDIA GPU selected
+    -> NVIDIA target triple + SM architecture/features
+    -> LLVM NVPTX target
+    -> PTX and/or CUDA-loadable module image
+
+AMD GPU selected
+    -> AMDGPU target triple + GFX architecture/features
+    -> LLVM AMDGPU target
+    -> AMD GPU code object/HSACO
+```
+
+The generated GPU host launcher conceptually performs:
+
+```text
+load GPU module image
+    |
+get kernel function handle
+    |
+set/pass kernel arguments
+    |
+launch grid x block on a stream
+    |
+return while device work remains asynchronous
+```
+
+There is no explicit application-level copy into GPU instruction RAM. MAX hands
+the generated module image to the CUDA or HIP driver. The driver decides where
+executable code resides and how instruction caches are populated.
+
+Source boundary: the Python-to-native call and Mojo/LLVM offload machinery are
+visible in this checkout. The internal implementation of
+`self._impl.compile(...)` itself is supplied by the compiled `max._core` engine,
+so its exact internal C++ call sequence cannot be copied from repository source.
+
+</details>
+
+<details>
+<summary><strong>Step 6.6: NVIDIA And AMD Driver APIs Used To Load And Launch GPU Code</strong></summary>
+
+For this MAX build, `libAsyncRTMojoBindings.so` dynamically loads:
+
+```text
+NVIDIA
+    libcuda.so.1
+
+AMD
+    libamdhip64.so
+```
+
+It resolves the driver functions with `dlopen()` / `dlsym()`.
+
+The NVIDIA APIs present in the library are:
+
+```text
+cuModuleLoadDataEx
+cuModuleGetFunction
+cuLaunchKernel
+cuLaunchKernelEx
+cuModuleUnload
+```
+
+The call flow is:
+
+```text
+Mojo DeviceFunction construction
+    |
+    v
+external_call["AsyncRT_DeviceContext_loadFunction"](...)
+    |
+    v
+AsyncRT CUDADeviceContext::loadFunction(...)
+    |
+    +-- cuModuleLoadDataEx(...)
+    |      +-- Input: PTX, CUBIN, or another CUDA module image in host memory
+    |      +-- Output: CUmodule
+    |
+    +-- cuModuleGetFunction(...)
+           +-- Input: CUmodule + generated kernel symbol name
+           +-- Output: CUfunction
+
+Mojo ctx.enqueue_function(...)
+    |
+    v
+external_call["AsyncRT_DeviceContext_enqueueFunctionDirect"](...)
+    |
+    v
+cuLaunchKernel(...) or cuLaunchKernelEx(...)
+    |
+    +-- CUfunction
+    +-- grid dimensions
+    +-- block dimensions
+    +-- dynamic shared-memory size
+    +-- CUDA stream
+    +-- kernel argument pointers
+```
+
+`cuModuleLoadDataEx()` is the API that gives the generated code image to the
+NVIDIA driver. If the image contains PTX, the driver can JIT-compile it for the
+installed GPU. If it contains compatible binary code, the driver can load that
+code directly. `cuModuleGetFunction()` obtains a launchable function handle, and
+`cuLaunchKernel()` or `cuLaunchKernelEx()` enqueues it.
+
+The AMD APIs present in the library are:
+
+```text
+hipModuleLoadData
+hipModuleLoadDataEx
+hipModuleGetFunction
+hipModuleLaunchKernel
+hipModuleUnload
+```
+
+The AMD call flow is:
+
+```text
+Mojo DeviceFunction construction
+    |
+    v
+external_call["AsyncRT_DeviceContext_loadFunction"](...)
+    |
+    v
+AsyncRT HIPDeviceContext::loadFunction(...)
+    |
+    +-- hipModuleLoadData(...) or hipModuleLoadDataEx(...)
+    |      +-- Input: AMD GPU code object/HSACO image in host memory
+    |      +-- Output: hipModule_t
+    |
+    +-- hipModuleGetFunction(...)
+           +-- Input: hipModule_t + generated kernel symbol name
+           +-- Output: hipFunction_t
+
+Mojo ctx.enqueue_function(...)
+    |
+    v
+external_call["AsyncRT_DeviceContext_enqueueFunctionDirect"](...)
+    |
+    v
+hipModuleLaunchKernel(...)
+    |
+    +-- hipFunction_t
+    +-- grid dimensions
+    +-- block dimensions
+    +-- dynamic shared-memory size
+    +-- HIP stream
+    +-- kernel argument pointers
+```
+
+There is no CUDA or HIP API named "copy this kernel into instruction RAM."
+The module-load API is the software-visible boundary:
+
+```text
+MAX/AsyncRT owns
+    +-- Generated code bytes in host memory
+    +-- Module and function handles
+    +-- Launch dimensions and arguments
+
+CUDA/HIP driver owns
+    +-- Validation/JIT/linking required for the installed GPU
+    +-- Device virtual-address mappings for executable code
+    +-- Uploading or paging code to device-accessible memory
+    +-- Instruction-cache filling and eviction
+    +-- Scheduling the launched kernel
+```
+
+Therefore, "load compiled binary to device IRAM" should be read as:
+
+```text
+NVIDIA:
+    cuModuleLoadDataEx -> cuModuleGetFunction -> cuLaunchKernel[Ex]
+
+AMD:
+    hipModuleLoadData[Ex] -> hipModuleGetFunction -> hipModuleLaunchKernel
+```
+
+The GPU fetches instructions when the kernel is scheduled. Hardware and the
+vendor driver manage the physical code placement and instruction caches; MAX
+does not manually address or fill an IRAM region.
+
+</details>
+
 </details>
 
 <details>
@@ -2133,6 +2629,500 @@ compiled
    v
 [result Buffer]
 ```
+
+<details>
+<summary><strong>QnA 7.1: Deep Dive Into <code>session.init(compiled)</code> Through The GPU Driver Layer</strong></summary>
+
+**Purpose**
+
+`session.init(compiled)` converts the reusable compiled artifact into a runtime `Model` instance bound to the session’s devices, weights, and persistent state.
+
+```text
+compile() -> machine code + metadata
+init()    -> runtime model + weights + persistent allocations
+execute() -> per-call input/output processing and kernel launches
+```
+
+**Python Call Flow**
+
+Source: [api.py](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/python/max/engine/api.py:1112)
+
+```text
+session.init(compiled)
+|
++-- Calls init_all(compiled)
+|
++-- Convert None weights to {}
+|
++-- Validate every required weight exists
+|
++-- Validate weight device
+|   +-- CPU weight expected -> DLPack CPU tensor required
+|   +-- GPU weight expected -> DLPack GPU tensor required
+|
++-- Verify weights are contiguous
+|
++-- Ensure compiled artifact has a session-owned AsyncValue
+|   |
+|   +-- _wrap_compiled(...)
+|
++-- Enter native MAX:
+|   |
+|   +-- self._impl._load_all(
+|           compiled._compiled,
+|           weights_registry_real,
+|       )
+|
++-- Return one max._core.engine.Model
+```
+
+The key native boundary is:
+
+```python
+models = self._impl._load_all(
+    compiled._compiled,
+    weights_registry_real,
+)
+```
+
+Its interface is declared in [engine.pyi](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/python/max/_core/engine.pyi:545).
+
+**Native Initialization**
+
+Binary symbols show this call flow:
+
+```text
+max._core InferenceSession._load_all
+|
++-- Convert Python/DLPack weights into native WeightsRegistry
+|
++-- Select each Model inside CompiledModels
+|
++-- M::Engine::Context::initModel(
+|       M::Model const*,
+|       M::RCRef<M::WeightsRegistry>
+|   )
+|
++-- Schedule model setup through AsyncRT
+|
++-- Produce:
+|   AsyncValueRef<unique_ptr<ExecutableModel>>
+|
++-- Wrap it in Python max._core.engine.Model
+```
+
+The native setup is asynchronous. This is documented by [model.h](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/include/max/c/model.h:125):
+
+```text
+M_initModel(...)
+    -> returns M_AsyncModel
+    -> model setup may still be running
+```
+
+`model.execute()` can be called immediately because execution is chained after that asynchronous setup dependency.
+
+Initialization errors can therefore surface at the next synchronization point, commonly `model.execute()`.
+
+**What Setup Does**
+
+Depending on the graph, the generated model setup/init entry point can:
+
+```text
+Model setup
+|
++-- Bind external weights by name
+|
++-- Retain DLPack ownership/lifetime references
+|
++-- Allocate persistent buffers
+|   +-- model weights
+|   +-- mutable graph state
+|   +-- buffers created by ops.buffer_create(...)
+|
++-- Copy weights to their required device
+|
++-- Repack or transform weights
+|   +-- quantized weight repacking
+|   +-- layout conversion
+|   +-- sharding
+|
++-- Initialize persistent values
+|
++-- Run setup-time CPU/GPU kernels when required
+|
++-- Construct ExecutableModel
+    +-- execution entry point
+    +-- input/output metadata
+    +-- device contexts
+    +-- persistent values
+    +-- setup dependency chain
+```
+
+It does not provide normal graph inputs or execute the forward graph.
+
+**GPU Driver Path**
+
+When model setup requires GPU memory or setup kernels:
+
+```text
+Executable model setup
+|
+v
+Generated Mojo/MAX host code
+|
+v
+AsyncRT device operations
+|
++-- Allocate GPU memory
+|   NVIDIA: cuMemAllocAsync / cuMemAlloc_v2
+|   AMD:    hipMallocAsync / hipMalloc
+|
++-- Copy weights host -> GPU
+|   NVIDIA: cuMemcpyHtoDAsync_v2
+|   AMD:    hipMemcpyHtoDAsync
+|
++-- Load a setup kernel, if needed
+|   NVIDIA:
+|     cuModuleLoadDataEx
+|     cuModuleGetFunction
+|
+|   AMD:
+|     hipModuleLoadData[Ex]
+|     hipModuleGetFunction
+|
++-- Launch the setup kernel
+    NVIDIA: cuLaunchKernel / cuLaunchKernelEx
+    AMD:    hipModuleLaunchKernel
+```
+
+The Mojo-side bridge for loading a device function is visible in [_device_context_extras.mojo](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/mojo/max/gpu/host/_device_context_extras.mojo:157).
+
+**Driver Layers**
+
+```text
+MAX / Mojo generated host code
+|
+v
+libAsyncRTMojoBindings.so
+|
++-- NVIDIA -> libcuda.so.1
+|              |
+|              v
+|          CUDA user-mode driver
+|              |
+|              v
+|          ioctl/system calls
+|              |
+|              v
+|          NVIDIA kernel drivers
+|          /dev/nvidiactl
+|          /dev/nvidia0
+|          /dev/nvidia-uvm
+|
++-- AMD -> libamdhip64.so
+               |
+               v
+           HIP/ROCr user-space runtime
+               |
+               v
+           ioctl/system calls
+               |
+               v
+           amdgpu/KFD kernel drivers
+           /dev/kfd
+           /dev/dri/renderD*
+```
+
+The kernel driver manages GPU virtual-memory mappings, DMA copies, command queues, scheduling, and communication with GPU firmware.
+
+**Your Add-One Example**
+
+Your graph has no weights or persistent buffers:
+
+```python
+model = session.init(compiled)
+```
+
+Therefore initialization is approximately:
+
+```text
+Resolve compiled add_one_demo artifact
+    |
+Create asynchronous ExecutableModel
+    |
+Attach existing CPU/GPU device context
+    |
+Store input/output metadata
+    |
+Return Model
+```
+
+It normally does not launch `demo_add_one` during `init()`.
+
+The important GPU operations occur later:
+
+```text
+Buffer.from_numpy(input_values).to(device)
+    -> GPU allocation
+    -> host-to-device copy
+
+model.execute(input_tensor)
+    -> load demo_add_one GPU module/function if needed
+    -> cuLaunchKernel[Ex] or hipModuleLaunchKernel
+    -> execute add-one on GPU
+```
+
+So `init()` creates and optionally initializes the runtime model; `execute()` launches your actual add-one forward kernel.
+
+</details>
+
+<details>
+<summary><strong>QnA 7.2: Deep Dive Into <code>model.execute(input_tensor)[0]</code> Through The GPU Driver Layer</strong></summary>
+
+`model.execute(input_tensor)[0]` has two separate operations:
+
+```python
+outputs = model.execute(input_tensor)  # Execute; returns list[Buffer]
+result = outputs[0]                    # Select first graph output
+```
+
+`[0]` does not copy or execute anything. It only indexes the returned Python list.
+
+**Complete Call Flow**
+```text
+Python
+|
++-- model.execute(input_tensor)
+|   +-- _Model_execute(...)
+|       +-- Verify input is contiguous
+|       +-- Detect that input_tensor is already a MAX Buffer
+|       +-- Keep the existing Buffer; no Python-side copy
+|       +-- self._execute_device_tensors([input_tensor])
+|
++-- max._core native Python binding
+|   +-- GraphCompiler::Driver::prepareInput(...)
+|   |   +-- Obtain DeviceBuffer handle
+|   |   +-- Validate dtype, shape and device
+|   |   +-- Prepare the native input value
+|   |
+|   +-- GraphCompiler::Driver::executeFromDriver(...)
+|       +-- ExecutableModel::execute(...)
+|
++-- Compiled add_one_demo graph
+|   +-- Bind input GPU buffer to %input0
+|   +-- Allocate/reuse output GPU buffer
+|   +-- Invoke mo.custom "demo_add_one"
+|
++-- Compiled Mojo custom operation
+|   +-- DemoAddOne.execute[target="gpu"](...)
+|       +-- foreach[target="gpu"](...)
+|           +-- _elementwise_impl_gpu(...)
+|               +-- Select block size
+|               +-- Calculate grid size
+|               +-- Create specialized GPU kernel
+|               +-- ctx.enqueue_function(...)
+|
++-- MAX DeviceContext / AsyncRT
+|   +-- Load function, normally on first use or cache miss
+|   |   +-- AsyncRT_DeviceContext_loadFunction(...)
+|   +-- Enqueue kernel
+|       +-- AsyncRT_DeviceContext_enqueueFunctionDirect(...)
+|
++-- Vendor user-mode GPU driver
+|   +-- NVIDIA
+|   |   +-- libcuda.so.1
+|   |   +-- cuModuleLoadDataEx(...)
+|   |   +-- cuModuleGetFunction(...)
+|   |   +-- cuLaunchKernel(...) / cuLaunchKernelEx(...)
+|   |
+|   +-- AMD
+|       +-- libamdhip64.so
+|       +-- hipModuleLoadDataEx(...)
+|       +-- hipModuleGetFunction(...)
+|       +-- hipModuleLaunchKernel(...)
+|
++-- Linux kernel GPU driver
+|   +-- NVIDIA: /dev/nvidiactl, /dev/nvidia0, /dev/nvidia-uvm
+|   +-- AMD: /dev/kfd, /dev/dri/renderD*
+|
++-- GPU hardware
+|   +-- Command processor receives launch
+|   +-- Scheduler dispatches thread blocks
+|   +-- Threads load input values from GPU global memory
+|   +-- Execute x + 1
+|   +-- Store values into output GPU global memory
+|
++-- MAX returns list[Buffer]
+    +-- [0] selects the first output Buffer
+```
+
+### 1. Python Wrapper
+
+Implemented in [api.py](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/python/max/engine/api.py:120):
+
+```python
+if isinstance(arg, Buffer):
+    buffer = arg
+
+input_impls.append(buffer)
+return self._execute_device_tensors(input_impls)
+```
+
+Because your input was created as:
+
+```python
+input_tensor = Buffer.from_numpy(input_values).to(device)
+```
+
+it is already a `Buffer` on `device`. Python passes the native buffer handle, not the numerical contents.
+
+```text
+Python input_tensor variable
+    |
+    +-- shape, dtype, device and ownership metadata
+    +-- native DeviceBuffer handle
+            |
+            +-- points to values in GPU global memory
+```
+
+There should be no second host-to-device copy when the buffer is already on the model's expected GPU.
+
+### 2. Native MAX Execution
+
+`_execute_device_tensors()` enters the compiled `max._core` extension. The native binaries expose:
+
+```text
+GraphCompiler::Driver::prepareInput(...)
+GraphCompiler::Driver::executeFromDriver(...)
+ExecutableModel::execute(...)
+GraphCompiler::Driver::extractDriverResults(...)
+```
+
+Conceptually:
+
+```cpp
+prepared_input = prepareInput(input_tensor.device_buffer);
+executable_model.execute(prepared_input);
+outputs = extractDriverResults(...);
+```
+
+The compiled executable already contains the host-side execution plan for `add_one_demo`.
+
+### 3. Custom Mojo Operation
+
+Your implementation is [add_one.mojo](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/murali_docs/artifacts/source_code_walkthrough/max_kernel_lib/kernels/add_one.mojo:21):
+
+```mojo
+@extensibility.register("demo_add_one")
+struct DemoAddOne:
+    @staticmethod
+    def execute[target: StaticString](
+        output: OutputTensor,
+        x: InputTensor[...],
+        ctx: DeviceContext,
+    ) raises:
+        @inline(.always)
+        def add_one[width: Int](idx: Coord) -> SIMD[x.dtype, width]:
+            return x.load[width](idx) + 1
+
+        foreach[target=target](add_one, output, ctx)
+```
+
+At runtime, `x` and `output` contain GPU buffer addresses and tensor-layout information. `ctx` represents the GPU execution context and default queue/stream.
+
+### 4. GPU Launch
+
+`foreach` dispatches to `_elementwise_impl_gpu` in [elementwise.mojo](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/mojo/max/algorithm/backend/gpu/elementwise.mojo:830).
+
+The launch eventually calls:
+
+```mojo
+ctx.enqueue_function(
+    kernel,
+    grid_dim=num_blocks,
+    block_dim=block_size,
+)
+```
+
+That reaches [device_context.mojo](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/mojo/max/gpu/host/device_context.mojo:4209):
+
+```mojo
+external_call[
+    "AsyncRT_DeviceContext_enqueueFunctionDirect", _CString[]
+](...)
+```
+
+The arguments include:
+
+```text
+GPU function handle
+input/output pointer arguments
+grid dimensions
+block dimensions
+dynamic shared-memory size
+launch attributes
+device stream/queue
+```
+
+### 5. User-Mode And Kernel Drivers
+
+For NVIDIA, AsyncRT dynamically uses `libcuda.so.1`:
+
+```text
+cuModuleLoadDataEx    Load CUBIN/PTX into the CUDA context
+cuModuleGetFunction  Obtain the kernel handle
+cuLaunchKernelEx     Submit the GPU launch
+```
+
+For AMD, it uses `libamdhip64.so`:
+
+```text
+hipModuleLoadDataEx
+hipModuleGetFunction
+hipModuleLaunchKernel
+```
+
+The user-mode driver communicates with the Linux kernel driver through private driver interfaces, typically `ioctl`, mapped command queues and doorbells.
+
+The kernel driver manages:
+
+```text
+GPU virtual-memory mappings
+command queues
+DMA operations
+process isolation
+scheduling
+firmware communication
+completion events
+```
+
+The GPU command processor then dispatches blocks to SMs/CUs. Hardware instruction caches are populated by the GPU automatically.
+
+### 6. Returning The Result
+
+The low-level GPU launch is asynchronous. MAX/AsyncRT records the dependency between the output buffer and the GPU work.
+
+```python
+result = model.execute(input_tensor)[0]
+```
+
+`result` is still a device-resident `Buffer`. No GPU-to-CPU copy is caused by `[0]`.
+
+The copy and required synchronization happen here:
+
+```python
+result_values = result.to(CPU()).to_numpy()
+```
+
+```text
+GPU output buffer
+    |
+    +-- wait for add-one kernel dependency
+    +-- device-to-host transfer
+    +-- expose completed CPU memory as NumPy
+```
+
+</details>
 
 </details>
 
