@@ -26,7 +26,16 @@ LOCAL_LINKS = {
             "(link_htmls/model_manifest_roles_and_diffusers.html)"
         ),
         "title": "Open the explanation of main and component manifests",
-    }
+    },
+    "repo_examples": {
+        "href": "link_htmls/huggingface_repo_handles_and_external_weights.html",
+        "label": "Hugging Face repo handles and external weights ↗",
+        "text": (
+            "Hugging Face repo handles and external weights ↗ "
+            "(link_htmls/huggingface_repo_handles_and_external_weights.html)"
+        ),
+        "title": "Open examples of Hub repo URLs and separate weight repositories",
+    },
 }
 
 

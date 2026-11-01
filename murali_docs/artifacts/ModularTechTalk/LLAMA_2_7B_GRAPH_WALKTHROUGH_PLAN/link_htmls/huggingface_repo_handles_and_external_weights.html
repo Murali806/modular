@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Hugging Face Repo Handles and External Weights · MAX Serve</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #171a20;
+      --panel: #20252d;
+      --panel-soft: #252c35;
+      --line: #3b4654;
+      --ink: #e8edf4;
+      --muted: #b1bdcc;
+      --cyan: #7dd3df;
+      --blue: #8db7ff;
+      --green: #a8dba8;
+      --amber: #f2c879;
+      --violet: #c3a5e8;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--page); scroll-behavior: smooth; }
+    body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.72 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    a { color: var(--cyan); text-underline-offset: 3px; }
+    a:hover { color: #b6f1f4; }
+    .page { width: min(100% - 36px, 1080px); margin: 0 auto; padding: 28px 0 64px; }
+    .topline { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 25px; }
+    .badge { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; color: var(--green); background: var(--panel); font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+    h1 { margin: 0 0 10px; font-size: clamp(28px, 4vw, 42px); line-height: 1.18; letter-spacing: -.025em; }
+    .subtitle { margin: 0 0 25px; color: var(--muted); }
+    .intro { max-width: 850px; margin: 0 0 26px; color: var(--muted); }
+    .answer { margin: 18px 0; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); overflow: hidden; box-shadow: 0 14px 38px rgb(0 0 0 / .16); }
+    .answer > summary { cursor: pointer; padding: 16px 20px; background: var(--panel-soft); color: var(--cyan); font-weight: 750; }
+    .answer > summary::marker { color: var(--amber); }
+    .answer-body { padding: clamp(18px, 4vw, 34px); }
+    p { margin: 0 0 17px; }
+    h2 { margin: 28px 0 12px; color: var(--blue); font-size: 1.18rem; }
+    h2:first-child { margin-top: 0; }
+    h3 { margin: 22px 0 8px; color: var(--violet); font-size: 1rem; }
+    strong { color: var(--cyan); }
+    code { color: var(--amber); font: .92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    pre { overflow: auto; margin: 16px 0 22px; padding: 18px; border: 1px solid var(--line); border-radius: 9px; background: #15191f; color: #dce6f2; font: 13px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 4; }
+    pre .key { color: var(--cyan); }
+    pre .value { color: var(--green); }
+    pre .arrow { color: var(--amber); }
+    pre .note { color: var(--violet); }
+    .diagram { border-left: 3px solid var(--blue); margin: 18px 0 24px; padding-left: 15px; }
+    .diagram pre { margin: 0; }
+    .source { display: inline-flex; margin: 3px 5px 3px 0; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; color: var(--violet); font-size: .78rem; text-decoration: none; }
+    .source:hover { border-color: var(--violet); }
+    .hub-link { color: var(--green); overflow-wrap: anywhere; }
+    .callout { border: 1px solid #5e5032; border-left: 4px solid var(--amber); border-radius: 7px; margin: 17px 0; padding: 13px 16px; background: rgb(242 200 121 / .07); }
+    .callout strong { color: var(--amber); }
+    table { width: 100%; margin: 18px 0 22px; border-collapse: collapse; border: 1px solid var(--line); }
+    th, td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--cyan); background: var(--panel-soft); }
+    tr:last-child td { border-bottom: 0; }
+    .kind { color: var(--violet); font-weight: 700; white-space: nowrap; }
+    .refs { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
+    @media (max-width: 640px) {
+      .page { width: min(100% - 22px, 1080px); padding-top: 18px; }
+      .answer > summary { padding: 14px 15px; }
+      .answer-body { padding: 18px 15px; }
+      body { font-size: 15px; }
+      table { font-size: .9rem; }
+      th, td { padding: 9px; }
+      .kind { white-space: normal; }
+      pre { padding: 14px 11px; font-size: 12px; }
+    }
+    @media print {
+      :root { color-scheme: light; --page: #fff; --panel: #fff; --panel-soft: #eee; --line: #aaa; --ink: #151515; --muted: #444; --cyan: #075e73; --blue: #174f91; --green: #246526; --amber: #755000; --violet: #5b3282; }
+      body, .answer { background: #fff; color: #151515; box-shadow: none; }
+      .page { width: 100%; padding: 0; }
+      .answer-body { padding: 14px 0; }
+      .topline a { display: none; }
+      .answer > summary { color: #075e73; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f4f5f7; color: #111; }
+      a { color: #064f68; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="topline">
+      <span class="badge">MAX Serve · SOURCE</span>
+      <a href="../max_serve_llama2_7b_startup_call_stack.html">← Back to the startup call stack</a>
+    </div>
+    <h1>HuggingFaceRepo handles and external weights</h1>
+    <p class="subtitle">Llama 2 7B · Hugging Face Hub links · separate model and weights repositories</p>
+    <p class="intro">The first section preserves the earlier explanation of <code>HuggingFaceRepo</code> and <code>_populate_repo_handles()</code>. The second adds live Hub links and a concrete MAX source example where a FLUX.2 component’s weights come from a different repository than its base model.</p>
+
+    <details class="answer" open>
+      <summary>Previous explanation · What are HuggingFaceRepo and _populate_repo_handles()?</summary>
+      <div class="answer-body">
+        <p>Think of a <code>HuggingFaceRepo</code> as an <strong>address card plus access settings</strong>. It tells MAX which repository or local folder to use, which version, and which access options to apply. It doesn’t contain the model weights.</p>
+
+        <p>For example, a repo handle can describe:</p>
+        <pre><span class="key">repo_id</span>           = <span class="value">"meta-llama/Llama-2-7b-hf"</span>
+<span class="key">revision</span>          = <span class="value">"main"</span>       <span class="note"># or a tag or commit</span>
+<span class="key">trust_remote_code</span> = <span class="value">False</span>
+<span class="key">subfolder</span>         = <span class="value">None</span>
+<span class="key">repo_type</span>         = <span class="value">"online"</span>     <span class="note"># inferred by MAX; could be "local"</span></pre>
+
+        <p><code>_populate_repo_handles()</code> means <strong>create and cache these address-card objects on <code>MAXModelConfig</code></strong>. The source does roughly this:</p>
+        <pre>if self.model_path:
+    self._cached_model_repo = self._make_model_repo()
+
+if self.huggingface_weight_repo_id:
+    self._cached_weight_repo = self._make_weight_repo()</pre>
+
+        <p>The method is at <a href="../../../../../max/python/max/pipelines/lib/config/model_config.py#L1055">model_config.py:1055</a>. The <a href="../../../../../max/python/max/pipelines/weights/hf_utils.py#L630">HuggingFaceRepo class</a> is a frozen Python data object that can describe either a Hub repo or a local path. It carries repo identity, revision, <code>trust_remote_code</code>, and an optional subfolder. For an online repo, constructing the handle can validate access.</p>
+
+        <p>The two handles have different jobs:</p>
+        <div class="diagram"><pre>MAXModelConfig
+├── _cached_model_repo
+│   └── HuggingFaceRepo(model_path, model revision, ...)
+│       Used for model configuration and metadata
+└── _cached_weight_repo
+    └── HuggingFaceRepo(weight repo ID, weight revision, ...)
+        Used to find model weight files</pre></div>
+
+        <p>For the usual Llama 2 setup, there’s no separate weights repo configured, so the weights repo ID defaults to <code>model_path</code>:</p>
+        <div class="diagram"><pre>model_path = <span class="value">"meta-llama/Llama-2-7b-hf"</span>
+
+model handle  <span class="arrow">──►</span> meta-llama/Llama-2-7b-hf
+weights handle <span class="arrow">──►</span> meta-llama/Llama-2-7b-hf</pre></div>
+
+        <p>They’re still separate handles because MAX tracks model metadata and weight files separately; a different model could store its weights in another repo. The fallback is in <a href="../../../../../max/python/max/pipelines/lib/config/model_config.py#L1296">huggingface_weight_repo_id</a>. See also <a href="../../../../../max/python/max/pipelines/lib/config/model_config.py#L1111">_make_model_repo()</a> and <a href="../../../../../max/python/max/pipelines/lib/config/model_config.py#L1144">_make_weight_repo()</a>.</p>
+
+        <h2>Where this step sits in startup</h2>
+        <div class="diagram"><pre>Create MAXModelConfig
+        │
+        ▼
+_populate_repo_handles()
+  ├── create/cache model repo handle
+  └── create/cache weight repo handle
+        │
+        ├── next: read model config using the model handle
+        │
+        └── later: find and download weight files using the weights handle</pre></div>
+
+        <p>So <code>_populate_repo_handles()</code> prepares the repository references. The next config-loading step may read or fetch config metadata; weight-file resolution and downloads happen later.</p>
+      </div>
+    </details>
+
+    <details class="answer" open>
+      <summary>New examples · Hub URL and a separate weights repository</summary>
+      <div class="answer-body">
+        <h2>1. Example Hugging Face Hub repository URL</h2>
+        <p>The Llama 2 checkpoint used in this walkthrough is a Hugging Face Hub repo:</p>
+        <pre>repo_id = <a class="hub-link" href="https://huggingface.co/meta-llama/Llama-2-7b-hf" target="_blank" rel="noopener noreferrer">meta-llama/Llama-2-7b-hf ↗</a>
+URL     = <a class="hub-link" href="https://huggingface.co/meta-llama/Llama-2-7b-hf" target="_blank" rel="noopener noreferrer">https://huggingface.co/meta-llama/Llama-2-7b-hf</a></pre>
+        <p>That URL opens the repository page. Meta’s Llama 2 repository is gated, so Hugging Face may ask you to sign in and accept the model’s access terms before showing or serving its files.</p>
+
+        <h2>2. Concrete example: FLUX.2 model repo plus separate transformer weights repo</h2>
+        <p>MAX’s repository contains a regression-test example for an external quantized weights repo. The FLUX.2 base model manifest uses <a class="hub-link" href="https://huggingface.co/black-forest-labs/FLUX.2-dev" target="_blank" rel="noopener noreferrer"><code>black-forest-labs/FLUX.2-dev</code> ↗</a>. Its transformer weight override points to <a class="hub-link" href="https://huggingface.co/black-forest-labs/FLUX.2-dev-NVFP4" target="_blank" rel="noopener noreferrer"><code>black-forest-labs/FLUX.2-dev-NVFP4</code> ↗</a>, specifically the file <a class="hub-link" href="https://huggingface.co/black-forest-labs/FLUX.2-dev-NVFP4/blob/main/flux2-dev-nvfp4.safetensors" target="_blank" rel="noopener noreferrer"><code>flux2-dev-nvfp4.safetensors</code> ↗</a>.</p>
+
+        <table>
+          <thead><tr><th>Role</th><th>Repository / file</th><th>HTTP link</th></tr></thead>
+          <tbody>
+            <tr><td class="kind">Base model/component config</td><td><code>black-forest-labs/FLUX.2-dev</code></td><td><a href="https://huggingface.co/black-forest-labs/FLUX.2-dev" target="_blank" rel="noopener noreferrer">Open base repo ↗</a></td></tr>
+            <tr><td class="kind">External transformer weights</td><td><code>black-forest-labs/FLUX.2-dev-NVFP4</code></td><td><a href="https://huggingface.co/black-forest-labs/FLUX.2-dev-NVFP4" target="_blank" rel="noopener noreferrer">Open weights repo ↗</a></td></tr>
+            <tr><td class="kind">Weight file</td><td><code>flux2-dev-nvfp4.safetensors</code></td><td><a href="https://huggingface.co/black-forest-labs/FLUX.2-dev-NVFP4/blob/main/flux2-dev-nvfp4.safetensors" target="_blank" rel="noopener noreferrer">Open file page ↗</a></td></tr>
+          </tbody>
+        </table>
+
+        <p>The source test applies this weight path to the <code>transformer</code> component:</p>
+        <pre>model_path = <span class="value">"black-forest-labs/FLUX.2-dev"</span>
+weight_path = <span class="value">"black-forest-labs/FLUX.2-dev-NVFP4/flux2-dev-nvfp4.safetensors"</span></pre>
+        <p>MAX parses the first two path segments as the external repo ID and keeps the remaining filename as the repo-relative weight path. The test then asserts that the component’s weight repo ID is <code>black-forest-labs/FLUX.2-dev-NVFP4</code>, while the original manifest’s component still uses <code>black-forest-labs/FLUX.2-dev</code>. See the <a href="../../../../../max/tests/integration/pipelines/test_model_manifest.py#L630">MAX regression-test example</a> and the <a href="../../../../../max/python/max/pipelines/weights/weight_path_parser.py#L146">repo-path parser</a>.</p>
+
+        <div class="diagram"><pre>FLUX.2 transformer component
+├── model_path
+│   └── black-forest-labs/FLUX.2-dev
+│       └── model/config metadata
+└── weight_path
+    └── black-forest-labs/FLUX.2-dev-NVFP4/flux2-dev-nvfp4.safetensors
+        ├── repo ID  ──► black-forest-labs/FLUX.2-dev-NVFP4
+        └── file     ──► flux2-dev-nvfp4.safetensors</pre></div>
+
+        <div class="callout"><strong>[SOURCE] What this example establishes:</strong> MAX’s source parses a weight path that names a different repo and assigns that repo to the component’s weight handle. This explains the repo mapping; it is not a claim that inference was run here.</div>
+      </div>
+    </details>
+
+    <p class="refs">
+      Source references:
+      <a class="source" href="../../../../../max/python/max/pipelines/lib/config/model_config.py#L1055">_populate_repo_handles()</a>
+      <a class="source" href="../../../../../max/python/max/pipelines/lib/config/model_config.py#L1296">weight repo ID fallback</a>
+      <a class="source" href="../../../../../max/python/max/pipelines/weights/hf_utils.py#L630">HuggingFaceRepo</a>
+      <a class="source" href="../../../../../max/tests/integration/pipelines/test_model_manifest.py#L630">external weights example</a>
+    </p>
+  </main>
+</body>
+</html>

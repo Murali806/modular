@@ -84,6 +84,9 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
     |           |   HuggingFaceRepo [class] [WEIGHTS:L630] is a handle for a local path or Hub repo, not the model/tensors.
     |           |   For Llama 2 without an external weights repo, weight repo ID defaults to model_path.
     |           |   Creating an online handle may validate access; weight files are resolved/downloaded later.
+    |           |
+    |           |   -> Hugging Face repo handles and external weights ↗ (link_htmls/huggingface_repo_handles_and_external_weights.html)
+    |           |
     |           +-- MAXModelConfig._populate_hf_config() [MODEL_CFG:L1067]
     |           |   +-- load_huggingface_config(repo) [HF_CFG:L90]  call site [MODEL_CFG:L1083]
     |           |       +-- IF repo in _config_cache -> return this process's cached config object.

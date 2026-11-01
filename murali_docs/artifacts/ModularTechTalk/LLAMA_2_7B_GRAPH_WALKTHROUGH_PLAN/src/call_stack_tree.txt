@@ -68,6 +68,9 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
     |           |   {{hf_repo}} is a handle for a local path or Hub repo, not the model/tensors.
     |           |   For Llama 2 without an external weights repo, weight repo ID defaults to model_path.
     |           |   Creating an online handle may validate access; weight files are resolved/downloaded later.
+    |           |
+    |           |   -> [[doc:repo_examples]]
+    |           |
     |           +-- {{populate_hf}}
     |           |   +-- {{hf_load}}  {{hf_load_call}}
     |           |       +-- IF repo in _config_cache -> return this process's cached config object.
