@@ -56,9 +56,9 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
     |   |   Merge --config-file YAML if supplied; explicit CLI fields take precedence.
     |   +-- {{probe}} [checkpoint discovery]  {{probe_call}}
     |       |   These commands probe a single-model checkpoint and build a temporary "main" entry.
-
+    |       |
     |       |   -> [[doc:manifest_roles]]
-
+    |       |
     |       +-- {{build_config}}  {{probe_build_call}}
     |           +-- {{repo}}
     |           |   creates HuggingFaceRepo handles: repo identity, revision and trust policy.

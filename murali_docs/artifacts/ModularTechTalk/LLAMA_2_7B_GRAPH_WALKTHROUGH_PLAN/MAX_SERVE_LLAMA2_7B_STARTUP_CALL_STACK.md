@@ -72,9 +72,9 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
     |   |   Merge --config-file YAML if supplied; explicit CLI fields take precedence.
     |   +-- ModelManifest.from_model_path() [MANIFEST:L382] [checkpoint discovery]  call site [ARGS:L621]
     |       |   These commands probe a single-model checkpoint and build a temporary "main" entry.
-
+    |       |
     |       |   -> Model manifest roles, components, and Diffusers ↗ (link_htmls/model_manifest_roles_and_diffusers.html)
-
+    |       |
     |       +-- _build_model_config() [MODEL_CFG:L155]  call site [MANIFEST:L428]
     |           +-- MAXModelConfig._populate_repo_handles() [MODEL_CFG:L1055]
     |           |   creates HuggingFaceRepo handles: repo identity, revision and trust policy.
