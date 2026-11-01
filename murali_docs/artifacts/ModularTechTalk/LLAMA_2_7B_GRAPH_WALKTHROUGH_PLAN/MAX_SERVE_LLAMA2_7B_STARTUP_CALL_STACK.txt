@@ -28,16 +28,26 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
 |           |               stores _lazy_architectures[name] += [(module, symbol, package)].
 |           |               package="max.pipelines.architectures"; name="LlamaForCausalLM".
 |           |               result: an import recipe in process memory, not a model or weight database.
-|           |               Registry lifecycle for this one row (arrows show calls/state changes):
-|           |                 max.pipelines import -> register_all_models() [ARCHS:L58] -> record every built-in lazy row.
-|           |                   -> _lazy_architectures["LlamaForCausalLM"] holds the recipe tuple above.
-|           |                   -> later lookup("LlamaForCausalLM") -> ArchLookup.materialize(name) [LOOKUP:L804]
-|           |                     -> pop(name) removes this key from the pending dictionary.
-|           |                     -> importlib.import_module(module, package=package) [LOOKUP:L815]: module=".llama3"; package="max.pipelines.architectures"
-|           |                     -> llama_arch : SupportedArchitecture [LLAMA_ARCH:L28] -> ArchLookup.register(llama_arch) [LOOKUP:L705]
-|           |                        -> architectures["LlamaForCausalLM"] = llama_arch (object, not recipe tuple).
-|           |               The package string anchors relative imports; it does not store the registry rows.
-|           |               Other keys, such as Qwen and LLaVA, stay pending until those names are looked up.
+|           |               Pending Arch list (in this Python process):
+|           |                   PIPELINE_REGISTRY
+|           |                       └─ _arch_lookup (shared ARCH_LOOKUP)
+|           |                           ├─ _lazy_architectures: name -> pending recipe(s)
+|           |                           └─ architectures: name -> loaded SupportedArchitecture
+|           |               max.pipelines import -> register_all_models() [ARCHS:L58]
+|           |                   -> _lazy_architectures = {
+|           |                       "LlamaForCausalLM": [(".llama3", "llama_arch", "max.pipelines.architectures")],
+|           |                       "Qwen3ForCausalLM": [(".qwen3", "qwen3_arch", "max.pipelines.architectures")],
+|           |                       "LlavaForConditionalGeneration": [(".pixtral", "pixtral_arch", "max.pipelines.architectures")]
+|           |                   }
+|           |               Later lookup("LlamaForCausalLM") -> ArchLookup.materialize(name) [LOOKUP:L804]
+|           |                   -> entries = _lazy_architectures.pop("LlamaForCausalLM")
+|           |                   -> importlib.import_module(module, package=package) [LOOKUP:L815]: .llama3 relative to max.pipelines.architectures
+|           |                   -> llama_arch : SupportedArchitecture [LLAMA_ARCH:L28] -> ArchLookup.register(llama_arch) [LOOKUP:L705]
+|           |                   -> architectures = {
+|           |                          "LlamaForCausalLM": llama_arch (SupportedArchitecture object)
+|           |                      }
+|           |               After: Llama recipe is popped; Qwen/LLaVA recipes stay pending.
+|           |               package is the relative-import anchor; it does not store the registry rows.
 |           +-- pipeline_config_options() [FLAGS:L443]
 |               +-- get_normalized_flag_names() [FLAGS:L204]
 |                   maps --model / --model-path -> internal model_path field.
