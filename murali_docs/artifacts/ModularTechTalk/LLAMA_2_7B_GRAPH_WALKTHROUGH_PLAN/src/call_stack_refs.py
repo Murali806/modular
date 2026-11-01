@@ -60,6 +60,7 @@ REFS = {
     "build_config": definition("MODEL_CFG", "_build_model_config"),
     "probe_build_call": call("MANIFEST", "ModelManifest.from_model_path", "model = _build_model_config("),
     "repo": definition("MODEL_CFG", "MAXModelConfig._populate_repo_handles"),
+    "hf_repo": definition("WEIGHTS", "HuggingFaceRepo", "HuggingFaceRepo [class]"),
     "populate_hf": definition("MODEL_CFG", "MAXModelConfig._populate_hf_config"),
     "hf_load": definition("HF_CFG", "load_huggingface_config", "load_huggingface_config(repo)"),
     "hf_load_call": call("MODEL_CFG", "MAXModelConfig._populate_hf_config", "load_huggingface_config("),

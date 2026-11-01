@@ -73,7 +73,13 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
     |       |
     |       +-- _build_model_config() [MODEL_CFG:L155]  call site [MANIFEST:L428]
     |           +-- MAXModelConfig._populate_repo_handles() [MODEL_CFG:L1055]
-    |           |   creates HuggingFaceRepo handles: repo identity, revision and trust policy.
+    |           |   caches two repo-access handles on MAXModelConfig:
+    |           |       model_repo: model_path + model revision; used for model config/metadata.
+    |           |       weight_repo: weight repo ID + weight revision; used to find weight files.
+    |           |   Both carry trust_remote_code and optional subfolder settings.
+    |           |   HuggingFaceRepo [class] [WEIGHTS:L630] is a handle for a local path or Hub repo, not the model/tensors.
+    |           |   For Llama 2 without an external weights repo, weight repo ID defaults to model_path.
+    |           |   Creating an online handle may validate access; weight files are resolved/downloaded later.
     |           +-- MAXModelConfig._populate_hf_config() [MODEL_CFG:L1067]
     |           |   +-- load_huggingface_config(repo) [HF_CFG:L90]  call site [MODEL_CFG:L1083]
     |           |       +-- IF repo in _config_cache -> return this process's cached config object.
