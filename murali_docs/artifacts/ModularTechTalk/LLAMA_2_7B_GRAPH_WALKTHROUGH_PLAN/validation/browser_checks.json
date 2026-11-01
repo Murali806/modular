@@ -1,0 +1,30 @@
+{
+  "result": "PASS",
+  "checked_at": "2026-11-01T10:31:12.088Z",
+  "browser": "141.0.7390.37",
+  "checks": [
+    "Six chapters and 39 initially collapsed complete source cells",
+    "All six QnA 1.1.x cells expand and contain linked call-flow trees",
+    "QnA 1.1.2 function links open Source Explorer at the linked definition line",
+    "QnA 1 follows the first paragraph, contains three answers, expands/collapses by keyboard, and opens source/deep links",
+    "All displayed function text equals the original source payload",
+    "Keyboard expansion and signature annotation highlight original lines",
+    "Copy preserves the entire original Graph.output function",
+    "Whole-file fidelity, source switching, text search, next match, and Escape close",
+    "Every finalization, compiler, reuse, and buffer state; previous/next bounds",
+    "Diagram-to-source jump, collapse all, direct code deep link, and chapter expansion",
+    "Direct file:// opening works with embedded source and interactions",
+    "Expanded nested call-flow tree stays within 390px and 320px mobile viewports",
+    "390px mobile layout, expanded code, and full-file dialog stay within viewport",
+    "Expanded QnA stays within both 390px and 320px viewports",
+    "Print colors remain readable and disclosure states restore after printing",
+    "Rendered text contrast meets WCAG text thresholds in inspected states; controls, SVG lines, and keyboard focus checked separately"
+  ],
+  "console_errors": [],
+  "viewports": [
+    "1440x1000",
+    "390x844",
+    "320x760"
+  ],
+  "offline_file_url": true
+}

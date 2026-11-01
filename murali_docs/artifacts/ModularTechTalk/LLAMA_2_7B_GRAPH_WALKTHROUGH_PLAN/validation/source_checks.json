@@ -1,0 +1,12 @@
+{
+  "checked_at": "2026-11-01T10:31:24.659478+00:00",
+  "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "command": "PYTHONDONTWRITEBYTECODE=1 python3 src/validate.py",
+  "result": "PASS",
+  "source_files": 36,
+  "complete_source_cells": 39,
+  "displayed_source_lines": 2012,
+  "local_links_checked": 542,
+  "external_runtime_dependencies": 0,
+  "evidence": "Document/source validation only; no MAX model execution."
+}

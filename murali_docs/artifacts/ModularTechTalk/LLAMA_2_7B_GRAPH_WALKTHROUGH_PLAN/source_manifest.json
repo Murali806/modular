@@ -1,0 +1,1258 @@
+{
+  "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "files": [
+    {
+      "path": "max/python/max/pipelines/architectures/llama3/arch.py",
+      "snapshot": "sources/max/python/max/pipelines/architectures/llama3/arch.py",
+      "sha256": "037f7f10e64e60161f58dd32e92f1dac1a9568984597ca6beefde26fbf273862"
+    },
+    {
+      "path": "max/python/max/pipelines/architectures/llama3/model.py",
+      "snapshot": "sources/max/python/max/pipelines/architectures/llama3/model.py",
+      "sha256": "0714e4a71b348c2239ee31885ecd85c7df48af15705627f41e8a20402346f867"
+    },
+    {
+      "path": "max/python/max/pipelines/architectures/llama3/model_config.py",
+      "snapshot": "sources/max/python/max/pipelines/architectures/llama3/model_config.py",
+      "sha256": "f47c3606c4f36a91645119aa052fa9792b37b478aaec5899f6da7f0956ebb8a2"
+    },
+    {
+      "path": "max/python/max/pipelines/architectures/llama3/llama3.py",
+      "snapshot": "sources/max/python/max/pipelines/architectures/llama3/llama3.py",
+      "sha256": "21f5b05344026565572db6bdd8ee1f5642ae997fffa0de37f321bf4d1068ed39"
+    },
+    {
+      "path": "max/python/max/nn/transformer/transformer.py",
+      "snapshot": "sources/max/python/max/nn/transformer/transformer.py",
+      "sha256": "58afb630572baa5b73cbd3900818ca59c59eecfd66cc42725f11f4f4bcd534fb"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/interfaces/batch_processor.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/interfaces/batch_processor.py",
+      "sha256": "3d6d45353cf52ed940e0d69cf66ecea8fe739cbdcc86d3f6fb3c2df6c0f02177"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/graph_specs.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/graph_specs.py",
+      "sha256": "74a83b6c2b97cf7432d7315dffbfd12646078970364905b5c9fc89497aa314fe"
+    },
+    {
+      "path": "max/python/max/graph/graph.py",
+      "snapshot": "sources/max/python/max/graph/graph.py",
+      "sha256": "1d22145baa183f535d9e707aa959b7cb833ef4c150d39e2ebccf66e24923edb4"
+    },
+    {
+      "path": "max/tests/tests/graph/test_graph.py",
+      "snapshot": "sources/max/tests/tests/graph/test_graph.py",
+      "sha256": "db9f611cfb5646606f66ebc2007d652d58138a5c78f3199df48edd4c42aec0a2"
+    },
+    {
+      "path": "max/python/max/engine/api.py",
+      "snapshot": "sources/max/python/max/engine/api.py",
+      "sha256": "97f0592962c1853c884c8d8145a0faf4aa9ca622262271de4b080990b47da017"
+    },
+    {
+      "path": "max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp",
+      "snapshot": "sources/max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp",
+      "sha256": "c293d6dfa872e623f80ad8b6587b669b621b05a7a8dc5d5688e3558b32360001"
+    },
+    {
+      "path": "max/lib/max_license/API/c/EngineContext.cpp",
+      "snapshot": "sources/max/lib/max_license/API/c/EngineContext.cpp",
+      "sha256": "b55fd5eed0bc9c04022abdfb1df7c5062d7d312809600d6bb1d505f6c3de2564"
+    },
+    {
+      "path": "max/lib/max_license/API/c/CompiledModels.cpp",
+      "snapshot": "sources/max/lib/max_license/API/c/CompiledModels.cpp",
+      "sha256": "1a087e1de3d55307857e5c145d1305574e3d8f482a332a7922eb930e4baf8351"
+    },
+    {
+      "path": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
+      "snapshot": "sources/GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
+      "sha256": "b868f959d3b486102face53b85cd3f31ab68ff139fb3345d3222194b066facc2"
+    },
+    {
+      "path": "GraphCompiler/lib/GraphCompiler.cpp",
+      "snapshot": "sources/GraphCompiler/lib/GraphCompiler.cpp",
+      "sha256": "1faafd01fd4dbe42b00ae48a6ccb7df85f93162890f2d6d97272bdf347693ee8"
+    },
+    {
+      "path": "GraphCompiler/lib/MGPDialect/Transforms/FinalizeDeviceGraphsPass.cpp",
+      "snapshot": "sources/GraphCompiler/lib/MGPDialect/Transforms/FinalizeDeviceGraphsPass.cpp",
+      "sha256": "44fb2800eea3cc95e94a1dd29c7fdb07d2de60fd1bfa60d3eef24f7d5ceb4c06"
+    },
+    {
+      "path": "max/python/max/_entrypoints/pipelines.py",
+      "snapshot": "sources/max/python/max/_entrypoints/pipelines.py",
+      "sha256": "f3ef12d54e085adbb8af0b1ffa0471b9e41ef3f98568c754603dc42725a3afd6"
+    },
+    {
+      "path": "max/python/max/_entrypoints/cli/config.py",
+      "snapshot": "sources/max/python/max/_entrypoints/cli/config.py",
+      "sha256": "1a83f898694aa26cddb4c70a57523b2a7cb1bcd68e70894b7c1d27d11387322d"
+    },
+    {
+      "path": "max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py",
+      "snapshot": "sources/max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py",
+      "sha256": "96dba5cfd2583c2f880bdcf3a4debf7ea0c4adace94f616935428f3ec7ac0cb2"
+    },
+    {
+      "path": "max/python/max/serve/api_server.py",
+      "snapshot": "sources/max/python/max/serve/api_server.py",
+      "sha256": "1348dcf0dfa8e50e0d0d9e0dd7c85c50cc3cdf7f91e603f0a84271aa997c1f9e"
+    },
+    {
+      "path": "max/python/max/serve/config.py",
+      "snapshot": "sources/max/python/max/serve/config.py",
+      "sha256": "7aec55e9d29a96d2c29770b280538aff8cf3253f24ec887061679dbea7aae04c"
+    },
+    {
+      "path": "max/python/max/serve/pipelines/model_worker.py",
+      "snapshot": "sources/max/python/max/serve/pipelines/model_worker.py",
+      "sha256": "2470a201fd1fcb3f3537dc800f603653d793e052c4a8fbe6e85d50478ecd58b2"
+    },
+    {
+      "path": "max/python/max/graph/weights/load.py",
+      "snapshot": "sources/max/python/max/graph/weights/load.py",
+      "sha256": "b0b095433f74926f185f2a13c4d9dda07ed251d44412cca7c1a4bab9dd2b5266"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/pipeline_args.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/pipeline_args.py",
+      "sha256": "ca11fcaea6964c968ac88643dabd027195b5f33d13237dd39c997874365660dc"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/config/config.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/config/config.py",
+      "sha256": "a77335e969ca1fe7971eb8a9ee4c5a0f5a4c8fb3d7fcd92ce3a321416845ea20"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/interfaces/pipeline_model.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/interfaces/pipeline_model.py",
+      "sha256": "ac147bc1ceeb87477a65a2b8644533dcce82d4ac76820aa057d84b05caef5ab9"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/memory_estimation.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/memory_estimation.py",
+      "sha256": "6f3349d592cd38bbbceb17cdf050e3a6d27bd86288729eb17f31244dd4be6ff8"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/pipeline_variants/text_generation.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/pipeline_variants/text_generation.py",
+      "sha256": "8a2256eb53f5f8bd29c862a3cfa14d827de163caf80c068681f0cee25ffc6d89"
+    },
+    {
+      "path": "max/python/max/pipelines/__init__.py",
+      "snapshot": "sources/max/python/max/pipelines/__init__.py",
+      "sha256": "476ec6e6843d88fd30ab6b8083601bb836ae6396d7dea9ba96e3241baf395084"
+    },
+    {
+      "path": "max/python/max/pipelines/architectures/__init__.py",
+      "snapshot": "sources/max/python/max/pipelines/architectures/__init__.py",
+      "sha256": "97e480e8174b95a7f4439a3281e92c88dc609fc8921783919153fafb139262fe"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/arch_lookup.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/arch_lookup.py",
+      "sha256": "43215a34ecbb49c2327bc2f7179fa8c7db160f95baf05c5a40304224d824d16b"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/registry.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/registry.py",
+      "sha256": "83c8e62e6f1808c5c6e39a94f4efc7145b91ddb82df4cc95d1745142e04606aa"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/_hf_config.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/_hf_config.py",
+      "sha256": "d5089b51c72a26c96710c033f225284b5fab8f9cecfdb27dc70970e1d00b64b3"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/config/model_config.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/config/model_config.py",
+      "sha256": "c6335ee49f89759bd74be58cca2a57785402ac11f67ed0b0185f309a6c09b3e2"
+    },
+    {
+      "path": "max/python/max/pipelines/weights/hf_utils.py",
+      "snapshot": "sources/max/python/max/pipelines/weights/hf_utils.py",
+      "sha256": "e174dcac4bbfbc11ba156557897c19852ec57b63b11bcc1cdd526134eea71592"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/tokenizer.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/tokenizer.py",
+      "sha256": "29996b05cbdbb0693331f585a5f8ecfed0db3342bd818cccebd2affdef002d8b"
+    }
+  ],
+  "cells": [
+    {
+      "id": "registration",
+      "file": "max/python/max/pipelines/architectures/llama3/arch.py",
+      "symbol": "llama_arch",
+      "purpose": "Map the checkpoint's architecture name to the Llama pipeline implementation.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 28,
+      "end": 60,
+      "sha256": "7de0d562782f9e79cf1cfa472a6e6068aa1cb26f395275095f76659adc689df6",
+      "notes": [
+        {
+          "title": "Architecture key",
+          "text": "Lookup uses the architecture name. The example repository IDs are examples, while dimensions come from the selected checkpoint.",
+          "start": 29,
+          "end": 29
+        },
+        {
+          "title": "Implementation and adapters",
+          "text": "The registration supplies the pipeline model, tokenizer, supported encodings, and weight adapters.",
+          "start": 41,
+          "end": 48
+        }
+      ]
+    },
+    {
+      "id": "load",
+      "file": "max/python/max/pipelines/architectures/llama3/model.py",
+      "symbol": "LlamaModelBase.load_graphs",
+      "purpose": "Coordinate model settings, graph recipes, compilation, and initialization.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 254,
+      "end": 281,
+      "sha256": "200c27b6acef1071d7556ef5a7cc388a3e73e7238a293e8523683f944d4fe984",
+      "notes": [
+        {
+          "title": "Resolve the model",
+          "text": "Read/adapt weights, resolve config, and initialize any distributed runtime required by the selected graph.",
+          "start": 268,
+          "end": 270
+        },
+        {
+          "title": "Trace, compile, initialize",
+          "text": "The helper called here owns tracing as well as compilation and initialization; a GraphSpec is still a recipe.",
+          "start": 272,
+          "end": 274
+        },
+        {
+          "title": "Finish pipeline wiring",
+          "text": "After initialized models exist, eligible host weights can be released and the batch processor is wired.",
+          "start": 279,
+          "end": 281
+        }
+      ]
+    },
+    {
+      "id": "choose",
+      "file": "max/python/max/pipelines/architectures/llama3/model.py",
+      "symbol": "LlamaModelBase.graph_specs",
+      "purpose": "Choose the decoder implementation from parallelism and device count.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 287,
+      "end": 297,
+      "sha256": "98ae770d1437b4f74ec36cd5e5c852b073116280f75e006f783c84232b5edbec",
+      "notes": [
+        {
+          "title": "Ordered selection",
+          "text": "Data parallel takes priority, then multiple-device tensor parallel, then the single-device route used here.",
+          "start": 291,
+          "end": 297
+        }
+      ]
+    },
+    {
+      "id": "config_call",
+      "file": "max/python/max/pipelines/architectures/llama3/model.py",
+      "symbol": "LlamaModelBase._finalized_config",
+      "purpose": "Initialize model settings and resolve weight-dependent configuration.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 209,
+      "end": 226,
+      "sha256": "f2d20e01b3dc72c1292cbd5e0eb2966ea6f28fc0e6b6061490eeca66fa5518a9",
+      "notes": [
+        {
+          "title": "Two configuration steps",
+          "text": "Initialize reads pipeline/HF settings; finalize receives checkpoint state plus output and normalization policy.",
+          "start": 213,
+          "end": 223
+        }
+      ]
+    },
+    {
+      "id": "config_finalize",
+      "file": "max/python/max/pipelines/architectures/llama3/model_config.py",
+      "symbol": "Llama3Config.finalize",
+      "purpose": "Resolve quantization, projection layout, tied weights, and output policy.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 397,
+      "end": 474,
+      "sha256": "717d5b74ce4ea93d75da6523c9326caf86a9d9a6e5293cb35bf9f40f567792cc",
+      "notes": [
+        {
+          "title": "Normalize names for inspection",
+          "text": "Use canonical Llama-style keys when inspecting checkpoint metadata. This local normalized mapping supports subsequent feature detection.",
+          "start": 414,
+          "end": 430
+        },
+        {
+          "title": "Inspect metadata",
+          "text": "Quantization and normalization information are derived from config and weights before graph modules are constructed.",
+          "start": 432,
+          "end": 444
+        },
+        {
+          "title": "Commit resolved settings",
+          "text": "The final fields include tied embeddings, stacked MLP/QKV projections, attention bias, and output policy.",
+          "start": 460,
+          "end": 474
+        }
+      ]
+    },
+    {
+      "id": "single_spec",
+      "file": "max/python/max/pipelines/architectures/llama3/model.py",
+      "symbol": "LlamaModelBase._single_device_spec",
+      "purpose": "Package the Llama module, input contract, and weight registry into a recipe.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 316,
+      "end": 324,
+      "sha256": "46b79df4fade71a23136e7df6eecd78e8677b4d572f42df8d29985d11410e469",
+      "notes": [
+        {
+          "title": "Module then recipe",
+          "text": "The module is constructed and weights are loaded before the named input tree and registry are packaged in GraphSpec.",
+          "start": 317,
+          "end": 324
+        }
+      ]
+    },
+    {
+      "id": "llama_init",
+      "file": "max/python/max/pipelines/architectures/llama3/llama3.py",
+      "symbol": "Llama3.__init__",
+      "purpose": "Assemble the Llama decoder layers from the resolved configuration.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 92,
+      "end": 244,
+      "sha256": "6bbc66a9ab60f4c9f7e6d772a7ab5ca24dd779b54eea8bb660e999c7bd82253f",
+      "notes": [
+        {
+          "title": "Position encoding",
+          "text": "RoPE configuration includes head count, hidden size, sequence limit, and the target device.",
+          "start": 95,
+          "end": 104
+        },
+        {
+          "title": "Encoding-specific modules",
+          "text": "Linear, attention, and MLP implementations are chosen from quantization and stacked-projection settings.",
+          "start": 128,
+          "end": 175
+        },
+        {
+          "title": "Repeated decoder blocks",
+          "text": "Each block receives attention, MLP, normalization, and KV parameters. The layer count comes from config.",
+          "start": 177,
+          "end": 202
+        },
+        {
+          "title": "Input/output projections",
+          "text": "Embedding and language-model head dimensions follow config. The output weight can be shared with the embedding.",
+          "start": 204,
+          "end": 228
+        }
+      ]
+    },
+    {
+      "id": "block",
+      "file": "max/python/max/nn/transformer/transformer.py",
+      "symbol": "TransformerBlock.__call__",
+      "purpose": "Record the attention and MLP residual paths for one decoder block.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 293,
+      "end": 320,
+      "sha256": "3c3d5d468862e8f9c51cc7266c248bcd0c7fd4e112085ce3a20ed54e0d60f4cf",
+      "notes": [
+        {
+          "title": "Attention path",
+          "text": "Normalize the incoming hidden states and call attention with layer index, KV collection, RoPE data, and sequence boundaries.",
+          "start": 304,
+          "end": 310
+        },
+        {
+          "title": "Two residual additions",
+          "text": "The attention output joins x; the normalized result goes through MLP and joins h. Optional multipliers are explicit branches.",
+          "start": 315,
+          "end": 320
+        }
+      ]
+    },
+    {
+      "id": "transform_layers",
+      "file": "max/python/max/nn/transformer/transformer.py",
+      "symbol": "Transformer._process_hidden_states",
+      "purpose": "Trace the configured layer sequence, then process logits.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 617,
+      "end": 655,
+      "sha256": "525ef81304b472c9e6a9e3bea37897fc3f9a6d774fd1aff7f7460da551cb1d5f",
+      "notes": [
+        {
+          "title": "Python expands the layer structure",
+          "text": "Each call uses symbolic tensors while tracing. Layer index constants and KV/row-offset inputs are attached to the recorded computation.",
+          "start": 635,
+          "end": 642
+        },
+        {
+          "title": "Decoder output policy",
+          "text": "The final hidden states are passed to the common logits/output-tree construction path.",
+          "start": 650,
+          "end": 655
+        }
+      ]
+    },
+    {
+      "id": "logits",
+      "file": "max/python/max/nn/transformer/transformer.py",
+      "symbol": "logits_postprocess",
+      "purpose": "Select output positions, normalize them, and project to vocabulary logits.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 413,
+      "end": 497,
+      "sha256": "f22c70deea9e58d9c739215036eb69609d7c31cd3e0da5656f0b473499c3a7bd",
+      "notes": [
+        {
+          "title": "Last-token positions",
+          "text": "Row offsets identify each sequence's final token. The model gathers those rows before normalization and the language-model head.",
+          "start": 448,
+          "end": 451
+        },
+        {
+          "title": "Static output-policy branches",
+          "text": "The configured policy selects extra variable-count or all-token logits. return_n_logits supplies values used by the variable path.",
+          "start": 453,
+          "end": 481
+        },
+        {
+          "title": "Named outputs",
+          "text": "Logits, offsets, and optional hidden states form the output tree later flattened by Graph.output.",
+          "start": 485,
+          "end": 490
+        }
+      ]
+    },
+    {
+      "id": "ragged",
+      "file": "max/python/max/pipelines/lib/interfaces/batch_processor.py",
+      "symbol": "ragged_batch_inputs",
+      "purpose": "Declare symbolic batch tensor types and placements.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 539,
+      "end": 599,
+      "sha256": "fa8da98abb7915425309b7df1c4a4468fc405b3ff1ba57f309c7dfadde6b6eb6",
+      "notes": [
+        {
+          "title": "Packed tokens and boundaries",
+          "text": "Tokens are int64; row offsets are uint32. Both use the selected device, with symbolic lengths.",
+          "start": 567,
+          "end": 572
+        },
+        {
+          "title": "Host-side count input",
+          "text": "This count tensor is int64 on CPU; its symbolic length is declared independently from the token count.",
+          "start": 578,
+          "end": 580
+        }
+      ]
+    },
+    {
+      "id": "spec_trace",
+      "file": "max/python/max/pipelines/lib/graph_specs.py",
+      "symbol": "GraphSpec.trace",
+      "purpose": "Flatten the input-type tree and dispatch to the module's trace method.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 114,
+      "end": 133,
+      "sha256": "5c8cdd48c07e13bc784194ae01d0bbebe7a96bfab95d28691dfbfe97d111e081",
+      "notes": [
+        {
+          "title": "Variant boundary",
+          "text": "The ModuleV3 branch stages differently. The Graph API route continues to self.module.trace below.",
+          "start": 120,
+          "end": 127
+        },
+        {
+          "title": "Preserve recipe settings",
+          "text": "The graph name, module container, extensions, and device-graph flag are passed with the flattened type leaves.",
+          "start": 127,
+          "end": 133
+        }
+      ]
+    },
+    {
+      "id": "llama_trace",
+      "file": "max/python/max/pipelines/architectures/llama3/llama3.py",
+      "symbol": "Llama3.trace",
+      "purpose": "Adapt flat graph inputs back into the Llama forward contract.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 273,
+      "end": 325,
+      "sha256": "580608e9fb6a2b39ad07c9179e8e52b6e94dc9ca166e17b0c6cac53614016d8c",
+      "notes": [
+        {
+          "title": "Recover KV structure",
+          "text": "The graph boundary is flat; this adapter reconstructs the per-device KV collection required by the model.",
+          "start": 307,
+          "end": 316
+        },
+        {
+          "title": "Trace through the constructor",
+          "text": "Passing forward to Graph causes the constructor to invoke it on symbolic graph inputs and finalize its returned outputs.",
+          "start": 318,
+          "end": 325
+        }
+      ]
+    },
+    {
+      "id": "graph_init",
+      "file": "max/python/max/graph/graph.py",
+      "symbol": "Graph.__init__",
+      "purpose": "Create MLIR graph structure and optionally trace a Python callable.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 819,
+      "end": 932,
+      "sha256": "5a6debe1cb56fce3389e470f2ecdf217a2a059e7aa7b249a436c675a5d0fbcf9",
+      "notes": [
+        {
+          "title": "Symbolic dimensions",
+          "text": "Names from symbolic tensor/buffer dimensions become graph parameters.",
+          "start": 840,
+          "end": 846
+        },
+        {
+          "title": "MLIR ownership",
+          "text": "Use a supplied module or create one, then create mo.graph with input types and initially empty result types.",
+          "start": 855,
+          "end": 866
+        },
+        {
+          "title": "Kernel declarations and graph mode",
+          "text": "Import the kernel library and mark the graph if explicit device-graph construction was requested.",
+          "start": 910,
+          "end": 916
+        },
+        {
+          "title": "Automatic finalization",
+          "text": "Run the callable inside the active graph context. Its return form determines how output is invoked.",
+          "start": 918,
+          "end": 932
+        }
+      ]
+    },
+    {
+      "id": "graph_output",
+      "file": "max/python/max/graph/graph.py",
+      "symbol": "Graph.output",
+      "purpose": "Finish the graph's output contract and verify the completed graph.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 1396,
+      "end": 1498,
+      "sha256": "b2a3e3e13303a5f616d14037e51b8a4eb1e26657e3fcdab29202db28f70e01c7",
+      "notes": [
+        {
+          "title": "1 \u00b7 Flatten outputs",
+          "text": "Retain the Python output structure; flatten its leaves. A string leaf is rejected because unpacking a dict into its keys is usually a mistake.",
+          "start": 1428,
+          "end": 1439
+        },
+        {
+          "title": "2 \u00b7 Normalize values and chains",
+          "text": "Convert leaves to Graph Values and include final chain values when the graph has chain inputs. Chains preserve dependency ordering.",
+          "start": 1440,
+          "end": 1449
+        },
+        {
+          "title": "3 \u00b7 Set both signatures",
+          "text": "The actual argument and result types define functionType and the kgen generator signature. Symbolic dimensions can remain symbolic.",
+          "start": 1459,
+          "end": 1467
+        },
+        {
+          "title": "4 \u00b7 Append the terminator",
+          "text": "mo.output identifies which SSA values leave the graph. This records IR; it does not launch inference.",
+          "start": 1469,
+          "end": 1474
+        },
+        {
+          "title": "5 \u00b7 Name the interface",
+          "text": "Ordinal input/result names are written for the engine. The Python output tree is retained separately.",
+          "start": 1479,
+          "end": 1486
+        },
+        {
+          "title": "6 \u00b7 Verify the graph",
+          "text": "Clear temporary bookkeeping and invoke MLIR graph verification. Failure reports diagnostics. Numerical correctness and target compilation remain separate checks.",
+          "start": 1488,
+          "end": 1498
+        }
+      ]
+    },
+    {
+      "id": "graph_exit",
+      "file": "max/python/max/graph/graph.py",
+      "symbol": "Graph.__exit__",
+      "purpose": "Exit the active graph-construction context.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 1138,
+      "end": 1139,
+      "sha256": "7b95699990bcba42aa75f46b10b50b29e6caeca3eeca9640dcf31563ef19c9a5",
+      "notes": [
+        {
+          "title": "Context restoration",
+          "text": "This delegates context exit; output signature construction and native compilation occur elsewhere.",
+          "start": 1139,
+          "end": 1139
+        }
+      ]
+    },
+    {
+      "id": "graph_enter",
+      "file": "max/python/max/graph/graph.py",
+      "symbol": "Graph._enter",
+      "purpose": "Set and restore the active graph while Python operations are recorded.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 1141,
+      "end": 1149,
+      "sha256": "c73f3bf1d371ec8720055df378c94e31918f06d299077ee24a06dd6ac8da5a7a",
+      "notes": [
+        {
+          "title": "Scoped graph state",
+          "text": "The finally block restores the previous graph even when construction raises an exception.",
+          "start": 1145,
+          "end": 1149
+        }
+      ]
+    },
+    {
+      "id": "graph_test",
+      "file": "max/tests/tests/graph/test_graph.py",
+      "symbol": "test_add_op",
+      "purpose": "Read a complete existing test that builds an add graph and checks interface metadata.",
+      "language": "python",
+      "evidence": "TEST",
+      "start": 135,
+      "end": 147,
+      "sha256": "609bb84d948cb09ffdfe2e6dda5048e578a32b7f528b1f0ec6a4c448dbf2fe60",
+      "notes": [
+        {
+          "title": "Finalization in a small graph",
+          "text": "This explicit output call establishes the result contract; the following assertions inspect its names.",
+          "start": 143,
+          "end": 147
+        }
+      ]
+    },
+    {
+      "id": "compile_graphs",
+      "file": "max/python/max/pipelines/lib/graph_specs.py",
+      "symbol": "compile_and_init_graphs",
+      "purpose": "Trace graph recipes, compile artifacts, then initialize their weights.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 183,
+      "end": 287,
+      "sha256": "bff6c162f76e04bded8d3a4281134f845ae24e6857a86100d3d870d4b85ea0aa",
+      "notes": [
+        {
+          "title": "Trace each compilation group",
+          "text": "The ordinary Llama decoder has one spec. Multiple grouped roles can instead share a graph Module.",
+          "start": 235,
+          "end": 247
+        },
+        {
+          "title": "Compilation boundary",
+          "text": "The completed graph or module is compiled or resolved through configured artifact reuse.",
+          "start": 253,
+          "end": 255
+        },
+        {
+          "title": "Bind after compilation",
+          "text": "Collect weights by name, reject conflicting values, and initialize all models in the compiled artifact.",
+          "start": 257,
+          "end": 264
+        }
+      ]
+    },
+    {
+      "id": "compile_reuse",
+      "file": "max/python/max/engine/api.py",
+      "symbol": "InferenceSession.compile_reusing_mefs",
+      "purpose": "Select normal compilation, configured MEF import, or MEF export.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 897,
+      "end": 967,
+      "sha256": "2f664a0a26afe87bfdeca021989c6568293582270e44de8cba9041fd80be5e41",
+      "notes": [
+        {
+          "title": "Choose the store",
+          "text": "Use the explicit session store if present, otherwise the default. Non-Graph modules take the regular compile route.",
+          "start": 936,
+          "end": 948
+        },
+        {
+          "title": "Import or decline",
+          "text": "A matching artifact path is passed to compile. A store that declines this graph falls back to compiling the graph.",
+          "start": 948,
+          "end": 958
+        },
+        {
+          "title": "Export mode",
+          "text": "Write the compiled artifact under the store's claimed export location.",
+          "start": 965,
+          "end": 965
+        }
+      ]
+    },
+    {
+      "id": "compile_async",
+      "file": "max/python/max/engine/api.py",
+      "symbol": "InferenceSession.compile_async",
+      "purpose": "Prepare a Graph, Module, or artifact path for asynchronous native compilation.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 969,
+      "end": 1060,
+      "sha256": "51f4f87cb00c807aa366dbed100d1db0f68ad488532a318fcd02094b5eda24b9",
+      "notes": [
+        {
+          "title": "Source-kind dispatch",
+          "text": "Paths and in-memory Graphs follow different branches. A Graph contributes its MLIR module and extension libraries.",
+          "start": 1018,
+          "end": 1024
+        },
+        {
+          "title": "Retain initialization expectations",
+          "text": "The graph's weight declarations supply expected device metadata, checked when weight buffers are bound.",
+          "start": 1029,
+          "end": 1032
+        },
+        {
+          "title": "Seed declarations",
+          "text": "Reuse kernel declarations already loaded by the Graph's KernelLibrary before the native module handoff.",
+          "start": 1040,
+          "end": 1046
+        },
+        {
+          "title": "Return an artifact handle",
+          "text": "The handle carries the asynchronous result and graph names. compile() below waits for completion.",
+          "start": 1055,
+          "end": 1060
+        }
+      ]
+    },
+    {
+      "id": "compile_wait",
+      "file": "max/python/max/engine/api.py",
+      "symbol": "InferenceSession.compile",
+      "purpose": "Wait for asynchronous compilation and surface errors to the caller.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 1062,
+      "end": 1124,
+      "sha256": "a5f5a99a963e96a410b2b3d58ec55528b336ea555f1e1d13da7a062796fa6ec5",
+      "notes": [
+        {
+          "title": "Synchronous completion",
+          "text": "Schedule compilation, wait on its result, and distinguish requested pre-JIT stopping from a compile failure.",
+          "start": 1103,
+          "end": 1124
+        }
+      ]
+    },
+    {
+      "id": "compile_module",
+      "file": "max/python/max/engine/api.py",
+      "symbol": "InferenceSession._compile_module",
+      "purpose": "Cross the Python/C++ boundary with the MLIR module capsule.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 1276,
+      "end": 1305,
+      "sha256": "0fd254618fb0a43eaa0c6cd46c54ffe5481eec89f12afe27f5b2c6970f3108af",
+      "notes": [
+        {
+          "title": "Serialize native compilation",
+          "text": "The process-wide lock is acquired before scheduling. Synchronous setup errors release it immediately.",
+          "start": 1292,
+          "end": 1302
+        },
+        {
+          "title": "Payload",
+          "text": "The capsule identifies the MLIR module; extensions, a pipeline name, and the fusion option accompany it.",
+          "start": 1295,
+          "end": 1298
+        },
+        {
+          "title": "Asynchronous lifetime",
+          "text": "Completion releases the lock through a callback. Returning a pending handle does not end the protected compile interval.",
+          "start": 1304,
+          "end": 1304
+        }
+      ]
+    },
+    {
+      "id": "native_session",
+      "file": "max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp",
+      "symbol": "Core::InferenceSession::compile",
+      "purpose": "Turn the Python module capsule into a native CompilationRequest.",
+      "language": "cpp",
+      "evidence": "SOURCE",
+      "start": 654,
+      "end": 678,
+      "sha256": "33a2cca16ddec37a14d4e4fa7bc9af6035fc4e2b3d477e77deec4d77d7ae0db2",
+      "notes": [
+        {
+          "title": "Opaque source and format",
+          "text": "The frontend must interpret the pointer using the matching MLIR implementation and file format.",
+          "start": 670,
+          "end": 673
+        },
+        {
+          "title": "Schedule engine compilation",
+          "text": "Hand the populated request to the engine and return its asynchronous result.",
+          "start": 676,
+          "end": 677
+        }
+      ]
+    },
+    {
+      "id": "engine_compile",
+      "file": "max/lib/max_license/API/c/EngineContext.cpp",
+      "symbol": "Engine::Context::compileModel",
+      "purpose": "Schedule compilation on a CPU worker and resolve an asynchronous result.",
+      "language": "cpp",
+      "evidence": "SOURCE",
+      "start": 225,
+      "end": 251,
+      "sha256": "0135674f8b1fb679210dd2886eeb1a9b0a6a518ba61c5caed805f449a15790db",
+      "notes": [
+        {
+          "title": "Worker boundary",
+          "text": "The captured request is processed by compileModelSync on the CPU worker; error and telemetry handling resolve the returned handle.",
+          "start": 229,
+          "end": 233
+        }
+      ]
+    },
+    {
+      "id": "engine_sync",
+      "file": "max/lib/max_license/API/c/EngineContext.cpp",
+      "symbol": "Engine::Context::compileModelSync",
+      "purpose": "Supply device configuration and create native compiled-model objects.",
+      "language": "cpp",
+      "evidence": "SOURCE",
+      "start": 269,
+      "end": 282,
+      "sha256": "407c25770c4050a609bd9142bc02db6e5b94255f3bf6b15d20e311b16f75ac79",
+      "notes": [
+        {
+          "title": "Target context",
+          "text": "Pass configured devices into the compilation request, then dispatch to CompiledModels::create.",
+          "start": 271,
+          "end": 274
+        }
+      ]
+    },
+    {
+      "id": "compiled_create",
+      "file": "max/lib/max_license/API/c/CompiledModels.cpp",
+      "symbol": "CompiledModels::create",
+      "purpose": "Compile in-memory source or read a model artifact from a path.",
+      "language": "cpp",
+      "evidence": "SOURCE",
+      "start": 100,
+      "end": 161,
+      "sha256": "88c3c3a59cae93fb3b49d0c6c6272d320301bf7b6e1086651f35eb5fa04bad26",
+      "notes": [
+        {
+          "title": "Graph-source branch",
+          "text": "A source pointer selects the MOF frontend, which produces a MEF buffer. read then builds compiled-model objects from that buffer.",
+          "start": 104,
+          "end": 120
+        },
+        {
+          "title": "Already compiled path",
+          "text": "A MEF path is read directly. Entering an API named compile does not imply compiler passes run.",
+          "start": 142,
+          "end": 144
+        }
+      ]
+    },
+    {
+      "id": "frontend",
+      "file": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
+      "symbol": "MOFContext::compileToBinary(void*, FileFormat)",
+      "purpose": "Clone the graph module, configure lowering, and consult the native MEF cache.",
+      "language": "cpp",
+      "evidence": "SOURCE",
+      "start": 377,
+      "end": 459,
+      "sha256": "e150c9d6abbde87a5b788918085d14bfaaf18b0dbfc5046a3bca4c745dc9c9de",
+      "notes": [
+        {
+          "title": "Compiler-owned module",
+          "text": "Lowering transforms a clone of the incoming module. Weight resources are owned by its MLIR context.",
+          "start": 381,
+          "end": 381
+        },
+        {
+          "title": "Resolve compiler options",
+          "text": "Collect configuration and detect pre-seeded kernel declarations before deriving cache behavior.",
+          "start": 398,
+          "end": 407
+        },
+        {
+          "title": "Cache-hit return",
+          "text": "When model-IR caching is enabled and a matching artifact exists, return it before convertMOToMEF runs.",
+          "start": 435,
+          "end": 441
+        },
+        {
+          "title": "Cache miss",
+          "text": "Compile/serialize, then attempt to insert the resulting buffer in the cache.",
+          "start": 449,
+          "end": 458
+        }
+      ]
+    },
+    {
+      "id": "convert_mef",
+      "file": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
+      "symbol": "convertMOToMEF",
+      "purpose": "Run graph compilation, then serialize the lowered model to MEF.",
+      "language": "cpp",
+      "evidence": "SOURCE",
+      "start": 356,
+      "end": 375,
+      "sha256": "0361f6aff66964a410e3ab129eb20e257751880bb496fa883e4ddcbd15590de9",
+      "notes": [
+        {
+          "title": "Execute compiler passes",
+          "text": "A failed pipeline returns graph diagnostics rather than an artifact.",
+          "start": 361,
+          "end": 363
+        },
+        {
+          "title": "Intentional early stop",
+          "text": "Pre-JIT inspection ends after Mojo emission; the partially lowered result is not serialized to the MEF cache.",
+          "start": 367,
+          "end": 369
+        },
+        {
+          "title": "Artifact boundary",
+          "text": "Serialize the successfully lowered module and return its MEF buffer.",
+          "start": 371,
+          "end": 374
+        }
+      ]
+    },
+    {
+      "id": "mo_pipeline",
+      "file": "GraphCompiler/lib/GraphCompiler.cpp",
+      "symbol": "buildMoPipeline",
+      "purpose": "Prepare and optimize high-level graph operations before MAP lowering.",
+      "language": "cpp",
+      "evidence": "SOURCE",
+      "start": 219,
+      "end": 336,
+      "sha256": "6f109458d4ac81a6bf1b8596d58020a61322dd6ec9f5231908786ac93e560c16",
+      "notes": [
+        {
+          "title": "Kernel definitions",
+          "text": "Import/verify packages only when declarations were not already seeded by the caller.",
+          "start": 228,
+          "end": 231
+        },
+        {
+          "title": "Shape and symbolic work",
+          "text": "Shape inference and constant folding are configured independently; symbolic optimization and cleanup run in this stage.",
+          "start": 256,
+          "end": 263
+        },
+        {
+          "title": "Layouts and optional patterns",
+          "text": "Infer layouts and optionally run named pattern fusion before validating device information.",
+          "start": 287,
+          "end": 297
+        },
+        {
+          "title": "Target legality",
+          "text": "Check device information before the final cleanup and unused-operation removal.",
+          "start": 312,
+          "end": 312
+        }
+      ]
+    },
+    {
+      "id": "map_pipeline",
+      "file": "GraphCompiler/lib/GraphCompiler.cpp",
+      "symbol": "buildMapPipeline",
+      "purpose": "Fuse eligible structured computations and outline kernel bodies.",
+      "language": "cpp",
+      "evidence": "SOURCE",
+      "start": 338,
+      "end": 368,
+      "sha256": "252df302dc902780abd46062522b7f42ebf2f42ea8105915ab663e74d0b05c2a",
+      "notes": [
+        {
+          "title": "Structural fusion",
+          "text": "Fusion is a transformation of eligible graph structure. The schedule alone does not prove which Llama operations fuse.",
+          "start": 343,
+          "end": 345
+        },
+        {
+          "title": "Output storage",
+          "text": "Provide accumulating buffers after fusion, including mixed-precision handling.",
+          "start": 351,
+          "end": 351
+        },
+        {
+          "title": "Outline bodies",
+          "text": "Create structured kernel bodies after view handling, then simplify their captures and invariant views.",
+          "start": 358,
+          "end": 367
+        }
+      ]
+    },
+    {
+      "id": "mogg_pipeline",
+      "file": "GraphCompiler/lib/GraphCompiler.cpp",
+      "symbol": "buildMoggPipeline",
+      "purpose": "Legalize kernel calls and outline routines.",
+      "language": "cpp",
+      "evidence": "SOURCE",
+      "start": 370,
+      "end": 380,
+      "sha256": "38d07d73382b1c2f4e43414aefd813d56c17d0a642edf0eeffd154f0c59629f0",
+      "notes": [
+        {
+          "title": "Call preparation",
+          "text": "Legalize rowwise kernels, conform operands, outline routines, and add tracing wrappers before module cleanup.",
+          "start": 372,
+          "end": 379
+        }
+      ]
+    },
+    {
+      "id": "mgp_pipeline",
+      "file": "GraphCompiler/lib/GraphCompiler.cpp",
+      "symbol": "buildMgpPipeline",
+      "purpose": "Plan runtime resources, lower primitives, and emit Mojo routines.",
+      "language": "cpp",
+      "evidence": "SOURCE",
+      "start": 382,
+      "end": 488,
+      "sha256": "09c9e66aabc18e2aec8dd8d41545594afd26bac7c03f5bd2c5878362d0de8a56",
+      "notes": [
+        {
+          "title": "Memory planning",
+          "text": "Buffer reuse, allocation planning, deferral, and argument validation operate on the runtime-model representation.",
+          "start": 394,
+          "end": 400
+        },
+        {
+          "title": "Device-graph path",
+          "text": "Staging, dependency computation, build stubs, and finalization are separate from the frontend Graph.output operation.",
+          "start": 417,
+          "end": 429
+        },
+        {
+          "title": "Deduplicate routines",
+          "text": "Earlier canonicalization makes equivalent routines eligible for merging. Layer count is not necessarily the count of distinct generated routines.",
+          "start": 454,
+          "end": 454
+        },
+        {
+          "title": "Emit source for JIT",
+          "text": "Mojo emission is at the end of this builder. The enclosing pipeline schedules kernel JIT afterward.",
+          "start": 484,
+          "end": 484
+        }
+      ]
+    },
+    {
+      "id": "gc_pipeline",
+      "file": "GraphCompiler/lib/GraphCompiler.cpp",
+      "symbol": "gcPipelineImpl",
+      "purpose": "Build the ordered sequence of representation conversions and compiler stages.",
+      "language": "cpp",
+      "evidence": "SOURCE",
+      "start": 494,
+      "end": 624,
+      "sha256": "39d51e4b82705d2e6db1784b7e303602aa645e205b2293aa8b955ef6727545ec",
+      "notes": [
+        {
+          "title": "High-level graph stage",
+          "text": "The mo-pre-map dump follows MO processing; subsequent stage names distinguish conversions from stage-local transforms.",
+          "start": 574,
+          "end": 574
+        },
+        {
+          "title": "Representation transition",
+          "text": "Stable-tensor marking precedes MO-to-MAP conversion.",
+          "start": 581,
+          "end": 583
+        },
+        {
+          "title": "Kernel representation",
+          "text": "MOGG preparation precedes conversion into the MGP runtime model.",
+          "start": 602,
+          "end": 608
+        },
+        {
+          "title": "JIT configuration",
+          "text": "JIT target and compilation options are only configured when JIT is enabled.",
+          "start": 555,
+          "end": 565
+        },
+        {
+          "title": "Compile kernels",
+          "text": "After MGP/Mojo emission, run JIT compilation, strip kernel declarations, and finish runtime-call lowering.",
+          "start": 618,
+          "end": 620
+        }
+      ]
+    },
+    {
+      "id": "run_pipeline",
+      "file": "GraphCompiler/lib/GraphCompiler.cpp",
+      "symbol": "runGCPipeline",
+      "purpose": "Construct the pass manager and run the configured compiler pipeline.",
+      "language": "cpp",
+      "evidence": "SOURCE",
+      "start": 638,
+      "end": 655,
+      "sha256": "d7cc6157c1ed6124b2fee43408de94dd49be022d684c46d6e80afdf20d3fe059",
+      "notes": [
+        {
+          "title": "Build then execute",
+          "text": "Adding passes describes the schedule. pm.run applies that schedule to the module and returns success or failure.",
+          "start": 653,
+          "end": 654
+        }
+      ]
+    },
+    {
+      "id": "device_finalize",
+      "file": "GraphCompiler/lib/MGPDialect/Transforms/FinalizeDeviceGraphsPass.cpp",
+      "symbol": "FinalizeDeviceGraphsPass",
+      "purpose": "Finalize collectives only for an MGP model marked as a device graph.",
+      "language": "cpp",
+      "evidence": "SOURCE",
+      "start": 375,
+      "end": 389,
+      "sha256": "11f052f02b9abdc9209082750d5dc9b0b72f22e35ce95698b3d1056b10ff2e49",
+      "notes": [
+        {
+          "title": "Explicit gate",
+          "text": "An unmarked model returns immediately. The pass's name refers to device-graph collectives, not Python graph output finalization.",
+          "start": 381,
+          "end": 382
+        },
+        {
+          "title": "Finalize each collective",
+          "text": "Failures from collective finalization signal a compiler pass failure.",
+          "start": 384,
+          "end": 387
+        }
+      ]
+    },
+    {
+      "id": "init_all",
+      "file": "max/python/max/engine/api.py",
+      "symbol": "InferenceSession.init_all",
+      "purpose": "Validate weight buffers and initialize models in a compiled artifact.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 1160,
+      "end": 1253,
+      "sha256": "aceef753886e980230ce4dad555e0ef4faefdce0f81b6c2039fcf45b0881400c",
+      "notes": [
+        {
+          "title": "Weight contract",
+          "text": "Check names and expected CPU/device category captured from the graph. These checks occur after graph finalization and compilation.",
+          "start": 1209,
+          "end": 1228
+        },
+        {
+          "title": "Buffer layout check",
+          "text": "Non-contiguous registered weights are rejected with the offending weight's name.",
+          "start": 1233,
+          "end": 1237
+        },
+        {
+          "title": "Native initialization",
+          "text": "Bind the registry through the native load path; return models keyed by their names.",
+          "start": 1244,
+          "end": 1252
+        }
+      ]
+    },
+    {
+      "id": "native_init",
+      "file": "max/lib/max_license/API/c/EngineContext.cpp",
+      "symbol": "Engine::Context::initModel(CompiledModels)",
+      "purpose": "Create executable model instances once compilation resolves.",
+      "language": "cpp",
+      "evidence": "SOURCE",
+      "start": 310,
+      "end": 340,
+      "sha256": "30550ab23f132fa7ad2aefac0468318a57996093464cbfafa97bb65231a9f1ff",
+      "notes": [
+        {
+          "title": "Initialize on a runtime worker",
+          "text": "The continuation uses the compiled artifact and captured weight registry on the CPU runtime worker.",
+          "start": 321,
+          "end": 331
+        },
+        {
+          "title": "Executable state",
+          "text": "Create the executable models with runtime configuration and actual weight buffers, then resolve the result.",
+          "start": 330,
+          "end": 336
+        }
+      ]
+    },
+    {
+      "id": "execute",
+      "file": "max/python/max/pipelines/architectures/llama3/model.py",
+      "symbol": "LlamaModelBase.execute",
+      "purpose": "Execute an initialized decoder on the current batch's buffers.",
+      "language": "python",
+      "evidence": "SOURCE",
+      "start": 201,
+      "end": 207,
+      "sha256": "7bcdb302425bcd95b11cf713f4adffd73efa70b3a2b8dd9bbc7493066a3e3d52",
+      "notes": [
+        {
+          "title": "Per-batch call",
+          "text": "Prepared token/KV buffers enter the existing model. The batch processor interprets its output buffers.",
+          "start": 204,
+          "end": 207
+        }
+      ]
+    }
+  ]
+}

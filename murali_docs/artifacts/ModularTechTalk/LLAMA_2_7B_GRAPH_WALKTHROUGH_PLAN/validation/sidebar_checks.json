@@ -1,0 +1,112 @@
+{
+  "result": "PASS",
+  "checked_at": "2026-11-01T07:35:09.748Z",
+  "browser": "141.0.7390.37",
+  "method": "Browser interaction review using Playwright and direct file:// opening",
+  "states": {
+    "desktopExpanded": {
+      "label": "Hide sidebar",
+      "expanded": "true",
+      "sidebarVisible": true,
+      "toggleVisible": true,
+      "readingWidth": 1205,
+      "noOverflow": true,
+      "focus": ""
+    },
+    "desktopCollapsed": {
+      "label": "Show sidebar",
+      "expanded": "false",
+      "sidebarVisible": false,
+      "toggleVisible": true,
+      "readingWidth": 1440,
+      "noOverflow": true,
+      "focus": "toggle-sidebar"
+    },
+    "afterReload": {
+      "label": "Show sidebar",
+      "expanded": "false",
+      "sidebarVisible": false,
+      "toggleVisible": true,
+      "readingWidth": 1440,
+      "noOverflow": true,
+      "focus": ""
+    },
+    "keyboardExpanded": {
+      "label": "Hide sidebar",
+      "expanded": "true",
+      "sidebarVisible": true,
+      "toggleVisible": true,
+      "readingWidth": 1205,
+      "noOverflow": true,
+      "focus": "toggle-sidebar"
+    },
+    "chapterNavigation": "#chapter-3",
+    "mobileExpanded": {
+      "label": "Hide sidebar",
+      "expanded": "true",
+      "sidebarVisible": true,
+      "toggleVisible": true,
+      "readingWidth": 390,
+      "noOverflow": true,
+      "focus": ""
+    },
+    "mobileCollapsed": {
+      "label": "Show sidebar",
+      "expanded": "false",
+      "sidebarVisible": false,
+      "toggleVisible": true,
+      "readingWidth": 390,
+      "noOverflow": true,
+      "focus": "toggle-sidebar"
+    },
+    "smallPhoneCollapsed": {
+      "label": "Show sidebar",
+      "expanded": "false",
+      "sidebarVisible": false,
+      "toggleVisible": true,
+      "readingWidth": 320,
+      "noOverflow": true,
+      "focus": "toggle-sidebar"
+    },
+    "smallPhoneExpanded": {
+      "label": "Hide sidebar",
+      "expanded": "true",
+      "sidebarVisible": true,
+      "toggleVisible": true,
+      "readingWidth": 320,
+      "noOverflow": true,
+      "focus": "toggle-sidebar"
+    },
+    "storageUnavailable": {
+      "label": "Show sidebar",
+      "expanded": "false",
+      "sidebarVisible": false,
+      "toggleVisible": true,
+      "readingWidth": 1440,
+      "noOverflow": true,
+      "focus": "toggle-sidebar"
+    },
+    "javascriptDisabled": {
+      "label": "Hide sidebar",
+      "expanded": "true",
+      "sidebarVisible": true,
+      "toggleVisible": false,
+      "readingWidth": 1205,
+      "noOverflow": true,
+      "focus": ""
+    }
+  },
+  "contrast": {
+    "desktopCollapsed": {
+      "samples": 635,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    "mobileCollapsed": {
+      "samples": 585,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    }
+  },
+  "console_errors": []
+}

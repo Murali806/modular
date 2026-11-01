@@ -1,0 +1,169 @@
+{
+  "result": "PASS",
+  "checked_at": "2026-11-01T10:31:12.088Z",
+  "states": [
+    {
+      "state": "Desktop: initial dark theme",
+      "samples": 655,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: QnA expanded and keyboard focused",
+      "samples": 836,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: QnA complete-source dialog",
+      "samples": 2002,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: expanded code and active annotation",
+      "samples": 881,
+      "minimum_text_ratio": 5.418,
+      "failures": []
+    },
+    {
+      "state": "Desktop: source search and current match",
+      "samples": 4306,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: finalize state 1",
+      "samples": 882,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: finalize state 2",
+      "samples": 884,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: finalize state 3",
+      "samples": 884,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: finalize state 4",
+      "samples": 884,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: finalize state 5",
+      "samples": 884,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: finalize state 6",
+      "samples": 882,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: compiler state 1",
+      "samples": 884,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: compiler state 2",
+      "samples": 886,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: compiler state 3",
+      "samples": 886,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: compiler state 4",
+      "samples": 886,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: compiler state 5",
+      "samples": 886,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: compiler state 6",
+      "samples": 886,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: compiler state 7",
+      "samples": 884,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: cache state 1",
+      "samples": 886,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: cache state 2",
+      "samples": 884,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: cache state 3",
+      "samples": 884,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: buffers state 1",
+      "samples": 884,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: buffers state 2",
+      "samples": 881,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Mobile: expanded QnA",
+      "samples": 777,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Mobile: source dialog and placeholder",
+      "samples": 1181,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Desktop: hovered control",
+      "samples": 655,
+      "minimum_text_ratio": 6.431,
+      "failures": []
+    },
+    {
+      "state": "Print: expanded guide on white paper",
+      "samples": 5394,
+      "minimum_text_ratio": 7.118,
+      "failures": []
+    }
+  ],
+  "note": "Rendered color checks, not a full accessibility-conformance audit."
+}
