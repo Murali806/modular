@@ -34,11 +34,11 @@
 .tree-line a { text-underline-offset: 3px; text-decoration-color: var(--border); }
 .tree-line a:hover { text-decoration-color: var(--blue); }
 .tree-line .object-owner, .stack-key .object-owner {
-  color: var(--teal);
-  background: rgb(155 228 207 / .14);
+  color: #f2c879;
+  background: rgb(242 200 121 / .16);
   font-weight: 800;
 }
-.tree-line a:hover .object-owner { color: var(--link-hover); }
+.tree-line a:hover .object-owner { color: #ffe3a5; }
 .owner-legend { display: inline-block; margin-top: 6px; }
 .tree-line a.tree-doc-link { color: var(--teal); font-weight: 700; text-decoration-style: dashed; }
 .tree-line.stack-match { background: var(--match); color: var(--ink); }
