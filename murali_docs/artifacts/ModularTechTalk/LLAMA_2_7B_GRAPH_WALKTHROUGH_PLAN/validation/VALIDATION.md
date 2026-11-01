@@ -25,7 +25,7 @@ Run: 2026-11-01, revision `610f7111836d9a950d45ba52ec9b3e0ed589fe3f`.
   The six nested QnA cells each contain an expandable call-flow list with
   source-linked function names.
 - The HTML has no external runtime assets.
-- Six separate-reader text trees match their manifest and exported text.
+- One combined startup tree matches its manifest and exported text.
   All 127 source targets have verified definition bounds or unique invocation
   text. Complete source shown in the reader matches the pinned snapshots.
 
@@ -80,16 +80,18 @@ The replacement call-tree reader also passed these checks:
 - The QnA 1.1 header button opens a separate page without toggling the parent
   disclosure. Both command examples appear as text; no radio inputs exist.
 - The startup map starts collapsed and supports pointer/keyboard expansion.
-- All six trees preserve their exact text, source aliases and indentation.
+- The single tree covers all six QnA topics and preserves its exact text,
+  source aliases and indentation. Major startup entry points appear once,
+  while all three Llama3Config initialization uses remain.
 - Links across every QnA open full source, highlight definition/caller lines,
   and support file search and Escape. Source-map file links work too.
 - Tree search, next match, no-match handling and exact text copying work.
 - Worker factory invocation precedes readiness in the tree; configuration
   finalization precedes graph compilation. ZeroMQ directions are included.
-- Mobile trees scroll horizontally inside their own area; the page, source
+- The mobile tree scrolls horizontally inside its own area; the page, source
   map and source dialog remain within 390px and 320px viewports.
 - Printing uses readable paper colors and restores disclosure states.
-- Direct `file://` use works. With JavaScript disabled, the text trees,
+- Direct `file://` use works with the renamed startup reader. With JavaScript disabled, the combined tree,
   expandable map and raw snapshot links remain available.
 
 The final browser report contains 24 grouped checks and no console errors.

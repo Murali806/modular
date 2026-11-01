@@ -396,8 +396,6 @@ dialog::backdrop { background: #090b10cc; backdrop-filter: blur(3px); }
 .stack-source-map table { margin: 0; font: 12px/1.7 var(--mono); table-layout: fixed; width: 100%; }
 .stack-source-map th:first-child { width: 120px; }
 .stack-source-map td { overflow-wrap: anywhere; }
-.stack-nav { display: flex; flex-wrap: wrap; gap: 8px 24px; border-block: 1px solid var(--line); padding: 15px 0; }
-.stack-nav a { font-size: 13px; }
 .stack-tools { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin: 20px 0 6px; }
 .stack-tools label, .stack-tools a { font-size: 12px; }
 .stack-tools input { display: inline-block; width: 280px; max-width: 100%; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 5px; padding: 8px; margin-left: 8px; }
@@ -427,7 +425,7 @@ dialog::backdrop { background: #090b10cc; backdrop-filter: blur(3px); }
   .stack-launch { font-size: 11px; margin: 4px 0 0 17px; }
 }
 @media print {
-  .stack-header, .stack-tools, .stack-nav, .stack-scroll-hint, .stack-launch { display: none !important; }
+  .stack-header, .stack-tools, .stack-scroll-hint, .stack-launch { display: none !important; }
   .stack-main { padding: 0; }
   .stack-section { break-before: page; }
   .text-tree, .startup-text-map pre, .stack-commands { overflow: visible; font-size: 8px; }
@@ -594,7 +592,7 @@ and generation defaults use
 from checkpoint metadata and registry selection through tokenizer and weight
 loading to MAX's finalized <code>Llama3Config</code>? Expand nested <strong>QnA 1.1</strong>; its
 <strong>QnA 1.1.x</strong> cells trace each path.</p>
-<details class="nested-qna" id="qna-1-1"><summary><span class="disclosure" aria-hidden="true"></span><span class="nested-qna-label"><strong>QnA 1.1 · Checkpoint-to-model call paths</strong><span>Config · registration · tokenizer · generation defaults · weights · Llama3Config</span></span><a class="stack-launch" id="open-call-stack" href="call_stack.html" target="_blank" rel="noopener" aria-label="Open all six call stack trees in a new window">Call stack tree ↗</a></summary><div class="nested-qna-body"><p><strong><code>AutoConfig</code> here is Hugging Face Transformers; it is not MAX's
+<details class="nested-qna" id="qna-1-1"><summary><span class="disclosure" aria-hidden="true"></span><span class="nested-qna-label"><strong>QnA 1.1 · Checkpoint-to-model call paths</strong><span>Config · registration · tokenizer · generation defaults · weights · Llama3Config</span></span><a class="stack-launch" id="open-call-stack" href="max_serve_llama2_7b_startup_call_stack.html" target="_blank" rel="noopener" aria-label="Open the combined MAX Serve startup call stack in a new window">Call stack tree ↗</a></summary><div class="nested-qna-body"><p><strong><code>AutoConfig</code> here is Hugging Face Transformers; it is not MAX's
 <code>Llama3Config</code>.</strong> For a normal Llama 2 7B Transformers checkpoint,
 <code>config.json</code> contains <code>model_type: "llama"</code>. Hugging Face's
 <code>AutoConfig.from_pretrained()</code> reads that file and selects the Transformers
@@ -638,9 +636,11 @@ name supplied by this Llama 2 checkpoint.</p>
 definition and highlights that line. Links for Transformers calls open MAX's
 invocation site because the Transformers implementation is outside this
 repository. Expand a numbered cell below to follow each serving path.</p>
-<p>Use <strong>Call stack tree ↗</strong> in this QnA 1.1 header to open all six text trees in
-a separate window/tab, with component labels, object handoffs and source links.
-The same trees are available as <a href="CALL_STACKS.txt">plain text</a>.</p>
+<p>Use <strong>Call stack tree ↗</strong> in this QnA 1.1 header to open one combined startup
+call tree covering QnA 1.1.1–1.1.6, with component labels, object handoffs and
+source links. The <a href="MAX_SERVE_LLAMA2_7B_STARTUP_CALL_STACK.txt">plain-text version</a>
+traces MAX Serve from CLI startup through model loading, graph compilation
+and HTTP readiness.</p>
 <details class="startup-text-map" id="startup-map"><summary><strong>Startup map</strong><span> · API process / Hub cache / model worker · SOURCE</span></summary><pre tabindex="0">SOURCE: startup order for the standard Llama 2 7B Graph API route
 
 MAIN / API PROCESS               HF HUB / DISK CACHE          MODEL WORKER PROCESS

@@ -21,8 +21,6 @@
 .stack-source-map table { margin: 0; font: 12px/1.7 var(--mono); table-layout: fixed; width: 100%; }
 .stack-source-map th:first-child { width: 120px; }
 .stack-source-map td { overflow-wrap: anywhere; }
-.stack-nav { display: flex; flex-wrap: wrap; gap: 8px 24px; border-block: 1px solid var(--line); padding: 15px 0; }
-.stack-nav a { font-size: 13px; }
 .stack-tools { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin: 20px 0 6px; }
 .stack-tools label, .stack-tools a { font-size: 12px; }
 .stack-tools input { display: inline-block; width: 280px; max-width: 100%; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 5px; padding: 8px; margin-left: 8px; }
@@ -52,7 +50,7 @@
   .stack-launch { font-size: 11px; margin: 4px 0 0 17px; }
 }
 @media print {
-  .stack-header, .stack-tools, .stack-nav, .stack-scroll-hint, .stack-launch { display: none !important; }
+  .stack-header, .stack-tools, .stack-scroll-hint, .stack-launch { display: none !important; }
   .stack-main { padding: 0; }
   .stack-section { break-before: page; }
   .text-tree, .startup-text-map pre, .stack-commands { overflow: visible; font-size: 8px; }

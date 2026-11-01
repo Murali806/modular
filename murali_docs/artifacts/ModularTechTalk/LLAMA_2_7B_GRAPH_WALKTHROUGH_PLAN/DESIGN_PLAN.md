@@ -103,14 +103,20 @@ header; individual function cards and task-selection radios are absent.
 
 - [x] Show both task command examples as text.
 - [x] Keep the startup map in a collapsed disclosure.
-- [x] Provide complete text trees for QnA 1.1.1–1.1.6.
+- [x] Combine QnA 1.1.1–1.1.6 into one continuous startup call tree.
 - [x] Explain component ownership, input/output objects and process boundaries.
 - [x] Include API/worker ZeroMQ request, response and cancellation directions.
 - [x] Link 127 verified source targets to complete original files.
 - [x] Validate reader launch, exact text/source, search, copy, mobile and print.
 
-The [reader](call_stack.html), [text export](CALL_STACKS.txt) and
+The [reader](max_serve_llama2_7b_startup_call_stack.html),
+[text export](MAX_SERVE_LLAMA2_7B_STARTUP_CALL_STACK.txt) and
 [checkpoint record](CHECKPOINTS.md) are the deliverables for this revision.
+
+The merged tree places each startup phase under its actual caller, keeps
+the worker under a labeled process handoff, and removes repeated top-level
+startup entries. Configuration calls that really recur remain visible.
+Output filenames identify MAX Serve, Llama 2 7B and startup.
 
 ## Evidence boundary
 

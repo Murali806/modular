@@ -11,6 +11,7 @@ import re
 import subprocess
 
 from build import REPO, TASK, cpp_span, python_span
+from call_stack import READER_NAME, TEXT_NAME
 from cells import CELLS, REVISION
 
 
@@ -123,15 +124,15 @@ def main():
         line_count += cell["end"] - cell["start"] + 1
 
     stack_parser = StackParser()
-    stack_parser.feed((TASK / "call_stack.html").read_text())
+    stack_parser.feed((TASK / READER_NAME).read_text())
     stack_payload = json.loads("".join(stack_parser.payload))
     stack_manifest = json.loads((TASK / "call_stack_manifest.json").read_text())
     assert stack_manifest["revision"] == REVISION
     assert stack_payload["references"] == stack_manifest["references"]
     assert stack_payload["sections"] == stack_manifest["sections"]
-    assert stack_payload["text"] == (TASK / "CALL_STACKS.txt").read_text()
+    assert stack_payload["text"] == (TASK / TEXT_NAME).read_text()
     assert stack_parser.trees == [s["text"] for s in stack_manifest["sections"]]
-    assert len(stack_parser.trees) == 6
+    assert len(stack_parser.trees) == 1
     assert len(stack_parser.ids) == len(set(stack_parser.ids))
     assert not stack_parser.dependencies
     for ref in stack_manifest["references"].values():

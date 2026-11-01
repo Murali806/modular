@@ -2,6 +2,7 @@
 const assert = require("assert/strict");
 const path = require("path");
 const {pathToFileURL} = require("url");
+const READER = "max_serve_llama2_7b_startup_call_stack.html";
 
 module.exports = async function checkCallStack({browser, context, base, watch, audit, checks, out}) {
   const guide = await context.newPage();
@@ -13,14 +14,15 @@ module.exports = async function checkCallStack({browser, context, base, watch, a
   const page = await popup;
   watch(page);
   await page.waitForLoadState("load");
-  assert.ok(page.url().endsWith("/call_stack.html"));
+  assert.ok(page.url().endsWith("/" + READER));
   assert.equal(await guide.locator("#qna-1-1").evaluate(e=>e.open), openBefore);
-  assert.equal(await page.locator(".stack-section").count(), 6);
+  assert.equal(await page.locator(".stack-section").count(), 1);
+  assert.equal(await page.locator(".text-tree").count(), 1);
   assert.equal(await page.locator('input[type="radio"]').count(), 0);
   assert.equal(await guide.locator('input[type="radio"]').count(), 0);
   assert.match(await page.locator(".stack-commands").innerText(), /--task text_generation/);
   assert.ok((await page.locator(".stack-commands").innerText()).trim().endsWith("max serve --model meta-llama/Llama-2-7b-hf"));
-  checks.push("QnA 1.1 header opens a separate six-section text-tree page without toggling the parent cell; both commands are text examples, with no radios");
+  checks.push("QnA 1.1 opens one combined MAX Serve startup tree without toggling the parent cell; both command examples remain visible");
 
   await guide.locator("#qna-1-1 > summary").click();
   assert.equal(await guide.locator("#startup-map").evaluate(e=>e.open), false);
@@ -41,13 +43,21 @@ module.exports = async function checkCallStack({browser, context, base, watch, a
   const payload = await page.evaluate(()=>JSON.parse(document.querySelector("#stack-data").textContent));
   for (const section of payload.sections) {
     assert.equal(await page.locator("#" + section.id + " .text-tree code").textContent(), section.text);
-    await page.locator('.stack-nav a[href="#' + section.id + '"]').click();
     assert.ok(await page.locator("#" + section.id).isVisible());
   }
-  assert.ok(payload.sections[1].text.includes("request PUSH"));
-  assert.ok(payload.sections[4].text.indexOf("model_factory()") < payload.sections[4].text.indexOf("alive.set()"));
-  assert.ok(payload.sections[5].text.indexOf("Llama3Config.finalize()") < payload.sections[5].text.indexOf("compile_and_init_graphs()"));
-  checks.push("All six displayed text trees exactly match their export payload; worker, IPC directions and finalize-before-compile order are present");
+  const sequence = await page.locator(".text-tree [data-ref]").evaluateAll(es=>es.map(e=>e.dataset.ref));
+  for (const key of ["cli", "serve", "factory", "memory", "tokenizer", "spawn", "invoke", "pipeline_init", "llama3_init", "finalize", "compile_init", "http"]) {
+    assert.equal(sequence.filter(x=>x===key).length, 1, "Duplicated startup branch: " + key);
+  }
+  for (const [first, second] of [["register_all","cli"], ["gen_load","config"], ["memory","tokenizer"],
+    ["spawn","invoke"], ["load_weights","llama3_init"], ["finalize","compile_init"],
+    ["compile_init","alive"], ["alive","ready"], ["ready","connected"], ["connected","http"]]) {
+    assert.ok(sequence.indexOf(first) < sequence.indexOf(second), "Incorrect call-tree order: " + first + " / " + second);
+  }
+  assert.equal(sequence.filter(x=>x==="initialize").length, 3);
+  assert.ok(payload.sections[0].text.includes("request/cancel: API proxy PUSH"));
+  assert.ok(payload.sections[0].text.includes("separate Python stack"));
+  checks.push("One continuous tree matches the export; startup entry points appear once, three config initializations remain, and worker/compile/readiness order is preserved");
 
   for (const key of ["cli", "autoconfig", "register_all", "zmq_interface", "autotokenizer", "gen_load", "download", "finalize", "finalize_call", "graph_output"]) {
     const ref = payload.references[key];
@@ -72,7 +82,7 @@ module.exports = async function checkCallStack({browser, context, base, watch, a
   assert.equal(await page.locator("#file-select").inputValue(), payload.references.zmq_interface.file);
   await page.locator("#close-explorer").click();
   await page.locator(".stack-source-map > summary").click();
-  checks.push("Links across all six trees and the alias source map open exact original files; definition/caller highlighting, source search and Escape work");
+  checks.push("Source links covering all six QnA topics and the alias map open exact files; definition/caller highlighting, source search and Escape work");
 
   await page.locator("#tree-search").fill("Llama3Config");
   assert.match(await page.locator("#tree-count").innerText(), /^1 \/ /);
@@ -94,12 +104,13 @@ module.exports = async function checkCallStack({browser, context, base, watch, a
   await page.evaluate(()=>window.dispatchEvent(new Event("afterprint")));
   assert.equal(await page.locator("#startup-map").evaluate(e=>e.open), false);
   checks.push("Text-tree printing expands the map and restores disclosure state afterward");
+  await page.waitForFunction(()=>!document.querySelector("#toast").classList.contains("visible"));
 
   for (const width of [390,320]) {
     await page.setViewportSize({width,height:844});
-    await page.locator('.stack-nav a[href="#stack-1-1-2"]').click();
+    await page.locator("#stack-startup h2").scrollIntoViewIfNeeded();
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1), "Call-tree window has page overflow");
-    const tree=page.locator("#stack-1-1-2 .text-tree");
+    const tree=page.locator("#stack-startup .text-tree");
     assert.ok(await tree.evaluate(e=>e.scrollWidth>e.clientWidth));
     await tree.evaluate(e=>e.scrollLeft=e.scrollWidth);
     assert.ok(await tree.evaluate(e=>e.scrollLeft>0));
@@ -119,19 +130,19 @@ module.exports = async function checkCallStack({browser, context, base, watch, a
 
   const offline = await context.newPage();
   watch(offline);
-  await offline.goto(pathToFileURL(path.resolve(out,"..","call_stack.html")).href);
+  await offline.goto(pathToFileURL(path.resolve(out,"..",READER)).href);
   await offline.locator('[data-ref="hf_load"]').first().click();
   assert.ok(await offline.locator("#source-dialog").evaluate(e=>e.open));
   await offline.close();
   const noJS = await browser.newContext({javaScriptEnabled:false,viewport:{width:390,height:844}});
   const fallback = await noJS.newPage();
   watch(fallback);
-  await fallback.goto(base + "/call_stack.html");
-  assert.equal(await fallback.locator(".stack-section").count(),6);
+  await fallback.goto(base + "/" + READER);
+  assert.equal(await fallback.locator(".stack-section").count(),1);
   await fallback.locator("#startup-map > summary").click();
   assert.ok(await fallback.locator("#startup-map").evaluate(e=>e.open));
   assert.ok((await fallback.locator('[data-ref="finalize"]').getAttribute("href")).startsWith("sources/"));
   assert.ok(await fallback.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   await noJS.close();
-  checks.push("Separate text-tree reader works directly from file://; without JavaScript, all trees, map and snapshot links remain readable");
+  checks.push("Renamed startup reader works directly from file://; without JavaScript, the combined tree, map and snapshots remain readable");
 };

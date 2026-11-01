@@ -26,9 +26,11 @@ definition and highlights that line. Links for Transformers calls open MAX's
 invocation site because the Transformers implementation is outside this
 repository. Expand a numbered cell below to follow each serving path.
 
-Use **Call stack tree ↗** in this QnA 1.1 header to open all six text trees in
-a separate window/tab, with component labels, object handoffs and source links.
-The same trees are available as [plain text](CALL_STACKS.txt).
+Use **Call stack tree ↗** in this QnA 1.1 header to open one combined startup
+call tree covering QnA 1.1.1–1.1.6, with component labels, object handoffs and
+source links. The [plain-text version](MAX_SERVE_LLAMA2_7B_STARTUP_CALL_STACK.txt)
+traces MAX Serve from CLI startup through model loading, graph compilation
+and HTTP readiness.
 
 {{startup-map}}
 

@@ -201,7 +201,7 @@ def code_markdown(cell: dict) -> str:
 
 def build_guide(data: dict) -> None:
     import markdown
-    from call_stack import build_call_stack, startup_html
+    from call_stack import READER_NAME, build_call_stack, startup_html
     from widgets import WIDGETS, stage_data
 
     reference_count = build_call_stack(data, TASK, SRC, python_span)
@@ -292,8 +292,8 @@ def build_guide(data: dict) -> None:
     nested_qna_html = (
         '<details class="nested-qna" id="qna-1-1">'
         f'<summary><span class="disclosure" aria-hidden="true"></span><span class="nested-qna-label">{nested_summary}</span>'
-        '<a class="stack-launch" id="open-call-stack" href="call_stack.html" target="_blank" rel="noopener" '
-        'aria-label="Open all six call stack trees in a new window">Call stack tree ↗</a></summary>'
+        f'<a class="stack-launch" id="open-call-stack" href="{READER_NAME}" target="_blank" rel="noopener" '
+        'aria-label="Open the combined MAX Serve startup call stack in a new window">Call stack tree ↗</a></summary>'
         '<div class="nested-qna-body">'
         + qna_1_1_html_body
         + '</div></details>'
@@ -374,7 +374,7 @@ def build_guide(data: dict) -> None:
 <div id="toast" role="status" aria-live="polite"></div><script id="guide-data" type="application/json">{payload}</script><script>{js}</script></body></html>'''
     (TASK / "index.html").write_text(output)
     print(f"Built six chapters, {len(cells)} complete cells, and {len(files)} full-file snapshots.")
-    print(f"Built separate text-tree window: six QnA sections, {reference_count} verified source targets.")
+    print(f"Built one combined MAX Serve startup call tree: {reference_count} verified source targets.")
 
 
 if __name__ == "__main__":
