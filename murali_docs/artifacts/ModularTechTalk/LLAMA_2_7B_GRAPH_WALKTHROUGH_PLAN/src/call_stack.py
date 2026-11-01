@@ -17,6 +17,18 @@ max serve --model meta-llama/Llama-2-7b-hf --task text_generation
 # Infer task: taken when the effective task is UNDEFINED (no config-file task).
 max serve --model meta-llama/Llama-2-7b-hf"""
 
+LOCAL_LINKS = {
+    "manifest_roles": {
+        "href": "link_htmls/model_manifest_roles_and_diffusers.html",
+        "label": "Model manifest roles, components, and Diffusers ↗",
+        "text": (
+            "Model manifest roles, components, and Diffusers ↗ "
+            "(link_htmls/model_manifest_roles_and_diffusers.html)"
+        ),
+        "title": "Open the explanation of main and component manifests",
+    }
+}
+
 
 def startup_html(src):
     return ('<details class="startup-text-map" id="startup-map"><summary>'
@@ -50,8 +62,20 @@ def build_call_stack(data, task, src, span_finder):
                 + html.escape(label(ref)) + '</a>')
 
     token = re.compile(r"\{\{([a-z_][a-z_0-9]*)\}\}")
+    local_token = re.compile(r"\[\[doc:([a-z_][a-z_0-9]*)\]\]")
+
+    def local_link(key):
+        spec = LOCAL_LINKS[key]
+        return (
+            f'<a class="tree-doc-link" href="{html.escape(spec["href"], quote=True)}" '
+            f'target="_blank" rel="noopener noreferrer" '
+            f'title="{html.escape(spec["title"], quote=True)}">'
+            f'{html.escape(spec["label"])}</a>'
+        )
+
     sections = []
     used = set()
+    used_local_links = set()
     raw = (src / "call_stack_tree.txt").read_text()
     pieces = re.split(r"^@@ (1\.1) \| (.+)\n", raw, flags=re.M)
     if pieces[0]:
@@ -63,10 +87,16 @@ def build_call_stack(data, task, src, span_finder):
             if key not in refs:
                 raise ValueError("Unknown source reference: " + key)
             used.add(key)
+        for key in local_token.findall(content):
+            if key not in LOCAL_LINKS:
+                raise ValueError("Unknown local document link: " + key)
+            used_local_links.add(key)
         plain = token.sub(lambda m: label(refs[m[1]]), content)
+        plain = local_token.sub(lambda m: LOCAL_LINKS[m[1]]["text"], plain)
         rows = []
         for line in content.splitlines():
             rendered = token.sub(lambda m: link(m[1]), html.escape(line))
+            rendered = local_token.sub(lambda m: local_link(m[1]), rendered)
             rows.append('<span class="tree-line">' + rendered + '</span>')
         id = "stack-startup"
         sections.append(dict(number=number, title=title, id=id, text=plain,
@@ -76,6 +106,8 @@ def build_call_stack(data, task, src, span_finder):
         raise ValueError("Expected one combined startup call stack covering QnA 1.1.1-1.1.6")
     if set(refs) != used:
         raise ValueError("Unused call-stack references: " + str(set(refs) - used))
+    if set(LOCAL_LINKS) != used_local_links:
+        raise ValueError("Unused local document links: " + str(set(LOCAL_LINKS) - used_local_links))
     intro = (f'MAX SERVE / LLAMA 2 7B STARTUP CALL STACK\nSOURCE revision: {data["revision"]}\n'
              'Selected source-derived call paths; illustrative values, not a captured execution trace.\n'
              'Purpose: CLI startup -> checkpoint/config -> model loading -> graph compile/init -> HTTP readiness.\n'

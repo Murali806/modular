@@ -33,6 +33,7 @@
 .tree-line { scroll-margin-top: 90px; }
 .tree-line a { text-underline-offset: 3px; text-decoration-color: var(--border); }
 .tree-line a:hover { text-decoration-color: var(--blue); }
+.tree-line a.tree-doc-link { color: var(--teal); font-weight: 700; text-decoration-style: dashed; }
 .tree-line.stack-match { background: var(--match); color: var(--ink); }
 .tree-line.stack-current { background: var(--current-match); color: var(--ink); outline: 1px solid var(--teal); }
 .stack-page #file-provenance { overflow-wrap: anywhere; }

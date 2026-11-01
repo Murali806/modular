@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Model Manifest Roles and Diffusers · MAX Serve / Llama 2 7B</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #171a20;
+      --panel: #20252d;
+      --panel-soft: #252c35;
+      --line: #3b4654;
+      --ink: #e8edf4;
+      --muted: #b1bdcc;
+      --cyan: #7dd3df;
+      --blue: #8db7ff;
+      --green: #a8dba8;
+      --amber: #f2c879;
+      --violet: #c3a5e8;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--page); scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font: 16px/1.72 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--cyan); text-underline-offset: 3px; }
+    a:hover { color: #b6f1f4; }
+    .page { width: min(100% - 36px, 1040px); margin: 0 auto; padding: 28px 0 64px; }
+    .topline { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 26px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 11px;
+      color: var(--green);
+      background: var(--panel);
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0 0 10px; font-size: clamp(28px, 4vw, 42px); line-height: 1.18; letter-spacing: -.025em; }
+    .subtitle { margin: 0 0 28px; color: var(--muted); }
+    article {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: clamp(20px, 4vw, 38px);
+      background: var(--panel);
+      box-shadow: 0 16px 44px rgb(0 0 0 / .18);
+    }
+    p { margin: 0 0 19px; }
+    strong { color: var(--cyan); }
+    code {
+      color: var(--amber);
+      font: .93em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    table { width: 100%; margin: 22px 0; border-collapse: collapse; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    th, td { padding: 13px 15px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th { color: var(--cyan); background: var(--panel-soft); font-size: .91rem; }
+    tbody tr:nth-child(even) { background: rgb(255 255 255 / .025); }
+    tbody tr:last-child td { border-bottom: 0; }
+    .kind { color: var(--violet); font-weight: 700; white-space: nowrap; }
+    pre {
+      overflow: auto;
+      margin: 18px 0 24px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #15191f;
+      color: #dce6f2;
+      font: 13px/1.75 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      tab-size: 4;
+    }
+    pre .role { color: var(--cyan); }
+    pre .type { color: var(--amber); }
+    pre .path { color: var(--green); }
+    pre .metadata { color: var(--violet); }
+    .flow {
+      border-left: 3px solid var(--blue);
+      margin: 20px 0 25px;
+      padding-left: 16px;
+    }
+    .flow pre { margin: 0; }
+    .sources { margin: 24px 0 0; padding-top: 19px; border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
+    .sources a { white-space: nowrap; }
+    @media (max-width: 640px) {
+      .page { width: min(100% - 22px, 1040px); padding-top: 18px; }
+      article { padding: 18px 15px; }
+      body { font-size: 15px; }
+      table { font-size: .9rem; }
+      th, td { padding: 10px 9px; }
+      .kind { white-space: normal; }
+      pre { padding: 15px 12px; font-size: 12px; }
+    }
+    @media print {
+      :root { color-scheme: light; --page: #fff; --panel: #fff; --panel-soft: #eee; --line: #aaa; --ink: #151515; --muted: #444; --cyan: #075e73; --blue: #174f91; --green: #246526; --amber: #755000; --violet: #5b3282; }
+      body, article { background: #fff; color: #151515; box-shadow: none; }
+      .page { width: 100%; padding: 0; }
+      article { border: 0; padding: 0; }
+      a { color: #064f68; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f4f5f7; color: #111; }
+      .topline a { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="topline">
+      <span class="badge">MAX Serve · Source explanation</span>
+      <a href="../max_serve_llama2_7b_startup_call_stack.html">← Back to the startup call stack</a>
+    </div>
+    <h1>Model Manifest roles and Diffusers</h1>
+    <p class="subtitle">Llama 2 7B · single-model manifests · multi-component manifests</p>
+
+    <article>
+      <p>A <strong>manifest role name</strong> is the key that says what a model config is for. <code>ModelManifest</code> is a mapping from role names to <code>MAXModelConfig</code> objects (<a href="../../../../../max/python/max/pipelines/lib/model_manifest.py#L87">definition</a>). The role is not the model’s Hugging Face architecture name.</p>
+
+      <table>
+        <thead>
+          <tr><th>Manifest kind</th><th>Example entries</th><th>Meaning</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="kind">Single model</td>
+            <td><code>"main" → MAXModelConfig(...)</code></td>
+            <td>The primary model being served. For Llama 2, its architecture is read from the Hugging Face config.</td>
+          </tr>
+          <tr>
+            <td class="kind">Component manifest</td>
+            <td><code>"text_encoder"</code>, <code>"unet"</code>, <code>"vae"</code>, <code>"scheduler"</code> → individual configs</td>
+            <td>Separate parts of a larger pipeline, each with its own role and often its own checkpoint subfolder.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p><code>"main"</code> is a conventional role for a single-model pipeline. Other roles can identify a speculative <code>"draft"</code> model or components such as <code>"vae"</code> and <code>"unet"</code>. A component manifest usually has <strong>no <code>"main"</code> entry</strong>; its non-component details, such as the pipeline class name, are kept separately as manifest metadata. MAX uses these role keys to find the right config for each part.</p>
+
+      <p>Hugging Face <strong>Diffusers</strong> is a library for diffusion models, often used for image or video generation. A text-to-image pipeline typically encodes the prompt, repeatedly denoises an image representation, then decodes it into an image. Those stages use separate components—for example, a text encoder, a denoiser (<code>unet</code> or <code>transformer</code>), a VAE, and a scheduler. A repository’s <code>model_index.json</code> or <code>modular_model_index.json</code> describes its components. MAX checks that index and, when it finds recognized components, builds a config for each component and its subfolder (<a href="../../../../../max/python/max/pipelines/lib/model_manifest.py#L475">component discovery</a>). This is conditional: not every repository is treated as a multi-component manifest.</p>
+
+      <div class="flow">
+        <pre><span class="role">Ordinary Llama checkpoint:</span>
+ModelManifest
+└─ <span class="path">"main"</span> -> <span class="type">MAXModelConfig</span>(model_path=<span class="path">"meta-llama/Llama-2-7b-hf"</span>)
+
+<span class="role">Diffusers checkpoint:</span>
+ModelManifest
+├─ <span class="path">"text_encoder"</span> -> <span class="type">MAXModelConfig</span>(..., subfolder=<span class="path">"text_encoder"</span>)
+├─ <span class="path">"unet"</span>          -> <span class="type">MAXModelConfig</span>(..., subfolder=<span class="path">"unet"</span>)
+├─ <span class="path">"vae"</span>           -> <span class="type">MAXModelConfig</span>(..., subfolder=<span class="path">"vae"</span>)
+└─ <span class="path">"scheduler"</span>     -> <span class="type">MAXModelConfig</span>(..., subfolder=<span class="path">"scheduler"</span>)
+
+<span class="metadata">Separate metadata:</span>
+<span class="metadata">_class_name</span> -> <span class="path">"StableDiffusionPipeline"</span>  # illustrative</pre>
+      </div>
+
+      <p><code>ModelManifest.from_model_path()</code> first checks for a Diffusers component index. If it finds recognized components, it returns a component manifest. Otherwise, it builds one <code>MAXModelConfig</code> and returns it under <code>"main"</code> (<a href="../../../../../max/python/max/pipelines/lib/model_manifest.py#L382">method</a>).</p>
+
+      <pre>model_path = "meta-llama/Llama-2-7b-hf"
+    -> ModelManifest.from_model_path(model_path)
+        -> check for model_index.json / modular_model_index.json
+            ├─ recognized components found
+            │    -> return component manifest
+            │    -> caller keeps it
+            │
+            └─ no recognized components (usual Llama 2 case)
+                 -> return {"main": MAXModelConfig}
+                 -> caller uses this result as a probe</pre>
+
+      <p>For Llama 2, <code>"main"</code> is the manifest role for the primary model. The caller keeps a probe only when <code>"main"</code> is absent, so it does not keep this temporary single-model manifest; the flat <code>model_path</code> continues into <code>PipelineArgs</code> (<a href="../../../../../max/python/max/pipelines/lib/pipeline_args.py#L621">caller</a>). Constructing the config can read Hugging Face config metadata and generation defaults (<a href="../../../../../max/python/max/pipelines/lib/config/model_config.py#L1067">config population</a>); this step does not load model weight tensors or compile the model.</p>
+    </article>
+  </main>
+</body>
+</html>
