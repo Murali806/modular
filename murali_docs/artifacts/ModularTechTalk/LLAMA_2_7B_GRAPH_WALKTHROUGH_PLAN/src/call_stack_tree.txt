@@ -16,6 +16,16 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
 |           |               stores _lazy_architectures[name] += [(module, symbol, package)].
 |           |               package="max.pipelines.architectures"; name="LlamaForCausalLM".
 |           |               result: an import recipe in process memory, not a model or weight database.
+|           |               Registry lifecycle for this one row (arrows show calls/state changes):
+|           |                 max.pipelines import -> {{register_all}} -> record every built-in lazy row.
+|           |                   -> _lazy_architectures["LlamaForCausalLM"] holds the recipe tuple above.
+|           |                   -> later lookup("LlamaForCausalLM") -> {{materialize}}
+|           |                     -> pop(name) removes this key from the pending dictionary.
+|           |                     -> {{import}}: module=".llama3"; package="max.pipelines.architectures"
+|           |                     -> {{llama_arch}} -> {{register}}
+|           |                        -> architectures["LlamaForCausalLM"] = llama_arch (object, not recipe tuple).
+|           |               The package string anchors relative imports; it does not store the registry rows.
+|           |               Other keys, such as Qwen and LLaVA, stay pending until those names are looked up.
 |           +-- {{flags}}
 |               +-- {{normalize}}
 |                   maps --model / --model-path -> internal model_path field.
