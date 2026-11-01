@@ -51,6 +51,13 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
 |           +-- pipeline_config_options() [FLAGS:L443]
 |               +-- get_normalized_flag_names() [FLAGS:L204]
 |                   maps --model / --model-path -> internal model_path field.
+|                   for model_path, option declarations are:
+|                       ("--model", "--model-path", "model_path")
+|                   Input: max serve --model meta-llama/Llama-2-7b-hf
+|                       -> config_kwargs["model_path"] = "meta-llama/Llama-2-7b-hf"
+|                   Input: max serve --model-path /models/llama-2-7b-hf
+|                       -> config_kwargs["model_path"] = "/models/llama-2-7b-hf"
+|                   Both flags set the same field; Click leaves the value unchanged.
 |
 +-- cli_serve(..., **config_kwargs) [CLI:L349] [Click invokes MAX's registered callback]  Click registration [CLI:L349]
     |   input: parsed server args (--host/--port) and model options in config_kwargs.
