@@ -63,6 +63,10 @@ under this folder and supplement the repository-wide guidance in
 - Keep QnA 1.1.1–1.1.6 in one continuous, text-only call-stack tree. Put the
   explanation in the tree beside each step; use clear arrows, indentation,
   line spacing, named objects, ownership, data handoffs, and component roles.
+- When spacing separates rows within a tree branch, keep its vertical
+  connector visible on the spacer row (for example, `|` in the same column).
+  This keeps the branch continuous around explanatory text and links; reserve
+  fully blank rows for separators outside a connected branch.
 - Include the CLI command examples as literal text, including both
   `max serve --model meta-llama/Llama-2-7b-hf --task text_generation` and
   `max serve --model meta-llama/Llama-2-7b-hf`. Explain the difference in
