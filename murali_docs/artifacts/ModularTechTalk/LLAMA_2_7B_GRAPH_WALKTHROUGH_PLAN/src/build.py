@@ -106,6 +106,7 @@ def cpp_span(text: str, needle: str, prefix: int) -> tuple[int, int]:
 
 
 def extract_sources() -> dict:
+    from call_stack_refs import FILES
     files = {}
     cells = []
     extra_files = [
@@ -130,7 +131,7 @@ def extract_sources() -> dict:
         "max/python/max/pipelines/weights/hf_utils.py",
         "max/python/max/pipelines/lib/tokenizer.py",
     ]
-    for file in [c["file"] for c in CELLS] + extra_files:
+    for file in [c["file"] for c in CELLS] + extra_files + list(FILES.values()):
         if file not in files:
             raw = (REPO / file).read_bytes()
             pinned = subprocess.check_output(["git", "show", f"{REVISION}:{file}"], cwd=REPO)
@@ -200,7 +201,10 @@ def code_markdown(cell: dict) -> str:
 
 def build_guide(data: dict) -> None:
     import markdown
+    from call_stack import build_call_stack, startup_html
     from widgets import WIDGETS, stage_data
+
+    reference_count = build_call_stack(data, TASK, SRC, python_span)
 
     cells = {c["id"]: c for c in data["cells"]}
     template = (SRC / "content.md").read_text()
@@ -263,6 +267,11 @@ def build_guide(data: dict) -> None:
         autoconfig_qna, extensions=["tables", "fenced_code", "attr_list"]
     )
     qna_1_1_markdown_body = autoconfig_qna
+    qna_1_1_html_body = qna_1_1_html_body.replace("<p>{{startup-map}}</p>", startup_html(SRC))
+    qna_1_1_markdown_body = qna_1_1_markdown_body.replace(
+        "{{startup-map}}", '<details><summary>Startup map · SOURCE</summary>\n\n'
+        + chr(96) * 3 + "text\n" + (SRC / "startup_map.txt").read_text()
+        + chr(96) * 3 + "\n\n</details>")
     for item in nested_cells:
         placeholder = f'{{{{nested:{item["id"]}}}}}'
         html_slot = f"<p>{placeholder}</p>"
@@ -282,7 +291,9 @@ def build_guide(data: dict) -> None:
     nested_question = "How does max serve prepare a Llama checkpoint and model?"
     nested_qna_html = (
         '<details class="nested-qna" id="qna-1-1">'
-        f'<summary><span class="disclosure" aria-hidden="true"></span><span class="nested-qna-label">{nested_summary}</span></summary>'
+        f'<summary><span class="disclosure" aria-hidden="true"></span><span class="nested-qna-label">{nested_summary}</span>'
+        '<a class="stack-launch" id="open-call-stack" href="call_stack.html" target="_blank" rel="noopener" '
+        'aria-label="Open all six call stack trees in a new window">Call stack tree ↗</a></summary>'
         '<div class="nested-qna-body">'
         + qna_1_1_html_body
         + '</div></details>'
@@ -348,7 +359,7 @@ def build_guide(data: dict) -> None:
     options = "".join(f'<option value="{html.escape(f["path"])}">{html.escape(f["path"])}</option>' for f in files)
     data["stages"] = stage_data()
     payload = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
-    css = (SRC / "style.css").read_text()
+    css = (SRC / "style.css").read_text() + "\n" + (SRC / "call_stack.css").read_text()
     js = (SRC / "app.js").read_text()
     output = f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Llama 2 7B in MAX: graph construction, finalization, native compilation, and execution, with complete expandable source."><title>Llama 2 7B · Inside the MAX graph compiler</title><style>{css}</style></head>
@@ -363,6 +374,7 @@ def build_guide(data: dict) -> None:
 <div id="toast" role="status" aria-live="polite"></div><script id="guide-data" type="application/json">{payload}</script><script>{js}</script></body></html>'''
     (TASK / "index.html").write_text(output)
     print(f"Built six chapters, {len(cells)} complete cells, and {len(files)} full-file snapshots.")
+    print(f"Built separate text-tree window: six QnA sections, {reference_count} verified source targets.")
 
 
 if __name__ == "__main__":

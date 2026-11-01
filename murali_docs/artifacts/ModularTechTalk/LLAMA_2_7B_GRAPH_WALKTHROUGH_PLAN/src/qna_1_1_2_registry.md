@@ -1,8 +1,9 @@
 **Call-flow tree — when the Llama mapping is recorded, imported, and used:**
 
-- [`cli_serve()`](../../../../max/python/max/_entrypoints/pipelines.py#L433)
-  imports [`PipelineArgs`](../../../../max/python/max/_entrypoints/pipelines.py#L460)
-  from `max.pipelines`. On the first package import,
+- Click option loading calls
+  [`WithLazyPipelineOptions._add_options()`](../../../../max/python/max/_entrypoints/pipelines.py#L81),
+  whose CLI-config import can reach `max.pipelines` before `cli_serve()`.
+  On the first package import,
   [`max.pipelines.__init__`](../../../../max/python/max/pipelines/__init__.py#L80)
   calls [`register_all_models()`](../../../../max/python/max/pipelines/architectures/__init__.py#L58).
   - The architecture table includes
@@ -25,9 +26,11 @@
     needs the architecture's registered task. It calls
     [`PipelineRegistry._materialize_lazy()`](../../../../max/python/max/pipelines/lib/registry.py#L452)
     before reading the task table.
-  - With a task already specified, architecture selection begins in
-    [`PipelineRegistry.retrieve_factory()`](../../../../max/python/max/pipelines/lib/registry.py#L711)
-    and proceeds through
+  - With a task already specified,
+    [`PipelineConfig.from_args()`](../../../../max/python/max/pipelines/lib/config/config.py#L1562)
+    calls `find_architecture()`, then `ArchLookup.find()` and `resolve()`.
+    This can materialize the pending entry before `retrieve_factory()`.
+    Later, `retrieve_factory()` selects through
     [`PipelineRegistry.architecture_for_config()`](../../../../max/python/max/pipelines/lib/registry.py#L496),
     [`PipelineRegistry.retrieve_architecture()`](../../../../max/python/max/pipelines/lib/registry.py#L471),
     [`ArchLookup.find()`](../../../../max/python/max/pipelines/lib/arch_lookup.py#L947),

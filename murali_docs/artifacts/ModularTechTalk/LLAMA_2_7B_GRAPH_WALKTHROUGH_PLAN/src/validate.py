@@ -60,6 +60,32 @@ class GuideParser(HTMLParser):
             self.lines[self.cell][-1] += text
 
 
+class StackParser(GuideParser):
+    def __init__(self):
+        super().__init__()
+        self.trees = []
+        self.in_tree = False
+
+    def handle_starttag(self, tag, attrs):
+        super().handle_starttag(tag, attrs)
+        attrs = dict(attrs)
+        if tag == "script" and attrs.get("id") == "stack-data":
+            self.in_payload = True
+        if tag == "pre" and "text-tree" in attrs.get("class", "").split():
+            self.in_tree = True
+            self.trees.append("")
+
+    def handle_endtag(self, tag):
+        super().handle_endtag(tag)
+        if tag == "pre":
+            self.in_tree = False
+
+    def handle_data(self, text):
+        super().handle_data(text)
+        if self.in_tree:
+            self.trees[-1] += text
+
+
 def main():
     manifest = json.loads((TASK / "source_manifest.json").read_text())
     assert manifest["revision"] == REVISION
@@ -96,15 +122,36 @@ def main():
             assert cell["start"] <= note["start"] <= note["end"] <= cell["end"]
         line_count += cell["end"] - cell["start"] + 1
 
+    stack_parser = StackParser()
+    stack_parser.feed((TASK / "call_stack.html").read_text())
+    stack_payload = json.loads("".join(stack_parser.payload))
+    stack_manifest = json.loads((TASK / "call_stack_manifest.json").read_text())
+    assert stack_manifest["revision"] == REVISION
+    assert stack_payload["references"] == stack_manifest["references"]
+    assert stack_payload["sections"] == stack_manifest["sections"]
+    assert stack_payload["text"] == (TASK / "CALL_STACKS.txt").read_text()
+    assert stack_parser.trees == [s["text"] for s in stack_manifest["sections"]]
+    assert len(stack_parser.trees) == 6
+    assert len(stack_parser.ids) == len(set(stack_parser.ids))
+    assert not stack_parser.dependencies
+    for ref in stack_manifest["references"].values():
+        source = source_bytes[ref["file"]].decode()
+        assert source.splitlines()[ref["line"] - 1] == ref["text"]
+        assert ref["start"] <= ref["line"] <= ref["end"]
+        if ref.get("symbol"):
+            assert python_span(source, ref["symbol"]) == (ref["start"], ref["end"])
+        assert stack_payload["files"][ref["file"]]["text"] == source
+    assert "{{" not in stack_payload["text"]
+
     checked_links = 0
-    for href in parser.links:
+    for href in parser.links + stack_parser.links:
         if href.startswith("http"):
             continue
         path, _, fragment = href.partition("#")
         if path:
             assert (TASK / path).resolve().is_file(), f"Missing HTML link: {href}"
         elif fragment:
-            assert fragment in parser.ids, f"Missing HTML anchor: {href}"
+            assert fragment in parser.ids + stack_parser.ids, f"Missing HTML anchor: {href}"
         checked_links += 1
     for doc in TASK.glob("*.md"):
         content = doc.read_text()
@@ -126,6 +173,8 @@ def main():
         command="PYTHONDONTWRITEBYTECODE=1 python3 src/validate.py",
         result="PASS", source_files=len(manifest["files"]),
         complete_source_cells=len(manifest["cells"]), displayed_source_lines=line_count,
+        call_stack_sections=len(stack_parser.trees),
+        call_stack_source_targets=len(stack_manifest["references"]),
         local_links_checked=checked_links, external_runtime_dependencies=0,
         evidence="Document/source validation only; no MAX model execution.",
     )

@@ -226,14 +226,30 @@
   document.querySelector("#collapse-code").addEventListener("click", () => document.querySelectorAll(".code-cell").forEach(cell => cell.open = false));
   function readHash() {
     if (location.hash.startsWith("#code-")) openCell(location.hash.slice(6));
-    if (location.hash === "#qna-1") {
-      const qna = document.getElementById("qna-1");
-      qna.open = true;
-      qna.scrollIntoView({behavior, block:"start"});
+    if (/^#(?:qna-|startup-map)/.test(location.hash)) {
+      const target = document.getElementById(location.hash.slice(1));
+      if (!target) return;
+      for (let parent = target; parent; parent = parent.parentElement) {
+        if (parent.tagName === "DETAILS") parent.open = true;
+      }
+      target.scrollIntoView({behavior, block:"start"});
     }
   }
   window.addEventListener("hashchange", readHash);
   readHash();
+
+  const stackLauncher = document.querySelector("#open-call-stack");
+  stackLauncher.addEventListener("click", event => {
+    event.stopPropagation();
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    const reader = window.open(stackLauncher.href, "llama-call-stack", "popup,width=1440,height=1000,resizable=yes,scrollbars=yes");
+    if (reader) {
+      event.preventDefault();
+      reader.opener = null;
+      reader.focus();
+    }
+    // The normal link remains the fallback if a separate window is blocked.
+  });
 
   let printState = [];
   window.addEventListener("beforeprint", () => {

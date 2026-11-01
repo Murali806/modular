@@ -11,7 +11,7 @@ fidelity, and browser interactions; they do not run Llama inference.
 
 Run: 2026-11-01, revision `610f7111836d9a950d45ba52ec9b3e0ed589fe3f`.
 
-- 36 snapshots are byte-for-byte identical to the files at the recorded Git
+- 39 snapshots are byte-for-byte identical to the files at the recorded Git
   revision and to the current working source.
 - 39 complete source selections contain 2,012 original lines. Python selections
   include decorators and complete AST definition bounds; C++ selections include
@@ -20,10 +20,14 @@ Run: 2026-11-01, revision `610f7111836d9a950d45ba52ec9b3e0ed589fe3f`.
   docstrings, indentation, and source line numbers.
 - HTML copy data and the Markdown companion contain the same original code.
 - All authored annotation ranges lie inside their complete source selections.
-- 532 local links, source line anchors, HTML IDs, and Python source syntax pass.
+- Local links, source line anchors, HTML IDs, and Python source syntax pass.
+  The exact link count is recorded in `source_checks.json`.
   The six nested QnA cells each contain an expandable call-flow list with
   source-linked function names.
 - The HTML has no external runtime assets.
+- Six separate-reader text trees match their manifest and exported text.
+  All 127 source targets have verified definition bounds or unique invocation
+  text. Complete source shown in the reader matches the pinned snapshots.
 
 Machine-readable result: [source_checks.json](source_checks.json).
 
@@ -31,7 +35,8 @@ Machine-readable result: [source_checks.json](source_checks.json).
 
 Chromium `141.0.7390.37`, driven with the existing Playwright installation.
 Viewports: 1440×1000 desktop and 390×844 mobile.
-The expanded QnA was also checked at 320×760.
+The expanded QnA was also checked at 320×760. The separate call-tree reader
+was checked at 390×844 and 320×844.
 
 - Complete source cells start collapsed and expand from the keyboard.
 - The top-left **Hide sidebar / Show sidebar** button works with pointer,
@@ -70,6 +75,25 @@ The expanded QnA was also checked at 320×760.
 - The print stylesheet switches to light paper colors, expands disclosures,
   and restores their previous states afterward.
 
+The replacement call-tree reader also passed these checks:
+
+- The QnA 1.1 header button opens a separate page without toggling the parent
+  disclosure. Both command examples appear as text; no radio inputs exist.
+- The startup map starts collapsed and supports pointer/keyboard expansion.
+- All six trees preserve their exact text, source aliases and indentation.
+- Links across every QnA open full source, highlight definition/caller lines,
+  and support file search and Escape. Source-map file links work too.
+- Tree search, next match, no-match handling and exact text copying work.
+- Worker factory invocation precedes readiness in the tree; configuration
+  finalization precedes graph compilation. ZeroMQ directions are included.
+- Mobile trees scroll horizontally inside their own area; the page, source
+  map and source dialog remain within 390px and 320px viewports.
+- Printing uses readable paper colors and restores disclosure states.
+- Direct `file://` use works. With JavaScript disabled, the text trees,
+  expandable map and raw snapshot links remain available.
+
+The final browser report contains 24 grouped checks and no console errors.
+
 Machine-readable result: [browser_checks.json](browser_checks.json).
 Color results by inspected state: [contrast_checks.json](contrast_checks.json).
 Additional sidebar interaction review: [sidebar_checks.json](sidebar_checks.json),
@@ -87,6 +111,12 @@ Visual inspection artifacts:
 - [Native compilation sequence](native_sequence_dark.png)
 - [Sidebar collapsed on desktop](sidebar_collapsed.png)
 - [Sidebar collapsed on mobile](mobile_sidebar_collapsed.png)
+- [QnA 1.1 launch button](call_stack_launch.png)
+- [Separate text-tree reader](call_stack_overview.png)
+- [Collapsible startup map expanded](call_stack_startup_map.png)
+- [Source opened from a tree](call_stack_source.png)
+- [Text reader at 390px](call_stack_mobile_390.png)
+- [Text reader at 320px](call_stack_mobile_320.png)
 
 ## Commands
 
@@ -96,6 +126,7 @@ Run from the repository root:
 PYTHONDONTWRITEBYTECODE=1 python3 murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/build.py
 PYTHONDONTWRITEBYTECODE=1 python3 murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/validate.py
 node --check murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/app.js
+node --check murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/call_stack.js
 NODE_PATH=/tmp/max-v4-playwright/node_modules node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/check_browser.cjs
 git diff --check
 ```

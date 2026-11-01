@@ -24,6 +24,7 @@
     set. The result determines the defaults the serving pipeline can honor.
 
 This config is constructed before the model factory loads the large weight
-files. A task-inference prepass may create a temporary `MAXModelConfig` first;
-each model-config instance can make its own generation-config load attempt,
+files. The argument manifest probe can create a temporary `MAXModelConfig`
+even before task inference; an inference prepass may create another instance.
+Each model-config instance can make its own generation-config load attempt,
 while the Hugging Face Hub cache may satisfy repeat file reads locally.

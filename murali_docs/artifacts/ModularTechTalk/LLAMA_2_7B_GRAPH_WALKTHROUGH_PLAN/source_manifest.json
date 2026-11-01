@@ -180,6 +180,21 @@
       "path": "max/python/max/pipelines/lib/tokenizer.py",
       "snapshot": "sources/max/python/max/pipelines/lib/tokenizer.py",
       "sha256": "29996b05cbdbb0693331f585a5f8ecfed0db3342bd818cccebd2affdef002d8b"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/model_manifest.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/model_manifest.py",
+      "sha256": "dddee7044dc5698ea316e1839bc4b391ecf0611b5034a1b84749995e997f695c"
+    },
+    {
+      "path": "max/python/max/serve/worker_interface/zmq_interface.py",
+      "snapshot": "sources/max/python/max/serve/worker_interface/zmq_interface.py",
+      "sha256": "77cec3e86d80b5ab02f05ef0cc5daaf296d739d022449f13db53e5ea284a9a2b"
+    },
+    {
+      "path": "max/python/max/serve/scheduler/__init__.py",
+      "snapshot": "sources/max/python/max/serve/scheduler/__init__.py",
+      "sha256": "5ee97a08b9d5f32f033ab8216e0976c041bd2a1b9476fc1e7e25445bb119f635"
     }
   ],
   "cells": [

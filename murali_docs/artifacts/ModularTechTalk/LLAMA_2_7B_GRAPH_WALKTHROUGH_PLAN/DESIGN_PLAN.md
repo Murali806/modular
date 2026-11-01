@@ -95,6 +95,23 @@ All artifacts stay under this task folder.
 - [x] Make chapter navigation collapsible from the top-left toolbar, reclaim
       its reading space, and verify keyboard/mobile use and saved preference.
 
+## Text-tree reader revision: 2026-11-01
+
+The original guide was restored to its Git baseline before this replacement
+was built. The reader lives in a separate window opened from the QnA 1.1
+header; individual function cards and task-selection radios are absent.
+
+- [x] Show both task command examples as text.
+- [x] Keep the startup map in a collapsed disclosure.
+- [x] Provide complete text trees for QnA 1.1.1–1.1.6.
+- [x] Explain component ownership, input/output objects and process boundaries.
+- [x] Include API/worker ZeroMQ request, response and cancellation directions.
+- [x] Link 127 verified source targets to complete original files.
+- [x] Validate reader launch, exact text/source, search, copy, mobile and print.
+
+The [reader](call_stack.html), [text export](CALL_STACKS.txt) and
+[checkpoint record](CHECKPOINTS.md) are the deliverables for this revision.
+
 ## Evidence boundary
 
 `SOURCE` is sufficient for this code explanation; a measured Llama inference

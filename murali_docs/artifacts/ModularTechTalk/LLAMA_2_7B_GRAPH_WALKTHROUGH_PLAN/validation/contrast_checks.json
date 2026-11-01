@@ -1,6 +1,6 @@
 {
   "result": "PASS",
-  "checked_at": "2026-11-01T10:31:12.088Z",
+  "checked_at": "2026-11-01T11:39:00.989Z",
   "states": [
     {
       "state": "Desktop: initial dark theme",
@@ -10,13 +10,13 @@
     },
     {
       "state": "Desktop: QnA expanded and keyboard focused",
-      "samples": 836,
+      "samples": 837,
       "minimum_text_ratio": 6.431,
       "failures": []
     },
     {
       "state": "Desktop: QnA complete-source dialog",
-      "samples": 2002,
+      "samples": 2013,
       "minimum_text_ratio": 6.431,
       "failures": []
     },
@@ -142,13 +142,13 @@
     },
     {
       "state": "Mobile: expanded QnA",
-      "samples": 777,
+      "samples": 778,
       "minimum_text_ratio": 6.431,
       "failures": []
     },
     {
       "state": "Mobile: source dialog and placeholder",
-      "samples": 1181,
+      "samples": 1187,
       "minimum_text_ratio": 6.431,
       "failures": []
     },
@@ -160,8 +160,44 @@
     },
     {
       "state": "Print: expanded guide on white paper",
-      "samples": 5394,
+      "samples": 5406,
       "minimum_text_ratio": 7.118,
+      "failures": []
+    },
+    {
+      "state": "Call-tree window: commands, closed map and text",
+      "samples": 481,
+      "minimum_text_ratio": 6.886,
+      "failures": []
+    },
+    {
+      "state": "Call-tree window: exact source dialog",
+      "samples": 1406,
+      "minimum_text_ratio": 6.886,
+      "failures": []
+    },
+    {
+      "state": "Call-tree window: matching text",
+      "samples": 481,
+      "minimum_text_ratio": 6.237,
+      "failures": []
+    },
+    {
+      "state": "Call-tree window: print colors",
+      "samples": 524,
+      "minimum_text_ratio": 7.118,
+      "failures": []
+    },
+    {
+      "state": "Call-tree window: 390px source view",
+      "samples": 3959,
+      "minimum_text_ratio": 6.886,
+      "failures": []
+    },
+    {
+      "state": "Call-tree window: 320px source view",
+      "samples": 3959,
+      "minimum_text_ratio": 6.886,
       "failures": []
     }
   ],

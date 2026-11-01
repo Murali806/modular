@@ -1,0 +1,31 @@
+SOURCE: startup order for the standard Llama 2 7B Graph API route
+
+MAIN / API PROCESS               HF HUB / DISK CACHE          MODEL WORKER PROCESS
+------------------------------   -------------------------    ------------------------------
+Click loads options
+  -> register lazy import map                                 (not started)
+CLI builds PipelineArgs
+  -> checkpoint probe ---------> config / generation files
+  -> infer task if UNDEFINED
+  -> build PipelineConfig
+Registry prepares factory
+  -> memory plan
+  -> tokenizer ----------------> tokenizer assets
+  -> deferred factory                                        (still not started)
+FastAPI app -> Uvicorn Config
+  -> Server object
+Enter MAX lifespan
+  -> telemetry + ZMQ interface
+  -> spawn worker -----------------------------------------> reconstruct config; own HF cache
+  |                                                          invoke model_factory()
+  |                              weight files <------------- resolve paths / fetch misses
+  |                                                          Llama3Config initialize/finalize
+  |                                                          trace -> compile -> init graphs
+  |                                                          warmup + queues + scheduler
+  <- readiness Event --------------------------------------- alive.set()
+  -> API proxy <============= ZeroMQ connection ============> worker queues
+  -> yield lifespan
+server.serve(): accept HTTP                                   scheduler loop
+
+After startup: request/cancel -> worker; results -> API proxy -> HTTP client.
+Cache hits may avoid downloads. Arrows show order/data flow, not measured durations.

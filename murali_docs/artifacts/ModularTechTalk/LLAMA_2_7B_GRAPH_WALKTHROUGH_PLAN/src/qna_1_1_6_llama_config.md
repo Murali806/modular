@@ -21,7 +21,7 @@ loaded weight state:**
   - [`ModelWorker.run()`](../../../../max/python/max/serve/pipelines/model_worker.py#L340)
     invokes [`model_factory()`](../../../../max/python/max/serve/pipelines/model_worker.py#L444),
     which enters [`TextGenerationPipeline.__init__()`](../../../../max/python/max/pipelines/lib/pipeline_variants/text_generation.py#L208)
-    after resolving the weight paths.
+    and resolves weight paths inside that initializer before constructing the model.
     - The pipeline constructs [`Llama3Model`](../../../../max/python/max/pipelines/architectures/llama3/model.py#L334).
       Its [`LlamaModelBase.__init__()`](../../../../max/python/max/pipelines/architectures/llama3/model.py#L153)
       runs through [`PipelineModelWithKVCache.__init__()`](../../../../max/python/max/pipelines/lib/interfaces/pipeline_model.py#L1017)

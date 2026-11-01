@@ -135,11 +135,54 @@ definition and highlights that line. Links for Transformers calls open MAX's
 invocation site because the Transformers implementation is outside this
 repository. Expand a numbered cell below to follow each serving path.
 
+Use **Call stack tree ↗** in this QnA 1.1 header to open all six text trees in
+a separate window/tab, with component labels, object handoffs and source links.
+The same trees are available as [plain text](CALL_STACKS.txt).
+
+<details><summary>Startup map · SOURCE</summary>
+
+```text
+SOURCE: startup order for the standard Llama 2 7B Graph API route
+
+MAIN / API PROCESS               HF HUB / DISK CACHE          MODEL WORKER PROCESS
+------------------------------   -------------------------    ------------------------------
+Click loads options
+  -> register lazy import map                                 (not started)
+CLI builds PipelineArgs
+  -> checkpoint probe ---------> config / generation files
+  -> infer task if UNDEFINED
+  -> build PipelineConfig
+Registry prepares factory
+  -> memory plan
+  -> tokenizer ----------------> tokenizer assets
+  -> deferred factory                                        (still not started)
+FastAPI app -> Uvicorn Config
+  -> Server object
+Enter MAX lifespan
+  -> telemetry + ZMQ interface
+  -> spawn worker -----------------------------------------> reconstruct config; own HF cache
+  |                                                          invoke model_factory()
+  |                              weight files <------------- resolve paths / fetch misses
+  |                                                          Llama3Config initialize/finalize
+  |                                                          trace -> compile -> init graphs
+  |                                                          warmup + queues + scheduler
+  <- readiness Event --------------------------------------- alive.set()
+  -> API proxy <============= ZeroMQ connection ============> worker queues
+  -> yield lifespan
+server.serve(): accept HTTP                                   scheduler loop
+
+After startup: request/cancel -> worker; results -> API proxy -> HTTP client.
+Cache hits may avoid downloads. Arrows show order/data flow, not measured durations.
+```
+
+</details>
+
 <details id="qna-1-1-1"><summary><strong>QnA 1.1.1 · HF config loading</strong> — Who calls load_huggingface_config and AutoConfig?</summary>
 
-**Example command — this leaves `--task` unset:**
+**Example commands — specify the task, or let MAX infer it:**
 
 ```bash
+max serve --model meta-llama/Llama-2-7b-hf --task text_generation
 max serve --model meta-llama/Llama-2-7b-hf
 ```
 
@@ -170,6 +213,10 @@ path shown below.
     `--model`, `--task`, and `--max-length` arrive as keyword fields; when
     `--config-file` is used, its YAML values are merged with the CLI values,
     with explicit CLI values winning for a field.
+    For these commands, it also calls
+    [`ModelManifest.from_model_path()`](../../../../max/python/max/pipelines/lib/model_manifest.py#L383).
+    The single-model probe builds a temporary model config and can load HF
+    config and generation defaults **before task inference**, in both examples.
   - [`PipelineArgs.task`](../../../../max/python/max/pipelines/lib/pipeline_args.py#L153)
     defaults to `PipelineTask.UNDEFINED`. It stays undefined when neither
     the CLI nor the merged config file specifies a task. That effective value
@@ -208,9 +255,9 @@ path shown below.
   - [`PipelineConfig.from_args(pipeline_args)`](../../../../max/python/max/pipelines/lib/config/config.py#L1483)
     builds the resolved, validated config used by architecture selection and
     serving. Its model config also needs the Hugging Face config. On the
-    inference branch MAX normally reuses the earlier `AutoConfig` result from
-    its process cache; with an explicit task this full-config construction is
-    usually the first load.
+    inference branch, and also with an explicit task, the HF loader can reuse
+    the earlier argument-probe result from its process cache. Configuration
+    construction itself performs architecture lookup before `retrieve_factory()`.
 
 The inference branch only discovers the task from checkpoint metadata. It
 does not construct the Llama model or load the checkpoint's large weight
@@ -222,9 +269,10 @@ files; those steps are traced in **QnA 1.1.5**.
 
 **Call-flow tree — when the Llama mapping is recorded, imported, and used:**
 
-- [`cli_serve()`](../../../../max/python/max/_entrypoints/pipelines.py#L433)
-  imports [`PipelineArgs`](../../../../max/python/max/_entrypoints/pipelines.py#L460)
-  from `max.pipelines`. On the first package import,
+- Click option loading calls
+  [`WithLazyPipelineOptions._add_options()`](../../../../max/python/max/_entrypoints/pipelines.py#L81),
+  whose CLI-config import can reach `max.pipelines` before `cli_serve()`.
+  On the first package import,
   [`max.pipelines.__init__`](../../../../max/python/max/pipelines/__init__.py#L80)
   calls [`register_all_models()`](../../../../max/python/max/pipelines/architectures/__init__.py#L58).
   - The architecture table includes
@@ -247,9 +295,11 @@ files; those steps are traced in **QnA 1.1.5**.
     needs the architecture's registered task. It calls
     [`PipelineRegistry._materialize_lazy()`](../../../../max/python/max/pipelines/lib/registry.py#L452)
     before reading the task table.
-  - With a task already specified, architecture selection begins in
-    [`PipelineRegistry.retrieve_factory()`](../../../../max/python/max/pipelines/lib/registry.py#L711)
-    and proceeds through
+  - With a task already specified,
+    [`PipelineConfig.from_args()`](../../../../max/python/max/pipelines/lib/config/config.py#L1562)
+    calls `find_architecture()`, then `ArchLookup.find()` and `resolve()`.
+    This can materialize the pending entry before `retrieve_factory()`.
+    Later, `retrieve_factory()` selects through
     [`PipelineRegistry.architecture_for_config()`](../../../../max/python/max/pipelines/lib/registry.py#L496),
     [`PipelineRegistry.retrieve_architecture()`](../../../../max/python/max/pipelines/lib/registry.py#L471),
     [`ArchLookup.find()`](../../../../max/python/max/pipelines/lib/arch_lookup.py#L947),
@@ -391,8 +441,9 @@ factory loads the large tensor files during worker startup, as traced in
     set. The result determines the defaults the serving pipeline can honor.
 
 This config is constructed before the model factory loads the large weight
-files. A task-inference prepass may create a temporary `MAXModelConfig` first;
-each model-config instance can make its own generation-config load attempt,
+files. The argument manifest probe can create a temporary `MAXModelConfig`
+even before task inference; an inference prepass may create another instance.
+Each model-config instance can make its own generation-config load attempt,
 while the Hugging Face Hub cache may satisfy repeat file reads locally.
 
 </details>
@@ -473,7 +524,7 @@ loaded weight state:**
   - [`ModelWorker.run()`](../../../../max/python/max/serve/pipelines/model_worker.py#L340)
     invokes [`model_factory()`](../../../../max/python/max/serve/pipelines/model_worker.py#L444),
     which enters [`TextGenerationPipeline.__init__()`](../../../../max/python/max/pipelines/lib/pipeline_variants/text_generation.py#L208)
-    after resolving the weight paths.
+    and resolves weight paths inside that initializer before constructing the model.
     - The pipeline constructs [`Llama3Model`](../../../../max/python/max/pipelines/architectures/llama3/model.py#L334).
       Its [`LlamaModelBase.__init__()`](../../../../max/python/max/pipelines/architectures/llama3/model.py#L153)
       runs through [`PipelineModelWithKVCache.__init__()`](../../../../max/python/max/pipelines/lib/interfaces/pipeline_model.py#L1017)

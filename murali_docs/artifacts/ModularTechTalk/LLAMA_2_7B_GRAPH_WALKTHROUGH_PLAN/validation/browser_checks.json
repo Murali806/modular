@@ -1,6 +1,6 @@
 {
   "result": "PASS",
-  "checked_at": "2026-11-01T10:31:12.088Z",
+  "checked_at": "2026-11-01T11:39:00.989Z",
   "browser": "141.0.7390.37",
   "checks": [
     "Six chapters and 39 initially collapsed complete source cells",
@@ -18,7 +18,15 @@
     "390px mobile layout, expanded code, and full-file dialog stay within viewport",
     "Expanded QnA stays within both 390px and 320px viewports",
     "Print colors remain readable and disclosure states restore after printing",
-    "Rendered text contrast meets WCAG text thresholds in inspected states; controls, SVG lines, and keyboard focus checked separately"
+    "Rendered text contrast meets WCAG text thresholds in inspected states; controls, SVG lines, and keyboard focus checked separately",
+    "QnA 1.1 header opens a separate six-section text-tree page without toggling the parent cell; both commands are text examples, with no radios",
+    "Startup map is initially collapsed and expands/collapses in the guide and separate reader",
+    "All six displayed text trees exactly match their export payload; worker, IPC directions and finalize-before-compile order are present",
+    "Links across all six trees and the alias source map open exact original files; definition/caller highlighting, source search and Escape work",
+    "Tree search/next/no-match states work; Copy all text exactly preserves the exported text",
+    "Text-tree printing expands the map and restores disclosure state afterward",
+    "390px/320px reader preserves text indentation with horizontal scrolling inside trees; source map/dialog fit the viewport",
+    "Separate text-tree reader works directly from file://; without JavaScript, all trees, map and snapshot links remain readable"
   ],
   "console_errors": [],
   "viewports": [

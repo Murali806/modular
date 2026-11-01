@@ -1,6 +1,7 @@
-**Example command — this leaves `--task` unset:**
+**Example commands — specify the task, or let MAX infer it:**
 
 ```bash
+max serve --model meta-llama/Llama-2-7b-hf --task text_generation
 max serve --model meta-llama/Llama-2-7b-hf
 ```
 
@@ -31,6 +32,10 @@ path shown below.
     `--model`, `--task`, and `--max-length` arrive as keyword fields; when
     `--config-file` is used, its YAML values are merged with the CLI values,
     with explicit CLI values winning for a field.
+    For these commands, it also calls
+    [`ModelManifest.from_model_path()`](../../../../max/python/max/pipelines/lib/model_manifest.py#L383).
+    The single-model probe builds a temporary model config and can load HF
+    config and generation defaults **before task inference**, in both examples.
   - [`PipelineArgs.task`](../../../../max/python/max/pipelines/lib/pipeline_args.py#L153)
     defaults to `PipelineTask.UNDEFINED`. It stays undefined when neither
     the CLI nor the merged config file specifies a task. That effective value
@@ -69,9 +74,9 @@ path shown below.
   - [`PipelineConfig.from_args(pipeline_args)`](../../../../max/python/max/pipelines/lib/config/config.py#L1483)
     builds the resolved, validated config used by architecture selection and
     serving. Its model config also needs the Hugging Face config. On the
-    inference branch MAX normally reuses the earlier `AutoConfig` result from
-    its process cache; with an explicit task this full-config construction is
-    usually the first load.
+    inference branch, and also with an explicit task, the HF loader can reuse
+    the earlier argument-probe result from its process cache. Configuration
+    construction itself performs architecture lookup before `retrieve_factory()`.
 
 The inference branch only discovers the task from checkpoint metadata. It
 does not construct the Llama model or load the checkpoint's large weight
