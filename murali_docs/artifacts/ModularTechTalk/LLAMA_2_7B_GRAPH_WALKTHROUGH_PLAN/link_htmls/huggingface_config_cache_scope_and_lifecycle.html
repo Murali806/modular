@@ -48,6 +48,7 @@
     pre .annotation { color: var(--violet); }
     .diagram { border-left: 3px solid var(--blue); margin: 18px 0 24px; padding-left: 15px; }
     .diagram pre { margin: 0; }
+    .diagram-link { margin: 10px 0 0; font-size: .9rem; }
     .source { display: inline-flex; margin: 3px 5px 3px 0; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; color: var(--violet); font-size: .78rem; text-decoration: none; }
     .source:hover { border-color: var(--violet); }
     .callout { border: 1px solid #5e5032; border-left: 4px solid var(--amber); border-radius: 7px; margin: 17px 0; padding: 13px 16px; background: rgb(242 200 121 / .07); }
@@ -135,7 +136,9 @@ cfg1 is cfg2                           <span class="annotation"># True within th
         <p>Each Python process has its own module and dictionary. The source notes that a spawned worker starts with an empty cache; a forked worker starts with a copy of the parent’s cache at fork time, then the copies can diverge.</p>
         <div class="diagram"><pre>MAX parent process                 model worker process
 _config_cache = { ... }            spawn  ──► _config_cache = {}
-                                   fork   ──► copied cache, then independent</pre></div>
+                                   fork   ──► copied cache, then independent</pre>
+          <p class="diagram-link"><a href="max_model_worker_spawn_fork_lifecycle.html">→ Follow the animated MAX startup timeline: API lifespan → spawned worker → readiness → HTTP serving</a></p>
+        </div>
 
         <table>
           <thead><tr><th>Cache</th><th>What it holds</th><th>Where and how long</th></tr></thead>

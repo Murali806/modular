@@ -1,0 +1,877 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>MAX model-worker startup · spawn, readiness, HTTP</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #171a20;
+      --panel: #20252d;
+      --panel-soft: #252c35;
+      --line: #3b4654;
+      --ink: #e8edf4;
+      --muted: #b1bdcc;
+      --cyan: #7dd3df;
+      --blue: #8db7ff;
+      --green: #a8dba8;
+      --amber: #f2c879;
+      --violet: #c3a5e8;
+      --red: #ef9c9c;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--page); scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font: 16px/1.7 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--cyan); text-underline-offset: 3px; }
+    a:hover { color: #b6f1f4; }
+    code, pre, .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    code { color: var(--amber); font-size: .93em; }
+    pre {
+      overflow: auto;
+      margin: 14px 0;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #15191f;
+      color: #dce6f2;
+      font-size: 12.5px;
+      line-height: 1.72;
+      tab-size: 2;
+    }
+    .page { width: min(100% - 36px, 1120px); margin: 0 auto; padding: 28px 0 64px; }
+    .topline {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 26px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 11px;
+      color: var(--green);
+      background: var(--panel);
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .toplinks { color: var(--muted); font-size: .9rem; }
+    .toplinks a { white-space: nowrap; }
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(29px, 4.4vw, 46px);
+      line-height: 1.14;
+      letter-spacing: -.03em;
+    }
+    h2 { margin: 34px 0 11px; color: var(--blue); font-size: 1.25rem; line-height: 1.35; }
+    h3 { margin: 0 0 8px; color: var(--violet); font-size: 1.02rem; }
+    p { margin: 0 0 15px; }
+    .subtitle { margin: 0 0 20px; color: var(--muted); font-size: 1.02rem; }
+    .intro { max-width: 900px; color: var(--muted); }
+    .context, .callout {
+      margin: 18px 0;
+      padding: 14px 17px;
+      border: 1px solid #5e5032;
+      border-left: 4px solid var(--amber);
+      border-radius: 8px;
+      background: rgb(242 200 121 / .07);
+    }
+    .context strong, .callout strong { color: var(--amber); }
+    .source { display: inline-flex; margin: 3px 5px 3px 0; border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; color: var(--violet); font-size: .78rem; text-decoration: none; }
+    .source:hover { border-color: var(--violet); }
+    .source-list { margin: 13px 0 0; }
+    .panel {
+      margin: 22px 0;
+      padding: clamp(17px, 3vw, 25px);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+      box-shadow: 0 14px 38px rgb(0 0 0 / .15);
+    }
+    .panel > h2:first-child { margin-top: 0; }
+    .panel-intro { color: var(--muted); }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 16px 0 12px;
+    }
+    .controls button, .step-jumps button {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 12px;
+      background: var(--panel-soft);
+      color: var(--ink);
+      font: inherit;
+      font-size: .88rem;
+      cursor: pointer;
+    }
+    .controls button:hover, .step-jumps button:hover { border-color: var(--cyan); }
+    .controls button:focus-visible, .step-jumps button:focus-visible, summary:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 2px;
+    }
+    .controls .primary { border-color: #52717b; color: var(--cyan); font-weight: 700; }
+    .controls button:disabled { opacity: .45; cursor: not-allowed; }
+    .status { margin-left: auto; color: var(--muted); font-size: .9rem; }
+    .progress {
+      height: 5px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: #11151a;
+    }
+    .progress > span {
+      display: block;
+      width: 14.285%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--blue), var(--cyan));
+      transition: width .4s ease;
+    }
+    .step-jumps { display: flex; gap: 7px; flex-wrap: wrap; margin: 14px 0 18px; }
+    .step-jumps button { padding: 5px 9px; color: var(--muted); font-size: .78rem; }
+    .step-jumps button[aria-pressed="true"] { border-color: var(--cyan); color: var(--cyan); background: #213039; }
+    .map-head, .map-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(190px, .76fr) minmax(0, 1fr);
+      gap: 11px;
+      align-items: stretch;
+    }
+    .map-head { margin-bottom: 8px; }
+    .map-head > div {
+      padding: 8px 11px;
+      border-bottom: 1px solid var(--line);
+      color: var(--cyan);
+      font-size: .75rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .map-head > div:nth-child(2) { color: var(--amber); }
+    .map-row { position: relative; margin: 8px 0; }
+    .map-cell, .handoff {
+      min-width: 0;
+      min-height: 73px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--panel-soft);
+    }
+    .map-cell {
+      position: relative;
+      padding: 11px 12px 11px 42px;
+      color: var(--muted);
+      font-size: .86rem;
+      transition: border-color .25s ease, background .25s ease, transform .25s ease;
+    }
+    .map-cell strong { color: var(--ink); }
+    .step-number {
+      position: absolute;
+      top: 11px;
+      left: 11px;
+      display: grid;
+      width: 22px;
+      height: 22px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      color: var(--blue);
+      font: 700 11px/1 ui-monospace, monospace;
+    }
+    .map-row.is-active .map-cell {
+      border-color: var(--cyan);
+      background: #26333a;
+      transform: translateY(-1px);
+      box-shadow: 0 0 0 1px rgb(125 211 223 / .12);
+    }
+    .map-row.is-active .step-number { border-color: var(--cyan); color: var(--cyan); }
+    .map-cell.worker-wait { border-style: dashed; color: #85909d; }
+    .handoff {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      overflow: hidden;
+      color: var(--muted);
+      text-align: center;
+      font-size: .75rem;
+      line-height: 1.35;
+    }
+    .handoff::before {
+      position: absolute;
+      top: 50%;
+      right: 8px;
+      left: 8px;
+      border-top: 1px dashed #667384;
+      content: "";
+    }
+    .handoff-label {
+      position: relative;
+      max-width: 100%;
+      padding: 3px 7px;
+      border-radius: 5px;
+      background: var(--panel);
+    }
+    .packet {
+      position: absolute;
+      z-index: 1;
+      top: calc(50% - 5px);
+      left: 8px;
+      width: 9px;
+      height: 9px;
+      border: 2px solid var(--panel);
+      border-radius: 50%;
+      background: var(--amber);
+      opacity: 0;
+    }
+    .map-row[data-stage="3"].is-active .packet,
+    .map-row[data-stage="6"].is-active .packet,
+    .map-row[data-stage="7"].is-active .packet { opacity: 1; }
+    .map-row[data-stage="3"].is-active .packet { animation: move-right 1.35s ease-in-out infinite alternate; }
+    .map-row[data-stage="6"].is-active .packet { animation: move-left 1.35s ease-in-out infinite alternate; }
+    .map-row[data-stage="7"].is-active .packet { animation: move-right 1.5s ease-in-out infinite alternate; }
+    @keyframes move-right { from { left: 8px; } to { left: calc(100% - 17px); } }
+    @keyframes move-left { from { left: calc(100% - 17px); } to { left: 8px; } }
+    .milestone-key {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 9px;
+      margin-top: 17px;
+    }
+    .milestone {
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      background: #1b2027;
+      font-size: .8rem;
+    }
+    .milestone strong { display: block; margin-bottom: 3px; color: var(--green); }
+    .steps { margin: 20px 0; padding: 0; list-style: none; }
+    .step-detail {
+      margin: 9px 0;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+    .step-detail > summary {
+      position: relative;
+      padding: 13px 16px 13px 48px;
+      color: var(--cyan);
+      background: var(--panel-soft);
+      cursor: pointer;
+      font-weight: 750;
+      list-style: none;
+    }
+    .step-detail > summary::-webkit-details-marker { display: none; }
+    .step-detail > summary::before {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      display: grid;
+      width: 22px;
+      height: 22px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      color: var(--blue);
+      content: attr(data-number);
+      font: 700 11px/1 ui-monospace, monospace;
+    }
+    .step-detail[open] > summary::before { border-color: var(--cyan); color: var(--cyan); }
+    .step-body { padding: 17px 19px; }
+    .step-body p:last-child { margin-bottom: 0; }
+    .step-body ul { margin: 8px 0 13px; padding-left: 22px; color: var(--muted); }
+    .step-body li { margin: 5px 0; }
+    .step-detail.is-active { border-color: var(--cyan); }
+    .step-detail.is-active > summary { color: #b6f1f4; }
+    .text-map {
+      margin: 22px 0;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+    .text-map > summary {
+      padding: 13px 16px;
+      color: var(--blue);
+      background: var(--panel-soft);
+      cursor: pointer;
+      font-weight: 750;
+    }
+    .text-map-body { padding: 4px 16px 14px; }
+    .text-map pre { margin-bottom: 5px; }
+    .comparison {
+      border-color: #54446a;
+      background: linear-gradient(145deg, #211e29, var(--panel) 48%);
+    }
+    .comparison > h2 { color: var(--violet); }
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 13px;
+      margin-top: 18px;
+    }
+    .mode-card {
+      min-width: 0;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: rgb(15 18 23 / .55);
+    }
+    .mode-card.spawn { border-top: 3px solid var(--blue); }
+    .mode-card.fork { border-top: 3px solid var(--violet); }
+    .mode-card h3 { color: var(--blue); }
+    .mode-card.fork h3 { color: var(--violet); }
+    .mode-card p { color: var(--muted); font-size: .9rem; }
+    .mode-card pre { min-height: 165px; font-size: 11.5px; }
+    .scope-tag {
+      display: inline-block;
+      margin: 0 0 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px 8px;
+      color: var(--green);
+      font-size: .7rem;
+      font-weight: 800;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+    .mode-card.fork .scope-tag { color: var(--violet); }
+    .refs {
+      margin-top: 26px;
+      padding-top: 17px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .9rem;
+    }
+    .footer-note { color: var(--muted); font-size: .84rem; }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    @media (max-width: 780px) {
+      .milestone-key { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .map-head, .map-row { grid-template-columns: minmax(0, 1fr) minmax(120px, .68fr) minmax(0, 1fr); gap: 7px; }
+      .map-cell { padding: 10px 9px 10px 37px; font-size: .8rem; }
+      .step-number { left: 8px; }
+      .handoff { padding: 7px 4px; font-size: .68rem; }
+    }
+    @media (max-width: 620px) {
+      .page { width: min(100% - 22px, 1120px); padding-top: 18px; }
+      body { font-size: 15px; }
+      .map-head { display: none; }
+      .map-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 5px;
+        margin: 12px 0 17px;
+      }
+      .map-cell { min-height: auto; padding-top: 30px; }
+      .map-row > .map-cell:first-child::after,
+      .map-row > .map-cell:last-child::after {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        color: var(--cyan);
+        content: "API PARENT";
+        font-size: .61rem;
+        font-weight: 800;
+        letter-spacing: .08em;
+      }
+      .map-row > .map-cell:last-child::after { color: var(--amber); content: "MODEL WORKER"; }
+      .map-cell, .handoff { min-height: auto; }
+      .handoff { min-height: 42px; }
+      .handoff::before { top: 50%; }
+      .handoff-label { max-width: 90%; }
+      .milestone-key, .comparison-grid { grid-template-columns: minmax(0, 1fr); }
+      .status { width: 100%; margin-left: 0; }
+      .step-body { padding: 15px; }
+      .mode-card pre { min-height: 0; }
+      pre { padding: 13px 11px; font-size: 11px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+      }
+    }
+    @media print {
+      :root { color-scheme: light; --page: #fff; --panel: #fff; --panel-soft: #eee; --line: #aaa; --ink: #151515; --muted: #444; --cyan: #075e73; --blue: #174f91; --green: #246526; --amber: #755000; --violet: #5b3282; }
+      html, body, .panel, .step-detail, .mode-card { background: #fff; color: #151515; }
+      .page { width: 100%; padding: 0; }
+      .controls, .step-jumps { display: none; }
+      .panel { box-shadow: none; break-inside: avoid; }
+      .step-detail > summary { color: #075e73; }
+      .step-detail:not([open]) > .step-body { display: block; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f4f5f7; color: #111; }
+      a { color: #064f68; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="topline">
+      <span class="badge">MAX Serve · SOURCE</span>
+      <div class="toplinks">
+        <a href="huggingface_config_cache_scope_and_lifecycle.html">← Config cache</a>
+        &nbsp;·&nbsp;
+        <a href="../max_serve_llama2_7b_startup_call_stack.html">Startup call stack and Source Explorer ↗</a>
+      </div>
+    </div>
+
+    <h1>MAX model-worker startup</h1>
+    <p class="subtitle">Follow the API parent from lifespan, through a spawned worker, readiness, and HTTP serving.</p>
+    <p class="intro">The example context is <code>max serve --model meta-llama/Llama-2-7b-hf</code>. The timeline starts after MAX has parsed the command and assembled the pipeline configuration, tokenizer, memory plan, and deferred model factory in the API process. It follows repository code; this is not a measured model run.</p>
+
+    <p class="intro">That earlier API-side configuration can already have populated its process-local <code>_config_cache</code>. The worker is spawned afterward with a separate cache; its access to the Hugging Face disk cache is a different matter.</p>
+
+    <div class="context">
+      <strong>Readiness has three separate milestones:</strong>
+      the worker sets an <code>alive</code> event after reaching its scheduler loop;
+      the API then waits for the ZeroMQ request channel to connect; after the API
+      lifespan yields, Uvicorn enters <code>server.serve()</code> and starts HTTP
+      serving. One milestone does not stand in for the next.
+    </div>
+
+    <section class="panel" aria-labelledby="map-title">
+      <h2 id="map-title">Animated startup map · API parent ↔ model worker child</h2>
+      <p class="panel-intro">Use Next or Play to trace the source order. The full text explanations remain below the map, and every step can be expanded.</p>
+
+      <div class="controls" role="group" aria-label="Timeline controls">
+        <button type="button" id="previous-step">← Previous</button>
+        <button type="button" class="primary" id="play-steps" aria-pressed="false">▶ Play</button>
+        <button type="button" id="next-step">Next →</button>
+        <button type="button" id="reset-steps">Reset</button>
+        <span id="step-status" class="status" role="status" aria-live="polite">Step 1 of 7 · API enters lifespan</span>
+      </div>
+      <div class="progress" aria-hidden="true"><span id="progress-fill"></span></div>
+      <div class="step-jumps" role="group" aria-label="Choose a startup step">
+        <button type="button" data-jump="1" aria-pressed="true">1 · Lifespan</button>
+        <button type="button" data-jump="2" aria-pressed="false">2 · Worker setup</button>
+        <button type="button" data-jump="3" aria-pressed="false">3 · Spawn</button>
+        <button type="button" data-jump="4" aria-pressed="false">4 · Child state</button>
+        <button type="button" data-jump="5" aria-pressed="false">5 · Model startup</button>
+        <button type="button" data-jump="6" aria-pressed="false">6 · Readiness</button>
+        <button type="button" data-jump="7" aria-pressed="false">7 · HTTP</button>
+      </div>
+
+      <div class="map-head" aria-hidden="true">
+        <div>API parent process</div>
+        <div>Handoff / signal</div>
+        <div>Model worker process</div>
+      </div>
+
+      <div id="startup-map">
+        <div class="map-row is-active" data-stage="1">
+          <div class="map-cell"><span class="step-number">1</span><strong><code>serve()</code> enters <code>lifespan()</code></strong><br>The FastAPI/Uvicorn objects exist; worker and HTTP serving have not started.</div>
+          <div class="handoff"><span class="packet"></span><span class="handoff-label">API startup context</span></div>
+          <div class="map-cell worker-wait"><span class="step-number">—</span>No model-worker process yet.</div>
+        </div>
+
+        <div class="map-row" data-stage="2">
+          <div class="map-cell"><span class="step-number">2</span><strong><code>lifespan()</code> calls <code>start_model_worker()</code></strong><br>Builds the worker interface and selects a multiprocessing context.</div>
+          <div class="handoff"><span class="packet"></span><span class="handoff-label">spawn context + ready Event</span></div>
+          <div class="map-cell worker-wait"><span class="step-number">—</span>The child still has not started.</div>
+        </div>
+
+        <div class="map-row" data-stage="3">
+          <div class="map-cell"><span class="step-number">3</span><strong><code>ProcessManager.start()</code></strong><br>Schedules <code>run_subprocess()</code>; the parent then waits for readiness.</div>
+          <div class="handoff"><span class="packet"></span><span class="handoff-label">spawn + serialized arguments →</span></div>
+          <div class="map-cell"><span class="step-number">3</span><strong>Fresh Python child starts</strong><br><code>_DebugSpawnProcess.start()</code> launches the worker target.</div>
+        </div>
+
+        <div class="map-row" data-stage="4">
+          <div class="map-cell"><span class="step-number">4</span><strong>Parent waits on <code>proc.ready(alive)</code></strong><br>It cannot serve API requests while startup is incomplete.</div>
+          <div class="handoff"><span class="packet"></span><span class="handoff-label">unpickle arguments in child</span></div>
+          <div class="map-cell"><span class="step-number">4</span><strong>Restore worker configuration</strong><br><code>MAXModelConfig.__setstate__()</code> rebuilds derived Hugging Face state.</div>
+        </div>
+
+        <div class="map-row" data-stage="5">
+          <div class="map-cell"><span class="step-number">5</span><strong>Parent remains in the readiness wait</strong><br>The spawned worker performs model construction before signaling ready.</div>
+          <div class="handoff"><span class="packet"></span><span class="handoff-label">weights · graph · scheduler</span></div>
+          <div class="map-cell"><span class="step-number">5</span><strong><code>model_factory()</code> executes</strong><br>Loads/compiles the model path, then prepares worker queues and scheduler.</div>
+        </div>
+
+        <div class="map-row" data-stage="6">
+          <div class="map-cell"><span class="step-number">6</span><strong>Readiness event, then proxy connection wait</strong><br><code>proc.ready()</code> unblocks; API waits for the request channel handshake.</div>
+          <div class="handoff"><span class="packet"></span><span class="handoff-label">← <code>alive.set()</code> · then ↔ ZeroMQ</span></div>
+          <div class="map-cell"><span class="step-number">6</span><strong>Worker enters scheduler loop</strong><br>It sets <code>alive</code> and remains available for queued work.</div>
+        </div>
+
+        <div class="map-row" data-stage="7">
+          <div class="map-cell"><span class="step-number">7</span><strong>Lifespan yields; Uvicorn serves HTTP</strong><br>The API frontend uses the connected worker proxy.</div>
+          <div class="handoff"><span class="packet"></span><span class="handoff-label">HTTP → API ⇄ ZeroMQ ⇄ worker</span></div>
+          <div class="map-cell"><span class="step-number">7</span><strong>Scheduler handles admitted requests</strong><br>Results travel back through the proxy to the HTTP response.</div>
+        </div>
+      </div>
+
+      <div class="milestone-key" aria-label="The three startup gates">
+        <div class="milestone"><strong>1 · Process creation</strong><code>SpawnProcess.start()</code> creates the child.</div>
+        <div class="milestone"><strong>2 · Worker ready</strong><code>alive.set()</code> means startup reached the worker loop.</div>
+        <div class="milestone"><strong>3 · IPC connected</strong>The API confirms the ZeroMQ request PUSH/PULL handshake.</div>
+        <div class="milestone"><strong>4 · HTTP serving</strong><code>server.serve()</code> follows the lifespan startup.</div>
+      </div>
+    </section>
+
+    <section aria-labelledby="timeline-title">
+      <h2 id="timeline-title">What happens at each step</h2>
+      <p class="panel-intro">Expand a step for the source path and why it matters. The API parent is the process that owns FastAPI and Uvicorn; the worker is a separate Python process.</p>
+
+      <ol class="steps">
+        <li>
+          <details class="step-detail is-active" data-stage="1" open>
+            <summary data-number="1">The API serving coroutine enters MAX lifespan</summary>
+            <div class="step-body">
+              <p><code>serve_api_server_and_model_worker()</code> creates the Uvicorn <code>Server</code> object, then its <code>serve()</code> coroutine enters <code>async with lifespan(...)</code>. The call to <code>server.serve()</code> is after that context manager. MAX sets Uvicorn's config to <code>lifespan="off"</code> because the entrypoint owns this lifecycle explicitly.</p>
+              <p>So at this point a server controller object exists, but MAX has not yet reached the call that starts Uvicorn's HTTP serving. The lifespan first starts telemetry and prepares the API-side serving state.</p>
+              <p class="source-list">
+                <a class="source" href="../../../../../max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L127">serve() and server.serve() order · serve_api_and_model_worker.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/api_server.py#L117">lifespan() · api_server.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/api_server.py#L482">Uvicorn config sets lifespan=&quot;off&quot; · api_server.py</a>
+              </p>
+            </div>
+          </details>
+        </li>
+
+        <li>
+          <details class="step-detail" data-stage="2">
+            <summary data-number="2">The API lifespan prepares the worker interface and chooses spawn</summary>
+            <div class="step-body">
+              <p>Inside <code>lifespan()</code>, MAX constructs a <code>ZmqModelWorkerInterface</code> for request, response, and cancellation queues. It then enters <code>start_model_worker()</code> with the deferred model factory, pipeline config, server settings, metrics factory, interface, IPC endpoint, and memory plan.</p>
+              <p><code>start_model_worker()</code> explicitly selects <code>multiprocessing.get_context("spawn")</code> and creates an <code>Event</code> named <code>alive</code>. This is the concrete process method used for this model-worker path.</p>
+              <p class="source-list">
+                <a class="source" href="../../../../../max/python/max/serve/api_server.py#L161">worker interface and start_model_worker() call · api_server.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/worker_interface/zmq_interface.py#L298">ZmqModelWorkerInterface · zmq_interface.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L759">start_model_worker() · model_worker.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L797">get_context(&quot;spawn&quot;) · model_worker.py</a>
+              </p>
+            </div>
+          </details>
+        </li>
+
+        <li>
+          <details class="step-detail" data-stage="3">
+            <summary data-number="3">The parent schedules a launcher; the launcher starts a fresh child</summary>
+            <div class="step-body">
+              <p>There are two different <code>start()</code> calls in this path:</p>
+              <ul>
+                <li><code>ProcessManager.start(...)</code> schedules <code>run_subprocess()</code> as an asyncio task. It returns the task to the API parent.</li>
+                <li>Inside <code>run_subprocess()</code>, MAX constructs <code>_DebugSpawnProcess</code> and calls its <code>proc.start()</code>. This is the multiprocessing call that launches the spawned child interpreter.</li>
+              </ul>
+              <p>The child target is the callable <code>ModelWorker()</code>, with the event and worker inputs passed as process arguments. In parallel, the parent calls <code>await proc.ready(alive, ...)</code> and waits while child initialization runs.</p>
+              <p class="callout"><strong>Keep the names separate:</strong> <code>ProcessManager.start()</code> schedules MAX's subprocess launcher; <code>_DebugSpawnProcess.start()</code> creates the OS process.</p>
+              <p class="source-list">
+                <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L799">create event and ProcessManager.start() call · model_worker.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/process_control.py#L175">ProcessManager.start() schedules run_subprocess() · process_control.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/process_control.py#L113">_DebugSpawnProcess construction and process start · process_control.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/process_control.py#L67">_DebugSpawnProcess is a SpawnProcess · process_control.py</a>
+              </p>
+            </div>
+          </details>
+        </li>
+
+        <li>
+          <details class="step-detail" data-stage="4">
+            <summary data-number="4">The new process restores configuration into its own memory</summary>
+            <div class="step-body">
+              <p><code>spawn</code> starts a fresh Python interpreter. The worker's arguments are deserialized there. When a serialized <code>MAXModelConfig</code> is restored, <code>__setstate__()</code> rebuilds Hugging Face repo handles and, when applicable, the Hugging Face and generation config objects.</p>
+              <p><code>_config_cache</code> is a module-level dictionary in each process. The spawned worker has its own newly imported module and cache; it does not receive the API parent's Python dictionary. This does not require a network transfer: Hugging Face Hub files already present in the on-disk cache can be reused by the child.</p>
+              <p class="source-list">
+                <a class="source" href="../../../../../max/python/max/pipelines/lib/config/model_config.py#L1024">MAXModelConfig.__setstate__() · model_config.py</a>
+                <a class="source" href="../../../../../max/python/max/pipelines/lib/config/model_config.py#L1055">rebuild HuggingFaceRepo handles · model_config.py</a>
+                <a class="source" href="../../../../../max/python/max/pipelines/lib/config/model_config.py#L1067">repopulate Hugging Face config · model_config.py</a>
+                <a class="source" href="../../../../../max/python/max/pipelines/lib/_hf_config.py#L23">per-process _config_cache comment and declaration · _hf_config.py</a>
+              </p>
+            </div>
+          </details>
+        </li>
+
+        <li>
+          <details class="step-detail" data-stage="5">
+            <summary data-number="5">The child executes the deferred factory and prepares the scheduler</summary>
+            <div class="step-body">
+              <p><code>ModelWorker.__call__()</code> starts a worker event loop and runs <code>ModelWorker.run()</code>. In <code>run()</code>, the child calls <code>model_factory()</code>. This is when the deferred pipeline factory constructs the actual serving pipeline and model.</p>
+              <p>For the Llama text-generation path, pipeline construction resolves model weight paths, checks the Hugging Face cache or downloads missing files, and builds/compiles/initializes the graph. Optional configured warm-up follows. Only after that does the worker set up its ZeroMQ queues and load the scheduler.</p>
+              <p><strong>Timing distinction:</strong> parent-side configuration and tokenizer work can happen before worker creation. Model-weight resolution and model construction happen when the factory runs in the child. A cache hit can avoid a new download, so “weights are resolved here” does not mean every startup transfers them from the Hub.</p>
+              <p class="source-list">
+                <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L682">ModelWorker.__call__() · model_worker.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L340">ModelWorker.run() · model_worker.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L444">model_factory() execution · model_worker.py</a>
+                <a class="source" href="../../../../../max/python/max/pipelines/lib/pipeline_variants/text_generation.py#L293">weight path resolution call site · text_generation.py</a>
+                <a class="source" href="../../../../../max/python/max/pipelines/weights/hf_utils.py#L239">download_weight_files() · hf_utils.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L552">worker communication queues · model_worker.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L558">load_scheduler() call site · model_worker.py</a>
+              </p>
+            </div>
+          </details>
+        </li>
+
+        <li>
+          <details class="step-detail" data-stage="6">
+            <summary data-number="6">The worker signals alive; the API separately waits for ZeroMQ</summary>
+            <div class="step-body">
+              <p>After pipeline construction, optional warm-up, communication-queue setup, and scheduler setup, the child enters its scheduler loop. At the top of each loop pass it calls <code>alive.set()</code>. The first set lets the parent's <code>proc.ready(alive, ...)</code> complete; later sets also serve the optional heartbeat watcher.</p>
+              <p>This event is a worker-process readiness signal. It is not the ZeroMQ connection handshake and it does not mean Uvicorn is accepting HTTP. After the event, the API creates a <code>ZmqModelWorkerProxy</code> and calls <code>wait_until_connected()</code> to ensure the request PUSH/PULL channel has connected before serving requests.</p>
+              <p class="source-list">
+                <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L645">worker enters the scheduler loop · model_worker.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L650">alive.set() · model_worker.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/process_control.py#L201">ProcessManager.ready() waits for and clears the event · process_control.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L814">parent readiness wait · model_worker.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L823">create API-side worker proxy · model_worker.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/worker_interface/zmq_interface.py#L87">wait_until_connected() handshake · zmq_interface.py</a>
+              </p>
+            </div>
+          </details>
+        </li>
+
+        <li>
+          <details class="step-detail" data-stage="7">
+            <summary data-number="7">MAX completes lifespan startup, then Uvicorn serves HTTP</summary>
+            <div class="step-body">
+              <p>After the proxy connects, <code>start_model_worker()</code> yields it to <code>lifespan()</code>. MAX builds the API-side <code>TokenGeneratorPipeline</code> and handler, stores them on <code>app.state</code>, logs its “Server ready” message, and yields from the lifespan context. The entrypoint then resumes and calls <code>await server.serve(...)</code>.</p>
+              <p>The source order matters: the log is emitted just before lifespan yields; the explicit Uvicorn <code>server.serve()</code> call follows that yield. HTTP requests enter the API process. The API proxy sends request data over ZeroMQ to the worker's scheduler; generated results come back over ZeroMQ and are returned through the HTTP response.</p>
+              <pre>HTTP client
+    │ HTTP request
+    ▼
+API parent: FastAPI route → API-side worker proxy
+    │ ZeroMQ request PUSH
+    ▼
+Model worker: request PULL → scheduler → model
+    │ ZeroMQ result PUSH
+    ▼
+API parent: response PULL → HTTP response</pre>
+              <p class="source-list">
+                <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L827">wait for worker channel before yield · model_worker.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/api_server.py#L203">API-side pipeline construction · api_server.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/api_server.py#L269">MAX “Server ready” log and lifespan yield · api_server.py</a>
+                <a class="source" href="../../../../../max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L144">explicit lifespan scope · serve_api_and_model_worker.py</a>
+                <a class="source" href="../../../../../max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L147">Uvicorn server.serve() · serve_api_and_model_worker.py</a>
+                <a class="source" href="../../../../../max/python/max/serve/worker_interface/zmq_interface.py#L105">proxy streams requests to worker queue · zmq_interface.py</a>
+              </p>
+            </div>
+          </details>
+        </li>
+      </ol>
+    </section>
+
+    <details class="text-map">
+      <summary>Same startup path as one connected text diagram</summary>
+      <div class="text-map-body">
+        <pre>API PARENT (FastAPI + Uvicorn)                            MODEL WORKER CHILD
+serve() enters lifespan()
+  │
+  ├─ create ZmqModelWorkerInterface
+  ├─ start_model_worker()
+  │    ├─ get_context("spawn")
+  │    ├─ create alive Event
+  │    └─ ProcessManager.start(ModelWorker(), ...)
+  │          └─ run_subprocess()
+  │                └─ _DebugSpawnProcess.start()
+  ├────────────────── spawn + serialized args ───────────────► fresh Python process
+  │                                                           unpickle worker args
+  │                                                           MAXModelConfig.__setstate__()
+  │                                                           ModelWorker.__call__()
+  │                                                           ModelWorker.run()
+  │                                                           model_factory()
+  │                                                           weights + graph/model init
+  │                                                           worker queues + scheduler
+  ├─ await proc.ready(alive) ◄────────────────────────────── alive.set()
+  │    └─ create proxy; wait_until_connected() ◄────────────► ZeroMQ queue handshake
+  ├─ build API TokenGeneratorPipeline; store app.state
+  ├─ yield lifespan()
+  └─ await server.serve() ── HTTP requests enter API process
+
+HTTP request ──► API route ── ZeroMQ request ──► worker scheduler/model
+HTTP response ◄── API route ◄── ZeroMQ result  ◄── worker scheduler/model</pre>
+      </div>
+    </details>
+
+    <section class="panel comparison" aria-labelledby="fork-title">
+      <span class="badge">Separate comparison · fork is not this MAX path</span>
+      <h2 id="fork-title">Why spawn and fork expose different process-local caches</h2>
+      <p class="panel-intro">MAX's <code>start_model_worker()</code> explicitly requests <code>spawn</code>. The fork panel is a comparison to explain Python memory visibility; it is not a second branch taken by this model-worker startup.</p>
+
+      <div class="comparison-grid">
+        <article class="mode-card spawn">
+          <span class="scope-tag">Used by MAX here</span>
+          <h3>Spawn · fresh interpreter and fresh module cache</h3>
+          <pre>API parent process
+_config_cache = {
+  repo: PretrainedConfig(...)
+}
+       │
+       │ spawn a new Python interpreter
+       │ import modules; unpickle arguments
+       ▼
+Model worker process
+_config_cache = {}
+  └─ rebuild repo/config state when unpickling</pre>
+          <p>The worker has its own module globals. Hugging Face Hub files on disk can still be reused; the Python config dictionary is process-local.</p>
+        </article>
+
+        <article class="mode-card fork">
+          <span class="scope-tag">Comparison only</span>
+          <h3>Fork · memory snapshot at the fork point</h3>
+          <pre>API parent process
+_config_cache = {
+  repo: PretrainedConfig(...)
+}
+       │
+       │ fork: child starts from a memory snapshot
+       ▼
+Forked child process
+_config_cache initially has the
+same entries at fork time
+       │
+       └─ later writes diverge
+          (copy-on-write; not shared)</pre>
+          <p>A forked child initially sees the parent's cached values, but it does not share a live mutable Python dictionary. After the fork, parent and child changes are independent.</p>
+        </article>
+      </div>
+
+      <div class="callout">
+        <strong>For this worker:</strong> follow the spawn diagram. A fresh worker cache can cause a config object to be reconstructed in the child, while the shared Hugging Face disk cache may avoid fetching the same files again.
+        <p class="source-list">
+          <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L797">MAX chooses spawn · model_worker.py</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/_hf_config.py#L23">source comment on spawn and fork cache scope · _hf_config.py</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/config/model_config.py#L1045">worker-side HF state rebuild on unpickle · model_config.py</a>
+        </p>
+      </div>
+    </section>
+
+    <p class="refs">
+      <strong>Source map:</strong>
+      <a class="source" href="../../../../../max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L60">serve entrypoint</a>
+      <a class="source" href="../../../../../max/python/max/serve/api_server.py#L117">API lifespan</a>
+      <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L340">worker run loop</a>
+      <a class="source" href="../../../../../max/python/max/serve/process_control.py#L76">subprocess launcher</a>
+      <a class="source" href="../../../../../max/python/max/serve/worker_interface/zmq_interface.py#L87">worker IPC handshake</a>
+      <a class="source" href="../../../../../max/python/max/pipelines/lib/_hf_config.py#L23">config cache</a>
+      <a class="source" href="../max_serve_llama2_7b_startup_call_stack.html">Open the call stack and its Source Explorer ↗</a>
+    </p>
+    <p class="footer-note">Evidence label: SOURCE. Startup order and behavior are described from MAX source code; no model inference or hardware run is implied.</p>
+    <p class="sr-only" id="motion-note">Timeline animation is controlled locally in this page. All steps can also be read from the expandable explanations.</p>
+  </main>
+
+  <script>
+    (() => {
+      const total = 7;
+      const status = document.querySelector("#step-status");
+      const progress = document.querySelector("#progress-fill");
+      const playButton = document.querySelector("#play-steps");
+      const previousButton = document.querySelector("#previous-step");
+      const nextButton = document.querySelector("#next-step");
+      const resetButton = document.querySelector("#reset-steps");
+      const jumpButtons = [...document.querySelectorAll("[data-jump]")];
+      const mapRows = [...document.querySelectorAll("#startup-map .map-row")];
+      const details = [...document.querySelectorAll(".step-detail")];
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let current = 1;
+      let timer = null;
+      const names = [
+        "API enters lifespan",
+        "Worker setup",
+        "Spawn child",
+        "Restore child state",
+        "Construct model and scheduler",
+        "Readiness and IPC connection",
+        "HTTP serving"
+      ];
+
+      function stop() {
+        if (timer !== null) {
+          window.clearInterval(timer);
+          timer = null;
+        }
+        playButton.textContent = "▶ Play";
+        playButton.setAttribute("aria-pressed", "false");
+      }
+
+      function setStage(value, openDetail = false) {
+        current = Math.max(1, Math.min(total, value));
+        mapRows.forEach((row) => row.classList.toggle("is-active", Number(row.dataset.stage) === current));
+        jumpButtons.forEach((button) => {
+          const selected = Number(button.dataset.jump) === current;
+          button.setAttribute("aria-pressed", String(selected));
+        });
+        details.forEach((item) => {
+          const selected = Number(item.dataset.stage) === current;
+          item.classList.toggle("is-active", selected);
+          if (openDetail) item.open = selected;
+        });
+        progress.style.width = ((current / total) * 100) + "%";
+        status.textContent = "Step " + current + " of " + total + " · " + names[current - 1];
+        previousButton.disabled = current === 1;
+        nextButton.disabled = current === total;
+      }
+
+      previousButton.addEventListener("click", () => {
+        stop();
+        setStage(current - 1, true);
+      });
+      nextButton.addEventListener("click", () => {
+        stop();
+        setStage(current + 1, true);
+      });
+      resetButton.addEventListener("click", () => {
+        stop();
+        setStage(1, true);
+      });
+      jumpButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          stop();
+          setStage(Number(button.dataset.jump), true);
+        });
+      });
+      playButton.addEventListener("click", () => {
+        if (reducedMotion || timer !== null) {
+          stop();
+          return;
+        }
+        if (current === total) setStage(1);
+        playButton.textContent = "Ⅱ Pause";
+        playButton.setAttribute("aria-pressed", "true");
+        timer = window.setInterval(() => {
+          if (current >= total) {
+            stop();
+            return;
+          }
+          setStage(current + 1, true);
+        }, 2600);
+      });
+      if (reducedMotion) {
+        playButton.disabled = true;
+        playButton.title = "Automatic motion is off because reduced motion is enabled. Use Next to step through.";
+      }
+      setStage(1);
+    })();
+  </script>
+</body>
+</html>

@@ -24,6 +24,11 @@ under this folder and supplement the repository-wide guidance in
 
 ## Evidence and source links
 
+- For MAX process lifecycle explanations, use repository source as the
+  implementation authority; add external blog references only when requested.
+  Show the process method MAX actually selects, and label alternatives such as
+  fork as comparisons when the code path uses spawn. Keep worker readiness,
+  IPC connection, and HTTP serving as separate milestones.
 - Cite the exact source file, symbol, call site, and line for technical claims.
   Link call-tree functions and call sites to the Source Explorer so clicking
   opens the relevant source and shows the complete function when available.
