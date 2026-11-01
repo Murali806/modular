@@ -36,6 +36,15 @@ LOCAL_LINKS = {
         ),
         "title": "Open examples of Hub repo URLs and separate weight repositories",
     },
+    "config_cache": {
+        "href": "link_htmls/huggingface_config_cache_scope_and_lifecycle.html",
+        "label": "Hugging Face config cache scope and lifecycle ↗",
+        "text": (
+            "Hugging Face config cache scope and lifecycle ↗ "
+            "(link_htmls/huggingface_config_cache_scope_and_lifecycle.html)"
+        ),
+        "title": "Open the explanation of _config_cache scope, keys and lifetime",
+    },
 }
 
 

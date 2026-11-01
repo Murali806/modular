@@ -78,6 +78,9 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
     |           |           reads config.json through Hub/disk cache; missing files may be fetched.
     |           |           returns normally transformers.LlamaConfig for model_type="llama".
     |           |           stores _config_cache[repo] = returned checkpoint metadata.
+    |           |       |
+    |           |       |   -> [[doc:config_cache]]
+    |           |       |
     |           +-- {{gen_populate}} [generation defaults; QnA 1.1.4]
     |               +-- IF unset and model_path exists: {{gen_make}}
     |                   +-- TRY {{gen_load}} [Transformers; MAX call site]

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Hugging Face Config Cache · MAX Serve / Llama 2 7B</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #171a20;
+      --panel: #20252d;
+      --panel-soft: #252c35;
+      --line: #3b4654;
+      --ink: #e8edf4;
+      --muted: #b1bdcc;
+      --cyan: #7dd3df;
+      --blue: #8db7ff;
+      --green: #a8dba8;
+      --amber: #f2c879;
+      --violet: #c3a5e8;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--page); scroll-behavior: smooth; }
+    body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.72 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    a { color: var(--cyan); text-underline-offset: 3px; }
+    a:hover { color: #b6f1f4; }
+    .page { width: min(100% - 36px, 1040px); margin: 0 auto; padding: 28px 0 64px; }
+    .topline { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 25px; }
+    .badge { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; color: var(--green); background: var(--panel); font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+    h1 { margin: 0 0 10px; font-size: clamp(28px, 4vw, 42px); line-height: 1.18; letter-spacing: -.025em; }
+    .subtitle { margin: 0 0 24px; color: var(--muted); }
+    .intro { max-width: 860px; margin: 0 0 25px; color: var(--muted); }
+    .answer { margin: 18px 0; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); overflow: hidden; box-shadow: 0 14px 38px rgb(0 0 0 / .16); }
+    .answer > summary { cursor: pointer; padding: 15px 19px; background: var(--panel-soft); color: var(--cyan); font-weight: 750; }
+    .answer > summary::marker { color: var(--amber); }
+    .answer-body { padding: clamp(18px, 4vw, 34px); }
+    p { margin: 0 0 17px; }
+    h2 { margin: 27px 0 11px; color: var(--blue); font-size: 1.17rem; }
+    h2:first-child { margin-top: 0; }
+    h3 { margin: 22px 0 8px; color: var(--violet); font-size: 1rem; }
+    strong { color: var(--cyan); }
+    code { color: var(--amber); font: .92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    pre { overflow: auto; margin: 16px 0 22px; padding: 18px; border: 1px solid var(--line); border-radius: 9px; background: #15191f; color: #dce6f2; font: 13px/1.72 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 4; }
+    pre .key { color: var(--cyan); }
+    pre .value { color: var(--green); }
+    pre .branch { color: var(--blue); }
+    pre .annotation { color: var(--violet); }
+    .diagram { border-left: 3px solid var(--blue); margin: 18px 0 24px; padding-left: 15px; }
+    .diagram pre { margin: 0; }
+    .source { display: inline-flex; margin: 3px 5px 3px 0; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; color: var(--violet); font-size: .78rem; text-decoration: none; }
+    .source:hover { border-color: var(--violet); }
+    .callout { border: 1px solid #5e5032; border-left: 4px solid var(--amber); border-radius: 7px; margin: 17px 0; padding: 13px 16px; background: rgb(242 200 121 / .07); }
+    .callout strong { color: var(--amber); }
+    table { width: 100%; margin: 18px 0 22px; border-collapse: collapse; border: 1px solid var(--line); }
+    th, td { padding: 11px 13px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--cyan); background: var(--panel-soft); }
+    tr:last-child td { border-bottom: 0; }
+    .kind { color: var(--violet); font-weight: 700; white-space: nowrap; }
+    .refs { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
+    @media (max-width: 640px) {
+      .page { width: min(100% - 22px, 1040px); padding-top: 18px; }
+      .answer > summary { padding: 13px 15px; }
+      .answer-body { padding: 18px 15px; }
+      body { font-size: 15px; }
+      table { font-size: .9rem; }
+      th, td { padding: 8px; }
+      .kind { white-space: normal; }
+      pre { padding: 14px 11px; font-size: 12px; }
+    }
+    @media print {
+      :root { color-scheme: light; --page: #fff; --panel: #fff; --panel-soft: #eee; --line: #aaa; --ink: #151515; --muted: #444; --cyan: #075e73; --blue: #174f91; --green: #246526; --amber: #755000; --violet: #5b3282; }
+      body, .answer { background: #fff; color: #151515; box-shadow: none; }
+      .page { width: 100%; padding: 0; }
+      .answer-body { padding: 14px 0; }
+      .topline a { display: none; }
+      .answer > summary { color: #075e73; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f4f5f7; color: #111; }
+      a { color: #064f68; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="topline">
+      <span class="badge">MAX Serve · SOURCE</span>
+      <div>
+        <a href="../max_serve_llama2_7b_startup_call_stack.html">← Startup call stack</a>
+        &nbsp;·&nbsp;
+        <a href="huggingface_repo_handles_and_external_weights.html">Repo handle examples ↗</a>
+      </div>
+    </div>
+    <h1>What is <code>_config_cache</code>?</h1>
+    <p class="subtitle">Scope · stored value · cache key · process lifetime</p>
+    <p class="intro">Yes: it is a module-level Python dictionary. “Global” here means one dictionary in each Python process that imports the module. The cache stores already-loaded Hugging Face config objects in memory.</p>
+
+    <details class="answer" open>
+      <summary>Answer · Is it a global variable?</summary>
+      <div class="answer-body">
+        <p><code>_config_cache</code> is declared at the top level of <code>max.pipelines.lib._hf_config</code>:</p>
+        <pre><span class="key">_config_cache</span>: dict[HuggingFaceRepo, PretrainedConfig] = {}</pre>
+
+        <p>That makes it a <strong>module-level global dictionary in the current Python process</strong>. The key is a <code>HuggingFaceRepo</code>; the value is the loaded Transformers <code>PretrainedConfig</code> (for Llama, normally a <code>LlamaConfig</code>).</p>
+
+        <div class="diagram"><pre>One MAX Python process
+└── module: max.pipelines.lib._hf_config
+    └── _config_cache: dict
+        ├── HuggingFaceRepo key ──► PretrainedConfig object
+        └── HuggingFaceRepo key ──► PretrainedConfig object</pre></div>
+
+        <h2>What happens on a cache miss or hit?</h2>
+        <p><code>load_huggingface_config(repo)</code> checks the dictionary first. On a miss, it loads the config, saves the returned object under that repo key, and returns it. On a hit, it returns the saved object directly.</p>
+        <pre><span class="branch">if</span> repo in _config_cache:
+    <span class="branch">return</span> _config_cache[repo]       <span class="annotation"># hit: reuse the object</span>
+
+result = AutoConfig.from_pretrained(repo.repo_id, **kwargs)  <span class="annotation"># miss: load it</span>
+_config_cache[repo] = result
+<span class="branch">return</span> result</pre>
+
+        <h2>Llama 2 example</h2>
+        <pre>repo = HuggingFaceRepo(
+    repo_id=<span class="value">"meta-llama/Llama-2-7b-hf"</span>,
+    revision=<span class="value">"main"</span>,
+    trust_remote_code=<span class="value">False</span>,
+    subfolder=<span class="value">None</span>,
+)
+
+cfg1 = load_huggingface_config(repo)  <span class="annotation"># loads and caches</span>
+cfg2 = load_huggingface_config(repo)  <span class="annotation"># same key: returns cached object</span>
+cfg1 is cfg2                           <span class="annotation"># True within this process</span></pre>
+
+        <p>The key is based on the repo’s identity and settings: <code>repo_id</code>, <code>revision</code>, <code>trust_remote_code</code>, <code>repo_type</code>, and <code>subfolder</code>. A different revision or subfolder therefore gets a separate cache entry. See <a href="../../../../../max/python/max/pipelines/weights/hf_utils.py#L684">HuggingFaceRepo.__hash__()</a>.</p>
+
+        <h2>“Global” does not mean shared by every worker</h2>
+        <p>Each Python process has its own module and dictionary. The source notes that a spawned worker starts with an empty cache; a forked worker starts with a copy of the parent’s cache at fork time, then the copies can diverge.</p>
+        <div class="diagram"><pre>MAX parent process                 model worker process
+_config_cache = { ... }            spawn  ──► _config_cache = {}
+                                   fork   ──► copied cache, then independent</pre></div>
+
+        <table>
+          <thead><tr><th>Cache</th><th>What it holds</th><th>Where and how long</th></tr></thead>
+          <tbody>
+            <tr><td class="kind"><code>_config_cache</code></td><td>Python <code>PretrainedConfig</code> objects, keyed by repo handle</td><td>RAM, one Python process; lost when that process exits</td></tr>
+            <tr><td class="kind"><code>~/.cache/huggingface/hub/</code></td><td>Downloaded repository files and Hub snapshots</td><td>Disk; can be reused by later processes using that cache directory</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout"><strong>For the call-stack branch:</strong> “return this process’s cached config object” means MAX skips another config load in this process and reuses the <code>PretrainedConfig</code> object. The first call may still read a local Hub-cache file or fetch config metadata.</div>
+
+        <p class="refs">Source locations:
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/_hf_config.py#L23">cache declaration and process scope</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/_hf_config.py#L90">load_huggingface_config()</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/weights/hf_utils.py#L684">repo cache-key fields</a>
+        </p>
+      </div>
+    </details>
+  </main>
+</body>
+</html>

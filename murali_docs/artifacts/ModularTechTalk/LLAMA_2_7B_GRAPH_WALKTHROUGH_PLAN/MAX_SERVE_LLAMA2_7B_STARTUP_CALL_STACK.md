@@ -94,6 +94,9 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
     |           |           reads config.json through Hub/disk cache; missing files may be fetched.
     |           |           returns normally transformers.LlamaConfig for model_type="llama".
     |           |           stores _config_cache[repo] = returned checkpoint metadata.
+    |           |       |
+    |           |       |   -> Hugging Face config cache scope and lifecycle ↗ (link_htmls/huggingface_config_cache_scope_and_lifecycle.html)
+    |           |       |
     |           +-- MAXModelConfig._populate_generation_config() [MODEL_CFG:L1087] [generation defaults; QnA 1.1.4]
     |               +-- IF unset and model_path exists: MAXModelConfig._make_generation_config() [MODEL_CFG:L1377]
     |                   +-- TRY GenerationConfig.from_pretrained(repo_id, **kwargs) [MODEL_CFG:L1390] [Transformers; MAX call site]
