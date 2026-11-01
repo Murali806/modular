@@ -73,11 +73,20 @@ def build_call_stack(data, task, src, span_finder):
     def label(ref):
         return f'{ref["label"]} [{ref["alias"]}:L{ref["line"]}]'
 
+    def owner_markup(text):
+        """Highlight MAXModelConfig in generated HTML without changing tree text."""
+        escaped = html.escape(text)
+        return re.sub(
+            r"(?<![A-Za-z0-9_])MAXModelConfig(?![A-Za-z0-9_])",
+            '<span class="object-owner">MAXModelConfig</span>',
+            escaped,
+        )
+
     def link(key):
         ref = refs[key]
         return (f'<a href="sources/{ref["file"]}#L{ref["line"]}" data-ref="{key}" '
                 f'title="{html.escape(ref["kind"] + ": " + ref["file"])}">'
-                + html.escape(label(ref)) + '</a>')
+                + owner_markup(label(ref)) + '</a>')
 
     token = re.compile(r"\{\{([a-z_][a-z_0-9]*)\}\}")
     local_token = re.compile(r"\[\[doc:([a-z_][a-z_0-9]*)\]\]")
@@ -113,7 +122,7 @@ def build_call_stack(data, task, src, span_finder):
         plain = local_token.sub(lambda m: LOCAL_LINKS[m[1]]["text"], plain)
         rows = []
         for line in content.splitlines():
-            rendered = token.sub(lambda m: link(m[1]), html.escape(line))
+            rendered = token.sub(lambda m: link(m[1]), owner_markup(line))
             rendered = local_token.sub(lambda m: local_link(m[1]), rendered)
             rows.append('<span class="tree-line">' + rendered + '</span>')
         id = "stack-startup"
@@ -171,7 +180,8 @@ Selected calls and illustrative values; no model execution was recorded. Externa
 <pre class="stack-commands"><code>{html.escape(COMMANDS)}</code></pre>
 <p class="stack-key"><code>+--</code> call/branch · <code>-&gt;</code> condensed call chain or labeled data flow ·
 <code>=&gt;</code> process handoff · <code>[ALIAS:L123]</code> exact source location.
-The worker branch is a separate Python process. Repeated calls for new configuration objects and conditional lookups remain explicit.</p>
+The worker branch is a separate Python process. Repeated calls for new configuration objects and conditional lookups remain explicit.
+<br><span class="owner-legend"><span class="object-owner">MAXModelConfig</span> marks the model-configuration class; separate branches or processes may hold different instances.</span></p>
 {startup_html(src)}
 <details class="stack-source-map"><summary><strong>Source map</strong> · file aliases used in the tree</summary>
 <table><thead><tr><th>Alias</th><th>Complete original file</th></tr></thead><tbody>{''.join(map_rows)}</tbody></table></details>
