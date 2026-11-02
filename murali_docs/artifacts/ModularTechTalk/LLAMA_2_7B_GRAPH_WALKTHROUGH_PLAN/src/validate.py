@@ -131,7 +131,13 @@ def main():
     assert stack_payload["references"] == stack_manifest["references"]
     assert stack_payload["sections"] == stack_manifest["sections"]
     assert stack_payload["text"] == (TASK / TEXT_NAME).read_text()
-    assert stack_parser.trees == [s["text"] for s in stack_manifest["sections"]]
+    # HTML displays a local document's clickable label; its target path is
+    # already carried by href. The plain-text companion also prints that path.
+    expected_visible_trees = [
+        re.sub(r" \(link_htmls/[^)\n]+\)", "", section["text"])
+        for section in stack_manifest["sections"]
+    ]
+    assert stack_parser.trees == expected_visible_trees
     assert len(stack_parser.trees) == 1
     assert len(stack_parser.ids) == len(set(stack_parser.ids))
     assert not stack_parser.dependencies

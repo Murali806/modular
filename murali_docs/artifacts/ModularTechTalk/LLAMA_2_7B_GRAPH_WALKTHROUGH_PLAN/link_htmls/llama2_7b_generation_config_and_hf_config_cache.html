@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Llama 2 7B · GenerationConfig and Hugging Face config cache</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #171a20;
+      --panel: #20252d;
+      --panel-soft: #252c35;
+      --line: #3b4654;
+      --ink: #e8edf4;
+      --muted: #b1bdcc;
+      --cyan: #7dd3df;
+      --blue: #8db7ff;
+      --green: #a8dba8;
+      --amber: #f2c879;
+      --violet: #c3a5e8;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--page); scroll-behavior: smooth; }
+    body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.72 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    a { color: var(--cyan); text-underline-offset: 3px; }
+    a:hover { color: #b6f1f4; }
+    .page { width: min(100% - 36px, 1040px); margin: 0 auto; padding: 28px 0 64px; }
+    .topline { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 25px; }
+    .badge { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; color: var(--green); background: var(--panel); font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+    h1 { margin: 0 0 10px; font-size: clamp(28px, 4vw, 42px); line-height: 1.18; letter-spacing: -.025em; }
+    .subtitle { margin: 0 0 24px; color: var(--muted); }
+    .intro { max-width: 900px; margin: 0 0 25px; color: var(--muted); }
+    .answer { margin: 18px 0; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); overflow: hidden; box-shadow: 0 14px 38px rgb(0 0 0 / .16); }
+    .answer > summary { cursor: pointer; padding: 15px 19px; background: var(--panel-soft); color: var(--cyan); font-weight: 750; }
+    .answer > summary::marker { color: var(--amber); }
+    .answer-body { padding: clamp(18px, 4vw, 34px); }
+    p { margin: 0 0 17px; }
+    h2 { margin: 30px 0 11px; color: var(--blue); font-size: 1.2rem; }
+    h2:first-child { margin-top: 0; }
+    h3 { margin: 23px 0 8px; color: var(--violet); font-size: 1rem; }
+    strong { color: var(--cyan); }
+    code { color: var(--amber); font: .92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    pre { overflow: auto; margin: 16px 0 22px; padding: 18px; border: 1px solid var(--line); border-radius: 9px; background: #15191f; color: #dce6f2; font: 13px/1.72 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 4; }
+    .diagram { border-left: 3px solid var(--blue); margin: 18px 0 24px; padding-left: 15px; }
+    .callout { border: 1px solid #5e5032; border-left: 4px solid var(--amber); border-radius: 7px; margin: 17px 0; padding: 13px 16px; background: rgb(242 200 121 / .07); }
+    .callout strong { color: var(--amber); }
+    table { width: 100%; margin: 18px 0 22px; border-collapse: collapse; border: 1px solid var(--line); }
+    th, td { padding: 11px 13px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--cyan); background: var(--panel-soft); }
+    tr:last-child td { border-bottom: 0; }
+    .refs { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
+    @media (max-width: 640px) {
+      .page { width: min(100% - 22px, 1040px); padding-top: 18px; }
+      .answer > summary { padding: 13px 15px; }
+      .answer-body { padding: 18px 15px; }
+      body { font-size: 15px; }
+      table { font-size: .9rem; }
+      th, td { padding: 8px; }
+      pre { padding: 14px 11px; font-size: 12px; }
+    }
+    @media print {
+      :root { color-scheme: light; --page: #fff; --panel: #fff; --panel-soft: #eee; --line: #aaa; --ink: #151515; --muted: #444; --cyan: #075e73; --blue: #174f91; --green: #246526; --amber: #755000; --violet: #5b3282; }
+      body, .answer { background: #fff; color: #151515; box-shadow: none; }
+      .page { width: 100%; padding: 0; }
+      .answer-body { padding: 14px 0; }
+      .topline a { display: none; }
+      .answer > summary { color: #075e73; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f4f5f7; color: #111; }
+      a { color: #064f68; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="topline">
+      <span class="badge">MAX Serve · SOURCE</span>
+      <div>
+        <a href="../max_serve_llama2_7b_startup_call_stack.html">← Combined startup call stack</a>
+        &nbsp;·&nbsp;
+        <a href="huggingface_config_cache_scope_and_lifecycle.html">Config-cache scope ↗</a>
+      </div>
+    </div>
+    <h1>Generation defaults and the Hugging Face config cache</h1>
+    <p class="subtitle">Llama 2 7B · <code>MAXModelConfig</code> · runtime generation settings · object ownership</p>
+    <p class="intro">This page reproduces the explanation and examples linked from the <code>MAXModelConfig._populate_generation_config()</code> branch in the combined startup call stack.</p>
+
+    <details class="answer" open>
+      <summary>Full explanation · GenerationConfig, model config cache, and examples</summary>
+      <div class="answer-body">
+        <h2>How <code>GenerationConfig</code> is populated</h2>
+        <p><code>MAXModelConfig</code> does not define a nested <code>MAXModelConfig.GenerationConfig</code> class. It stores a Hugging Face <code>GenerationConfig</code> in the private attribute <code>_generation_config</code> and exposes it through the <code>generation_config</code> property.</p>
+
+        <h3><code>_populate_generation_config()</code></h3>
+        <p>At construction time, and again when a config is restored from a worker process, this method checks whether a model path exists. If so, it calls <code>_make_generation_config()</code> and stores the result on that <code>MAXModelConfig</code> instance. It skips placeholder configs with no model path. See <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1087"><code>MAXModelConfig._populate_generation_config()</code></a>.</p>
+
+        <h3><code>_make_generation_config()</code></h3>
+        <p>This method calls Hugging Face’s <code>GenerationConfig.from_pretrained()</code> using the model repository, revision, trust setting, and optional subfolder. That loads generation settings such as temperature and token limits. If loading fails, MAX logs the failure at debug level and returns a default <code>GenerationConfig</code>. See <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1377"><code>MAXModelConfig._make_generation_config()</code></a>.</p>
+        <p>It reads generation settings; it does not construct or load model weights.</p>
+
+        <h3>How this differs from <code>_config_cache</code></h3>
+        <p><code>_config_cache</code> is a module-level, per-process dictionary in <a href="../sources/max/python/max/pipelines/lib/_hf_config.py#L23"><code>_hf_config.py</code></a>. It caches Hugging Face <code>PretrainedConfig</code> objects—such as <code>LlamaConfig</code>—loaded from <code>config.json</code>. <code>MAXModelConfig._populate_hf_config()</code> assigns the returned object to that instance’s <code>_huggingface_config</code>.</p>
+        <p>Generation settings follow a separate path: <code>GenerationConfig.from_pretrained()</code> loads them, and MAX stores the result in that instance’s <code>_generation_config</code>.</p>
+
+        <table>
+          <thead><tr><th>Object</th><th>Loaded from</th><th>Stored in</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>LlamaConfig</code> / <code>PretrainedConfig</code></td><td><code>config.json</code></td><td><code>_config_cache[repo]</code> and <code>MAXModelConfig._huggingface_config</code></td><td>Architecture and model metadata</td></tr>
+            <tr><td><code>GenerationConfig</code></td><td><code>generation_config.json</code> or Transformers defaults</td><td><code>MAXModelConfig._generation_config</code></td><td>Text generation defaults</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Examples</h2>
+        <h3>Llama 2 7B generation settings</h3>
+        <p>The official <a href="https://huggingface.co/meta-llama/Llama-2-7b-hf/blob/main/generation_config.json"><code>meta-llama/Llama-2-7b-hf</code></a> repository is access-gated, so I could not verify its exact <code>generation_config.json</code> here. The following is the complete JSON from the public <a href="https://huggingface.co/NousResearch/Llama-2-7b-hf/blob/main/generation_config.json">NousResearch Llama 2 7B mirror</a>. These values should not be assumed to be the official Meta repository’s values:</p>
+        <pre>{
+  "_from_model_config": true,
+  "bos_token_id": 1,
+  "eos_token_id": 2,
+  "pad_token_id": 32000,
+  "do_sample": true,
+  "temperature": 0.9,
+  "top_p": 0.6,
+  "transformers_version": "4.31.0.dev0"
+}</pre>
+
+        <p>MAX’s sampling-default adapter keeps only supported sampling fields from the generation config. For this example, the projected values are approximately:</p>
+        <pre>SamplingParamsGenerationConfigDefaults(
+    temperature=0.9,
+    top_p=0.6,
+    top_k=None,
+    repetition_penalty=None,
+    max_new_tokens=None,
+    min_new_tokens=None,
+    do_sample=True,
+    eos_token_id=2,
+)</pre>
+
+        <p>MAX maps <code>eos_token_id=2</code> to <code>stop_token_ids=[2]</code> when applying the defaults. The adapter’s supported fields and mapping are defined in <a href="../../../../../max/python/max/pipelines/context/sampling_params.py#L106"><code>SamplingParamsGenerationConfigDefaults</code></a> and <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1402"><code>MAXModelConfig.sampling_params_defaults</code></a>.</p>
+
+        <p>The JSON does not set <code>max_length</code> or <code>max_new_tokens</code>. Transformers can fill omitted fields with library defaults, which depend on its version. To inspect the <strong>full runtime object</strong> for the checkpoint and environment you are using:</p>
+        <pre>import json
+
+print(json.dumps(model_config.generation_config.to_dict(), indent=2, sort_keys=True))</pre>
+        <p>Here, <code>model_config</code> is the relevant <code>MAXModelConfig</code> instance.</p>
+
+        <h3>Another model with an explicit maximum length</h3>
+        <p>The public <a href="https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0/blob/main/generation_config.json">TinyLlama 1.1B Chat</a> checkpoint provides this example:</p>
+        <pre>{
+  "bos_token_id": 1,
+  "eos_token_id": 2,
+  "max_length": 2048,
+  "pad_token_id": 0,
+  "transformers_version": "4.35.0"
+}</pre>
+        <p>This checkpoint explicitly sets <code>max_length</code> to <code>2048</code>. MAX’s <code>sampling_params_defaults</code> adapter does not copy <code>max_length</code>; it supports <code>max_new_tokens</code> instead. The two fields also mean different things in Transformers: <code>max_length</code> limits total sequence length, while <code>max_new_tokens</code> limits newly generated tokens.</p>
+
+        <p>For an example with more sampling fields, <a href="https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct/blob/main/generation_config.json">Qwen2.5-0.5B-Instruct</a> specifies <code>temperature=0.7</code>, <code>top_p=0.8</code>, <code>top_k=20</code>, <code>repetition_penalty=1.1</code>, and two EOS token IDs. Those sampling values are represented by MAX’s adapter; BOS and PAD token IDs are not adapter fields.</p>
+
+        <h2>Example <code>_config_cache</code> entry and its relationship to <code>MAXModelConfig</code></h2>
+        <p><code>_config_cache</code> is keyed by a <code>HuggingFaceRepo</code> object, not by a plain repository-name string. This simplified example shows the kinds of values it can hold:</p>
+        <pre>repo_handle = HuggingFaceRepo(
+    repo_id="meta-llama/Llama-2-7b-hf",
+    revision="main",
+    # Other repo identity and loading settings omitted here.
+)
+
+_config_cache = {
+    repo_handle: LlamaConfig(
+        model_type="llama",
+        architectures=["LlamaForCausalLM"],
+        hidden_size=4096,
+        intermediate_size=11008,
+        num_hidden_layers=32,
+        num_attention_heads=32,
+        num_key_value_heads=32,
+        vocab_size=32000,
+        max_position_embeddings=4096,
+    )
+}</pre>
+
+        <p>The shown <code>LlamaConfig</code> fields are representative architecture metadata from <code>config.json</code>. The cache entry is not a <code>GenerationConfig</code>.</p>
+
+        <div class="diagram"><pre>                    config.json
+                        │
+                        ▼
+            AutoConfig.from_pretrained()
+                        │
+                        ▼
+_config_cache[repo_handle] ───────► LlamaConfig
+                                         │
+                                         └── returned to
+                                             MAXModelConfig._huggingface_config
+
+
+                generation_config.json
+                        │
+                        ▼
+       GenerationConfig.from_pretrained()
+                        │
+                        ▼
+              MAXModelConfig._generation_config</pre></div>
+
+        <p>So one <code>MAXModelConfig</code> can hold both objects: <code>_huggingface_config</code> for model metadata and <code>_generation_config</code> for generation defaults. The process-wide <code>_config_cache</code> is involved in the first path only.</p>
+        <p>The cache is local to a Python process. A spawned worker starts with its own cache; a forked worker begins with a copy of the parent’s cache and then diverges independently.</p>
+
+        <p class="refs">Source locations:
+          <a href="../sources/max/python/max/pipelines/lib/_hf_config.py#L23">_config_cache declaration</a> ·
+          <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1067">_populate_hf_config()</a> ·
+          <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1087">_populate_generation_config()</a> ·
+          <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1377">_make_generation_config()</a>
+        </p>
+      </div>
+    </details>
++    <details class="answer" id="maxmodelconfig-full-object">
+      <summary>MAXModelConfig · full object structure with recursive Llama 2 7B example values</summary>
+      <div class="answer-body">
+        <p><code>MAXModelConfig</code> is a frozen Pydantic model. This cell lists its inherited fields, all 21 fields declared on <code>MAXModelConfig</code>, nested KV-cache values, private runtime state, and derived views.</p>
+
+        <div class="callout">
+          <strong>Example boundary:</strong> the model ID below is the public <code>NousResearch/Llama-2-7b-hf</code> mirror so the checkpoint’s <code>config.json</code> and <code>generation_config.json</code> values can be shown. It is a different repo from gated <code>meta-llama/Llama-2-7b-hf</code>; use its own checkpoint values for the official repo. This is a source-based example, not an object captured from a running MAX server. The example assumes one visible GPU, ID 0, no CLI overrides, and the default <code>main</code> revision.
+        </div>
+
+        <h2>Object tree</h2>
+        <p>The first part is the object built from the model arguments. The stateful Hugging Face objects are expanded below this tree.</p>
+        <div class="diagram"><pre>MAXModelConfig  [frozen Pydantic model]
+├── inherited from ConfigFileModel
+│   ├── config_file: None
+│   └── section_name: None                 # excluded from serialized output
+│
+├── declared MAXModelConfig fields
+│   ├── use_subgraphs: True
+│   ├── data_parallel_degree: 1
+│   ├── pool_embeddings: True
+│   ├── max_length: None                    # no --max-length supplied yet
+│   ├── model_path: "NousResearch/Llama-2-7b-hf"
+│   ├── served_model_name: None             # model_name falls back to model_path
+│   ├── weight_path: []                     # no explicit --weight-path
+│   ├── quantization_encoding: None         # no explicit encoding yet
+│   ├── huggingface_model_revision: "main"
+│   ├── huggingface_weight_revision: "main"
+│   ├── trust_remote_code: False
+│   ├── subfolder: None
+│   ├── device_specs: [
+│   │     DeviceSpec {
+│   │       id: 0,
+│   │       device_type: "gpu"
+│   │     }
+│   │   ]
+│   ├── force_download: False
+│   ├── header_only_weights: False
+│   ├── vision_config_overrides: {}
+│   ├── rope_type: None
+│   ├── sliding_window: None
+│   ├── enable_echo: False
+│   ├── chat_template: None
+│   └── kv_cache: KVCacheConfig {
+│       ├── inherited config_file: None
+│       ├── inherited section_name: None
+│       ├── kv_cache_page_size: 128
+│       ├── enable_prefix_caching: True
+│       ├── enable_dp_cross_replica_prefix_copy: True
+│       ├── device_memory_utilization: 0.9
+│       ├── kv_cache_format: None
+│       ├── indexer_kv_cache_format: None
+│       ├── state_pool_dtype: None
+│       ├── kv_cache_hash_algo: "ahash64"
+│       ├── kv_cache_hash_seed: None
+│       ├── kv_connector_config: KVConnectorConfig {
+│       │   ├── inherited config_file: None
+│       │   ├── inherited section_name: None
+│       │   ├── type: "null"
+│       │   ├── host_offload_max_gb: None
+│       │   ├── host_staging_alloc: "registered"
+│       │   ├── host_staging_mlock: False
+│       │   ├── disk_offload_dir: None
+│       │   ├── disk_offload_max_gb: None
+│       │   ├── num_disk_workers: 32
+│       │   ├── num_h2d_onload_lanes: 1
+│       │   ├── use_disk_direct_io: False
+│       │   └── block_store_endpoint: None
+│       │   # KVConnectorConfig permits extra connector-specific keys;
+│       │   # this default "null" example has none.
+│       }
+│       └── private _config_file_section_name: "kv_cache_config"
+│
+├── private runtime attributes (not config-file fields)
+│   ├── _huggingface_config: LlamaConfig     # expanded below
+│   ├── _weights_repo_id: None               # weights use model_path
+│   ├── _cached_model_repo: HuggingFaceRepo  # expanded below
+│   ├── _cached_weight_repo: HuggingFaceRepo # same identity, separate handle
+│   ├── _generation_config: GenerationConfig # expanded below
+│   ├── _resolved_dtype_cast: None           # not resolved at this stage
+│   ├── _pipeline_stage: None                # whole model, not one pipeline slice
+│   ├── _max_length_user_provided: None      # set during PipelineConfig resolution
+│   └── _config_file_section_name: "model_config"
+│
+├── computed fields
+│   ├── huggingface_weight_repo_id: "NousResearch/Llama-2-7b-hf"
+│   ├── huggingface_weight_repo: HuggingFaceRepo { ... }
+│   ├── huggingface_model_repo: HuggingFaceRepo { ... }
+│   └── sampling_params_defaults: SamplingParamsGenerationConfigDefaults { ... }
+│
+└── other read-only properties (views of the same state)
+    ├── model_name: "NousResearch/Llama-2-7b-hf"
+    ├── architecture_name: "LlamaForCausalLM"
+    ├── default_device_spec: DeviceSpec { id: 0, device_type: "gpu" }
+    ├── max_length_is_user_provided: False   # once resolved with no user value
+    ├── pipeline_stage: None
+    ├── huggingface_config: returns _huggingface_config
+    └── generation_config: returns _generation_config</pre></div>
+
+        <p><code>config_file</code> and <code>section_name</code> come from the <code>ConfigFileModel</code> base class; <code>section_name</code> is excluded from normal serialization. <code>model_config = ConfigDict(...)</code> is a class setting, not an instance member. The private attributes are MAX’s live per-instance state and do not appear in a normal Pydantic <code>model_dump()</code>.</p>
+
+        <h2>Nested member: <code>kv_cache</code></h2>
+        <p><code>kv_cache</code> is a <code>KVCacheConfig</code>. Its fields and the nested connector fields below are all included with their declared defaults. For a Llama text-generation model, these defaults leave external host/disk KV offload disabled.</p>
+        <table>
+          <thead><tr><th>Nested member</th><th>Example value</th><th>What it configures</th></tr></thead>
+          <tbody>
+            <tr><td><code>kv_cache_page_size</code></td><td><code>128</code></td><td>Tokens stored in one paged-cache block.</td></tr>
+            <tr><td><code>enable_prefix_caching</code></td><td><code>True</code></td><td>Reuse cached prompt prefixes.</td></tr>
+            <tr><td><code>enable_dp_cross_replica_prefix_copy</code></td><td><code>True</code></td><td>Allow eligible prefix blocks to move between data-parallel replicas.</td></tr>
+            <tr><td><code>device_memory_utilization</code></td><td><code>0.9</code></td><td>Target share of device memory used by the process.</td></tr>
+            <tr><td><code>kv_cache_format</code></td><td><code>None</code></td><td>Let the architecture choose the KV-cache storage format.</td></tr>
+            <tr><td><code>indexer_kv_cache_format</code></td><td><code>None</code></td><td>No explicit sparse-indexer cache format.</td></tr>
+            <tr><td><code>state_pool_dtype</code></td><td><code>None</code></td><td>Let the architecture choose recurrent-state storage; ordinary Llama does not use this hybrid state pool.</td></tr>
+            <tr><td><code>kv_cache_hash_algo</code></td><td><code>"ahash64"</code></td><td>Hash KV-cache block identities.</td></tr>
+            <tr><td><code>kv_cache_hash_seed</code></td><td><code>None</code></td><td>No configured hash seed.</td></tr>
+            <tr><td><code>kv_connector_config</code></td><td>Nested object below</td><td>Select an external KV-cache connector; <code>"null"</code> means none.</td></tr>
+          </tbody>
+        </table>
+
+        <pre>KVConnectorConfig {
+  type: "null",
+  host_offload_max_gb: None,
+  host_staging_alloc: "registered",
+  host_staging_mlock: False,
+  disk_offload_dir: None,
+  disk_offload_max_gb: None,
+  num_disk_workers: 32,
+  num_h2d_onload_lanes: 1,
+  use_disk_direct_io: False,
+  block_store_endpoint: None,
+  extra connector-specific keys: {}
+}</pre>
+        <p><code>KVConnectorConfig</code> allows additional connector-specific keys. This example has none because the connector type is <code>null</code>. <code>KVCacheConfig</code> has its own private config-section name, <code>"kv_cache_config"</code>.</p>
+
+        <details class="answer">
+          <summary>Expand <code>_huggingface_config</code> · checkpoint <code>config.json</code> values</summary>
+          <div class="answer-body">
+            <p><code>_huggingface_config</code> is normally a Transformers <code>LlamaConfig</code>, loaded from <code>config.json</code>. Here are all fields in the public mirror’s checkpoint file:</p>
+            <pre>{
+  "architectures": [
+    "LlamaForCausalLM"
+  ],
+  "bos_token_id": 1,
+  "eos_token_id": 2,
+  "hidden_act": "silu",
+  "hidden_size": 4096,
+  "initializer_range": 0.02,
+  "intermediate_size": 11008,
+  "max_position_embeddings": 4096,
+  "model_type": "llama",
+  "num_attention_heads": 32,
+  "num_hidden_layers": 32,
+  "num_key_value_heads": 32,
+  "pad_token_id": 0,
+  "pretraining_tp": 1,
+  "rms_norm_eps": 0.00001,
+  "rope_scaling": null,
+  "tie_word_embeddings": false,
+  "torch_dtype": "float16",
+  "transformers_version": "4.31.0.dev0",
+  "use_cache": true,
+  "vocab_size": 32000
+}</pre>
+            <p>Transformers may add class defaults that are not written in that file. To print every value on the actual instantiated object, use <code>pprint(model_config.huggingface_config.to_dict())</code>.</p>
+          </div>
+        </details>
+
+        <details class="answer">
+          <summary>Expand <code>_generation_config</code> · checkpoint <code>generation_config.json</code> values</summary>
+          <div class="answer-body">
+            <p><code>_generation_config</code> is a separate Transformers object. Its checkpoint-supplied values for this same public mirror are:</p>
+            <pre>{
+  "_from_model_config": true,
+  "bos_token_id": 1,
+  "eos_token_id": 2,
+  "pad_token_id": 32000,
+  "do_sample": true,
+  "temperature": 0.9,
+  "top_p": 0.6,
+  "transformers_version": "4.31.0.dev0"
+}</pre>
+            <p>The mirror’s <code>config.json</code> has <code>pad_token_id=0</code>, while its <code>generation_config.json</code> has <code>pad_token_id=32000</code>. They feed two different objects. MAX’s sampling-default adapter does not copy <code>pad_token_id</code>.</p>
+            <p>Transformers fills other <code>GenerationConfig</code> attributes from the installed library version. Print every runtime value with <code>pprint(model_config.generation_config.to_dict())</code>.</p>
+          </div>
+        </details>
+
+        <h2>Other derived members</h2>
+        <p><code>huggingface_weight_repo_id</code> falls back to <code>model_path</code> because <code>_weights_repo_id</code> is <code>None</code>. MAX constructs two equivalent repo handles for this example:</p>
+        <pre>HuggingFaceRepo {
+  repo_id: "NousResearch/Llama-2-7b-hf",
+  revision: "main",
+  trust_remote_code: False,
+  subfolder: None,
+  repo_type: "online",     # inferred from the repo id
+  _local_path: None        # no offline snapshot path cached on this object
+}</pre>
+        <p><code>_cached_model_repo</code> and <code>_cached_weight_repo</code> each hold a handle with those fields. <code>info</code> and <code>weight_files</code> are lazy cached properties, not constructor fields. The computed <code>sampling_params_defaults</code> for the mirror is:</p>
+        <pre>SamplingParamsGenerationConfigDefaults(
+    temperature=0.9,
+    top_p=0.6,
+    top_k=None,
+    repetition_penalty=None,
+    max_new_tokens=None,
+    min_new_tokens=None,
+    do_sample=True,
+    eos_token_id=2,
+)</pre>
+
+        <h2>Where the objects connect</h2>
+        <div class="diagram"><pre>Hugging Face config.json
+        │
+        ▼
+AutoConfig.from_pretrained(repo)
+        │
+        ▼
+_config_cache[HuggingFaceRepo] ───────► LlamaConfig object
+                                              ▲
+                                              │ same returned object
+                                              │
+                                MAXModelConfig._huggingface_config
+
+
+Hugging Face generation_config.json
+        │
+        ▼
+GenerationConfig.from_pretrained(repo)
+        │
+        ▼
+MAXModelConfig._generation_config     (separate object)</pre></div>
+        <p><code>_config_cache</code> is not a member inside <code>MAXModelConfig</code>; it is a module-level, per-process dictionary. The model config keeps a reference to the cached <code>LlamaConfig</code> and a separate <code>GenerationConfig</code>.</p>
+
+        <h2>Inspect the actual object at runtime</h2>
+        <p>For a live config, these views expose the public fields, Pydantic private state, and the two Hugging Face objects recursively:</p>
+        <pre>from pprint import pprint
+
+# Public Pydantic fields and computed fields
+pprint(model_config.model_dump(mode="python"))
+
+# MAX's private, per-instance state
+pprint(model_config.__pydantic_private__)
+
+# Expand the two external Transformers objects
+pprint(model_config.huggingface_config.to_dict())
+pprint(model_config.generation_config.to_dict())</pre>
+
+        <div class="callout">
+          <strong>Lifecycle note:</strong> at the initial <code>MAXModelConfig.from_pipeline_args()</code> stage, <code>max_length</code> is <code>None</code> when the user did not specify it. <code>PipelineConfig</code> later asks the architecture to calculate the effective sequence length and stores the result; for Llama 2 the checkpoint metadata includes <code>max_position_embeddings=4096</code>. Similarly, an empty <code>weight_path</code> means MAX has no explicit weight-file override at this point, not that the model has no weights.
+        </div>
+
+        <p class="refs">Source locations:
+          <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L722">MAXModelConfig declared fields and private state</a> ·
+          <a href="../../../../../max/python/max/config/config_file_model.py#L76">ConfigFileModel inherited fields</a> ·
+          <a href="../../../../../max/python/max/pipelines/kv_cache/config.py#L287">KVCacheConfig</a> ·
+          <a href="../../../../../max/python/max/pipelines/kv_cache/config.py#L134">KVConnectorConfig</a> ·
+          <a href="../../../../../max/python/max/driver/driver.py#L45">DeviceSpec</a> ·
+          <a href="../../../../../max/python/max/pipelines/weights/hf_utils.py#L631">HuggingFaceRepo</a> ·
+          <a href="../../../../../max/python/max/pipelines/lib/device_specs.py#L143">default device selection</a> ·
+          <a href="../../../../../max/python/max/pipelines/lib/config/config.py#L921">architecture sequence-length resolution</a>
+        </p>
+      </div>
+    </details>
+
+  </main>
+</body>
+</html>

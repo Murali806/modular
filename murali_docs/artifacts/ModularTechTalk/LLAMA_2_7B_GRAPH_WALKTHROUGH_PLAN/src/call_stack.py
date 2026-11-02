@@ -45,6 +45,24 @@ LOCAL_LINKS = {
         ),
         "title": "Open the explanation of _config_cache scope, keys and lifetime",
     },
+    "generation_config": {
+        "href": "link_htmls/llama2_7b_generation_config_and_hf_config_cache.html",
+        "label": "GenerationConfig examples and config-cache relationship ↗",
+        "text": (
+            "GenerationConfig examples and config-cache relationship ↗ "
+            "(link_htmls/llama2_7b_generation_config_and_hf_config_cache.html)"
+        ),
+        "title": "Open the GenerationConfig explanation, model examples, and config-cache diagram",
+    },
+    "pipeline_config_storage": {
+        "href": "link_htmls/pipeline_config_storage_model_roles_and_args.html#pipeline-args-examples",
+        "label": "PipelineConfig storage, model roles & PipelineArgs examples ↗",
+        "text": (
+            "PipelineConfig storage, model roles & PipelineArgs examples ↗ "
+            "(link_htmls/pipeline_config_storage_model_roles_and_args.html#pipeline-args-examples)"
+        ),
+        "title": "Open the PipelineArgs examples section",
+    },
 }
 
 

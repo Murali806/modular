@@ -71,6 +71,11 @@ REFS = {
     "arch_name": definition("ARGS", "PipelineArgs.main_architecture_name", "PipelineArgs.main_architecture_name [property]"),
     "from_args": definition("MODEL_CFG", "MAXModelConfig.from_pipeline_args"),
     "task": definition("REGISTRY", "PipelineRegistry.retrieve_pipeline_task"),
+    "task_undefined_call": definition(
+        "REGISTRY",
+        "PipelineRegistry.retrieve_pipeline_task",
+        'retrieve_pipeline_task("LlamaForCausalLM")',
+    ),
     "config": definition("CONFIG", "PipelineConfig.from_args"),
     "config_call": call("SERVE", "serve_api_server_and_model_worker", "pipeline_config = PipelineConfig.from_args("),
     "find": definition("LOOKUP", "find_architecture"),

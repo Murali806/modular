@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>PipelineConfig Storage, Model Roles and PipelineArgs Examples · MAX Serve / Llama 2 7B</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #171a20;
+      --panel: #20252d;
+      --panel-soft: #252c35;
+      --line: #3b4654;
+      --ink: #e8edf4;
+      --muted: #b1bdcc;
+      --cyan: #7dd3df;
+      --blue: #8db7ff;
+      --green: #a8dba8;
+      --amber: #f2c879;
+      --violet: #c3a5e8;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--page); scroll-behavior: smooth; }
+    body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.72 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    a { color: var(--cyan); text-underline-offset: 3px; }
+    a:hover { color: #b6f1f4; }
+    .page { width: min(100% - 36px, 1040px); margin: 0 auto; padding: 28px 0 64px; }
+    .topline { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 25px; }
+    .badge { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; color: var(--green); background: var(--panel); font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+    h1 { margin: 0 0 10px; font-size: clamp(28px, 4vw, 42px); line-height: 1.18; letter-spacing: -.025em; }
+    .subtitle { margin: 0 0 24px; color: var(--muted); }
+    .intro { max-width: 900px; margin: 0 0 25px; color: var(--muted); }
+    .answer { margin: 18px 0; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); overflow: hidden; box-shadow: 0 14px 38px rgb(0 0 0 / .16); }
+    .answer > summary { cursor: pointer; padding: 15px 19px; background: var(--panel-soft); color: var(--cyan); font-weight: 750; }
+    .answer > summary::marker { color: var(--amber); }
+    .answer-body { padding: clamp(18px, 4vw, 34px); }
+    p { margin: 0 0 17px; }
+    h2 { margin: 28px 0 11px; color: var(--blue); font-size: 1.17rem; }
+    h2:first-child { margin-top: 0; }
+    h3 { margin: 21px 0 8px; color: var(--violet); font-size: 1rem; }
+    strong { color: var(--cyan); }
+    code { color: var(--amber); font: .92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    pre { overflow: auto; margin: 16px 0 22px; padding: 18px; border: 1px solid var(--line); border-radius: 9px; background: #15191f; color: #dce6f2; font: 13px/1.78 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 4; }
+    pre .object { color: var(--amber); }
+    pre .role { color: var(--cyan); }
+    pre .route { color: var(--green); }
+    pre .note { color: var(--violet); }
+    .diagram { border-left: 3px solid var(--blue); margin: 18px 0 24px; padding-left: 15px; }
+    .diagram pre { margin: 0; }
+    .callout { border: 1px solid #5e5032; border-left: 4px solid var(--amber); border-radius: 7px; margin: 18px 0; padding: 13px 16px; background: rgb(242 200 121 / .07); }
+    .callout strong { color: var(--amber); }
+    table { width: 100%; margin: 18px 0 22px; border-collapse: collapse; border: 1px solid var(--line); }
+    th, td { padding: 11px 13px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--cyan); background: var(--panel-soft); }
+    tr:last-child td { border-bottom: 0; }
+    .kind { color: var(--violet); font-weight: 700; white-space: nowrap; }
+    .sources { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
+    .source { display: inline-flex; margin: 3px 5px 3px 0; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; color: var(--violet); font-size: .82rem; text-decoration: none; }
+    .source:hover { border-color: var(--violet); }
+    @media (max-width: 640px) {
+      .page { width: min(100% - 22px, 1040px); padding-top: 18px; }
+      .answer > summary { padding: 13px 15px; }
+      .answer-body { padding: 18px 15px; }
+      body { font-size: 15px; }
+      table { font-size: .9rem; }
+      th, td { padding: 8px; }
+      .kind { white-space: normal; }
+      pre { padding: 14px 11px; font-size: 12px; }
+    }
+    @media print {
+      :root { color-scheme: light; --page: #fff; --panel: #fff; --panel-soft: #eee; --line: #aaa; --ink: #151515; --muted: #444; --cyan: #075e73; --blue: #174f91; --green: #246526; --amber: #755000; --violet: #5b3282; }
+      body, .answer { background: #fff; color: #151515; box-shadow: none; }
+      .page { width: 100%; padding: 0; }
+      .answer-body { padding: 14px 0; }
+      .topline a { display: none; }
+      .answer > summary { color: #075e73; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f4f5f7; color: #111; }
+      a { color: #064f68; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="topline">
+      <span class="badge">MAX Serve · SOURCE</span>
+      <a href="../max_serve_llama2_7b_startup_call_stack.html">← Back to the startup call stack</a>
+    </div>
+    <h1>PipelineConfig storage and PipelineArgs examples</h1>
+    <p class="subtitle">API-process ownership · <code>.models</code> roles · worker handoff · PipelineArgs examples</p>
+    <p class="intro">Llama 2 7B example · <code>max serve --model meta-llama/Llama-2-7b-hf --task text_generation</code></p>
+
+    <details class="answer" open>
+      <summary>Full answer · where the config is stored and what it contains</summary>
+      <div class="answer-body">
+        <p><strong><code>PipelineConfig</code> is held by ordinary Python objects in the API process, then passed to the model worker. It is not stored in a global registry.</strong> The serve path creates it by calling <code>PipelineConfig.from_args(pipeline_args)</code>. It is a resolved configuration object built from <code>PipelineArgs</code>; it is not itself a field inside <code>PipelineArgs</code>.</p>
+
+        <p>For a regular single-model Llama 2 checkpoint, <code>PipelineConfig.from_args()</code> first creates a local <code>models</code> dictionary with a <code>"main"</code> entry. It wraps that mapping in <code>ModelManifest</code> and stores it in <code>PipelineConfig.models</code>. The config also carries pipeline-level settings such as sampling, runtime, profiling, task, LoRA, and speculative-decoding settings.</p>
+
+        <h2>Object and process map</h2>
+        <div class="diagram"><pre><span class="role">API process</span>
+└── <span class="object">pipeline_config</span> = PipelineConfig.from_args(pipeline_args)
+    ├── contains <span class="object">.models</span> : ModelManifest (dict-like role → MAXModelConfig)
+    │   ├── <span class="route">"main"</span>  ──► MAXModelConfig for the Llama 2 7B checkpoint
+    │   ├── <span class="route">"draft"</span> ──► optional MAXModelConfig for a speculative draft model
+    │   └── other role names ──► component MAXModelConfig entries for multi-component models
+    │       e.g. <span class="route">"text_encoder"</span>, <span class="route">"unet"</span>, <span class="route">"vae"</span>
+    ├── same API object ──► ServingTokenGeneratorSettings.pipeline_config
+    ├── same API object ──► retrieved.factory (functools.partial with pipeline_config bound)
+    └── FastAPI lifespan
+        ├── start_model_worker(..., pipeline_config, ...)
+        │   └── spawn ──► ModelWorker.run(..., pipeline_config, ...)
+        │       separate worker process; receives its own deserialized object
+        └── after worker startup: app.state.pipeline_config = serving_settings.pipeline_config</pre></div>
+
+        <h2>What is <code>.models</code>?</h2>
+        <p><code>PipelineConfig.models</code> is the configuration object's role map. In the common Llama 2 7B case, <code>pipeline_config.models["main"]</code> returns the <code>MAXModelConfig</code> for <code>meta-llama/Llama-2-7b-hf</code>. It is a mapping keyed by role names, not a global variable or an array. <code>ModelManifest</code> is a <code>dict[str, MAXModelConfig]</code> subclass, so normal mapping access such as <code>["main"]</code>, <code>.get()</code>, and <code>.items()</code> works.</p>
+
+        <table>
+          <thead><tr><th>Role key</th><th>When it appears</th><th>What the value represents</th></tr></thead>
+          <tbody>
+            <tr><td class="kind"><code>"main"</code></td><td>Usual single-model serving path</td><td>The primary <code>MAXModelConfig</code>; for this example it describes the Llama 2 7B checkpoint.</td></tr>
+            <tr><td class="kind"><code>"draft"</code></td><td>When a speculative draft model is configured</td><td>A separate <code>MAXModelConfig</code> for that draft model.</td></tr>
+            <tr><td class="kind">Component role</td><td>Multi-component models</td><td>A <code>MAXModelConfig</code> for the named component, such as <code>"text_encoder"</code>, <code>"unet"</code>, or <code>"vae"</code>.</td></tr>
+          </tbody>
+        </table>
+
+        <p>The word <code>"main"</code> is a key in this mapping; it is not a Python global called <code>models</code>. During construction, the local dictionary is converted into a <code>ModelManifest</code> and assigned to the <code>models</code> field of the newly constructed <code>PipelineConfig</code>. The manifest maps semantic roles to config objects. It does not contain the model's loaded weight tensors.</p>
+
+        <h2>Who holds the object in the API process?</h2>
+        <p>After construction, the same API-process config object is passed or referenced in several places. <code>ServingTokenGeneratorSettings.pipeline_config</code> carries it into the server lifespan. The registry's returned factory is a <code>functools.partial</code> with <code>pipeline_config</code> among its bound keyword arguments. During the lifespan, MAX passes the config to <code>start_model_worker()</code>; after worker startup, the API app also assigns that config to <code>app.state.pipeline_config</code> for request handlers to read.</p>
+
+        <p>These API-process holders are references to the config object created by <code>PipelineConfig.from_args()</code>; they are not separate model registries. The worker is a different process. MAX selects Python's <code>spawn</code> start method and passes <code>pipeline_config</code> as a process-start argument. The spawned process receives its own deserialized Python object and <code>ModelWorker.run()</code> accepts it as an argument. The worker can then use the config while constructing and running the model pipeline.</p>
+
+        <div class="callout"><strong>Keep these objects separate in your mental model:</strong> <code>PipelineConfig</code> is the resolved pipeline-wide settings object; <code>PipelineConfig.models</code> is its role-to-config mapping; each mapping value is a <code>MAXModelConfig</code>; and the worker process receives the configuration as a startup argument. None of these is the Hugging Face weight database or the loaded GPU model.</div>
+
+        <p class="sources">Source locations:
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/config/config.py#L1482">PipelineConfig.from_args()</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/config/config.py#L968">PipelineConfig.models field</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/model_manifest.py#L87">ModelManifest mapping</a>
+          <a class="source" href="../../../../../max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L96">serve call site</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/registry.py#L984">factory binds the config</a>
+          <a class="source" href="../../../../../max/python/max/serve/api_server.py#L102">ServingTokenGeneratorSettings</a>
+          <a class="source" href="../../../../../max/python/max/serve/api_server.py#L179">lifespan starts worker</a>
+          <a class="source" href="../../../../../max/python/max/serve/api_server.py#L239">app.state assignment</a>
+          <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L760">start_model_worker()</a>
+          <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L797">spawn and process arguments</a>
+          <a class="source" href="../../../../../max/python/max/serve/pipelines/model_worker.py#L340">ModelWorker.run()</a>
+        </p>
+      </div>
+    </details>
+
+    <details class="answer" id="pipeline-args-examples">
+      <summary>Example PipelineArgs values · Llama 2 7B</summary>
+      <div class="answer-body">
+        <p><code>PipelineArgs</code> is the immutable input record assembled from the command-line options (and any config-file values). In the <code>max serve</code> path, Click's parsed keyword arguments are passed to <code>PipelineArgs.from_flat_kwargs()</code>. The option <code>--model</code> is an alias for the internal <code>model_path</code> field.</p>
+
+        <h2>Command with an explicit task</h2>
+        <pre><span class="role">Command:</span>
+max serve --model meta-llama/Llama-2-7b-hf --task text_generation
+
+<span class="note"># Relevant values passed to PipelineArgs.from_flat_kwargs(...):</span>
+from max.pipelines import PipelineArgs
+from max.pipelines.modeling.types.task import PipelineTask
+
+pipeline_args = PipelineArgs.from_flat_kwargs(
+    model_path=<span class="path">"meta-llama/Llama-2-7b-hf"</span>,
+    task=PipelineTask.TEXT_GENERATION,
+)</pre>
+
+        <p>After validation, the task value is represented by the enum <code>PipelineTask.TEXT_GENERATION</code>. The following is a useful view of the fields for this invocation; it is a selected-field example, not the complete printed representation of every nested config.</p>
+        <pre>PipelineArgs (selected values)
+├── model_path                  = <span class="path">"meta-llama/Llama-2-7b-hf"</span>
+├── task                        = <span class="path">PipelineTask.TEXT_GENERATION</span>
+├── huggingface_model_revision  = <span class="path">"main"</span>   <span class="note"># default</span>
+├── huggingface_weight_revision = <span class="path">"main"</span>   <span class="note"># default</span>
+├── trust_remote_code           = <span class="path">False</span>  <span class="note"># default</span>
+├── weight_path                 = <span class="path">[]</span>     <span class="note"># discover weights from the repo</span>
+├── max_length                  = <span class="path">None</span>   <span class="note"># no --max-length override</span>
+├── device_specs                = <span class="path">first visible device</span> <span class="note"># when not specified</span>
+└── draft_model                 = <span class="path">None</span>   <span class="note"># no draft model configured</span></pre>
+
+        <p><code>device_specs</code> depends on the machine: if the user does not provide it, MAX selects the first visible device; if none is visible, the default list is empty. Similarly, the nested <code>runtime</code>, <code>sampling</code>, <code>kv_cache</code>, and <code>profiling</code> configs contain their defaults unless a CLI option or config file supplies values. A missing <code>max_length</code> here means “no user override”; later configuration resolution computes an effective model length.</p>
+
+        <h2>Command without <code>--task</code></h2>
+        <pre><span class="role">Command:</span>
+max serve --model meta-llama/Llama-2-7b-hf
+
+<span class="note"># With no task from CLI or a config file, immediately after parsing:</span>
+pipeline_args = PipelineArgs.from_flat_kwargs(
+    model_path=<span class="path">"meta-llama/Llama-2-7b-hf"</span>,
+)
+pipeline_args.model_path == <span class="path">"meta-llama/Llama-2-7b-hf"</span>
+pipeline_args.task       == <span class="path">PipelineTask.UNDEFINED</span>
+
+<span class="note"># The standard serve path identifies the model architecture,
+# resolves its task, and makes a new immutable PipelineArgs value:</span>
+pipeline_args = pipeline_args.model_copy(
+    update={<span class="path">"task"</span>: PipelineTask.TEXT_GENERATION}
+)</pre>
+
+        <p>So the first command reaches serving with an explicit task and skips task inference. The second starts with <code>UNDEFINED</code>; MAX infers <code>TEXT_GENERATION</code> for Llama and passes the copied <code>PipelineArgs</code> to <code>PipelineConfig.from_args()</code>. The later <code>PipelineConfig</code> is a separate, resolved object; it is not nested inside <code>PipelineArgs</code>.</p>
+
+        <p class="sources">Source locations:
+          <a class="source" href="../../../../../max/python/max/_entrypoints/pipelines.py#L500">CLI builds PipelineArgs</a>
+          <a class="source" href="../../../../../max/python/max/_entrypoints/cli/config.py#L204">--model alias for model_path</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/pipeline_args.py#L117">PipelineArgs class</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/pipeline_args.py#L460">from_flat_kwargs()</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/pipeline_args.py#L153">task default</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/pipeline_args.py#L193">model_path field</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/pipeline_args.py#L225">revision defaults</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/pipeline_args.py#L254">device_specs field</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/device_specs.py#L143">default device selection</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/pipeline_args.py#L332">max_length field</a>
+          <a class="source" href="../../../../../max/python/max/pipelines/lib/pipeline_args.py#L385">draft_model field</a>
+          <a class="source" href="../../../../../max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L83">task inference branch</a>
+          <a class="source" href="../../../../../max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L96">PipelineConfig construction</a>
+        </p>
+      </div>
+    </details>
+  </main>
+  <script>
+    (() => {
+      const openFragmentDisclosure = () => {
+        if (!location.hash) return;
+        const id = decodeURIComponent(location.hash.slice(1));
+        const target = document.getElementById(id);
+        if (!target) return;
+        const disclosure = target.matches("details") ? target : target.closest("details");
+        if (disclosure) disclosure.open = true;
+        target.scrollIntoView({ block: "start" });
+      };
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", openFragmentDisclosure, { once: true });
+      } else {
+        openFragmentDisclosure();
+      }
+      window.addEventListener("hashchange", openFragmentDisclosure);
+    })();
+  </script>
+</body>
+</html>

@@ -82,6 +82,7 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
     |           |       |   -> [[doc:config_cache]]
     |           |       |
     |           +-- {{gen_populate}} [generation defaults; QnA 1.1.4]
+    |           |   -> [[doc:generation_config]]
     |               +-- IF unset and model_path exists: {{gen_make}}
     |                   +-- TRY {{gen_load}} [Transformers; MAX call site]
     |                   |   input: repo ID, revision, trust setting, optional subfolder.
@@ -91,7 +92,24 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
     |       return: manifest contains "main"; the argument builder does not retain this probe override.
     |               The HF process cache and Hub disk assets can outlive the temporary config.
     |   return: pipeline_args : immutable PipelineArgs, with task explicit or UNDEFINED.
+    |   |
+    |   +-- [[doc:pipeline_config_storage]]
     +-- {{serve}} [MAX serving orchestration]  {{serve_call}}
+        |   +-- CLI-to-worker startup chain [call-flow context]
+        |   |   +-- cli_serve()
+        |   |       └── serve_api_server_and_model_worker(settings, pipeline_args)
+        |   |           └── uvloop.run(serve())
+        |   |               └── enter API lifespan
+        |   |                   └── start_model_worker(...)
+        |   |                       └── spawn process with ModelWorker and pipeline_config
+        |   +-- inputs [from cli_serve; call site above]
+        |   |   +-- settings : Settings (server host/port, limits, timeouts and related options).
+        |   |   +-- pipeline_args : immutable PipelineArgs (model path, task, model and pipeline options).
+        |   |   +-- sockets : None on the normal CLI path; optional pre-bound listening sockets otherwise.
+        |   +-- output / return [function signature -> None]
+        |       returns no object; owns API/worker startup and serving until shutdown.
+        |       effective pipeline_args continues below: same object if task is explicit;
+        |       the UNDEFINED-task branch makes a copied PipelineArgs with the inferred task.
         +-- IF effective task == UNDEFINED:  {{task_branch}}
         |   |   Taken by the command WITHOUT --task, provided the config file also sets no task.
         |   +-- {{arch_name}}
@@ -109,8 +127,21 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
         |                   fields: pipeline_model=Llama3Model, config=Llama3Config, tokenizer=TextTokenizer.
         |                   effect: pending import removed; declaration stored by name and (name, task).
         |       returns TEXT_GENERATION; handler copies pipeline_args with this resolved task.
+        |       Task-inference registry effect (task == UNDEFINED):
+        |       +-- {{task_undefined_call}}
+        |       |   +-- pending recipe → {{import}} → {{llama_arch}} → {{register}}
+        |       |   |   ├── remove recipe from _lazy_architectures
+        |       |   |   ├── store SupportedArchitecture in architectures
+        |       |   |   └── store it by (architecture name, task)
+        |       |   └── return TEXT_GENERATION; the loaded declaration is reused by the config lookup below ↘
         +-- ELSE explicit --task text_generation: skip the inference branch above.
         |   Checkpoint probing already ran; full configuration still runs below.
+        |   └── --task text_generation:
+        |       └── skip task inference
+        |           → config lookup sees pending Llama recipe
+        |               → pop recipe → import → register SupportedArchitecture
+        |
+        |
         +-- {{config}} [resolved serving configuration]  {{config_call}}
         |   +-- {{from_args}} -> {{build_config}}
         |   |   creates models["main"] : MAXModelConfig; repeats repo/HF/generation population.
@@ -125,12 +156,14 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
         |   |       +-- IF pending (normally the explicit-task path): {{materialize}}
         |   |       |   +-- {{import}} -> {{register}}
         |   |       |       same import/registration work as above; this is where it runs if inference was skipped.
-        |   |       +-- ELSE return the declaration already materialized during task inference.
+        |   |       +-- ELSE return the declaration already materialized during task inference. ↖ same entry
         |   +-- resolve remaining model/runtime policies; later architecture lookups reuse the declaration.
         |   returns pipeline_config : PipelineConfig (model, sampling and runtime settings).
         +-- {{factory}} [MAX registry]  {{factory_call}}
         |   +-- {{architecture}} -> {{retrieve_arch}}
         |   |   +-- {{find_method}} -> {{resolve}} -> selected SupportedArchitecture.
+        |   |       Looks up pipeline_config.models.main_architecture_name and returns its matching SupportedArchitecture declaration; for Llama 2 7B, this is llama_arch.
+        |   |
         |   +-- {{memory}} [memory planning; QnA 1.1.6]  {{memory_call}}
         |   |   +-- {{initialize}} [use A: arch.config = Llama3Config]  {{memory_init_call}}
         |   |       input: HF dimensions plus MAX dtype/device/KV/length settings.
