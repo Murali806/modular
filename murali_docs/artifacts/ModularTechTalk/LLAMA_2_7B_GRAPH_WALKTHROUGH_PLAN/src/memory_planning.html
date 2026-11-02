@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Llama 2 7B · MAX memory planning and MemoryPlan</title>
+<!-- MEMORY_CSS -->
+</head>
+<body>
+<a class="skip-link" href="#memory-planning">Skip to memory planning</a>
+<header class="page-header">
+  <button type="button" id="sidebar-toggle" aria-controls="page-nav" aria-expanded="true" data-interactive hidden>Hide contents</button>
+  <a href="../max_serve_llama2_7b_startup_call_stack.html#stack-startup">← Startup call stack</a>
+  <span class="badge source">SOURCE · {{revision-short}}</span>
+</header>
+<div class="page-layout">
+<nav id="page-nav" aria-label="Memory planning contents">
+  <p class="nav-title">Memory planning</p>
+  <a href="#memory-planning">What MAX produces</a>
+  <a href="#input-origins">1 · Where inputs come from</a>
+  <a href="#arch-initialization">2 · Llama3Config.initialize()</a>
+  <a href="#memory-budget">3 · Budget, step by step</a>
+  <a href="#kv-pages">4 · KV pages and dimensions</a>
+  <a href="#length-and-batch">5 · Length and batch limits</a>
+  <a href="#parent-worker-handoff">6 · Parent → model worker</a>
+  <a href="#memory-plan-values">7 · MemoryPlan fields</a>
+  <a href="#memory-evidence">8 · Exact source and evidence</a>
+  <p class="nav-note">Each section expands. Function links open complete original source.</p>
+</nav>
+<main id="memory-planning">
+<div class="hero">
+  <p class="eyebrow">MAX Serve · Llama 2 7B · QnA 1.1.6</p>
+  <h1>Before the worker, MAX makes a memory plan.</h1>
+  <p class="lead">Configuration tells MAX what the model needs. Device statistics tell it what is available.
+  <code>MemoryEstimator.plan()</code> combines them into an immutable <code>MemoryPlan</code> that the worker uses later.</p>
+  <pre class="command"><code>max serve --model meta-llama/Llama-2-7b-hf
+max serve --model meta-llama/Llama-2-7b-hf --task text_generation</code></pre>
+  <p class="scope"><span class="badge source">SOURCE</span> Built-in Graph API, one device, standard API/worker route.
+  Repository revision <code>{{revision}}</code>. These are source-derived paths; the model was not run.</p>
+  <p class="example-label"><span class="badge example">ARITHMETIC EXAMPLE</span> Pinned Llama 2 dimensions and file sizes;
+  hypothetical <b>24 GiB free memory</b>, four requests and two-byte KV elements. Encoding assumptions are explained below.</p>
+</div>
+<div class="page-tools" data-interactive hidden>
+  <button type="button" id="expand-explanations">Expand explanations</button>
+  <button type="button" id="collapse-explanations">Collapse explanations</button>
+  <span>Code stays collapsed until you open it.</span>
+</div>
+<details class="qna root-qna" id="qna-memory" open>
+<summary><span class="summary-main"><strong>QnA 1.1.6.1 · What does memory planning actually do?</strong><span>Inputs → architecture facts → budget → effective limits → worker handoff</span></span><span class="badge source">SOURCE</span></summary>
+<div class="qna-body">
+<div class="overview-path" aria-label="Memory planning overview">
+  <div><span class="step-number">1</span><strong>Read inputs</strong><small>Config + devices + metadata</small></div><span class="path-arrow" aria-hidden="true">→</span>
+  <div><span class="step-number">2</span><strong>Price the model</strong><small>Weights + reserves + KV geometry</small></div><span class="path-arrow" aria-hidden="true">→</span>
+  <div><span class="step-number">3</span><strong>Return MemoryPlan</strong><small>Batch, length and cache budget</small></div>
+</div>
+<p class="sources">{{ref:factory}} → {{ref:memory}} → {{ref:plan_sizes}}. The invocation is {{ref:memory_call|retrieve_factory() call site}}.</p>
+<details class="explanation" id="example-assumptions">
+<summary>Checkpoint and encoding assumptions for this example</summary>
+<div class="detail-body">
+  <p>The official repository's pinned Hub metadata supplies the two safetensors file sizes. Its gated <code>config.json</code>
+  returned HTTP 401 to the unauthenticated request, so the dimensions shown here come from a pinned public
+  <code>NousResearch/Llama-2-7b-hf</code> config. <a href="#memory-evidence">Both revisions and the saved evidence</a> are recorded.</p>
+  <p>At this MAX revision, {{ref:llama_config_type}} omits <code>float16</code>. Encoding and compatible weight-file
+  discovery run during configuration, before memory planning: {{ref:encoding}}. The official file metadata includes
+  mostly F16 tensors and a small F32 tensor count; an aggregate label alone does not establish a compatible load path.</p>
+  <p>The documented explicit cast policy covers <code>float32 ↔ bfloat16</code>. This page does not assert that the unchanged
+  FP16 checkpoint successfully serves at this revision. The two-byte, unquantized KV example describes cache geometry
+  under stated assumptions. It is not an inferred generation result or a GPU measurement.</p>
+  <p class="sources">{{ref:repo_encodings}} · {{ref:encoding_infer}} · {{ref:encoding_select}} · {{ref:kv_dtype}}</p>
+</div>
+</details>
+
+<details class="qna" id="input-origins" open>
+<summary><span class="summary-main"><strong>QnA 1.1.6.1.1 · Where does each input come from?</strong><span>CLI, checkpoint, MAX architecture declaration and live device driver</span></span><span class="badge source">SOURCE</span></summary>
+<div class="qna-body">
+<div class="animation" data-animation="provenance">
+  <div class="animation-heading"><h2>Four sources feed the planner.</h2><span class="badge source">SOURCE</span></div>
+  <div class="provenance-map">
+    <div class="origin-row">
+      <button class="origin-card cli active" type="button" data-frame="0"><span class="origin-kind">CLI / MAX defaults</span><strong>PipelineArgs</strong><small>devices · length · batch · KV policy</small><span class="origin-down" aria-hidden="true">↓</span></button>
+      <button class="origin-card hf" type="button" data-frame="1"><span class="origin-kind">Hugging Face</span><strong>Checkpoint metadata</strong><small>config.json · selected file sizes</small><span class="origin-down" aria-hidden="true">↓</span></button>
+      <button class="origin-card arch" type="button" data-frame="2"><span class="origin-kind">MAX catalog</span><strong>llama_arch</strong><small>Llama3Config · PagedMemoryPlanner</small><span class="origin-down" aria-hidden="true">↓</span></button>
+      <button class="origin-card driver" type="button" data-frame="3"><span class="origin-kind">Live driver</span><strong>Device objects</strong><small>free bytes · allocation cap</small><span class="origin-down" aria-hidden="true">↓</span></button>
+    </div>
+    <div class="input-bus" aria-hidden="true"></div>
+    <div class="planner-inputs">
+      <div><code>pipeline_config.models["main"]</code><small class="owner">MAXModelConfig</small></div>
+      <div><code>arch_config</code><small>Llama dimensions + KVCacheParams</small></div>
+      <div><code>devices</code><small>Loaded Device instances</small></div>
+    </div>
+    <div class="map-arrow" aria-hidden="true">↓</div>
+    <div class="planner-box"><strong>MemoryEstimator.plan()</strong><small>returns MemoryPlan; keeps the input PipelineConfig unchanged</small></div>
+  </div>
+  <div class="animation-controls" data-interactive hidden>
+    <button type="button" data-action="previous">← Back</button><button type="button" data-action="next">Step →</button>
+    <button type="button" data-action="play">Play</button><button type="button" data-action="pause" disabled>Pause</button><button type="button" data-action="replay">Replay</button>
+    <output data-progress aria-live="polite">1 / 4</output>
+  </div>
+  <div class="frame-note" aria-live="polite"><strong data-frame-title>CLI / MAX defaults</strong><p data-frame-description>Command options become PipelineArgs. PipelineConfig.from_args() builds the main MAXModelConfig and runtime policy.</p></div>
+</div>
+<details class="explanation"><summary>Portable text map</summary><div class="detail-body"><pre class="text-diagram">CLI flags / config / defaults ──► PipelineArgs ──► PipelineConfig
+                                                      │
+HF config.json ───────────────────────────────────────►│ models["main"]
+selected weight-file paths + sizes ───────────────────►│ MAXModelConfig
+                                                      │
+MAX llama_arch ──► Llama3Config.initialize(...) ────────►│ arch_config
+                                                      │ dimensions + KV params
+                                                      │
+device_specs ──► load_devices(...) ──► Device.stats ───►│ free bytes + alloc cap
+                                                      ▼
+                                             MemoryEstimator.plan()
+                                                      │
+                                                      ▼
+                                             immutable MemoryPlan</pre></div></details>
+<details class="explanation" id="input-origin-table"><summary>Every input, its owner, its origin, and an example value</summary><div class="detail-body">
+<div class="table-scroll"><table>
+<thead><tr><th>Input</th><th>Where it comes from</th><th>Llama example / meaning</th><th>Exact source</th></tr></thead>
+<tbody>
+<tr><td><code>device_specs</code></td><td><code>--devices</code> → CLI normalization → <code>PipelineArgs.device_specs</code> → main <span class="owner">MAXModelConfig</span>.</td><td><code>--devices gpu:0</code> → <code>[DeviceSpec.accelerator(0)]</code>. Unset uses the first visible scanned device; CPU is possible.</td><td>{{ref:devices_flag}}<br>{{ref:device_defaults}}<br>{{ref:from_args}}</td></tr>
+<tr><td>Free device memory</td><td><code>load_devices(device_specs)</code> → live <code>Device.stats["free_memory"]</code>, summed across the selected devices.</td><td><code>24 × 1024³</code> bytes here is hypothetical free memory at planning time, not a GPU product's advertised capacity. If the sum is zero, MAX falls back to reported total memory.</td><td>{{ref:load_devices}}<br>{{ref:free_memory}}</td></tr>
+<tr><td>Per-allocation limit</td><td>Loaded devices' <code>max_single_alloc_size</code>. The planner caps the cache budget by the summed limits; per-layer pools can multiply the cap by their layer-buffer count.</td><td>Example assumes a cap large enough for this cache. Metal is one platform where a single buffer limit matters.</td><td>{{ref:plan_sizes}}</td></tr>
+<tr><td>Batch request limit</td><td><code>--max-batch-size</code> / config → <code>pipeline_config.runtime.max_batch_size</code>.</td><td>Explicit <code>4</code> for the exercise. Unset starts as <code>None</code>; accelerator KV models fall back to candidate <code>512</code>, single CPU to <code>1</code>.</td><td>{{ref:runtime_defaults}}<br>{{ref:planner_batch}}<br>{{ref:batch_infer}}</td></tr>
+<tr><td>Prefill input-token target</td><td><code>--max-batch-input-tokens</code> → runtime config, default <code>8192</code>.</td><td>Caps the candidate batch size numerically in the planner. It also guides chunked prefill. It counts input tokens, while batch size counts requests.</td><td>{{ref:input_token_default}}<br>{{ref:plan_sizes}}</td></tr>
+<tr><td>Resident context-token cap</td><td><code>--max-batch-total-tokens</code> → runtime config → plan field. Architecture policy may require a fallback.</td><td>Unset is <code>None</code> for this Llama declaration. When set, it caps the sum of page-aligned context lengths across a batch.</td><td>{{ref:runtime_defaults}}<br>{{ref:context_cap}}<br>{{ref:context_cap_default}}<br>{{ref:llama_arch}}</td></tr>
+<tr><td>Checkpoint dimensions</td><td><code>config.json</code> → Transformers <code>AutoConfig</code> → <code>MAXModelConfig.huggingface_config</code> → <code>Llama3Config</code>.</td><td>32 layers, 4096 hidden width, 32 query heads, 32 KV heads, head dimension <code>4096 / 32 = 128</code>.</td><td>{{ref:hf_load}}<br>{{ref:autoconfig}}<br>{{ref:initialize_config}}</td></tr>
+<tr><td>Resolved <code>max_length</code></td><td>Requested <code>--max-length</code> (or unset) + checkpoint <code>max_position_embeddings</code> → architecture length policy → main model config.</td><td>Unset → <code>4096</code> here. Requested <code>2048</code> → <code>2048</code>. Requested <code>8192</code> exceeds this Llama checkpoint bound and raises during construction.</td><td>{{ref:resolve_length}}<br>{{ref:length_policy}}</td></tr>
+<tr><td>Weight-file size estimate</td><td>Resolved <code>weight_path</code> entries → filesystem/cache size, otherwise Hub file metadata through <code>HuggingFaceRepo.size_of()</code>.</td><td>Two selected safetensors files total <code>13,476,876,272</code> bytes. The planner adds file sizes; it does not load and count a state_dict here.</td><td>{{ref:weight_estimate}}<br>{{ref:weights_size}}<br>{{ref:repo_size}}</td></tr>
+<tr><td>KV-cache dtype</td><td>Explicit <code>--kv-cache-format</code> wins; otherwise derived from the resolved weight encoding by MAX policy.</td><td>Two-byte unquantized elements for the exercise. BF16 → BF16 cache; Q4_K weights → FP32 cache by default. Weight precision and cache precision can differ.</td><td>{{ref:kv_dtype}}<br>{{ref:initialize_config}}</td></tr>
+<tr><td>KV page size / utilization</td><td><code>--kv-cache-page-size</code>, <code>--device-memory-utilization</code> → <code>KVCacheConfig</code>, copied into the main model config.</td><td>Defaults: <code>128</code> tokens/page and <code>0.9</code> of free memory. These are MAX policy, not Llama's HF dimensions.</td><td>{{ref:kv_defaults}}<br>{{ref:from_args}}</td></tr>
+<tr><td>Device layout / parallelism</td><td>Model <code>device_specs</code> → graph <code>DeviceRef</code> objects; <code>data_parallel_degree</code> and HF KV heads feed cache params.</td><td>One device, TP = 1, DP = 1. The cache holds all 32 KV heads locally. Multi-device params divide/replicate storage according to their layout.</td><td>{{ref:kv_construct}}<br>{{ref:kv_params}}<br>{{ref:leaves}}</td></tr>
+</tbody></table></div>
+</div></details>
+<details class="explanation"><summary>What is native or external here?</summary><div class="detail-body">
+<p><span class="badge boundary">BOUNDARY</span> <code>Device.stats</code> and <code>max_single_alloc_size</code> are driver-provided values.
+The Python planner's source proves how MAX consumes them. Hugging Face's <code>AutoConfig</code> and Hub APIs provide checkpoint metadata through their own disk/network cache paths.</p>
+<p class="sources">{{ref:load_device}} · {{ref:scan_devices}} · {{ref:free_memory}} · {{ref:autoconfig}}</p>
+</div></details>
+{{code:from_args}}
+{{code:device_defaults}}
+{{code:free_memory}}
+</div></details>
+
+<details class="qna" id="arch-initialization">
+<summary><span class="summary-main"><strong>QnA 1.1.6.1.2 · What is Llama3Config.initialize() doing for the planner?</strong><span>It creates architecture facts from metadata; model weights are inspected later</span></span><span class="badge source">SOURCE</span></summary>
+<div class="qna-body">
+<div class="config-flow">
+  <div class="config-card"><strong class="owner">MAXModelConfig</strong><code>huggingface_config</code><code>device_specs · max_length</code><code>encoding · kv_cache</code></div>
+  <span class="path-arrow" aria-hidden="true">+</span>
+  <div class="config-card arch"><strong>llama_arch</strong><code>config = Llama3Config</code><code>memory_planner</code><code>= PagedMemoryPlanner</code></div>
+  <span class="path-arrow" aria-hidden="true">→</span>
+  <div class="config-card result"><strong>arch_config</strong><code>dimensions · max_seq_len</code><code>DeviceRefs · dtype</code><code>KVCacheParams</code></div>
+</div>
+<p class="sources">{{ref:memory_init_call|Planner invocation}} → {{ref:initialize}} → {{ref:initialize_config}} → {{ref:kv_construct}}.</p>
+<div class="table-scroll"><table class="compact-table"><thead><tr><th>Field in the planner's architecture config</th><th>Input / result for this example</th></tr></thead><tbody>
+<tr><td><code>hidden_size</code>, <code>num_hidden_layers</code></td><td>HF config → <code>4096</code>, <code>32</code></td></tr>
+<tr><td><code>num_attention_heads</code>, <code>num_key_value_heads</code></td><td>HF config → <code>32</code>, <code>32</code></td></tr>
+<tr><td>Head dimension</td><td>{{ref:head_dim}} → <code>128</code> here</td></tr>
+<tr><td><code>max_seq_len</code></td><td>Construction-resolved main model <code>max_length</code> → <code>4096</code></td></tr>
+<tr><td><code>devices</code></td><td>Model device specs → <code>[DeviceRef("gpu", 0)]</code> in the exercise</td></tr>
+<tr><td><code>kv_params</code></td><td>KV dtype + 32 KV heads + 128 head dimension + 32 layers + devices + page size + DP/speculative settings</td></tr>
+</tbody></table></div>
+<details class="explanation"><summary>Why initialize again when the model is built?</summary><div class="detail-body">
+<pre class="text-diagram">API parent / planning                      model worker / model construction
+HF metadata + MAX config                    same config + loaded weights
+            │                                           │
+            ▼                                           ▼
+Llama3Config.initialize(...)                Llama3Config.initialize(...)
+            │                                           │
+            ▼                                           ▼
+arch_config used to price memory            config.finalize(state_dict, ...)
+            │                                           │
+            ▼                                           ▼
+MemoryPlan                                  graph tracing / compile / init</pre>
+<p>The planning call supplies <code>model_config.max_length</code>. Later model construction receives the plan's
+effective length and finalizes model configuration against the loaded state_dict. <code>Llama3Config.finalize()</code>
+is a model-config operation; graph finalization and compilation have separate steps.</p>
+<p class="sources">{{ref:finalized}} · {{ref:finalize}} · {{ref:compile_init}}</p>
+</div></details>
+{{code:initialize}}
+{{code:initialize_config}}
+{{code:kv_construct}}
+</div></details>
+
+<details class="qna" id="memory-budget">
+<summary><span class="summary-main"><strong>QnA 1.1.6.1.3 · How does MAX turn free memory into a KV-cache budget?</strong><span>Read free bytes → apply utilization → subtract static reserves → cap → price the manager</span></span><span class="badge source">SOURCE + EXAMPLE</span></summary>
+<div class="qna-body">
+<div class="animation" data-animation="budget">
+<div class="animation-heading"><h2>Follow the budget, one deduction at a time.</h2><span class="badge example">EXAMPLE</span></div>
+<div class="budget-inputs" data-interactive hidden>
+  <label>Free memory <select id="free-memory"><option value="16">16 GiB</option><option value="20">20 GiB</option><option value="24" selected>24 GiB</option><option value="32">32 GiB</option><option value="48">48 GiB</option></select></label>
+  <label>Utilization <select id="utilization"><option value="0.8">80%</option><option value="0.9" selected>90%</option><option value="0.95">95%</option></select></label>
+  <label>Single buffer cap <select id="allocation-cap"><option value="0" selected>No binding cap</option><option value="8">8 GiB</option><option value="4">4 GiB</option><option value="1">1 GiB</option></select></label>
+</div>
+<ol class="waterfall">
+  <li data-frame="0" class="active"><div><strong>1 · Free memory</strong><code>F = Σ Device.stats["free_memory"]</code></div><output data-value="free">24.000 GiB</output><div class="water-track"><span class="water-fill driver" data-bar="free" style="width:100%"></span></div></li>
+  <li data-frame="1"><div><strong>2 · Utilization envelope</strong><code>U = F × device_memory_utilization</code></div><output data-value="envelope">21.600 GiB</output><div class="water-track"><span class="water-fill cli" data-bar="envelope" style="width:90%"></span></div></li>
+  <li data-frame="2"><div><strong>3 · Subtract static estimates</strong><code>K₀ = int(U − W − A − S)</code></div><output data-value="initial">9.049 GiB</output><div class="water-track"><span class="water-fill kv" data-bar="initial" style="width:37.7%"></span></div></li>
+  <li data-frame="3"><div><strong>4 · Apply allocation cap</strong><code>K = min(K₀, allocation cap) − vision reserve</code></div><output data-value="capped">9.049 GiB</output><div class="water-track"><span class="water-fill kv" data-bar="capped" style="width:37.7%"></span></div></li>
+  <li data-frame="4"><div><strong>5 · Price selected KV manager</strong><code>C = kv_cache_memory_size(params, K, batch, length, ...)</code></div><output data-value="committed">8.063 GiB</output><div class="water-track"><span class="water-fill result" data-bar="committed" style="width:33.6%"></span></div></li>
+  <li data-frame="5"><div><strong>6 · Return plan</strong><code>available_cache_memory = C; footprint ≈ W + A + S + C</code></div><output data-value="footprint">20.614 GiB</output><div class="water-track"><span class="water-fill arch" data-bar="footprint" style="width:85.9%"></span></div></li>
+</ol>
+<div class="animation-controls" data-interactive hidden>
+  <button type="button" data-action="previous">← Back</button><button type="button" data-action="next">Step →</button>
+  <button type="button" data-action="play">Play</button><button type="button" data-action="pause" disabled>Pause</button><button type="button" data-action="replay">Replay</button>
+  <output data-progress aria-live="polite">1 / 6</output>
+</div>
+<div class="frame-note" aria-live="polite"><strong data-frame-title>Read current device statistics</strong><p data-frame-description>The API parent queries the devices selected by the main model configuration. The example supplies 24 GiB; it is not a measured device reading.</p></div>
+<div class="memory-composition" aria-label="Hypothetical free-memory partition">
+  <div class="composition-bar"><span data-slice="weights" class="static-slice" style="width:52.3%"></span><span data-slice="cache" class="cache-slice" style="width:33.6%"></span><span data-slice="unused" class="unused-slice" style="width:4.1%"></span><span data-slice="headroom" class="headroom-slice" style="width:10%"></span></div>
+  <div class="composition-key"><span><i class="static-slice"></i>weights</span><span><i class="cache-slice"></i>committed cache budget</span><span><i class="unused-slice"></i>unused envelope</span><span><i class="headroom-slice"></i>utilization headroom</span></div>
+</div>
+<p class="calc-status" id="budget-status" aria-live="polite">Four full 4096-token contexts fit in the example cache.</p>
+</div>
+<details class="explanation"><summary>Portable formula and baseline arithmetic</summary><div class="detail-body">
+<pre class="text-diagram">F = 24 GiB free                  [hypothetical live-device input]
+ │
+ ├── × 0.9 = 21.6 GiB             [MAX utilization policy]
+ │
+ ├── − W = {{weight-gib}} GiB       [selected HF file sizes]
+ ├── − A = 0                      [Llama planner activation reservation]
+ ├── − S = 0                      [single-device signal estimate]
+ │
+ ▼
+K₀ ≈ 9.048681 GiB                 [initial KV budget; truncation to bytes]
+ │
+ ├── allocation cap / vision      [no change in this baseline]
+ ▼
+K ≈ 9.048681 GiB                  [budget given to selected KV manager]
+ │
+ ├── 4 × ceil(4096/128) + 1 = 129  [request pages + null page]
+ ├── 129 × 64 MiB = 8.0625 GiB     [plain full-attention example]
+ ▼
+C = 8.0625 GiB                    [committed cache budget in MemoryPlan]
+ │
+ └── footprint = W + C ≈ 20.613819 GiB</pre>
+<p>This numeric reduction assumes one device, a single unquantized full-attention leaf, no draft/sliding-window/vision
+cache, and no binding allocation cap. Under those assumptions the generic page estimate and Jenga estimate agree
+for the baseline. The interactive example implements this simplified geometry; the complete MAX manager logic is linked below.</p>
+</div></details>
+<details class="explanation"><summary>Where do weights, activation and signal estimates come from?</summary><div class="detail-body">
+<div class="table-scroll"><table><thead><tr><th>Term</th><th>Provider</th><th>Meaning for standard single-device Llama</th></tr></thead><tbody>
+<tr><td><code>W</code> · weights</td><td><code>PagedMemoryPlanner</code> inherits {{ref:weight_estimate}} → {{ref:weights_size}}</td><td>Selected file sizes from disk/Hub. A file-size estimate does not equal a measurement of allocator-resident tensor bytes after casting/packing.</td></tr>
+<tr><td><code>A</code> · activation reserve</td><td>{{ref:activation_estimate}}</td><td>The unmodified Llama <code>PagedMemoryPlanner</code> reserves <code>0</code> bytes here. Execution still uses activation/workspace memory; zero is this estimator's reservation policy.</td></tr>
+<tr><td><code>S</code> · communication reserve</td><td>{{ref:signal_estimate}} → {{ref:signal_config}}</td><td><code>0</code> for this single-device Llama route. Multi-device collectives have a separate signal/multicast estimate.</td></tr>
+<tr><td>Vision reserve</td><td>{{ref:vision}}</td><td>Standard Llama has no vision tower; the reserve is zero and <code>vision_cache_plan</code> is <code>None</code>.</td></tr>
+</tbody></table></div>
+</div></details>
+<details class="explanation"><summary>Why available_cache_memory differs from free memory</summary><div class="detail-body">
+<pre class="text-diagram">free device bytes       initial KV budget          committed KV byte budget
+        F   ───────────────►   K₀  ── cap / manager ──►   C
+                                                        │
+                                                        ▼
+                                  MemoryPlan.available_cache_memory
+                                                        │
+                                                        ▼
+                                        worker load_kv_manager(...)</pre>
+<p>The planner stores the manager's result in <code>available_cache_memory</code> before its optional OOM-fit search.
+This field is the budget threaded to consumers. The worker may round the physical slab allocation down to whole
+manager blocks. The initial free-memory reading and unused envelope are not carried in this field.</p>
+<p class="sources">{{ref:plan_sizes}} · {{ref:jenga_geometry}} · {{ref:manager_load}}</p>
+</div></details>
+{{code:memory}}
+{{code:plan_sizes}}
+{{code:weights_size}}
+{{code:activation_estimate}}
+{{code:signal_config}}
+</div></details>
+
+<details class="qna" id="kv-pages">
+<summary><span class="summary-main"><strong>QnA 1.1.6.1.4 · Why do Llama dimensions, dtype and page size matter?</strong><span>Use the page illustration to change context length, concurrent requests and element width</span></span><span class="badge source">SOURCE + EXAMPLE</span></summary>
+<div class="qna-body">
+<div class="formula-strip"><span>2 <small>K and V</small></span><b>×</b><span>32 <small>layers</small></span><b>×</b><span>32 <small>KV heads</small></span><b>×</b><span>128 <small>head dimension</small></span><b>×</b><span id="element-width">2 <small>bytes / element</small></span><b>=</b><span><output data-value="perToken">512 KiB</output><small>per token</small></span></div>
+<div class="kv-controls" data-interactive hidden>
+  <label>Requests in the candidate batch <input id="candidate-batch" type="number" min="1" max="512" step="1" value="4"></label>
+  <label>Context tokens per request <input id="context-length" type="range" min="128" max="4096" step="128" value="4096"><output id="context-length-value">4096</output></label>
+  <label>KV element width <select id="cache-width"><option value="2" selected>2 bytes · BF16/FP16 geometry</option><option value="4">4 bytes · FP32 geometry</option></select></label>
+</div>
+<div class="page-illustration">
+  <div class="page-example"><span class="origin-kind">A request grows in 128-token pages</span><div id="page-grid" class="page-grid" aria-label="32 pages for a 4096-token request">{{page-blocks}}</div><p><output data-value="pagesPerRequest">32</output> request pages × <output data-value="pageBytes">64 MiB</output> = <output data-value="perRequest">2.000 GiB</output></p></div>
+  <div class="null-page"><span class="origin-kind">Pool overhead</span><div class="page-block null">NULL</div><p>One null block for this plain full-attention example. It holds no request tokens.</p></div>
+</div>
+<div class="metric-row"><div><strong data-value="requestDemand">8.000 GiB</strong><small>Full-context payload demand</small></div><div><strong data-value="pageDemand">8.063 GiB</strong><small>Including null block</small></div><div><strong data-value="poolSlots">128</strong><small>Usable pages in committed pool</small></div></div>
+<p class="calc-status" id="cache-status" aria-live="polite">128 request pages hold four full-length contexts; the null block is additional.</p>
+<details class="explanation"><summary>Portable page layout and rounding</summary><div class="detail-body">
+<pre class="text-diagram">Llama 2 7B · one device · two-byte unquantized cache elements
+
+one token: K + V, in every layer
+           2 × 32 × 32 × 128 × 2 bytes = 524,288 bytes = 512 KiB
+
+one page:  [ token 0 ... token 127 ] = 128 × 512 KiB = 64 MiB
+
+one 4096-token request:
+           [page 0] [page 1] ... [page 31] = 32 pages = 2 GiB
+
+four such requests in a full-context batch:
+           4 × 32 request pages + 1 null page = 129 pages = 8.0625 GiB
+
+4097 tokens would require ceil(4097 / 128) = 33 pages in this geometry.
+The Llama 2 config in this example bounds max_length at 4096 during construction.</pre>
+<p>A KV head stores both K and V. Llama 2 7B has 32 KV heads; a grouped-query model with fewer KV heads needs less
+cache for otherwise equal dimensions. BF16 and FP16 have the same two-byte width, but their supported model-load
+paths are separate. Choosing a width here changes arithmetic, not MAX's model encoding.</p>
+<p class="sources">{{ref:value_block}} · {{ref:bytes_per_block}} · {{ref:generic_blocks}}</p>
+</div></details>
+<details class="explanation"><summary>How Jenga differs from the conceptual page drawing</summary><div class="detail-body">
+<div class="jenga-view"><div><strong>Logical request pages</strong><small>tokens × KV dimensions</small></div><span aria-hidden="true">→</span><div><strong>Cache leaves</strong><small>per-device page bytes + alignment</small></div><span aria-hidden="true">→</span><div><strong>Jenga slab</strong><small>huge blocks → little pages</small></div></div>
+<p>Jenga is the default manager at this revision. It tiles per-device leaf pages into a slab, allows alignment padding,
+and reserves a null huge block. For this single unquantized full-attention leaf, the aggregate page is 64 MiB, so
+the baseline needs 129 such blocks. Hybrid, quantized and multi-device caches can have different leaf and huge-block geometry.</p>
+<p>The registry computes <code>min(budget, max(exact_Jenga_size, generic_size))</code>. Jenga's physical slab uses whole
+huge blocks, so a saturated budget can include a final fractional remainder that is not allocated.</p>
+<p class="sources">{{ref:manager_select}} · {{ref:manager_size}} · {{ref:leaves}} · {{ref:jenga_size}} · {{ref:geometry}}</p>
+</div></details>
+<details class="explanation"><summary>What changes with devices, parallelism or quantized cache?</summary><div class="detail-body">
+<pre class="text-diagram">Single device (TP=1, DP=1)       TP=2, DP=1 example        DP=2 example
+GPU 0: all KV heads              one replica              two replicas
+                                GPU 0: shard             GPU 0: own cache
+                                GPU 1: shard             GPU 1: own cache
+                                aggregate both           budget apportioned</pre>
+<p>Actual cache params own the head layout and per-device page geometry; head replication may be allowed for some
+architectures. The generic estimator divides the budget by data-parallel degree and reports bytes across replicas.
+Jenga plans one device's share from <code>available_bytes / len(params.devices)</code>. This page's arithmetic controls
+stay with one device and an unquantized cache; quantized scales and alignment are handled by the exact source.</p>
+<p class="sources">{{ref:kv_params}} · {{ref:generic_size}} · {{ref:jenga_geometry}}</p>
+</div></details>
+{{code:kv_dtype}}
+{{code:generic_blocks}}
+{{code:manager_size}}
+{{code:jenga_size}}
+{{code:geometry}}
+</div></details>
+
+<details class="qna" id="length-and-batch">
+<summary><span class="summary-main"><strong>QnA 1.1.6.1.5 · How are batch and sequence limits chosen?</strong><span>Architecture bound first, then cache capacity; a request-count limit does not guarantee all requests can be full length</span></span><span class="badge source">SOURCE</span></summary>
+<div class="qna-body">
+<div class="limit-flow"><div><strong>Construction</strong><code>HF limit + requested length</code><small>→ model.max_length</small></div><span aria-hidden="true">→</span><div><strong>Planning</strong><code>candidate batch + KV budget</code><small>→ manager size + capacity</small></div><span aria-hidden="true">→</span><div><strong>Effective plan</strong><code>planned_max_length</code><code>planned_max_batch_size</code></div></div>
+<div class="table-scroll"><table><thead><tr><th>Limit</th><th>Rule</th><th>Concrete example</th></tr></thead><tbody>
+<tr><td>Construction-resolved length</td><td>Llama's inherited policy bounds requested length by checkpoint <code>max_position_embeddings</code>.</td><td>No <code>--max-length</code> → 4096; <code>--max-length 2048</code> → 2048; 8192 raises here.</td></tr>
+<tr><td>Candidate request batch</td><td>Use explicit runtime max batch size; otherwise planner may suggest one, then framework falls back to 512 for accelerator KV models or 1 for a single CPU.</td><td>Explicit 4 → candidate 4. Unset GPU candidate 512 is a heuristic constant, not a benchmark result.</td></tr>
+<tr><td>Input-token constraint</td><td><code>max_batch_size</code> is lowered if it exceeds <code>runtime.max_batch_input_tokens</code>.</td><td>Candidate 512 and input-token target 128 → candidate 128.</td></tr>
+<tr><td>Full-batch cache demand</td><td>Price full-context pages, but commit at most the budget available to the manager.</td><td>512 × 4096-token two-byte Llama contexts would need 1024 GiB of payload. A ~9 GiB pool supports fewer such full contexts.</td></tr>
+<tr><td>Optional default-length OOM search</td><td>If the estimated footprint exceeds free memory and max length was not explicitly provided, try a fitting length/batch.</td><td>This is a guarded source branch; it is not evidence that every default launch reduces max_length.</td></tr>
+<tr><td>Physical cache capacity</td><td>Ask the selected KV manager for the longest request the committed budget can hold; lower length if necessary. This clamp applies even with an explicit length.</td><td>If a plain 64 MiB/page pool can hold just 16 total blocks, one is null, so a single request can use 15 × 128 = 1920 tokens.</td></tr>
+<tr><td>Resident-token cap</td><td>Propagate user max-batch-total-tokens, or architecture-required default, onto the plan.</td><td>Unset is <code>None</code> for this Llama declaration. A configured 4096 cap limits the summed page-aligned contexts admitted in a batch.</td></tr>
+</tbody></table></div>
+<details class="explanation"><summary>Example: 4 GiB allocation cap with the same four requests</summary><div class="detail-body">
+<pre class="text-diagram">Initial KV budget: ~9.048681 GiB
+        │
+        └── single allocation cap = 4 GiB
+                    │
+                    ▼
+         64 total blocks × 64 MiB = 4 GiB pool
+                    │
+                    ├── 1 null block
+                    └── 63 request pages
+                              │
+                              ├── one 4096-token request needs 32 pages: fits
+                              └── four full contexts need 128 pages: do not all fit
+
+planned_max_batch_size can remain 4.
+planned_max_length can remain 4096 for a single request.
+The scheduler admits work according to real cache capacity and token limits.</pre>
+<p>Select the 4 GiB cap in the budget exercise to see this case. Batch size counts scheduled requests;
+resident page capacity and total-token limits constrain which contexts can be active together.</p>
+</div></details>
+<p class="sources">{{ref:length_policy}} · {{ref:resolve_length}} · {{ref:batch_infer}} · {{ref:default_batch}} · {{ref:length_fit}} · {{ref:capacity}} · {{ref:manager_capacity}} · {{ref:context_cap}}</p>
+{{code:length_policy}}
+{{code:batch_infer}}
+{{code:capacity}}
+{{code:context_cap}}
+</div></details>
+
+<details class="qna" id="parent-worker-handoff">
+<summary><span class="summary-main"><strong>QnA 1.1.6.1.6 · Who creates the plan and who consumes it?</strong><span>API parent plans → partial factory crosses spawn → worker constructs model and KV manager</span></span><span class="badge source">SOURCE</span></summary>
+<div class="qna-body">
+<div class="animation" data-animation="handoff">
+<div class="animation-heading"><h2>Planning and allocation happen in different phases.</h2><span class="badge source">SOURCE</span></div>
+<div class="timeline-lanes" aria-label="API parent and model worker sequence">
+  <div class="lane parent">
+    <h3>API parent process</h3>
+    <div class="timeline-card active" data-frame="0"><b>1 · Build configuration</b><code>PipelineConfig.from_args(...)</code></div>
+    <div class="timeline-card" data-frame="1"><b>2 · Compute plan</b><code>retrieve_factory() → plan()</code><small>live stats + metadata → MemoryPlan</small></div>
+    <div class="timeline-card" data-frame="2"><b>3 · Bind deferred factory</b><code>partial(pipeline_class, ..., memory_plan=plan)</code><small>RetrievedPipeline carries tokenizer, factory and plan</small></div>
+    <div class="timeline-card" data-frame="3"><b>4 · Enter lifespan / spawn</b><code>start_model_worker(...)</code><small>serialized factory + PipelineConfig → child</small></div>
+    <div class="timeline-wait"><small>Parent waits while the child builds its pipeline.</small></div>
+    <div class="timeline-card last" data-frame="7"><b>8 · Await readiness / serve</b><code>proc.ready() → IPC connected → server.serve()</code></div>
+  </div>
+  <div class="process-boundary">
+    <div class="spawn-connection"><span>spawn</span><span class="handoff-arrow" aria-hidden="true">→</span><small>new process</small></div>
+    <div class="ready-connection"><span>ready</span><span class="handoff-arrow" aria-hidden="true">←</span></div>
+  </div>
+  <div class="lane worker">
+    <h3>Model worker process</h3>
+    <div class="timeline-card" data-frame="4"><b>5 · Invoke model_factory()</b><code>TextGenerationPipeline(..., memory_plan)</code><small>read planned batch and device specs</small></div>
+    <div class="timeline-card" data-frame="5"><b>6 · Load / build model</b><code>resolved_weight_paths() → load_weights()</code><small>config finalize → graph trace / compile / init</small></div>
+    <div class="timeline-card" data-frame="6"><b>7 · Initialize cache / scheduler</b><code>load_kv_manager(..., available_cache_memory=C)</code><small>allocate manager slab; child signals ready afterward</small></div>
+  </div>
+</div>
+<div class="animation-controls" data-interactive hidden>
+  <button type="button" data-action="previous">← Back</button><button type="button" data-action="next">Step →</button>
+  <button type="button" data-action="play">Play</button><button type="button" data-action="pause" disabled>Pause</button><button type="button" data-action="replay">Replay</button>
+  <output data-progress aria-live="polite">1 / 8</output>
+</div>
+<div class="frame-note" aria-live="polite"><strong data-frame-title>Build PipelineConfig in the parent</strong><p data-frame-description>serve_api_server_and_model_worker() resolves task and configuration before creating the serving application or model worker.</p></div>
+<p class="sources" data-timeline-source>{{ref:config_call|Parent config call site}}</p>
+</div>
+<details class="explanation"><summary>Portable call tree with object handoffs</summary><div class="detail-body"><pre class="text-diagram">API parent
+  {{ref:serve|serve_api_server_and_model_worker(settings, pipeline_args)}}
+  ├── {{ref:config|PipelineConfig.from_args(pipeline_args)}} → pipeline_config
+  ├── {{ref:factory|PIPELINE_REGISTRY.retrieve_factory(pipeline_config)}}
+  │   ├── {{ref:memory|MemoryEstimator.plan(pipeline_config, llama_arch)}} → memory_plan
+  │   ├── tokenizer uses memory_plan.planned_max_length
+  │   └── {{ref:partial|partial(TextGenerationPipeline, ..., memory_plan=memory_plan)}}
+  │         → retrieved.factory
+  │
+  └── enter API lifespan
+      └── {{ref:start_worker|start_model_worker(factory, pipeline_config, ...)}}
+            ║
+            ║ spawn: factory carries the serialized MemoryPlan
+            ▼
+          Model worker
+            {{ref:worker_run|ModelWorker.run(..., model_factory, pipeline_config, ...)}}
+            ├── {{ref:invoke|model_factory()}}
+            │   └── {{ref:pipeline_init|TextGenerationPipeline(..., memory_plan)}}
+            │       ├── planned batch / device specs
+            │       ├── {{ref:weight_paths|resolved_weight_paths()}} / {{ref:load_weights|load_weights()}}
+            │       ├── Llama model config + graph work
+            │       └── {{ref:manager_load|load_kv_manager(cache budget from plan)}}
+            ├── create scheduler / worker queues
+            └── {{ref:alive|alive.set()}}
+                  ║
+                  ▼
+API parent: ready event → IPC connected → HTTP serving</pre></div></details>
+<details class="explanation"><summary>Is the MemoryPlan put inside PipelineConfig?</summary><div class="detail-body">
+<p>The estimator returns a separate frozen dataclass. {{ref:factory}} puts it into <code>factory_kwargs</code>, binds
+those kwargs in a <code>functools.partial</code>, and returns it as <code>RetrievedPipeline.memory_plan</code> too.
+The factory carries that plan across the spawn boundary. Python object identity is process-local; the child gets a
+serialized copy of the values, not shared parent memory.</p>
+<p>The input <code>PipelineConfig</code> keeps the construction-resolved length/runtime fields. The worker reads the
+effective batch, device specs, length and cache budget from the plan. Main <span class="owner">MAXModelConfig</span>
+objects can be reconstructed during unpickling; they are configuration objects, not the loaded model.</p>
+<p class="sources">{{ref:partial}} · {{ref:start_worker}} · {{ref:spawn}} · {{ref:worker_run}} · {{ref:pipeline_init}}</p>
+</div></details>
+<p class="sources">{{ref:weight_paths}} · {{ref:load_weights}} · {{ref:llama_init}} · {{ref:manager_load}} · {{ref:ready}} · {{ref:connected}} · {{ref:http}}</p>
+{{code:pipeline_init}}
+{{code:finalized}}
+</div></details>
+
+<details class="qna" id="memory-plan-values">
+<summary><span class="summary-main"><strong>QnA 1.1.6.1.7 · What exactly is in the returned MemoryPlan?</strong><span>All seven dataclass fields, their consumers and a complete example object</span></span><span class="badge source">SOURCE + EXAMPLE</span></summary>
+<div class="qna-body">
+<div class="table-scroll"><table><thead><tr><th>Field</th><th>What the value means</th><th>Baseline example</th><th>Consumer</th></tr></thead><tbody>
+<tr><td><code>planned_max_batch_size</code></td><td>Effective maximum scheduled request count.</td><td><code>4</code></td><td>TextGenerationPipeline / scheduler</td></tr>
+<tr><td><code>footprint</code></td><td>Estimated total device bytes from this planning path.</td><td><code>22,133,919,728</code> bytes</td><td>Startup logging / memory estimate</td></tr>
+<tr><td><code>planned_max_length</code></td><td>Construction bound lowered by memory/draft limits if needed.</td><td><code>4096</code></td><td>Tokenizer + model max_seq_len</td></tr>
+<tr><td><code>available_cache_memory</code></td><td>Committed KV byte budget sent to the manager.</td><td><code>8,657,043,456</code> bytes</td><td><code>load_kv_manager()</code></td></tr>
+<tr><td><code>device_specs</code></td><td>Serializable specs identifying devices used for the plan.</td><td><code>(DeviceSpec.accelerator(0),)</code></td><td>Worker's <code>load_devices()</code></td></tr>
+<tr><td><code>planned_max_batch_total_tokens</code></td><td>Optional cap on summed resident, page-aligned context lengths.</td><td><code>None</code> when unset for this declaration</td><td>Batch scheduling</td></tr>
+<tr><td><code>vision_cache_plan</code></td><td>Optional block-mode vision-cache layout.</td><td><code>None</code> for standard Llama</td><td>Vision cache consumer, if present</td></tr>
+</tbody></table></div>
+<details class="explanation" open><summary>Complete baseline example · illustrative values</summary><div class="detail-body">
+<p>This is a JSON-shaped view of the frozen dataclass. In Python, <code>device_specs</code> is a tuple of
+<code>DeviceSpec</code> objects and <code>null</code> values below correspond to <code>None</code>.</p>
+<pre class="example-object"><code>{{baseline-plan}}</code></pre>
+<p class="small">The baseline uses four 4096-token contexts, page size 128, two-byte unquantized KV elements, one device,
+no draft/vision reservation and a non-binding allocation cap. It is a calculation, not a captured runtime object.</p>
+</div></details>
+<details class="explanation"><summary>Limits of footprint and special branches</summary><div class="detail-body">
+<p>For the ordinary baseline, <code>footprint = weights + activation reserve + signals + vision reserve + cache budget</code>.
+In the optional OOM search branch, this revision recalculates <code>total_size</code> as <code>model_weights_size + actual_kv_cache_size</code>,
+while keeping the earlier committed cache field. The full source is retained so these details remain visible.</p>
+<p>Virtual-device cross-compilation bypasses device-memory fitting and returns a synthetic 1 TiB cache budget. A
+multi-component pipeline without a <code>"main"</code> model takes another path with no language-model KV plan.
+Those branches are outside the standard Llama exercise. Failure to query device statistics is propagated for KV models.</p>
+<p class="sources">{{ref:plan_type}} · {{ref:plan_sizes}}</p>
+</div></details>
+{{code:plan_type}}
+</div></details>
+
+<details class="qna" id="memory-evidence">
+<summary><span class="summary-main"><strong>QnA 1.1.6.1.8 · Source directory and example provenance</strong><span>{{source-count}} complete source targets · pinned snapshots · offline evidence</span></span><span class="badge source">SOURCE</span></summary>
+<div class="qna-body">
+<div class="evidence-grid"><div><span class="badge source">SOURCE</span><strong>MAX implementation</strong><code>{{revision}}</code><small>Every snapshot is checked against git show at build and validation.</small></div><div><span class="badge metadata">HF METADATA</span><strong>Pinned checkpoint inputs</strong><small>Retrieved {{evidence-date}}; metadata only.</small></div><div><span class="badge example">EXAMPLE</span><strong>Hypothetical hardware</strong><small>24 GiB free; no MAX inference, GPU allocation or performance measurements.</small></div></div>
+<div class="table-scroll"><table><thead><tr><th>Evidence</th><th>Exact reference</th></tr></thead><tbody>
+<tr><td>Official model/file sizes</td><td><a href="{{official-api}}" target="_blank" rel="noopener noreferrer">meta-llama/Llama-2-7b-hf · pinned Hub API</a><br><code>01c7f73d771dfac7d292323805ebc428287df4f9</code></td></tr>
+<tr><td>Selected safetensors sizes</td><td><code>model-00001-of-00002.safetensors</code> = 9,976,578,928 bytes<br><code>model-00002-of-00002.safetensors</code> = 3,500,297,344 bytes<br>Total = <b>13,476,876,272</b> bytes</td></tr>
+<tr><td>Public mirror config</td><td><a href="{{mirror-url}}" target="_blank" rel="noopener noreferrer">NousResearch/Llama-2-7b-hf · pinned config.json</a><br><code>8efe6c9b93655b934e27bd9981e3ec13e55aee9d</code></td></tr>
+<tr><td>Saved metadata</td><td><a href="../evidence/llama2_7b_memory_planning_provenance.json">Full provenance record</a> · <a href="../evidence/llama2_7b_public_mirror_config.json">Config snapshot</a> · <a href="../memory_planning_manifest.json">Memory source manifest</a></td></tr>
+</tbody></table></div>
+<details class="explanation"><summary>Complete pinned public-mirror config.json</summary><div class="detail-body"><pre class="example-object"><code>{{mirror-config}}</code></pre></div></details>
+<details class="explanation"><summary>All complete source definitions and call sites</summary><div class="detail-body"><p>Each link opens the original file and highlights the complete enclosing definition. Call-site targets also mark the invoking line.</p><ul class="source-directory">{{source-directory}}</ul></div></details>
+<p class="small">All code, diagrams, controls and source text are embedded locally. Reading and Source Explorer work with <code>file://</code>
+and without network access. With JavaScript disabled, native disclosure cells, text diagrams and source snapshots remain available.</p>
+</div></details>
+</div></details>
+<footer>Created for the MAX Serve / Llama 2 7B walkthrough. <a href="../index.html#qna-1-1-6">Main guide ↗</a></footer>
+</main>
+</div>
+<dialog id="source-dialog" aria-labelledby="source-title">
+<div class="dialog-header"><div><p class="eyebrow">COMPLETE ORIGINAL SOURCE</p><h2 id="source-title">Source explorer</h2></div><button type="button" id="close-source">Close ✕</button></div>
+<p id="source-provenance"></p>
+<div class="source-tools"><label>Find in file <input type="search" id="source-search" placeholder="Function or text"></label><button type="button" id="source-next">Next match</button><output id="source-match-count" aria-live="polite"></output><button type="button" id="copy-source">Copy complete definition</button><a id="source-download" download>Download original file</a></div>
+<p class="source-key">The complete definition is tinted; its entry or invoking line has a stronger highlight. Line numbers are outside the original code.</p>
+<pre id="source-file" class="source-code" tabindex="0"><code></code></pre>
+</dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+<!-- MEMORY_DATA -->
+<!-- MEMORY_JS -->
+</body>
+</html>

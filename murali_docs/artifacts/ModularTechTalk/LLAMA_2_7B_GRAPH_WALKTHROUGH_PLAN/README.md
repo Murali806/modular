@@ -11,6 +11,8 @@ architecture registration timing. The
 |---|---|
 | [Interactive guide](index.html) | Concept → diagram → exact code → line-linked explanation → full-file context |
 | [MAX Serve startup call stack](max_serve_llama2_7b_startup_call_stack.html) | One continuous tree combining QnA 1.1.1–1.1.6, from CLI parsing to HTTP readiness |
+| [Memory planning and MemoryPlan](link_htmls/llama2_7b_memory_planning_and_memory_plan.html) | Nested QnA cells with input origins, a budget waterfall, KV pages, parent/worker handoff and complete pinned source |
+| [Memory explanation design](MEMORY_PLANNING_DESIGN.md) / [validation](validation/MEMORY_PLANNING_VALIDATION.md) | Disclosure structure, diagram controls, source checks and browser results |
 | [Text export](MAX_SERVE_LLAMA2_7B_STARTUP_CALL_STACK.txt) / [Markdown export](MAX_SERVE_LLAMA2_7B_STARTUP_CALL_STACK.md) | The combined Llama 2 7B startup call tree, commands and source-file aliases |
 | [Markdown companion](WALKTHROUGH.md) | Complete reading guide with expandable source and portable diagrams |
 | [Explanation research](EXPLANATION_RESEARCH.md) | Twelve reviewed references across hardware, framework internals, and LLM engineering; teaching methods selected from them |
@@ -39,7 +41,7 @@ all twelve references and explains where each method is applied.
 - **39 expandable source cells**, containing **2,012 original source lines**.
   The cells retain complete definitions or assignments, including comments and
   docstrings. Annotations appear outside the code.
-- **39 complete source files**, available in the source explorer and as local
+- **49 complete source files**, available in the source explorer and as local
   snapshots under `sources/`.
 - Finalization and compiler-stage explorers, prefill/decode input illustrations,
   a native call sequence, and cold/import/cache-hit comparisons.
@@ -60,7 +62,7 @@ all twelve references and explains where each method is applied.
   window with one combined startup call tree covering all six QnA topics.
   It shows both CLI command examples, component
   ownership, typed objects, call/return effects, the worker boundary and ZeroMQ
-  request/response/cancellation directions. Its 127 source targets link to
+  request/response/cancellation directions. Its 129 source targets link to
   complete original files and exact definitions or invocation lines.
 - A collapsed **Startup map** in QnA 1.1 and in the separate reader. The
   reader also includes a source-alias map, text search, copy and download.
@@ -73,6 +75,7 @@ all twelve references and explains where each method is applied.
 |---|---|
 | Model family | Llama 2 7B, confirmed by the user |
 | Working checkpoint name | `meta-llama/Llama-2-7b-hf`; checkpoint revision not captured |
+| Memory example metadata | Official file sizes at `01c7f73d771dfac7d292323805ebc428287df4f9`; public-mirror config at `8efe6c9b93655b934e27bd9981e3ec13e55aee9d` |
 | Implementation route | Built-in `LlamaForCausalLM`, one device, Graph API |
 | Repository revision | `610f7111836d9a950d45ba52ec9b3e0ed589fe3f` |
 | Evidence | Repository source and inspected test definitions |

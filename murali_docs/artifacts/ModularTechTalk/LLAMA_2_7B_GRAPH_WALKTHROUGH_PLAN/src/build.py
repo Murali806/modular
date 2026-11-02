@@ -107,6 +107,7 @@ def cpp_span(text: str, needle: str, prefix: int) -> tuple[int, int]:
 
 def extract_sources() -> dict:
     from call_stack_refs import FILES
+    from memory_planning import FILES as MEMORY_FILES
     files = {}
     cells = []
     extra_files = [
@@ -131,7 +132,7 @@ def extract_sources() -> dict:
         "max/python/max/pipelines/weights/hf_utils.py",
         "max/python/max/pipelines/lib/tokenizer.py",
     ]
-    for file in [c["file"] for c in CELLS] + extra_files + list(FILES.values()):
+    for file in [c["file"] for c in CELLS] + extra_files + list(FILES.values()) + list(MEMORY_FILES.values()):
         if file not in files:
             raw = (REPO / file).read_bytes()
             pinned = subprocess.check_output(["git", "show", f"{REVISION}:{file}"], cwd=REPO)
@@ -202,9 +203,11 @@ def code_markdown(cell: dict) -> str:
 def build_guide(data: dict) -> None:
     import markdown
     from call_stack import READER_NAME, build_call_stack, startup_html
+    from memory_planning import build_memory_planning
     from widgets import WIDGETS, stage_data
 
     reference_count = build_call_stack(data, TASK, SRC, python_span)
+    memory_references, memory_cells = build_memory_planning(data, TASK, SRC, python_span)
 
     cells = {c["id"]: c for c in data["cells"]}
     template = (SRC / "content.md").read_text()
@@ -375,6 +378,7 @@ def build_guide(data: dict) -> None:
     (TASK / "index.html").write_text(output)
     print(f"Built six chapters, {len(cells)} complete cells, and {len(files)} full-file snapshots.")
     print(f"Built one combined MAX Serve startup call tree: {reference_count} verified source targets.")
+    print(f"Built memory-planning QnA: {memory_references} source targets, {memory_cells} complete code cells.")
 
 
 if __name__ == "__main__":

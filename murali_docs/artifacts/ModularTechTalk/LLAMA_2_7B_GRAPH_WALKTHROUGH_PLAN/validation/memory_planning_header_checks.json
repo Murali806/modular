@@ -1,0 +1,24 @@
+{
+  "result": "PASS",
+  "checked_at": "2026-11-02T06:40:28.952Z",
+  "checks": "Mobile titles have full row width, remain below the sticky header, fit the viewport, and retain readable colors and working contents navigation.",
+  "evidence": "Browser validation only; no MAX execution.",
+  "results": [
+    {
+      "viewport": 390,
+      "document": 390,
+      "headerBottom": 81.234375,
+      "titleTop": 87.03125,
+      "titleWidth": 296,
+      "minimum_text_ratio": 6.155
+    },
+    {
+      "viewport": 320,
+      "document": 320,
+      "headerBottom": 81.234375,
+      "titleTop": 87.40625,
+      "titleWidth": 226,
+      "minimum_text_ratio": 6.155
+    }
+  ]
+}

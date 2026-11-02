@@ -115,6 +115,37 @@ under this folder and supplement the repository-wide guidance in
   finish the requested artifact instead of stopping at a plan when the user
   has asked to proceed.
 
+## Memory-planning explanations
+
+- Keep the memory-planning supplement linked below `MemoryEstimator.plan()`
+  in the combined startup tree. Preserve the tree's connector-only spacer
+  rows and all unrelated call-tree text.
+- Use nested native disclosure cells following `QnA 1.1.6.1.x`. Explain the
+  source of every input: CLI/config/defaults, HF metadata and selected file
+  sizes, architecture policies, loaded device statistics, cache dtype/page
+  size and parallel layout. Do not imply they all come from `config.json`.
+- Prefer an input-origin map, a memory-budget waterfall, a KV-page layout
+  and a parent/worker sequence. Keep portable text equivalents nearby.
+  Give animations step, play, pause and replay controls; never autoplay.
+  Respect reduced-motion preferences and pause when a section is closed.
+- Separate free device bytes, the initial KV budget, the allocation-capped
+  budget and `MemoryPlan.available_cache_memory` (the committed byte budget).
+  Separate logical pages and arithmetic examples from actual Jenga slab
+  geometry, manager admission and physical allocation.
+- Show that planning happens in the API parent, returns a separate frozen
+  `MemoryPlan`, and binds that plan into the deferred factory. The spawned
+  worker uses serialized values; it does not share parent Python identity.
+- Explain resolved checkpoint length, planned length, request-count limits,
+  prefill input-token targets and resident-token caps separately. A candidate
+  batch count does not guarantee every request fits at maximum context.
+- Label example device memory and arithmetic assumptions. Keep pinned HF
+  evidence small and build offline from the saved metadata. Record whether
+  a config came from the official repo or a public mirror. Check model/load
+  encoding compatibility before treating a source path as a successful run.
+- Author the supplement in `src/memory_planning.*`; rebuild the generated
+  page, verify all complete source definitions and links, and inspect the
+  interactions at desktop/mobile widths before completing the task.
+
 ## Skills
 
 - Documentation-only work uses repository source and the local artifact

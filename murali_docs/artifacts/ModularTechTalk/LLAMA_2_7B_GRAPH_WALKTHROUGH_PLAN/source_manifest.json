@@ -195,6 +195,56 @@
       "path": "max/python/max/serve/scheduler/__init__.py",
       "snapshot": "sources/max/python/max/serve/scheduler/__init__.py",
       "sha256": "5ee97a08b9d5f32f033ab8216e0976c041bd2a1b9476fc1e7e25445bb119f635"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/device_specs.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/device_specs.py",
+      "sha256": "d15eb9f5b7fe07c4381d29b357c1f1177eb2c8ee787fb6ec60c535dc5918dc7c"
+    },
+    {
+      "path": "max/python/max/driver/driver.py",
+      "snapshot": "sources/max/python/max/driver/driver.py",
+      "sha256": "202f740a2ca59817b4fa19aaf1acf1dca9551fd1ae4c473176e95cae35384043"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/pipeline_runtime_config.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/pipeline_runtime_config.py",
+      "sha256": "e3ac8acac86694a7159c16583846b2817caa004ffffa28f1b5ea5b32ebb26e5e"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/interfaces/arch_config.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/interfaces/arch_config.py",
+      "sha256": "beaaa3ed67397dd9eda7230e5498703da478414bb134e713eb49b1b382724922"
+    },
+    {
+      "path": "max/python/max/pipelines/kv_cache/config.py",
+      "snapshot": "sources/max/python/max/pipelines/kv_cache/config.py",
+      "sha256": "37f7e70ae8bada1875ee1086da33eb013ea676b36afa075cdc6aa55c8fc70496"
+    },
+    {
+      "path": "max/python/max/pipelines/kv_cache/memory_planner.py",
+      "snapshot": "sources/max/python/max/pipelines/kv_cache/memory_planner.py",
+      "sha256": "6df9b2c0dac0c995b0229cf511c69ee542704fd7cf9152496c3d78e3afbd3aff"
+    },
+    {
+      "path": "max/python/max/pipelines/kv_cache/registry.py",
+      "snapshot": "sources/max/python/max/pipelines/kv_cache/registry.py",
+      "sha256": "0dfbece0ebfb9cc5fd2f1ea176da12da0ec8c264934f81328c0ccdcddf36d63e"
+    },
+    {
+      "path": "max/python/max/nn/kv_cache/cache_params.py",
+      "snapshot": "sources/max/python/max/nn/kv_cache/cache_params.py",
+      "sha256": "d786cc48c90b339ddb671711a0cd05e4b65591c5ccb25d67452f764bc31e3041"
+    },
+    {
+      "path": "max/python/max/pipelines/kv_cache/paged_kv_cache/jenga_cache_manager.py",
+      "snapshot": "sources/max/python/max/pipelines/kv_cache/paged_kv_cache/jenga_cache_manager.py",
+      "sha256": "db8524474c3bdda032a6c13d396dda9d23cd0f7bf96ebcc316fd2e85c371fcfb"
+    },
+    {
+      "path": "max/python/max/pipelines/kv_cache/paged_kv_cache/jenga_block_pool.py",
+      "snapshot": "sources/max/python/max/pipelines/kv_cache/paged_kv_cache/jenga_block_pool.py",
+      "sha256": "0d543ce144b69409b21617d01bfac2a5d41a0d84d11d24d9fb592c9e236def11"
     }
   ],
   "cells": [

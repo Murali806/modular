@@ -1,0 +1,62 @@
+{
+  "retrieved_at": "2026-11-02T06:10:51.764184+00:00",
+  "method": "Unauthenticated HTTPS metadata requests; no model weights downloaded.",
+  "official": {
+    "model_id": "meta-llama/Llama-2-7b-hf",
+    "revision": "01c7f73d771dfac7d292323805ebc428287df4f9",
+    "api_url": "https://huggingface.co/api/models/meta-llama/Llama-2-7b-hf/revision/01c7f73d771dfac7d292323805ebc428287df4f9?blobs=true",
+    "http_status": 200,
+    "response_sha256": "46a433dced21bb6a96ea4229b8fff58b742a95bd4f558f77d40e3384f125930f",
+    "selected_weight_files": [
+      {
+        "rfilename": "model-00001-of-00002.safetensors",
+        "blobId": "10be3c8544a06c6f2c54d5588ff10c62a8f01c75",
+        "size": 9976578928,
+        "lfs": {
+          "sha256": "4ec71fd53e99766de38f24753b30c9e8942630e9e576a1ba27b0ec531e87be41",
+          "size": 9976578928,
+          "pointerSize": 135
+        }
+      },
+      {
+        "rfilename": "model-00002-of-00002.safetensors",
+        "blobId": "e400a9b4c7a358bdc744d34ac4bab91f4743fe4c",
+        "size": 3500297344,
+        "lfs": {
+          "sha256": "41780b5dac322ac35598737e99208d90bdc632a1ba3389ebedbb46a1d8385a7f",
+          "size": 3500297344,
+          "pointerSize": 135
+        }
+      }
+    ],
+    "total_selected_weight_bytes": 13476876272,
+    "safetensors_metadata": {
+      "parameters": {
+        "F32": 2048,
+        "F16": 6738415616
+      },
+      "total": 6738417664
+    },
+    "config_url": "https://huggingface.co/meta-llama/Llama-2-7b-hf/resolve/01c7f73d771dfac7d292323805ebc428287df4f9/config.json",
+    "config_http_status": 401,
+    "config": null
+  },
+  "public_mirror": {
+    "model_id": "NousResearch/Llama-2-7b-hf",
+    "revision": "8efe6c9b93655b934e27bd9981e3ec13e55aee9d",
+    "url": "https://huggingface.co/NousResearch/Llama-2-7b-hf/resolve/8efe6c9b93655b934e27bd9981e3ec13e55aee9d/config.json",
+    "http_status": 200,
+    "response_sha256": "3c66a81e29ce617a74ff2e4055e7fb275b5c9457103864745693fbce59b368a2",
+    "snapshot": "evidence/llama2_7b_public_mirror_config.json",
+    "snapshot_sha256": "3c66a81e29ce617a74ff2e4055e7fb275b5c9457103864745693fbce59b368a2"
+  },
+  "example_policy": {
+    "free_device_memory_gib": 24,
+    "device_memory_utilization": 0.9,
+    "cache_bytes_per_element": 2,
+    "kv_cache_page_size": 128,
+    "max_batch_size": 4,
+    "max_length": 4096,
+    "kind": "Hypothetical single-device arithmetic; no serving or GPU measurement."
+  }
+}

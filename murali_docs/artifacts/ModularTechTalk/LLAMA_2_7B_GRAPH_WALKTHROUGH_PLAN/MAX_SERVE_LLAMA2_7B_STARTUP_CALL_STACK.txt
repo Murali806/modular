@@ -181,6 +181,9 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
         |   |       input: HF dimensions plus MAX dtype/device/KV/length settings.
         |   |       returns arch_config for the planner; no loaded state_dict is inspected here.
         |   |   returns memory_plan : MemoryPlan, including planned length, batch and cache bounds.
+        |   |
+        |   |   +-- Llama 2 7B memory planning: input origins, KV budget & MemoryPlan ↗ (link_htmls/llama2_7b_memory_planning_and_memory_plan.html#input-origins)
+        |   |
         |   +-- arch.tokenizer(...) [REGISTRY:L957] [arch.tokenizer = TextTokenizer; QnA 1.1.3]
         |   |   +-- TextTokenizer.__init__(model_path, pipeline_config, ...) [TOKENIZER:L618] [MAX wrapper]
         |   |       |   input: model path, revision, trust policy, pipeline_config and planned max_length.

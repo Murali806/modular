@@ -63,6 +63,15 @@ LOCAL_LINKS = {
         ),
         "title": "Open the PipelineArgs examples section",
     },
+    "memory_planning": {
+        "href": "link_htmls/llama2_7b_memory_planning_and_memory_plan.html#input-origins",
+        "label": "Llama 2 7B memory planning: input origins, KV budget & MemoryPlan ↗",
+        "text": (
+            "Llama 2 7B memory planning: input origins, KV budget & MemoryPlan ↗ "
+            "(link_htmls/llama2_7b_memory_planning_and_memory_plan.html#input-origins)"
+        ),
+        "title": "Open the memory-planning diagrams, complete source and input origins",
+    },
 }
 
 

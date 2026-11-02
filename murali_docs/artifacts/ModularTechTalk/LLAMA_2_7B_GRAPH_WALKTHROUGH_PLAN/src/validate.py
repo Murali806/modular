@@ -13,6 +13,7 @@ import subprocess
 from build import REPO, TASK, cpp_span, python_span
 from call_stack import READER_NAME, TEXT_NAME
 from cells import CELLS, REVISION
+from memory_planning import PAGE_NAME
 
 
 class GuideParser(HTMLParser):
@@ -87,6 +88,30 @@ class StackParser(GuideParser):
             self.trees[-1] += text
 
 
+class MemoryParser(GuideParser):
+    def __init__(self):
+        super().__init__()
+        self.disclosure_depth = 0
+        self.max_disclosure_depth = 0
+        self.qna_cells = 0
+
+    def handle_starttag(self, tag, attrs):
+        super().handle_starttag(tag, attrs)
+        attrs = dict(attrs)
+        if tag == "script" and attrs.get("id") == "memory-data":
+            self.in_payload = True
+        if tag == "details":
+            self.disclosure_depth += 1
+            self.max_disclosure_depth = max(self.max_disclosure_depth, self.disclosure_depth)
+            if "qna" in attrs.get("class", "").split():
+                self.qna_cells += 1
+
+    def handle_endtag(self, tag):
+        super().handle_endtag(tag)
+        if tag == "details":
+            self.disclosure_depth -= 1
+
+
 def main():
     manifest = json.loads((TASK / "source_manifest.json").read_text())
     assert manifest["revision"] == REVISION
@@ -150,16 +175,61 @@ def main():
         assert stack_payload["files"][ref["file"]]["text"] == source
     assert "{{" not in stack_payload["text"]
 
+    memory_page = TASK / "link_htmls" / PAGE_NAME
+    memory_parser = MemoryParser()
+    memory_parser.feed(memory_page.read_text())
+    memory_payload = json.loads("".join(memory_parser.payload))
+    memory_manifest = json.loads((TASK / "memory_planning_manifest.json").read_text())
+    assert memory_manifest["revision"] == memory_payload["revision"] == REVISION
+    assert len(memory_parser.ids) == len(set(memory_parser.ids)), "Duplicate memory-page IDs"
+    assert not memory_parser.dependencies, "Memory page must work offline"
+    assert memory_parser.disclosure_depth == 0
+    assert memory_parser.max_disclosure_depth >= 3, "Expected nested expandable explanations/code"
+    assert memory_parser.qna_cells == 9, "Expected root QnA and eight child sections"
+    assert memory_manifest["complete_code_cells"] == memory_payload["cells"] == sorted(memory_parser.lines)
+    memory_line_count = 0
+    for key, ref in memory_payload["references"].items():
+        recorded = memory_manifest["references"][key]
+        assert recorded == {k: v for k, v in ref.items() if k != "code"}
+        source = source_bytes[ref["file"]].decode()
+        assert python_span(source, ref["symbol"]) == (ref["start"], ref["end"]), key
+        code = "".join(source.splitlines(keepends=True)[ref["start"] - 1:ref["end"]])
+        assert ref["code"] == code, key
+        assert hashlib.sha256(code.encode()).hexdigest() == ref["sha256"], key
+        if ref.get("needle"):
+            assert code.count(ref["needle"]) == 1, key
+            assert ref["line"] == ref["start"] + code[:code.index(ref["needle"])].count("\n"), key
+        assert memory_payload["files"][ref["file"]]["text"] == source
+        if key in memory_parser.lines:
+            assert memory_parser.lines[key] == code.splitlines(), f"Memory HTML source differs: {key}"
+            memory_line_count += ref["end"] - ref["start"] + 1
+    for evidence in memory_manifest["evidence_files"]:
+        assert hashlib.sha256((TASK / evidence["path"]).read_bytes()).hexdigest() == evidence["sha256"]
+    provenance = memory_payload["evidence"]
+    assert provenance == json.loads((TASK / "evidence/llama2_7b_memory_planning_provenance.json").read_text())
+    assert provenance["official"]["total_selected_weight_bytes"] == sum(
+        item["size"] for item in provenance["official"]["selected_weight_files"])
+    assert provenance["official"]["total_selected_weight_bytes"] == memory_payload["example"]["weightBytes"]
+    assert hashlib.sha256((TASK / provenance["public_mirror"]["snapshot"]).read_bytes()).hexdigest() == provenance["public_mirror"]["snapshot_sha256"]
+
     checked_links = 0
-    for href in parser.links + stack_parser.links:
-        if href.startswith("http"):
-            continue
-        path, _, fragment = href.partition("#")
-        if path:
-            assert (TASK / path).resolve().is_file(), f"Missing HTML link: {href}"
-        elif fragment:
-            assert fragment in parser.ids + stack_parser.ids, f"Missing HTML anchor: {href}"
-        checked_links += 1
+    page_parsers = {TASK / "index.html": parser, TASK / READER_NAME: stack_parser, memory_page: memory_parser}
+    for page, parsed in list(page_parsers.items()):
+        for href in parsed.links:
+            if href.startswith("http"):
+                continue
+            path, _, fragment = href.partition("#")
+            target = (page.parent / path).resolve() if path else page.resolve()
+            assert target.is_file(), f"Missing HTML link: {page.name}: {href}"
+            if fragment and target.suffix == ".html":
+                if target not in page_parsers:
+                    linked = GuideParser()
+                    linked.feed(target.read_text())
+                    page_parsers[target] = linked
+                assert fragment in page_parsers[target].ids, f"Missing HTML anchor: {page.name}: {href}"
+            elif re.fullmatch(r"L\d+", fragment):
+                assert 1 <= int(fragment[1:]) <= len(target.read_text().splitlines()), href
+            checked_links += 1
     for doc in TASK.glob("*.md"):
         content = doc.read_text()
         assert sum(s.startswith("```") for s in content.splitlines()) % 2 == 0, doc
@@ -182,6 +252,11 @@ def main():
         complete_source_cells=len(manifest["cells"]), displayed_source_lines=line_count,
         call_stack_sections=len(stack_parser.trees),
         call_stack_source_targets=len(stack_manifest["references"]),
+        memory_planning_source_targets=len(memory_manifest["references"]),
+        memory_planning_complete_code_cells=len(memory_manifest["complete_code_cells"]),
+        memory_planning_displayed_source_lines=memory_line_count,
+        memory_planning_qna_cells=memory_parser.qna_cells,
+        memory_planning_max_disclosure_depth=memory_parser.max_disclosure_depth,
         local_links_checked=checked_links, external_runtime_dependencies=0,
         evidence="Document/source validation only; no MAX model execution.",
     )

@@ -147,3 +147,12 @@ suite, inference request, or GPU benchmark is recorded as executed.
 The state diagrams and token IDs are explicitly labeled illustrations. Blog
 references inform teaching methods; MAX implementation claims are grounded
 in the pinned local source.
+
+## Memory-planning supplement — 2026-11-02
+
+The [memory-planning validation record](MEMORY_PLANNING_VALIDATION.md) covers
+the new linked page: 85 verified source targets, 23 complete code cells,
+nested QnAs, reader-controlled diagrams, exact copying, direct-file use,
+and 390px/320px layouts. Source/link and browser checks passed. Memory inputs
+for the numerical exercise are explicitly hypothetical; no model execution
+or GPU measurement was performed.

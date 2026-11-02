@@ -1,0 +1,28 @@
+{
+  "checked_at": "2026-11-02T06:37:35.651Z",
+  "result": "PASS",
+  "browser": "141.0.7390.37",
+  "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "page": "link_htmls/llama2_7b_memory_planning_and_memory_plan.html",
+  "command": "NODE_PATH=/tmp/max-v4-playwright/node_modules node src/check_memory_planning.cjs",
+  "evidence": "Browser/document validation only; no MAX model execution or GPU measurement.",
+  "checks": [
+    "Call-stack link opens the new page at input origins; connector-only spacer rows preserve the tree",
+    "Dark theme, nine nested QnA cells, 23 collapsed code cells, keyboard expansion and offline deep links",
+    "Contents sidebar collapses and expands with pointer and keyboard",
+    "Page-width/context arithmetic, committed budget, null-block capacity, explicit allocation cap and 512-request demand are consistent; too-small caches have an error state",
+    "All three diagrams have bounded steps, play/pause/replay, real frame advancement and pause on collapse; reduced motion removes transitions",
+    "Source explorer preserves complete files/definitions and call-site lines; exact copying, searching, next/no-match and Escape work offline",
+    "390px/320px layouts, expanded diagrams/tables, code scrolling, contents toggle and source dialog fit without document overflow",
+    "Without JavaScript, native nested disclosures, static page drawing, original code and local source files remain readable"
+  ],
+  "source_targets": 85,
+  "complete_code_cells": 23,
+  "viewports": [
+    1440,
+    390,
+    320
+  ],
+  "offline_direct_file": true,
+  "errors": []
+}

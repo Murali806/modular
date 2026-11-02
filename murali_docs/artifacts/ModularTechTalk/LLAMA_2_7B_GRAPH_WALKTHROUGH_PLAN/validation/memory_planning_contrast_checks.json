@@ -1,0 +1,80 @@
+[
+  {
+    "state": "Desktop / input origins / keyboard focus",
+    "samples": 134,
+    "minimum_text_ratio": 6.155,
+    "failures": []
+  },
+  {
+    "state": "Desktop / budget baseline",
+    "samples": 190,
+    "minimum_text_ratio": 6.155,
+    "failures": []
+  },
+  {
+    "state": "Desktop / allocation-limited cache",
+    "samples": 190,
+    "minimum_text_ratio": 6.155,
+    "failures": []
+  },
+  {
+    "state": "Desktop / cache-too-small error",
+    "samples": 276,
+    "minimum_text_ratio": 6.155,
+    "failures": []
+  },
+  {
+    "state": "Desktop / KV pages restored baseline",
+    "samples": 277,
+    "minimum_text_ratio": 6.155,
+    "failures": []
+  },
+  {
+    "state": "Desktop / provenance final frame",
+    "samples": 276,
+    "minimum_text_ratio": 6.155,
+    "failures": []
+  },
+  {
+    "state": "Desktop / budget final frame",
+    "samples": 276,
+    "minimum_text_ratio": 6.155,
+    "failures": []
+  },
+  {
+    "state": "Desktop / handoff final frame",
+    "samples": 341,
+    "minimum_text_ratio": 6.155,
+    "failures": []
+  },
+  {
+    "state": "Desktop / full original source and selected line",
+    "samples": 3606,
+    "minimum_text_ratio": 5.624,
+    "failures": []
+  },
+  {
+    "state": "Mobile / expanded explanations / 390",
+    "samples": 1041,
+    "minimum_text_ratio": 6.155,
+    "failures": []
+  },
+  {
+    "state": "Mobile / complete source / 390",
+    "samples": 8749,
+    "minimum_text_ratio": 5.624,
+    "failures": []
+  },
+  {
+    "state": "Mobile / expanded explanations / 320",
+    "samples": 1041,
+    "minimum_text_ratio": 6.155,
+    "failures": []
+  },
+  {
+    "state": "Mobile / complete source / 320",
+    "samples": 8749,
+    "minimum_text_ratio": 5.624,
+    "failures": []
+  }
+]
