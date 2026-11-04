@@ -72,6 +72,10 @@ all twelve references and explains where each method is applied.
   the complete initialization source. Its call labels open source lines and
   its object labels reveal the Llama 2 7B example values, including BF16 dtype,
   32 layers, 128-wide heads and 128-token KV pages.
+  Hover or focus any green step for a detailed logic card with inputs,
+  ordered logic, example results and source/object links. **Hold card** keeps
+  the selected step; Close or Escape dismisses it. Keyboard and touch access,
+  plus a native cell containing all twelve explanations, are included.
 - **QnA 1.1.6.1.5** has six worked examples showing how checkpoint length,
   batch count, input-token targets and resident KV pages determine the final
   limits. Each example includes inputs, calculations, source links and plan

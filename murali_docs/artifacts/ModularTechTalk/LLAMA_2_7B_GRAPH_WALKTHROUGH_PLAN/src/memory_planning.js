@@ -145,6 +145,154 @@
     }
   }
 
+  class InitStepCards {
+    constructor() {
+      this.card = $("#init-step-card");
+      this.sequence = $("#initialize-sequence");
+      this.trigger = null;
+      this.held = false;
+      this.dismissed = null;
+      this.frame = null;
+      all("#initialize-sequence a[data-init-step]").forEach(trigger => {
+        trigger.addEventListener("pointerenter", event => {
+          if (event.pointerType === "touch") return;
+          this.dismissed = null;
+          this.show(trigger);
+        });
+        trigger.addEventListener("focus", () => {
+          if (this.dismissed === trigger) return;
+          this.dismissed = null;
+          this.show(trigger);
+        });
+        trigger.addEventListener("keydown", event => {
+          if (event.key !== " ") return;
+          event.preventDefault();
+          this.show(trigger, {force: true, hold: true, focus: true});
+        });
+      });
+      // A touch tap opens readable logic; its source links retain the code route.
+      this.sequence.addEventListener("click", event => {
+        const trigger = event.target.closest("a[data-init-step]");
+        if (!trigger || event.pointerType !== "touch") return;
+        event.preventDefault();
+        event.stopPropagation();
+        this.show(trigger, {force: true});
+      }, true);
+      $("#init-step-card-close").addEventListener("click", () => this.close(true));
+      $("#init-step-card-hold").addEventListener("click", () => this.setHeld(!this.held));
+      this.card.addEventListener("click", event => {
+        if (event.target.closest("a")) this.close();
+      });
+      document.addEventListener("pointerdown", event => {
+        if (!this.card.contains(event.target) && !event.target.closest("a[data-init-step]")) this.close();
+      });
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !this.card.hidden) {
+          event.preventDefault();
+          this.close(true);
+        }
+      });
+      // The floating card lives outside the SVG's horizontal scroll container.
+      document.addEventListener("scroll", event => {
+        if (this.card.hidden || this.held || this.card.contains(event.target)) return;
+        cancelAnimationFrame(this.frame);
+        this.frame = requestAnimationFrame(() => this.position());
+      }, true);
+      window.addEventListener("resize", () => this.position(this.held));
+      let parent = this.sequence;
+      while (parent) {
+        if (parent.tagName === "DETAILS") parent.addEventListener("toggle", event => {
+          if (!event.target.open) this.close();
+        });
+        parent = parent.parentElement;
+      }
+    }
+    show(trigger, {force = false, hold = false, focus = false} = {}) {
+      if ($("#source-dialog").open || (this.held && this.trigger !== trigger && !force)) return;
+      if (this.trigger !== trigger || this.card.hidden) {
+        if (this.trigger) this.deactivate();
+        const step = trigger.dataset.initStep;
+        const record = $("#init-logic-" + step);
+        const title = record.querySelector("h3");
+        const fragment = document.createDocumentFragment();
+        [...record.children].filter(node => node !== title).forEach(node => fragment.append(node.cloneNode(true)));
+        $("#init-step-card-title").textContent = title.textContent.replace(/^\d+\s*·\s*/, "");
+        $("#init-step-card-number").textContent = "Step " + step + " of 12 · SOURCE + EXAMPLE";
+        $("#init-step-card-content").replaceChildren(fragment);
+        $("#init-step-card-content").scrollTop = 0;
+        this.trigger = trigger;
+        this.card.dataset.step = step;
+        this.card.hidden = false;
+        trigger.setAttribute("aria-expanded", "true");
+        trigger.closest("g[data-step]").setAttribute("data-active", "true");
+        this.setHeld(hold);
+        this.position();
+      } else if (hold) this.setHeld(true);
+      if (focus) this.card.focus({preventScroll: true});
+    }
+    setHeld(held) {
+      this.held = held;
+      this.card.dataset.held = String(held);
+      $("#init-step-card-hold").setAttribute("aria-pressed", String(held));
+      $("#init-step-card-hold").textContent = held ? "Release card" : "Hold card";
+      $("#init-step-card-state").textContent = held ? "This step stays selected" : "Stays open until closed";
+    }
+    position(keepPosition = false) {
+      if (this.card.hidden || !this.trigger) return;
+      const margin = 12;
+      const width = document.documentElement.clientWidth;
+      const height = innerHeight;
+      const safeTop = Math.max(margin, $(".page-header").getBoundingClientRect().bottom + margin);
+      this.card.style.maxHeight = Math.max(120, height - safeTop - margin) + "px";
+      if (width <= 600 && matchMedia("(hover: none)").matches) {
+        this.card.style.left = margin + "px";
+        this.card.style.top = safeTop + "px";
+        return;
+      }
+      let card = this.card.getBoundingClientRect();
+      const label = this.trigger.querySelector(".init-step-label").getBoundingClientRect();
+      keepPosition ||= label.bottom < safeTop || label.top > height;
+      let left = parseFloat(this.card.style.left) || margin;
+      let top = parseFloat(this.card.style.top) || safeTop;
+      if (!keepPosition) {
+        // Prefer beside the label. On narrow screens, scroll the card's body
+        // within the larger space above/below so the triggering label stays usable.
+        if (label.right + 10 + card.width <= width - margin) {
+          left = label.right + 10;
+          top = label.top;
+        } else if (label.left - 10 - card.width >= margin) {
+          left = label.left - 10 - card.width;
+          top = label.top;
+        } else {
+          const above = label.top - safeTop - 10;
+          const below = height - label.bottom - margin - 10;
+          this.card.style.maxHeight = Math.max(160, Math.max(above, below)) + "px";
+          card = this.card.getBoundingClientRect();
+          left = label.left;
+          top = below >= above ? label.bottom + 10 : label.top - card.height - 10;
+        }
+      }
+      this.card.style.left = Math.max(margin, Math.min(left || margin, width - card.width - margin)) + "px";
+      this.card.style.top = Math.max(safeTop, Math.min(top || safeTop, height - card.height - margin)) + "px";
+    }
+    deactivate() {
+      this.trigger.setAttribute("aria-expanded", "false");
+      this.trigger.closest("g[data-step]").removeAttribute("data-active");
+    }
+    close(restoreFocus = false) {
+      if (!this.trigger) return;
+      const trigger = this.trigger;
+      this.dismissed = trigger;
+      this.deactivate();
+      this.trigger = null;
+      this.card.hidden = true;
+      this.setHeld(false);
+      cancelAnimationFrame(this.frame);
+      if (restoreFocus && trigger.getBoundingClientRect().height) trigger.focus({preventScroll: true});
+    }
+  }
+  const initCards = new InitStepCards();
+
   function calculate() {
     const batchInput = $("#candidate-batch");
     const candidate = Number(batchInput.value);
@@ -292,6 +440,7 @@
   function openSource(key) {
     const ref = data.references[key];
     if (!ref) return;
+    initCards.close();
     selectedReference = ref;
     const file = data.files[ref.file];
     const fragment = document.createDocumentFragment();
@@ -364,6 +513,7 @@
 
   let printState;
   window.addEventListener("beforeprint", () => {
+    initCards.close();
     animations.forEach(animation => animation.pause());
     printState = all("details").map(node => [node, node.open]);
     printState.forEach(([node]) => node.open = true);

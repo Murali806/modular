@@ -33,6 +33,17 @@ the pinned Llama 2 7B metadata with an explicit BF16 policy, one device,
 4096-token length and 128-token pages. A portable text sequence accompanies
 the native SVG, which needs no renderer or network.
 
+Each green step opens a detailed logic card on hover or focus. The card
+shows its inputs, ordered logic, example result, source links and object
+links. It remains open while the reader moves the pointer; **Hold card**
+keeps its step selected across other hovers. **Release card** permits step
+changes again. Close, Escape, an outside click or opening source dismisses
+the card. Space on a focused step holds the card and moves keyboard focus
+into it; Enter retains the source route. Touch taps open the card, whose
+links open source. The card stays within the viewport and uses more vertical
+space on phones. All twelve explanations are also available in a native
+disclosure cell for offline reading without JavaScript and for printing.
+
 The batch/length section expands each concrete example into named inputs,
 ordered calculations and resulting plan fields. Six native disclosure cells
 cover checkpoint length choices; explicit/default batches and prefill targets;
@@ -63,7 +74,7 @@ text equivalent. No CDN, renderer or network is required to read the page.
 
 MAX claims are `SOURCE` at revision
 `610f7111836d9a950d45ba52ec9b3e0ed589fe3f`. The builder verifies complete
-snapshots against Git. The page has 98 source targets and 23 complete source
+snapshots against Git. The page has 100 source targets and 23 complete source
 cells; annotations remain outside original code. Driver and Transformers
 interfaces are identified as boundaries.
 

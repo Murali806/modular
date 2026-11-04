@@ -185,11 +185,203 @@ is a model-config operation; graph finalization and compilation have separate st
 <div class="detail-body">
 <p><span class="badge source">SOURCE</span> Call order at <code>{{revision-short}}</code> · <span class="badge example">EXAMPLE</span> Llama 2 7B metadata with an explicit BF16 configuration.</p>
 <p class="small init-sequence-key"><span>Green step labels and arrows open source.</span><span>Amber object labels open their example fields below.</span></p>
+<p class="small" id="init-step-hint" data-interactive hidden>Hover or focus a green step for its detailed logic. The card stays open until closed; <strong>Hold card</strong> keeps that step selected. On touch, tap the step and use the card's source links. With a keyboard, press <kbd>Space</kbd> on a step to hold and enter its card; <kbd>Enter</kbd> opens source.</p>
+<noscript><p class="small">Open <strong>Read all twelve step explanations</strong> below for the same detailed logic.</p></noscript>
 <div class="init-sequence-scroll" tabindex="0" aria-label="Scrollable initialization sequence with source and object links">{{initialize-sequence}}</div>
 <p class="small">This example sets <code>quantization_encoding="bfloat16"</code> and <code>kv_cache_format=None</code>, so the model and KV-cache dtypes resolve to BF16.
 <code>P1</code>, <code>M1</code>, <code>H1</code>, <code>K1</code>, <code>V1</code> and <code>A1</code> are teaching labels for objects. Records show selected fields; the metadata comes from the saved public-mirror config.</p>
 <div class="init-object-grid">{{initialize-objects}}</div>
 <p class="sources">Next, {{ref:planner_config_call|arch.memory_planner(arch_config)}} receives <code>A1</code> for the memory estimates.</p>
+<details class="explanation" id="initialize-step-logic"><summary>Read all twelve step explanations</summary><div class="detail-body init-step-library">
+<article id="init-logic-1" data-init-logic="1">
+<h3>1 · Read the main model from PipelineConfig</h3>
+<p><strong>Inputs:</strong> <code>P1</code> is the existing <code>PipelineConfig</code>. Its <code>models</code> mapping contains a <code>"main"</code> entry referring to <code>M1</code>, the main <code>MAXModelConfig</code>.</p>
+<ol>
+<li>The planner reads <code>pipeline_config.model</code>. This property looks up <code>models["main"]</code>; <code>"main"</code> is the component's role.</li>
+<li>The property returns the existing config object. The planner stores that reference in its local <code>model_config</code> variable.</li>
+<li>If the main entry is missing, the property raises <code>ValueError</code>. Otherwise, the next step can read its accepted context limit and metadata.</li>
+</ol>
+<pre class="init-logic-example">P1.models["main"] = M1
+P1.model is M1
+model_config.max_length = 4096</pre>
+<p><strong>Result:</strong> the planner has the main model's configuration. Model weights and a running model are separate objects created during later stages.</p>
+<p class="sources">{{ref:planner_model_access|Planner read}} · {{ref:pipeline_main_model|Main-model property}} · <a href="#init-object-pipeline">P1 fields</a> · <a href="#init-object-model">M1 fields</a></p>
+</article>
+<article id="init-logic-2" data-init-logic="2">
+<h3>2 · Call the selected architecture's initializer</h3>
+<p><strong>Inputs:</strong> the selected architecture declaration has <code>arch.config=Llama3Config</code>. The planner has <code>P1</code>, <code>M1</code> and the construction-resolved length <code>4096</code>.</p>
+<ol>
+<li>The planner calls the config class selected by the architecture declaration.</li>
+<li>It passes <code>P1</code>, explicitly names <code>M1</code> as <code>model_config</code>, and supplies <code>M1.max_length</code> as the keyword-only <code>max_seq_len</code>.</li>
+<li>Because this is a class method, <code>cls</code> is <code>Llama3Config</code>. Its return value will become the planner's <code>arch_config</code>.</li>
+</ol>
+<pre class="init-logic-example">Llama3Config.initialize(
+    P1, model_config=M1,
+    max_seq_len=4096,
+)</pre>
+<p><strong>Result:</strong> initialization begins in the API parent so memory pricing can use architecture facts. <code>A1</code> is created at step 11.</p>
+<p class="sources">{{ref:memory_init_call|Initializer call site}} · {{ref:llama_arch|Architecture declaration}} · <a href="#init-object-model">M1 fields</a></p>
+</article>
+<article id="init-logic-3" data-init-logic="3">
+<h3>3 · Select the model config and require HF metadata</h3>
+<p><strong>Inputs:</strong> <code>initialize()</code> receives <code>P1</code> and the explicit <code>M1</code>. <code>M1.huggingface_config</code> refers to the already loaded <code>AutoConfig</code> object <code>H1</code>.</p>
+<ol>
+<li><code>model_config or pipeline_config.model</code> selects the supplied model config. If the argument was omitted, the main-model property supplies it.</li>
+<li>The method reads <code>model_config.huggingface_config</code>. This metadata carries dimensions such as hidden width, layer count and attention heads.</li>
+<li>If the metadata is <code>None</code>, initialization raises <code>ValueError</code> explaining that a valid HF config is required. Valid metadata is passed to the next helper.</li>
+</ol>
+<pre class="init-logic-example">Selected model_config = M1
+M1.huggingface_config = H1
+H1.hidden_size = 4096
+H1.num_hidden_layers = 32</pre>
+<p><strong>Result:</strong> <code>H1</code> supplies checkpoint facts. This step reads an existing metadata object; its earlier loading path is linked below.</p>
+<p class="sources">{{ref:initialize_hf_access|Metadata read and guard}} · {{ref:hf_load|Earlier metadata loading}} · <a href="#init-object-hf">H1 fields</a></p>
+</article>
+<article id="init-logic-4" data-init-logic="4">
+<h3>4 · Delegate to initialize_from_config()</h3>
+<p><strong>Inputs:</strong> <code>P1</code>, the accepted metadata <code>H1</code>, the selected model config <code>M1</code>, and <code>max_seq_len=4096</code>.</p>
+<ol>
+<li><code>initialize()</code> forwards these values to <code>cls.initialize_from_config()</code>.</li>
+<li>The pipeline, HF config and model config keep their object references. The accepted length is forwarded as the same keyword argument.</li>
+<li>The helper combines checkpoint facts with MAX policies, creates the architecture config, and returns it through the outer method.</li>
+</ol>
+<pre class="init-logic-example">cls.initialize_from_config(
+    P1, H1, M1,
+    max_seq_len=4096,
+)</pre>
+<p><strong>Result:</strong> the helper receives all inputs needed for construction. The outer method handles model selection and the metadata guard; the helper performs the field assembly.</p>
+<p class="sources">{{ref:initialize_delegate|Delegating call}} · {{ref:initialize_config|Configuration helper}} · <a href="#init-object-model">M1 fields</a> · <a href="#init-object-hf">H1 fields</a></p>
+</article>
+<article id="init-logic-5" data-init-logic="5">
+<h3>5 · Read MAX's encoding, cache settings and devices</h3>
+<p><strong>Inputs:</strong> <code>M1</code> contains the model's MAX policy, while <code>H1</code> contains checkpoint metadata. <code>M1.kv_cache</code> refers to <code>K1</code>, the <code>KVCacheConfig</code>.</p>
+<ol>
+<li>The helper keeps <code>K1</code> so page size, cache format and prefix-caching settings can be passed into cache parameter construction.</li>
+<li><code>_select_quantization_encoding()</code> selects the model encoding using <code>M1</code> and the config class's default. This exercise explicitly supplies <code>"bfloat16"</code>.</li>
+<li>The helper reads <code>M1.device_specs</code> and counts the selected devices. The exercise has one entry, <code>gpu:0</code>.</li>
+</ol>
+<pre class="init-logic-example">quantization_encoding = "bfloat16"
+kv_cache_config = K1
+K1.kv_cache_page_size = 128
+device_specs = [gpu:0]
+n_devices = 1</pre>
+<p><strong>Result:</strong> checkpoint dimensions will be combined with MAX's chosen encoding, cache policy and placement. These policy values have their own config origins.</p>
+<p class="sources">{{ref:initialize_settings|Settings read and encoding selection}} · {{ref:kv_defaults|Cache settings}} · <a href="#init-object-model">M1 fields</a> · <a href="#init-object-kv-config">K1 fields</a></p>
+</article>
+<article id="init-logic-6" data-init-logic="6">
+<h3>6 · Resolve model dtype, cache dtype and DeviceRefs</h3>
+<p><strong>Inputs:</strong> the selected encoding is <code>"bfloat16"</code>, <code>K1.kv_cache_format=None</code>, and the device specification is <code>gpu:0</code>.</p>
+<ol>
+<li><code>supported_encoding_dtype()</code> maps the model encoding to <code>DType.bfloat16</code>.</li>
+<li><code>cache_dtype_for_encoding()</code> first checks for an explicit cache-format override. Here it is omitted, so the encoding's cache mapping also selects BF16: two bytes per element.</li>
+<li>The helper converts each device specification into a graph placement reference: <code>DeviceRef(spec.device_type, spec.id)</code>.</li>
+</ol>
+<pre class="init-logic-example">Model dtype = DType.bfloat16
+KV dtype    = DType.bfloat16
+KV width    = 2 bytes / element
+devices     = [DeviceRef("gpu", 0)]</pre>
+<p><strong>Result:</strong> model precision, cache precision and placement are resolved separately. For example, a <code>"float32"</code> cache override would give four-byte KV elements while the model stays BF16. The saved HF <code>torch_dtype="float16"</code> remains metadata; this exercise explicitly chooses BF16 in MAX.</p>
+<p class="sources">{{ref:kv_dtype|Cache dtype precedence}} · {{ref:initialize_settings|Dtype and device conversion}} · <a href="#init-object-kv-config">K1 fields</a></p>
+</article>
+<article id="init-logic-7" data-init-logic="7">
+<h3>7 · Read dimensions and calculate the attention head width</h3>
+<p><strong>Inputs:</strong> <code>H1</code> has hidden width 4096, 32 query heads, 32 KV heads and 32 layers.</p>
+<ol>
+<li><code>get_head_dim()</code> uses an explicit HF <code>head_dim</code> field when present.</li>
+<li>Otherwise, it calculates <code>hidden_size // num_attention_heads</code>. This checkpoint gives <code>4096 // 32 = 128</code> values per attention head.</li>
+<li>KV-cache construction uses the KV-head count and layer count alongside this width. Query heads and KV heads are separate fields, even though both happen to be 32 here.</li>
+</ol>
+<pre class="init-logic-example">hidden_size = 4096
+query_heads = 32
+head_dim    = 4096 // 32 = 128
+KV heads    = 32
+layers      = 32</pre>
+<p><strong>Result:</strong> the cache layout has a width of 128 values per KV head. These logical dimensions become inputs to page-byte calculations later.</p>
+<p class="sources">{{ref:head_dim|Head-width rule}} · {{ref:kv_construct|Dimension arguments}} · <a href="#init-object-hf">H1 fields</a></p>
+</article>
+<article id="init-logic-8" data-init-logic="8">
+<h3>8 · Assemble the KV-cache parameter arguments</h3>
+<p><strong>Inputs:</strong> metadata <code>H1</code>, pipeline <code>P1</code>, the device references, cache config <code>K1</code>, and the resolved BF16 cache dtype.</p>
+<ol>
+<li><code>construct_kv_params()</code> reads the KV-head count, head width and layer count through the architecture's helpers.</li>
+<li>It takes the data-parallel degree from the main model config. This example uses <code>1</code>.</li>
+<li>It checks <code>P1.speculative</code>. With speculative decoding disabled, the method supplies <code>speculative_method=None</code> and <code>num_draft_tokens=0</code>.</li>
+<li>It forwards these arguments to <code>K1.to_params()</code>. KV-head replication uses this method's default <code>False</code>.</li>
+</ol>
+<pre class="init-logic-example">KV heads = 32; head width = 128
+layers = 32; devices = [gpu:0]
+data_parallel_degree = 1
+speculative_method = None
+num_draft_tokens = 0
+allow_kv_head_replication = False</pre>
+<p><strong>Result:</strong> cache construction receives both architecture dimensions and serving policy. This helper is evaluated while preparing the arguments for <code>A1</code>, before that architecture object is created.</p>
+<p class="sources">{{ref:kv_construct|KV argument assembly}} · <a href="#init-object-pipeline">P1 fields</a> · <a href="#init-object-kv-params">V1 result fields</a></p>
+</article>
+<article id="init-logic-9" data-init-logic="9">
+<h3>9 · Apply KVCacheConfig policy in to_params()</h3>
+<p><strong>Inputs:</strong> <code>K1</code> receives the dimensions and policies assembled in step 8.</p>
+<ol>
+<li><code>to_params()</code> builds shared constructor arguments for the cache parameter object, including dtype, dimensions, devices, parallelism and speculative settings.</li>
+<li>Because the call supplies no page-size override, it uses <code>K1.kv_cache_page_size=128</code>. It also propagates prefix-caching and other cache settings.</li>
+<li>The <code>is_mla</code> argument keeps its default <code>False</code>, so the function selects <code>MHAKVCacheParams</code>. The alternative MLA branch serves a different attention layout.</li>
+</ol>
+<pre class="init-logic-example">page_size = K1.kv_cache_page_size = 128
+enable_prefix_caching = True
+is_mla = False
+selected type = MHAKVCacheParams</pre>
+<p><strong>Result:</strong> MAX's page policy and the model's dimensions are packaged into a concrete cache-parameter subclass.</p>
+<p class="sources">{{ref:kv_to_params_call|Call arguments}} · {{ref:kv_params|Page policy and subclass selection}} · <a href="#init-object-kv-config">K1 fields</a></p>
+</article>
+<article id="init-logic-10" data-init-logic="10">
+<h3>10 · Return V1: MHAKVCacheParams</h3>
+<p><strong>Inputs:</strong> the constructor arguments from <code>to_params()</code>, with one device, 32 KV heads and 128-token pages.</p>
+<ol>
+<li><code>MHAKVCacheParams</code> applies the common cache-parameter initialization and checks the KV-head layout against the tensor-parallel degree.</li>
+<li>With one device and data-parallel degree 1, tensor-parallel degree is 1. All 32 KV heads belong to that device.</li>
+<li>The omitted <code>slots_per_page</code> becomes one storage slot per token, so a 128-token page has 128 slots.</li>
+<li>The constructed object <code>V1</code> is returned to the architecture helper. Later memory pricing can use its dtype, layout and page dimensions.</li>
+</ol>
+<pre class="init-logic-example">V1: MHAKVCacheParams
+dtype = BF16; layers = 32
+KV heads/device = 32; head_dim = 128
+page_size = 128; slots_per_page = 128
+data_parallel_degree = 1</pre>
+<p><strong>Result:</strong> <code>V1</code> describes the KV layout. In this exercise, each token's K and V across all layers use <code>2 × 32 × 32 × 128 × 2 = 524,288 bytes</code>, making one page 64 MiB. The worker allocates the physical cache later.</p>
+<p class="sources">{{ref:kv_params|Returned subclass}} · {{ref:mha_params_type|MHA layout and validation}} · {{ref:value_block|KV byte calculation}} · <a href="#init-object-kv-params">V1 fields</a></p>
+</article>
+<article id="init-logic-11" data-init-logic="11">
+<h3>11 · Create A1: Llama3Config</h3>
+<p><strong>Inputs:</strong> checkpoint dimensions from <code>H1</code>, resolved dtype and device references, <code>max_seq_len=4096</code>, and the constructed <code>V1</code>.</p>
+<ol>
+<li>The helper evaluates the arguments for <code>cls(...)</code>: dimensions, vocabulary, rotary-position settings, precision, devices and serving policies.</li>
+<li>This metadata has <code>rope_scaling=None</code>, so both specialized RoPE-scaling parameter objects remain <code>None</code>.</li>
+<li>The default attention multiplier is <code>sqrt(1 / head_dim)</code>: about <code>0.088388</code> for width 128. An HF attention-multiplier override would take precedence.</li>
+<li>The Python config object <code>A1</code> is created with <code>kv_params=V1</code> and the accepted length. Its fields become architecture facts for the planner.</li>
+</ol>
+<pre class="init-logic-example">A1: Llama3Config
+hidden_size = 4096; layers = 32
+max_seq_len = 4096; dtype = BF16
+kv_params = V1; devices = [gpu:0]
+attention_multiplier ≈ 0.088388</pre>
+<p><strong>Result:</strong> <code>A1</code> owns the resolved architecture configuration, including a reference to <code>V1</code>. Weight-based config finalization and model graph construction occur during the later worker stage.</p>
+<p class="sources">{{ref:initialize_result|Architecture constructor}} · {{ref:attention_multiplier|Attention scaling rule}} · <a href="#init-object-arch">A1 fields</a></p>
+</article>
+<article id="init-logic-12" data-init-logic="12">
+<h3>12 · Return the architecture config to the planner</h3>
+<p><strong>Inputs:</strong> <code>initialize_from_config()</code> has created <code>A1</code>, and <code>A1.kv_params</code> refers to <code>V1</code>.</p>
+<ol>
+<li>The helper returns <code>A1</code>. The outer <code>initialize()</code> method returns that same value to <code>MemoryEstimator.plan()</code>.</li>
+<li>The caller assigns the returned object to <code>arch_config</code>.</li>
+<li>The architecture declaration supplies <code>PagedMemoryPlanner</code>, which receives <code>A1</code>. Its estimates use these architecture facts together with the parent's config, weight-size and device-memory inputs.</li>
+</ol>
+<pre class="init-logic-example">arch_config is A1
+A1.kv_params is V1
+planner = PagedMemoryPlanner(A1)
+memory pricing → MemoryPlan</pre>
+<p><strong>Result:</strong> architecture initialization is complete. The later planning calculations return the separate <code>MemoryPlan</code> with effective limits and a committed cache budget.</p>
+<p class="sources">{{ref:memory_init_call|Return destination}} · {{ref:planner_config_call|Planner construction}} · <a href="#init-object-arch">A1 fields</a> · <a href="#memory-budget">Next: cache-budget calculations</a></p>
+</article>
+</div></details>
 <details class="explanation"><summary>Portable sequence with the same object handoffs</summary><div class="detail-body">
 <pre class="text-diagram">API parent · MemoryEstimator.plan()
   │
@@ -661,6 +853,11 @@ and without network access. With JavaScript disabled, native disclosure cells, t
 <p class="source-key">The complete definition is tinted; its entry or invoking line has a stronger highlight. Line numbers are outside the original code.</p>
 <pre id="source-file" class="source-code" tabindex="0"><code></code></pre>
 </dialog>
+<aside class="init-step-card" id="init-step-card" role="dialog" aria-modal="false" aria-labelledby="init-step-card-title" tabindex="-1" hidden>
+<header class="init-step-card-header"><div><p class="init-step-card-eyebrow" id="init-step-card-number"></p><h2 id="init-step-card-title"></h2></div><button type="button" id="init-step-card-close" aria-label="Close step explanation">Close</button></header>
+<div class="init-step-card-body" id="init-step-card-content" tabindex="0" aria-label="Detailed step logic"></div>
+<footer class="init-step-card-footer"><button type="button" id="init-step-card-hold" aria-pressed="false">Hold card</button><span id="init-step-card-state" role="status" aria-live="polite">Stays open until closed</span></footer>
+</aside>
 <div id="toast" role="status" aria-live="polite"></div>
 <!-- MEMORY_DATA -->
 <!-- MEMORY_JS -->

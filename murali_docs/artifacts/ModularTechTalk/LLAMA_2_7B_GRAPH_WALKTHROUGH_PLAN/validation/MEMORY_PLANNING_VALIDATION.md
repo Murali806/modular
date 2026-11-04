@@ -11,7 +11,7 @@ Device execution: none. These are documentation/browser checks.
 
 - 49 complete snapshots match both the pinned Git revision and the working
   implementation, byte for byte.
-- The page has 98 verified source targets and 23 complete code cells,
+- The page has 100 verified source targets and 23 complete code cells,
   containing 1,534 original source lines. Definition bounds, decorators,
   comments, docstrings and copy text match the snapshots.
 - Nine QnA cells include eight nested subjects. Deeper explanations, text
@@ -22,6 +22,10 @@ Device execution: none. These are documentation/browser checks.
   source lines; object links reveal six input/output records with example
   values. The BF16 example policy is distinct from the saved HF metadata's
   `torch_dtype="float16"`.
+- Each of the twelve steps also has detailed inputs, ordered logic, example
+  results and source/object links. The same content is available in the
+  native **Read all twelve step explanations** cell. New source targets
+  cover the main-model property and the attention-multiplier rule.
 - QnA 1.1.6.1.5 has six worked examples, with seven table links to their
   inputs, ordered calculations, plan fields and source. The cases cover
   checkpoint bounds, batch defaults, input-token targets, full-context page
@@ -60,6 +64,16 @@ Direct `file://` use; viewports 1440×1000 and 1600×1100, plus 390×844 and
   sequence scrolls within its own container on phones. The 4 GiB example's
   inputs and ordered calculations were also visually inspected at both
   phone widths after explicitly scrolling to the expanded cell.
+- Hover/focus cards remain open when the pointer leaves. Hold keeps a step
+  selected across other hovers; Release restores step switching. Source
+  navigation, outside-click dismissal, Close, Escape and keyboard focus
+  return pass. Space holds a focused step's card and enters it; Enter opens
+  the step's source.
+- Touch taps open a card at 390px/320px, with its source links opening the
+  correct definition. Cards and their text fit within the viewport; the
+  card body scrolls while Close and Hold remain visible. The twelve native
+  explanations remain readable with JavaScript disabled. Card contrast
+  checks cover desktop and both touch widths in the focused sequence report.
 - Text/control contrast checks pass in all inspected states. The lowest
   inspected normal-text contrast is 5.624:1. This is a targeted color review,
   not a complete accessibility-conformance audit.
@@ -85,6 +99,9 @@ Visuals inspected: [overview](memory_planning_overview.png),
 New visuals: [initialization sequence](initialize_sequence.png),
 [390px worked example](length_examples_mobile_390.png) and
 [320px worked example](length_examples_mobile_320.png).
+Step cards: [desktop](initialize_step_card_desktop.png),
+[390px touch](initialize_step_card_mobile_390.png) and
+[320px touch](initialize_step_card_mobile_320.png).
 
 ## Example boundaries
 

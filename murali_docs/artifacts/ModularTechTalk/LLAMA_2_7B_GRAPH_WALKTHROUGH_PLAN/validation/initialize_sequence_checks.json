@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-11-04T04:56:08.208Z",
+  "checked_at": "2026-11-04T07:10:29.104Z",
   "result": "PASS",
   "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
   "command": "NODE_PATH=/tmp/max-v4-playwright/node_modules node src/check_initialize_and_limits.cjs",
@@ -25,6 +25,37 @@
     "kv-config",
     "kv-params",
     "arch"
+  ],
+  "hover_cards": 12,
+  "persistent_cards": true,
+  "hold_and_release": true,
+  "keyboard_card_access": true,
+  "escape_focus_return": true,
+  "outside_click": true,
+  "card_source_navigation": true,
+  "touch_card_viewports": [
+    390,
+    320
+  ],
+  "card_contrast_checks": [
+    {
+      "state": "Desktop / step 6",
+      "samples": 316,
+      "minimum_text_ratio": 6.155,
+      "failures": []
+    },
+    {
+      "state": "Touch / step 6 / 390",
+      "samples": 305,
+      "minimum_text_ratio": 6.155,
+      "failures": []
+    },
+    {
+      "state": "Touch / step 6 / 320",
+      "samples": 305,
+      "minimum_text_ratio": 6.155,
+      "failures": []
+    }
   ],
   "viewports": [
     1600,

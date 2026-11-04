@@ -69,10 +69,12 @@ REFS.update({
     "resolve_length": definition("CONFIG", "_resolve_models_max_length"),
     "initialize_config": definition("LLAMA_CFG", "Llama3Config.initialize_from_config"),
     "planner_model_access": definition("MEMORY", "MemoryEstimator.plan", "Read pipeline_config.model", "        model_config = pipeline_config.model"),
+    "pipeline_main_model": definition("CONFIG", "PipelineConfig.model", "PipelineConfig.model (main-model property)"),
     "initialize_hf_access": definition("LLAMA_CFG", "Llama3Config.initialize", "Read model_config.huggingface_config", "        huggingface_config = model_config.huggingface_config"),
     "initialize_delegate": definition("LLAMA_CFG", "Llama3Config.initialize", "Delegate to initialize_from_config", "        return cls.initialize_from_config("),
     "initialize_settings": definition("LLAMA_CFG", "Llama3Config.initialize_from_config", "Read model_config.kv_cache and encoding", "        kv_cache_config = model_config.kv_cache"),
     "initialize_result": definition("LLAMA_CFG", "Llama3Config.initialize_from_config", "Construct the returned Llama3Config", "        return cls("),
+    "attention_multiplier": definition("LLAMA_CFG", "Llama3Config.calculate_attention_multiplier"),
     "kv_to_params_call": definition("LLAMA_CFG", "Llama3Config.construct_kv_params", "Call kv_cache_config.to_params", "        return kv_cache_config.to_params("),
     "mha_params_type": definition("KV_PARAMS", "MHAKVCacheParams", "MHAKVCacheParams (KVCacheParams subclass)"),
     "planner_config_call": definition("MEMORY", "MemoryEstimator.plan", "Pass arch_config to the memory planner", "            planner = arch.memory_planner(arch_config)"),
@@ -113,9 +115,12 @@ REFS.update({
 
 def initialization_sequence(refs, example):
     """Render the initialization calls with local source and object links."""
-    def source_link(key, content):
+    def source_link(key, content, step=None):
         ref = refs[key]
+        trigger = (f'data-init-step="{step}" aria-controls="init-step-card" '
+                   'aria-expanded="false" aria-describedby="init-step-hint" ' if step else '')
         return (f'<a class="init-source" data-ref="{key}" '
+                + trigger +
                 f'href="../sources/{ref["file"]}#L{ref["line"]}" '
                 f'aria-label="{html.escape(ref["label"], quote=True)}; source line {ref["line"]}">'
                 + content + '</a>')
@@ -169,13 +174,13 @@ def initialization_sequence(refs, example):
         path = (f'M{left},{y + 62} h60 v14 h-60' if left == right
                 else f'M{left},{y + 62} H{right}')
         ref = refs[ref_key]
-        source_content = (f'<text x="59" y="{y + 17}">{html.escape(title)}</text>'
+        source_content = (f'<text x="59" y="{y + 17}" class="init-step-label">{html.escape(title)}</text>'
                           f'<text x="1244" y="{y + 17}" text-anchor="end" class="init-source-location">[{ref["alias"]}:L{ref["line"]}]</text>'
                           f'<path d="{path}" class="init-call{" init-return" if reply else ""}" marker-end="url(#init-sequence-arrow)"/>')
         pieces.extend([f'<g data-step="{index + 1}">',
                        f'<rect x="26" y="{y - 4}" width="1228" height="49" rx="5" class="init-message-box"/>',
                        f'<text x="39" y="{y + 17}" text-anchor="middle" class="init-message-number">{index + 1}</text>',
-                       source_link(ref_key, source_content),
+                       source_link(ref_key, source_content, step=index + 1),
                        object_link(obj, f'<text x="59" y="{y + 37}" class="init-value">{html.escape(value)}</text>'),
                        '</g>'])
     return "".join(pieces) + '</svg>'

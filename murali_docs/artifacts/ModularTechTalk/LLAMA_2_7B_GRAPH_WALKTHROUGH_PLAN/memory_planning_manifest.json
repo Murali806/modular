@@ -671,6 +671,17 @@
       "line": 173,
       "sha256": "d1d8e74337007e1b476035b8854ea0cf2ba56a28c7d67399374001f795ef048e"
     },
+    "pipeline_main_model": {
+      "alias": "CONFIG",
+      "symbol": "PipelineConfig.model",
+      "label": "PipelineConfig.model (main-model property)",
+      "kind": "definition",
+      "file": "max/python/max/pipelines/lib/config/config.py",
+      "start": 1128,
+      "end": 1137,
+      "line": 1128,
+      "sha256": "6bff46861d3a6b3902ae111b3255680200373d3fc8f5b71b4b9490affc407a96"
+    },
     "initialize_hf_access": {
       "alias": "LLAMA_CFG",
       "symbol": "Llama3Config.initialize",
@@ -718,6 +729,17 @@
       "end": 380,
       "line": 344,
       "sha256": "f704d0f44eaff13583de8e02f0ad362aefadd783f9844c9a3c845bf447d57e92"
+    },
+    "attention_multiplier": {
+      "alias": "LLAMA_CFG",
+      "symbol": "Llama3Config.calculate_attention_multiplier",
+      "label": "Llama3Config.calculate_attention_multiplier()",
+      "kind": "definition",
+      "file": "max/python/max/pipelines/architectures/llama3/model_config.py",
+      "start": 160,
+      "end": 181,
+      "line": 160,
+      "sha256": "254a2daffaf93df9612374b314a31b42cece44cda4e1c29d48bc0d74e3cbaaef"
     },
     "kv_to_params_call": {
       "alias": "LLAMA_CFG",

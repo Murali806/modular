@@ -146,8 +146,31 @@ tbody tr:last-child td { border-bottom: 0; }
 .init-sequence-scroll .init-value { font-family: "SFMono-Regular", Consolas, monospace; font-size: 14px; }
 .init-sequence-scroll .init-source-location { font-size: 12px; }
 .init-sequence-scroll a:hover text, .init-sequence-scroll a:focus-visible text { text-decoration: underline; }
+.init-sequence-scroll a { -webkit-tap-highlight-color: transparent; }
 .init-sequence-scroll a:focus-visible { outline-offset: 2px; }
 .init-sequence-scroll .init-message-number { fill: var(--blue); font-weight: 750; }
+.init-sequence-scroll g[data-active] .init-message-box { stroke: var(--link); stroke-width: 2; }
+.init-step-card { position: fixed; z-index: 40; display: flex; flex-direction: column; width: min(520px, calc(100vw - 24px)); max-height: calc(100vh - 110px); background: #252c36; color: var(--text); border: 1px solid var(--link); border-radius: 10px; box-shadow: 0 12px 42px #0009; overflow: hidden; }
+.init-step-card-header { display: flex; align-items: start; gap: 12px; padding: 15px 16px 12px; background: #2d3743; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.init-step-card-header > div { flex: 1; min-width: 0; }
+.init-step-card h2 { font-size: 17px; line-height: 1.45; margin: 0; }
+.init-step-card-eyebrow { font-size: 11px; color: var(--link); font-weight: 700; margin: 0 0 6px; }
+.init-step-card button { font-size: 13px; min-height: 36px; }
+.init-step-card-body { padding: 15px 16px; overflow: auto; overscroll-behavior: contain; min-height: 0; font-size: 14px; line-height: 1.75; }
+.init-step-card-body p { margin: 0 0 12px; }
+.init-step-card-body ol { padding-left: 22px; margin: 0 0 14px; }
+.init-step-card-body li { margin-bottom: 9px; }
+.init-step-card-body .sources { font-size: 12px; margin-bottom: 0; }
+.init-logic-example { font-size: 12px; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; background: var(--surface-deep); border-radius: 6px; }
+.init-step-card-footer { display: flex; align-items: center; gap: 12px; padding: 11px 16px; background: #2d3743; border-top: 1px solid var(--border); flex-shrink: 0; }
+.init-step-card-footer button { flex-shrink: 0; }
+.init-step-card-footer span { font-size: 12px; color: var(--muted); }
+.init-step-card [aria-pressed="true"] { color: var(--link); border-color: var(--link); background: #29443d; }
+.init-step-card:focus-visible, .init-step-card-body:focus-visible { outline: 3px solid var(--focus); outline-offset: -4px; }
+.init-step-library article { padding: 14px 0; border-bottom: 1px solid var(--border); }
+.init-step-library article:last-child { border-bottom: 0; }
+.init-step-library h3 { color: var(--blue); font-size: 17px; margin: 0 0 12px; }
+.init-step-library li { margin-bottom: 8px; }
 .init-object-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .init-object-record { margin: 0; min-width: 0; }
 .init-object-record > summary { overflow-wrap: anywhere; }
@@ -352,13 +375,14 @@ dialog::backdrop { background: #000a; }
 @media print {
   :root { color-scheme: light; }
   body { background: #fff; color: #17212f; }
-  .page-header, nav, .page-tools, .animation-controls, .budget-inputs, .kv-controls, dialog, #toast { display: none !important; }
+  .page-header, nav, .page-tools, .animation-controls, .budget-inputs, .kv-controls, dialog, .init-step-card, #toast { display: none !important; }
   .page-layout { display: block; }
   main { padding: 0; }
   .qna, .explanation, .animation, .frame-note, .config-card, .lane, .timeline-card, .planner-box, .planner-inputs > div, .origin-card, pre, th, td { background: #fff !important; color: #17212f !important; }
   .qna[open] > summary { background: #edf1f6; }
   code, small, p, strong, .owner, .source-location, .summary-main > span { color: #17212f !important; }
   .worked-example h3 { color: #17212f; }
+  .init-step-library h3 { color: #17212f; }
   a { color: #164d67; }
   pre, .source-code { max-height: none; white-space: pre-wrap; overflow-wrap: anywhere; }
   .source-code .line-text { white-space: pre-wrap; overflow-wrap: anywhere; }
