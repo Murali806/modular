@@ -160,6 +160,27 @@ the worker under a labeled process handoff, and removes repeated top-level
 startup entries. Configuration calls that really recur remain visible.
 Output filenames identify MAX Serve, Llama 2 7B and startup.
 
+## Focused OS-component reader — 2026-11-05
+
+The user's narrowed scope is component roles, interactions, state machines
+and high-level flow within one MAX Serve instance.
+
+- [x] Map user-space software, kernel resources and hardware to the supplied
+      startup call stack.
+- [x] Build three actor-complete flows with 26 numbered handoffs: startup,
+      request/response and the native device/driver boundary.
+- [x] Show server, request and OS-thread state machines with 19 teaching states
+      and eight valid normal/failure/cancellation paths.
+- [x] Keep ordinary Python tasks, Linux CPU scheduling and GPU completion
+      separate in the diagrams and role explanations.
+- [x] Reuse 32 pinned source targets and saved OS/device learning references.
+- [x] Complete browser, touch, keyboard, print and reduced-motion verification.
+
+Deliverables: [focused HTML](link_htmls/max_serve_os_components_and_flow.html),
+[portable companion](OS_COMPONENTS_GUIDE.md),
+[manifest](os_components_manifest.json) and
+[validation](validation/OS_COMPONENTS_VALIDATION.md).
+
 ## Evidence boundary
 
 `SOURCE` is sufficient for this code explanation; a measured Llama inference

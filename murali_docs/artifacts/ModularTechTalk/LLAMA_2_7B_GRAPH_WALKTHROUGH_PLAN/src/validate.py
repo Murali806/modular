@@ -15,6 +15,7 @@ from call_stack import READER_NAME, TEXT_NAME
 from cells import CELLS, REVISION
 from memory_planning import PAGE_NAME
 from os_systems import PAGE_NAME as OS_PAGE_NAME
+from os_components import PAGE_NAME as COMPONENT_PAGE_NAME
 
 
 class GuideParser(HTMLParser):
@@ -118,6 +119,13 @@ class SystemsParser(GuideParser):
         super().handle_starttag(tag, attrs)
         attrs = dict(attrs)
         if tag == "script" and attrs.get("id") == "os-data":
+            self.in_payload = True
+
+
+class ComponentsParser(GuideParser):
+    def handle_starttag(self, tag, attrs):
+        super().handle_starttag(tag, attrs)
+        if tag == "script" and dict(attrs).get("id") == "component-data":
             self.in_payload = True
 
 
@@ -289,9 +297,71 @@ def main():
     assert systems_payload["scenes"][0]["steps"][3]["inputs"]["cached_weight_bytes"] == provenance["official"]["total_selected_weight_bytes"]
     assert systems_payload["objects"]["kv"]["fields"]["page_bytes"] == systems_payload["example"]["pageBytes"]
 
+    components_page = TASK / "link_htmls" / COMPONENT_PAGE_NAME
+    components_parser = ComponentsParser()
+    components_parser.feed(components_page.read_text())
+    components_payload = json.loads("".join(components_parser.payload))
+    components_manifest = json.loads((TASK / "os_components_manifest.json").read_text())
+    assert components_manifest["revision"] == components_payload["revision"] == REVISION
+    assert len(components_parser.ids) == len(set(components_parser.ids)), "Duplicate component-page IDs"
+    assert not components_parser.dependencies, "Component reader must render offline"
+    assert components_manifest["components"] == list(components_payload["components"])
+    assert len(components_payload["components"]) == 15
+    for path, record in components_manifest["files"].items():
+        raw = (TASK / record["snapshot"]).read_bytes()
+        assert hashlib.sha256(raw).hexdigest() == record["sha256"], path
+        pinned = subprocess.check_output(["git", "show", f"{REVISION}:{path}"], cwd=REPO)
+        assert raw == pinned == (REPO / path).read_bytes(), path
+        assert components_payload["files"][path]["text"].encode() == raw
+    for key, ref in components_payload["references"].items():
+        assert components_manifest["references"][key] == {k:v for k,v in ref.items() if k != "code"}
+        source = components_payload["files"][ref["file"]]["text"]
+        assert python_span(source, ref["symbol"]) == (ref["start"],ref["end"]), key
+        code = "".join(source.splitlines(keepends=True)[ref["start"]-1:ref["end"]])
+        assert code == ref["code"] and hashlib.sha256(code.encode()).hexdigest() == ref["sha256"]
+        if needle := ref.get("needle"):
+            assert code.count(needle) == 1
+            assert ref["line"] == ref["start"] + code[:code.index(needle)].count("\n")
+    component_docs = {r["id"]:r for r in components_payload["research"]}
+    for record in components_manifest["research"]:
+        assert all(record[k] == component_docs[record["id"]][k] for k in record)
+        assert hashlib.sha256((TASK / record["snapshot"]).read_bytes()).hexdigest() == record["snapshot_sha256"]
+    def component_refs(record):
+        assert set(record.get("refs", [])) <= components_manifest["references"].keys()
+        assert set(record.get("docs", [])) <= component_docs.keys()
+    for record in components_payload["components"].values():
+        assert record["layer"] and record["role"] and record["interacts"] and record["entry"]
+        component_refs(record)
+    assert len(components_payload["flows"]) == 3
+    assert components_manifest["flows"] == {f["id"]:len(f["steps"]) for f in components_payload["flows"]}
+    for flow in components_payload["flows"]:
+        actors = {a[0] for a in flow["actors"]}
+        assert len(actors) == len(flow["actors"]) and flow["ascii"]
+        assert all(a[2] in components_payload["components"] for a in flow["actors"])
+        for step in flow["steps"]:
+            assert step["sender"] in actors and step["receiver"] in actors
+            assert step["owner"] and step["interaction"] and step["result"]
+            component_refs(step)
+    startup_steps = components_payload["flows"][0]["steps"]
+    assert all(s["states"]["HTTP"] == "Not accepting" for s in startup_steps[:-1])
+    assert startup_steps[-1]["states"]["HTTP"] == "Accepting"
+    assert len(components_payload["machines"]) == 3
+    for machine in components_payload["machines"]:
+        assert components_manifest["machines"][machine["id"]] == {"states":len(machine["states"]),"paths":len(machine["scenarios"])}
+        pairs = {(e["start"],e["end"]) for e in machine["edges"]}
+        assert len(pairs) == len(machine["edges"])
+        for state in machine["states"].values(): component_refs(state)
+        for edge in machine["edges"]:
+            assert edge["start"] in machine["states"] and edge["end"] in machine["states"]
+            component_refs(edge)
+        for scenario in machine["scenarios"].values():
+            assert all(s in machine["states"] for s in scenario["path"])
+            assert all(pair in pairs for pair in zip(scenario["path"],scenario["path"][1:]))
+
     checked_links = 0
     page_parsers = {TASK / "index.html": parser, TASK / READER_NAME: stack_parser,
-                    memory_page: memory_parser, systems_page: systems_parser}
+                    memory_page: memory_parser, systems_page: systems_parser,
+                    components_page: components_parser}
     for page, parsed in list(page_parsers.items()):
         for href in parsed.links:
             if href.startswith("http"):
@@ -343,6 +413,13 @@ def main():
         os_systems_steps=sum(len(scene["steps"]) for scene in systems_payload["scenes"]),
         os_systems_objects=len(systems_payload["objects"]),
         os_systems_research_extracts=len(docs),
+        os_components_source_targets=len(components_manifest["references"]),
+        os_components_source_files=len(components_manifest["files"]),
+        os_components_count=len(components_payload["components"]),
+        os_components_flow_steps=sum(len(f["steps"]) for f in components_payload["flows"]),
+        os_components_state_machines=len(components_payload["machines"]),
+        os_components_states=sum(len(m["states"]) for m in components_payload["machines"]),
+        os_components_paths=sum(len(m["scenarios"]) for m in components_payload["machines"]),
         local_links_checked=checked_links, external_runtime_dependencies=0,
         evidence="Document/source validation only; no MAX model execution.",
     )

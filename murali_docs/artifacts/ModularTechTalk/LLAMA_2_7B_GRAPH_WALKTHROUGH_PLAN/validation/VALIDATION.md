@@ -165,3 +165,12 @@ standalone animated page, 53 verified source targets, 17 research extracts,
 cards, 22 object cards, 11 source cells and 22 contrast states passed, including
 offline, touch, keyboard, print and reduced-motion behavior. Rates and fleet
 actions are explicitly illustrative.
+
+## Focused OS-component supplement — 2026-11-05
+
+The [focused validation record](OS_COMPONENTS_VALIDATION.md) covers component
+roles and interactions in one serving instance, three animated flows and
+server/request/OS-thread state machines. Source checks and 11 grouped browser
+checks pass: 15 component cards, 26 steps, 19 state cards, eight paths, 32
+source targets and 17 contrast states, including touch, print, keyboard,
+offline and reduced-motion operation.

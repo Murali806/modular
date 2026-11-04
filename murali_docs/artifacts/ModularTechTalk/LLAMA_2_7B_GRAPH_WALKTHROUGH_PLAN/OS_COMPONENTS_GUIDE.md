@@ -1,0 +1,532 @@
+# MAX Serve: OS components, roles and high-level flow
+
+[Interactive focused page](link_htmls/max_serve_os_components_and_flow.html) · SOURCE revision `610f7111836d9a950d45ba52ec9b3e0ed589fe3f`.
+
+Linux + NVIDIA. Source calls and external OS/device mechanisms are distinguished. Animation expresses event order.
+
+```text
+USER SPACE: API + uvloop <-- Unix IPC --> worker + MAX scheduler + native backend
+KERNEL:     processes/threads | sockets/epoll | memory/files | GPU kernel driver
+HARDWARE:   NIC | host RAM/storage | GPU/VRAM
+```
+
+## Component roles
+
+### API process · User space
+
+Owns the HTTP frontend, tokenizer and worker proxy.
+
+Interacts with: Linux sockets, its event loop and the model worker through IPC.
+
+Call stack: `cli_serve → serve_api_server_and_model_worker → lifespan`.
+
+### Model-worker process · User space
+
+Owns the initialized model pipeline, native session and request scheduler.
+
+Interacts with: The API through IPC; files and RAM; the native device backend.
+
+Call stack: `proc.start(ModelWorker()) → ModelWorker.run → model_factory`.
+
+### Linux processes and CPU threads · Kernel
+
+Provide isolation and decide which runnable OS threads receive CPU time.
+
+Interacts with: Both Python processes, executor threads and native-runtime threads.
+
+Call stack: `multiprocessing.get_context("spawn"); executor and event-loop work`.
+
+### uvloop / libuv event loop · User space
+
+Runs ready callbacks and resumes Python tasks after awaited work becomes available.
+
+Interacts with: Linux epoll, network/IPC readiness, timers and completed executor work.
+
+Call stack: `uvloop.run(serve()); uvloop executes ModelWorker.run`.
+
+### epoll and file descriptors · Kernel
+
+Report which registered I/O resources are ready for an operation.
+
+Interacts with: libuv, TCP sockets and local Unix-domain sockets.
+
+Call stack: `uvloop's Linux I/O backend; proc lifecycle add_reader`.
+
+### TCP listener and connected sockets · Kernel
+
+Maintain connection state and receive/send byte buffers.
+
+Interacts with: The NIC/network stack and Uvicorn's event loop.
+
+Call stack: `await server.serve(sockets=sockets)`.
+
+### NIC and Linux network driver · Hardware + kernel
+
+Move network packets between the link and host buffers, then feed the TCP stack.
+
+Interacts with: DMA-accessible host RAM, NAPI/interrupt processing and Linux sockets.
+
+Call stack: `The network boundary behind server.serve and HTTP traffic`.
+
+### ZeroMQ and Unix-domain IPC · User space + kernel
+
+Carry request contexts, responses and cancellation between the two processes.
+
+Interacts with: API proxy PUSH/PULL endpoints and worker PUSH/PULL endpoints.
+
+Call stack: `ZmqModelWorkerInterface → model_worker_queues / model_worker_proxy`.
+
+### Readiness Event and process lifecycle · User space + OS support
+
+Let the parent wait for a usable worker and notice worker exit or timeout.
+
+Interacts with: Worker alive.set(), API executor wait and lifecycle FD monitoring.
+
+Call stack: `await proc.ready(alive) → wait_until_connected()`.
+
+### Host virtual memory and RAM · Kernel + hardware
+
+Back process heaps, native buffers, file pages and socket buffers.
+
+Interacts with: API and worker address spaces, Linux memory mappings and device transfers.
+
+Call stack: `TextGenerationPipeline.__init__; load_weights; device buffers`.
+
+### Filesystem and page cache · Kernel
+
+Supply cached checkpoint and executable data to model initialization.
+
+Interacts with: Worker file access, host RAM and storage I/O on a cache miss.
+
+Call stack: `TextGenerationPipeline → load_weights → load_graphs`.
+
+### MAX request scheduler · User space
+
+Admit queued work, select a batch and call the initialized pipeline.
+
+Interacts with: Worker IPC queues, request state, KV ownership and the native model pipeline.
+
+Call stack: `load_scheduler → scheduler.run_iteration`.
+
+### MAX native session and device backend · User space / native boundary
+
+Execute loaded graphs and manage device-buffer operations through the hardware backend.
+
+Interacts with: The worker's pipeline, GPU user-space driver and device resources.
+
+Call stack: `InferenceSession → load_graphs → pipeline.execute`.
+
+### GPU user-space and kernel drivers · User space + kernel boundary
+
+Provide device access, contexts, memory mappings and work-submission mechanisms.
+
+Interacts with: The native backend, Linux device resources and GPU hardware.
+
+Call stack: `The device boundary below InferenceSession and MAX buffers`.
+
+### GPU execution and VRAM · Hardware
+
+Run submitted compute and retain model data and active request cache state.
+
+Interacts with: The native backend's streams/dependencies, transfer engines and device memory.
+
+Call stack: `LlamaModelBase.load_graphs; scheduler pipeline execution`.
+
+## Startup: two processes, then HTTP readiness
+
+The API starts waiting immediately after spawn. The worker initializes on its own stack while that wait is pending.
+
+```text
+API PROCESS             LINUX / FILES        MODEL WORKER           NATIVE / GPU
+build app + config
+spawn ----------------> fresh interpreter -> ModelWorker.run()
+await alive ...                              InferenceSession ----> backend
+                                             read weights <------ file cache
+                                             load_graphs ---------> device state
+                                             warmup + queues + scheduler
+observe alive <------------------------------ alive.set(); loop continues
+connect request PUSH <----------------------> request PULL
+lifespan yields
+server.serve() --------> HTTP sockets / epoll
+API handles HTTP; worker independently continues scheduler.run_iteration().
+```
+
+### 1. Construct serving objects
+
+Owner: API process
+
+Resolve configuration, build FastAPI and Uvicorn configuration, and enter MAX's lifespan for storage, telemetry and worker setup.
+
+State change: App and server controller exist; HTTP request handling has not begun.
+
+### 2. Spawn the worker; start the readiness wait
+
+Owner: API → Linux → worker
+
+multiprocessing spawn starts a fresh interpreter. The API immediately awaits proc.ready(alive); its executor performs the Event wait while the child initializes.
+
+State change: Two process address spaces exist. The parent wait and child initialization overlap.
+
+### 3. Create the pipeline and native session
+
+Owner: Model worker → MAX native backend
+
+model_factory() executes the deferred partial. TextGenerationPipeline creates InferenceSession, which delegates to native device code.
+
+State change: The worker owns a session for model initialization; backend resource details cross the native boundary.
+
+### 4. Obtain model data through files and RAM
+
+Owner: Worker → Linux filesystem / memory
+
+After session creation, the pipeline resolves cached weight paths and loads model data. Linux supplies file pages from RAM or storage as needed.
+
+State change: Checkpoint data becomes host-accessible input to model construction.
+
+### 5. Prepare executable and device state
+
+Owner: MAX native backend → driver → GPU
+
+load_graphs prepares executable graphs and initialized weights. Device buffers, required transfers and the backing KV pool are prepared through the backend.
+
+State change: The model has reusable executable and device state for inference.
+
+### 6. Finish preparation; create queues and scheduler
+
+Owner: Model worker
+
+Configured warmup/graph-capture preparation completes. The worker establishes request PULL, response PUSH and cancel PULL queues, then loads the scheduler.
+
+State change: The initialized worker is about to enter its scheduler loop.
+
+### 7. Signal alive on the first scheduler iteration
+
+Owner: Worker → readiness Event → API
+
+alive.set() satisfies the parent's readiness Event. ProcessManager.ready() observes and clears it; the worker continues its scheduling loop.
+
+State change: The readiness wait completes. Request-channel connectivity still has to be established.
+
+### 8. Connect IPC and construct the frontend pipeline
+
+Owner: API proxy ↔ worker request channel
+
+wait_until_connected() waits for request PUSH/PULL connectivity. MAX then constructs TokenGeneratorPipeline and the lifespan yields to serve().
+
+State change: The API has a connected path to the initialized worker.
+
+### 9. Enter Uvicorn serving
+
+Owner: API → Linux socket / epoll path
+
+MAX now awaits server.serve(sockets=sockets). Uvicorn handles HTTP using uvloop, while the worker continues independently.
+
+State change: HTTP requests can reach the initialized model through the connected IPC proxy.
+
+## One request: network → API → worker → GPU → response
+
+Begin with an already-ready server. The arrows show ownership and handoff; the visible animation speed represents event order.
+
+```text
+CLIENT / NIC -> LINUX TCP socket -> epoll readiness -> UVLOOP / API
+                                                         |
+                                                   parse + tokenize
+                                                         |
+                  API request PUSH -> local Unix IPC -> WORKER request PULL
+                                                         |
+                                                   MAX selects work
+                                                         |
+                                                native backend -> GPU
+                                                         |
+                  API response PULL <- local Unix IPC <- WORKER response PUSH
+                         |
+                  SSE -> TCP send buffers -> NIC -> CLIENT
+Repeat output/decode while needed. Cancellation uses its own API PUSH -> worker PULL channel.
+```
+
+### 1. Receive bytes through the network path
+
+Owner: NIC / network driver → Linux TCP
+
+The NIC receives packets; a typical Linux driver path uses DMA, interrupts/NAPI and TCP processing to place bytes in the connection's receive state.
+
+State change: A connected socket has data available to read.
+
+### 2. Report socket readiness to the event loop
+
+Owner: Linux epoll → libuv / uvloop → Uvicorn
+
+epoll reports ready I/O. libuv dispatches the callback, and Uvicorn reads and interprets HTTP bytes for the FastAPI application.
+
+State change: The application's request handling becomes runnable.
+
+### 3. Prepare a request context
+
+Owner: API frontend and tokenizer
+
+FastAPI reaches TokenGeneratorPipeline. The tokenizer creates the request context; its encoding helper uses the default executor for CPU work.
+
+State change: The API has encoded model input and a request identity for worker communication.
+
+### 4. Send the context on the request channel
+
+Owner: API request PUSH → local Unix IPC
+
+ZeroMQ encodes and sends a message through ipc://. Linux supplies the local Unix-domain socket transport between the processes.
+
+State change: Request data crosses the process boundary without making an HTTP or NIC hop.
+
+### 5. Select queued model work
+
+Owner: Worker request PULL → MAX scheduler
+
+The worker receives contexts. MAX's scheduler chooses eligible work and calls the initialized pipeline; Linux schedules the CPU threads executing that code.
+
+State change: Selected requests become an inference pass; other requests remain waiting.
+
+### 6. Execute through the native device backend
+
+Owner: Worker → native session → GPU driver / device
+
+pipeline.execute() uses loaded executable state and device buffers. The native backend submits required transfers and compute with device dependencies.
+
+State change: The GPU has work to execute for the selected requests.
+
+### 7. Make completed output available
+
+Owner: GPU completion → native backend → worker
+
+The backend observes required completion dependencies before consuming results. Prefill/decode passes continue the model's generation work using retained state.
+
+State change: The worker can publish output for the corresponding request.
+
+### 8. Return output on the response channel
+
+Owner: Worker response PUSH → IPC → API response PULL
+
+The API proxy drains worker responses and associates each response with its request's output stream.
+
+State change: The API has a chunk to send; it can still be waiting for later chunks.
+
+### 9. Stream bytes using transport flow control
+
+Owner: API / Uvicorn → TCP buffers → NIC → client
+
+The API serializes streamed output. Socket write readiness and transport backpressure determine when more bytes can be sent to a slow reader.
+
+State change: The client receives output incrementally while later inference passes may continue.
+
+### 10. Finish or cancel request ownership
+
+Owner: MAX scheduler and API request lifecycle
+
+Generation completion releases scheduler membership and request KV ownership. Cancellation travels on its own IPC channel and is handled by the worker; cleanup must respect live device work.
+
+State change: Request resources can be reused safely. A retained backing pool and remaining buffered output have separate lifetimes.
+
+## Device boundary: access, buffers, submission and completion
+
+Linux + a discrete NVIDIA GPU is the reference model. Resource setup can persist across many requests; the Python source ends at the native backend boundary.
+
+```text
+WORKER / MAX NATIVE -> GPU USER-SPACE DRIVER
+                             |
+                    device access / mappings
+                             v
+                      LINUX GPU KERNEL DRIVER <-> GPU resources
+
+HOST RAM === driver-managed transfer / DMA ===> GPU VRAM
+native backend -> queued device work -> GPU compute -> required completion
+worker consumes results; later passes reuse device state
+request ends -> return KV ownership; server ends -> release owned device resources
+
+CPU virtual addresses, physical/DMA addresses and GPU device addresses are distinct domains.
+```
+
+### 1. Reach the vendor device interface
+
+Owner: MAX native session / device backend
+
+InferenceSession and MAX buffer abstractions delegate to the native backend, which uses the selected hardware interface and device context.
+
+State change: The application reaches a vendor device API through MAX's hardware abstraction.
+
+### 2. Establish access and mappings when needed
+
+Owner: GPU user-space driver ↔ Linux GPU kernel driver
+
+Driver components cooperate on device access, memory mapping and context/resource management. This is resource setup and management, not a promised syscall on every inference launch.
+
+State change: Authorized device resources and mappings can be retained for later use.
+
+### 3. Move required data to device buffers
+
+Owner: Backend transfer operation / device DMA
+
+Ordinary host buffers and GPU VRAM occupy different address domains. The backend transfers required weights or inputs, subject to buffer and stream dependencies.
+
+State change: Required data is available to the device when its dependencies are satisfied.
+
+### 4. Submit work with execution dependencies
+
+Owner: Native backend / GPU user-space interface
+
+Device operations are submitted to execution streams and dependencies. Submission can complete on the CPU before the corresponding GPU operation completes.
+
+State change: The device has queued work; submitted and finished are different states.
+
+### 5. Execute compute using resident device state
+
+Owner: GPU hardware
+
+GPU hardware runs the submitted compute and uses its VRAM buffers. Model weights and request cache state are reused across inference passes.
+
+State change: A device operation produces results and advances toward completion.
+
+### 6. Observe the completion required by the consumer
+
+Owner: Device completion → native runtime → worker
+
+Streams/events or backend synchronization express when output can be consumed. Host access may require a copy or synchronization; the exact backend mechanism remains a native boundary.
+
+State change: The consumer can safely read the required result. epoll socket readiness is a separate mechanism from GPU completion.
+
+### 7. Respect request and server resource lifetimes
+
+Owner: MAX request owner / serving-process owner
+
+Request cleanup returns cache-page ownership after safe completion. The backing pool and model buffers can remain for the server's lifetime; process/lifespan cleanup releases serving resources on exit.
+
+State change: One request ending and the server releasing all device state are separate lifecycle transitions.
+
+## Server readiness and shutdown
+
+Teaching states for the complete serving instance. Each readiness gate belongs to a different owner.
+
+```text
+Configured -> Starting worker -> Worker ready -> IPC connected -> Serving
+                  |                 |                              |
+               failure           IPC failure                    stop / signal
+                  v                 v                              v
+              Failure observed -------------------------------> Stopping -> Stopped
+                                                                  ^
+Serving -- worker exit --> Failure observed -----------------------+
+```
+
+- **Configured** (API process): Serving objects exist. MAX has not entered the HTTP serving loop.
+
+- **Starting worker** (API + child): The worker initializes while the API awaits its readiness Event.
+
+- **Worker ready** (Worker Event): Initialization reached the worker scheduler loop and the parent observed alive.
+
+- **IPC connected** (API proxy): The API's request channel is connected to the worker.
+
+- **Serving** (API + worker): Uvicorn handles HTTP; the worker independently schedules model work.
+
+- **Failure observed** (Lifecycle manager): Startup failed, timed out, or a worker exited. The owning lifecycle unwinds.
+
+- **Stopping** (Serving lifecycle): Exit from serve/lifespan tears down owned worker and frontend resources.
+
+- **Stopped** (Process/resource owners): This instance no longer accepts requests or executes its scheduler loop.
+
+## Request waiting, execution and streaming
+
+Teaching states group API and worker operations. Streaming can overlap later decode passes; cancellation is a cleanup request.
+
+```text
+API handling -> Worker queued -> Executing pass -> Output streaming -> Complete
+      |             |                ^    |                |
+   queue full       |                |    |                |
+      v             |                +----|-- next decode -+
+   Rejected         +-- cancel ------+----v----------------+
+                                    Cancel requested -> safe cleanup -> Cancelled
+GPU request ownership can end before the final output buffer has drained.
+```
+
+- **API handling** (API / tokenizer): HTTP input is parsed and encoded before worker admission.
+
+- **Worker queued** (IPC / scheduler): The request was admitted and waits for model work selection.
+
+- **Executing pass** (Worker / native GPU): The selected pass owns device buffers and request cache state.
+
+- **Output streaming** (Worker → API → TCP): Produced output travels back to the client. More decode work may still be needed.
+
+- **Complete** (Request lifecycle): Generation and response delivery have completed. Request ownership has been released.
+
+- **Rejected** (API admission): A full connected request channel can return HTTP 429 before SSE response headers.
+
+- **Cancel requested** (API → worker): The API sends cancellation; cleanup must respect any live device work.
+
+- **Cancelled** (Worker / request owner): Cancellation has been processed and request ownership is safely released.
+
+## One Linux thread: runnable, running, waiting
+
+A simplified OS-thread state machine. A suspended Python task and a sleeping OS thread belong to different layers.
+
+```text
+Runnable -- CPU dispatch --> Running -- blocking wait --> Waiting
+   ^                            |                          |
+   +------ preempt / yield ------+                          |
+   +---------------------- event / I/O wake ----------------+
+
+Python task: await -> suspended -> resumed by its event loop
+OS thread:  may keep running another callback; waits only when appropriate
+GPU work:   queued -> executing -> completion; separate device dependencies
+```
+
+- **Runnable** (Linux scheduler): The OS thread can run and is waiting for CPU scheduling.
+
+- **Running** (CPU thread): The thread executes callbacks, Python code or native work on a CPU.
+
+- **Waiting** (Kernel I/O / wait): A thread is blocked on an event or I/O operation. Other threads can run.
+
+## Many clients on this one instance
+
+```text
+many connected sockets
+          |
+    ready I/O callbacks
+          |
+   API tasks / local IPC
+          |
+  queued model requests
+          |
+ selected inference passes
+          |
+ output -> API/TCP -> clients
+
+Linux schedules OS threads; uvloop dispatches ready tasks; MAX selects model work.
+A connected client does not require its own spawned model-worker process.
+```
+
+## Evidence and references
+
+[Source/evidence manifest](os_components_manifest.json)
+
+[Validation record](validation/OS_COMPONENTS_VALIDATION.md)
+
+- [NGINX: event-driven server architecture](https://blog.nginx.org/blog/inside-nginx-how-we-designed-for-performance-scale)
+
+- [libuv: design of the I/O event loop](https://docs.libuv.org/en/v1.x/design.html)
+
+- [Linux epoll: interest and ready lists](https://man7.org/linux/man-pages/man7/epoll.7.html)
+
+- [Linux NAPI: network-driver event processing](https://docs.kernel.org/networking/napi.html)
+
+- [Linux DMA API: CPU, physical and device addresses](https://docs.kernel.org/core-api/dma-api-howto.html)
+
+- [Linux memory-management concepts](https://docs.kernel.org/admin-guide/mm/concepts.html)
+
+- [Linux getrlimit: open-file-descriptor limits](https://man7.org/linux/man-pages/man2/getrlimit.2.html)
+
+- [Python multiprocessing: spawn and process lifecycle](https://docs.python.org/3/library/multiprocessing.html)
+
+- [Uvicorn: flow control and server limits](https://uvicorn.dev/server-behavior/)
+
+- [ZeroMQ ipc transport: local Unix-domain sockets](https://libzmq.readthedocs.io/en/latest/zmq_ipc.html)
+
+- [NVIDIA CUDA: asynchronous execution, streams and events](https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/asynchronous-execution.html)
+
+- [NVIDIA CUDA: driver API and context address spaces](https://docs.nvidia.com/cuda/cuda-programming-guide/03-advanced/driver-api.html)
+
+- [NVIDIA Linux GPU kernel modules and user-space components](https://raw.githubusercontent.com/NVIDIA/open-gpu-kernel-modules/main/README.md)

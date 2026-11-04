@@ -1,0 +1,545 @@
+{
+  "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "page": "link_htmls/max_serve_os_components_and_flow.html",
+  "references": {
+    "alive": {
+      "alias": "WORKER",
+      "symbol": "ModelWorker.run",
+      "needle": "alive.set()",
+      "label": "alive.set()",
+      "kind": "call site",
+      "file": "max/python/max/serve/pipelines/model_worker.py",
+      "start": 338,
+      "end": 678,
+      "line": 650,
+      "sha256": "5c98b0da1919006256fe732ebd592ab6d1e53dc0599deec044c3137873603221"
+    },
+    "app": {
+      "alias": "API",
+      "symbol": "fastapi_app",
+      "label": "fastapi_app(settings, pipeline_settings)",
+      "kind": "definition",
+      "file": "max/python/max/serve/api_server.py",
+      "start": 346,
+      "end": 479,
+      "line": 346,
+      "sha256": "bea64a90d8fd2575d954ef93d6db95659aec1732133e2c7f72d55e5285c17571"
+    },
+    "buffer_copy": {
+      "alias": "BUFFER",
+      "symbol": "inplace_copy_from",
+      "label": "inplace_copy_from()",
+      "kind": "definition",
+      "file": "max/python/max/driver/buffer.py",
+      "start": 143,
+      "end": 166,
+      "line": 143,
+      "sha256": "6ab75d83599232588cdda2c9157034863fbf36e98ce73bf21f7102557bdae5aa"
+    },
+    "buffer_host": {
+      "alias": "BUFFER",
+      "symbol": "_to_numpy",
+      "label": "_to_numpy()",
+      "kind": "definition",
+      "file": "max/python/max/driver/buffer.py",
+      "start": 186,
+      "end": 209,
+      "line": 186,
+      "sha256": "a7eb54cbb7baf7db9c8268c7828d868badc605649a74286d43ee83e860af0a65"
+    },
+    "bundle": {
+      "alias": "API",
+      "symbol": "ServingTokenGeneratorSettings",
+      "label": "ServingTokenGeneratorSettings(...)",
+      "kind": "definition",
+      "file": "max/python/max/serve/api_server.py",
+      "start": 102,
+      "end": 114,
+      "line": 102,
+      "sha256": "eacd26e7370a805c1cc12a26010819e7ced7838da561cf06503ba60b0a86aead"
+    },
+    "config_call": {
+      "alias": "SERVE",
+      "symbol": "serve_api_server_and_model_worker",
+      "needle": "pipeline_config = PipelineConfig.from_args(",
+      "label": "call site",
+      "kind": "call site",
+      "file": "max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py",
+      "start": 60,
+      "end": 176,
+      "line": 96,
+      "sha256": "2506c8386f03b542628aef586144f40718ce7d33e19df09e8188c409be903332"
+    },
+    "connected": {
+      "alias": "ZMQ",
+      "symbol": "ZmqModelWorkerProxy.wait_until_connected",
+      "label": "ZmqModelWorkerProxy.wait_until_connected()",
+      "kind": "definition",
+      "file": "max/python/max/serve/worker_interface/zmq_interface.py",
+      "start": 87,
+      "end": 103,
+      "line": 87,
+      "sha256": "066e69c76ff837350b5dbedd0fd46e4e60f306f3be206be0442730265077a502"
+    },
+    "eventloop": {
+      "alias": "SERVE",
+      "symbol": "serve_api_server_and_model_worker",
+      "needle": "uvloop.run(serve())",
+      "label": "uvloop.run(serve())",
+      "kind": "call site",
+      "file": "max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py",
+      "start": 60,
+      "end": 176,
+      "line": 176,
+      "sha256": "2506c8386f03b542628aef586144f40718ce7d33e19df09e8188c409be903332"
+    },
+    "fd_wait": {
+      "alias": "PROC",
+      "symbol": "_read_ready",
+      "label": "_read_ready()",
+      "kind": "definition",
+      "file": "max/python/max/serve/process_control.py",
+      "start": 56,
+      "end": 64,
+      "line": 56,
+      "sha256": "cfbb9ef3fea67e00a84ac544e98392b71bea8233d502b05d4d15b63c733e4fb1"
+    },
+    "http": {
+      "alias": "SERVE",
+      "symbol": "serve_api_server_and_model_worker.serve",
+      "needle": "await server.serve(",
+      "label": "await server.serve(sockets=sockets)",
+      "kind": "call site",
+      "file": "max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py",
+      "start": 136,
+      "end": 152,
+      "line": 147,
+      "sha256": "5360d1826e78339b063788cf545f094a0d6ff4d6b48678cd03945f8200dc7b34"
+    },
+    "http_429": {
+      "alias": "API",
+      "symbol": "_request_queue_full_exception_handler",
+      "label": "_request_queue_full_exception_handler()",
+      "kind": "definition",
+      "file": "max/python/max/serve/api_server.py",
+      "start": 323,
+      "end": 343,
+      "line": 323,
+      "sha256": "60f007a43508d91fb8205483039e4f3d39024c8be34926cfb32facd3cbeb900b"
+    },
+    "invoke": {
+      "alias": "WORKER",
+      "symbol": "ModelWorker.run",
+      "needle": "pipeline = model_factory()",
+      "label": "model_factory()",
+      "kind": "call site",
+      "file": "max/python/max/serve/pipelines/model_worker.py",
+      "start": 338,
+      "end": 678,
+      "line": 444,
+      "sha256": "5c98b0da1919006256fe732ebd592ab6d1e53dc0599deec044c3137873603221"
+    },
+    "ipc_address": {
+      "alias": "IPC",
+      "symbol": "generate_zmq_ipc_path",
+      "label": "generate_zmq_ipc_path()",
+      "kind": "definition",
+      "file": "max/python/max/serve/worker_interface/_zmq_queue.py",
+      "start": 63,
+      "end": 81,
+      "line": 63,
+      "sha256": "acbcdee231b059b4c8e536214ca3e2c58271f0899e9349ed9af20c7e16f73900"
+    },
+    "lifespan": {
+      "alias": "API",
+      "symbol": "lifespan",
+      "label": "lifespan()",
+      "kind": "definition",
+      "file": "max/python/max/serve/api_server.py",
+      "start": 117,
+      "end": 277,
+      "line": 117,
+      "sha256": "30588871e0200c5e2dea5d8e5d86568ca35b657337f6687e56b08a0ea563dc30"
+    },
+    "load_graphs": {
+      "alias": "MODEL",
+      "symbol": "LlamaModelBase.load_graphs",
+      "label": "LlamaModelBase.load_graphs()",
+      "kind": "definition",
+      "file": "max/python/max/pipelines/architectures/llama3/model.py",
+      "start": 254,
+      "end": 281,
+      "line": 254,
+      "sha256": "200c27b6acef1071d7556ef5a7cc388a3e73e7238a293e8523683f944d4fe984"
+    },
+    "load_weights": {
+      "alias": "LOAD",
+      "symbol": "load_weights",
+      "label": "load_weights(weight_paths)",
+      "kind": "definition",
+      "file": "max/python/max/graph/weights/load.py",
+      "start": 24,
+      "end": 117,
+      "line": 24,
+      "sha256": "b8940979c72ec4b063fe6847cb86df45ecde25995ee88e8586b9e1c3061e075f"
+    },
+    "pipeline_init": {
+      "alias": "TEXT",
+      "symbol": "TextGenerationPipeline.__init__",
+      "label": "TextGenerationPipeline.__init__()",
+      "kind": "definition",
+      "file": "max/python/max/pipelines/lib/pipeline_variants/text_generation.py",
+      "start": 208,
+      "end": 387,
+      "line": 208,
+      "sha256": "3759fd837cd9a09185f93a58b1c1bf35a405c8a527bc9b16158360ea00567581"
+    },
+    "process_ready": {
+      "alias": "PROC",
+      "symbol": "ProcessManager.ready",
+      "label": "ProcessManager.ready()",
+      "kind": "definition",
+      "file": "max/python/max/serve/process_control.py",
+      "start": 201,
+      "end": 237,
+      "line": 201,
+      "sha256": "51725df8f54e2d1f28d1c2d5396f4bc504e8051f152f0e47df7a6c649afc06c3"
+    },
+    "proxy_cancel": {
+      "alias": "ZMQ",
+      "symbol": "ZmqModelWorkerProxy.cancel",
+      "label": "ZmqModelWorkerProxy.cancel()",
+      "kind": "definition",
+      "file": "max/python/max/serve/worker_interface/zmq_interface.py",
+      "start": 236,
+      "end": 245,
+      "line": 236,
+      "sha256": "206d0bd18e350d33b5eaa630a5b13bdc46058088966bbb5f1faf54b262d8ec12"
+    },
+    "proxy_drain": {
+      "alias": "ZMQ",
+      "symbol": "ZmqModelWorkerProxy._drain_responses",
+      "label": "ZmqModelWorkerProxy._drain_responses()",
+      "kind": "definition",
+      "file": "max/python/max/serve/worker_interface/zmq_interface.py",
+      "start": 167,
+      "end": 234,
+      "line": 167,
+      "sha256": "72c6452ee03982cacc4948f45a5000b41c81098e283f21d02564d8d87302bf6c"
+    },
+    "proxy_submit": {
+      "alias": "ZMQ",
+      "symbol": "ZmqModelWorkerProxy.stream",
+      "label": "ZmqModelWorkerProxy.stream()",
+      "kind": "definition",
+      "file": "max/python/max/serve/worker_interface/zmq_interface.py",
+      "start": 105,
+      "end": 165,
+      "line": 105,
+      "sha256": "5670f7ee041e551615eec838e430564aa7dbf7bc216542822cb7db5e302cf076"
+    },
+    "ready": {
+      "alias": "WORKER",
+      "symbol": "start_model_worker",
+      "needle": "await proc.ready(",
+      "label": "await proc.ready(alive, timeout=...)",
+      "kind": "call site",
+      "file": "max/python/max/serve/pipelines/model_worker.py",
+      "start": 759,
+      "end": 829,
+      "line": 815,
+      "sha256": "30d60924fb6db18146cf10458f034da0538ce1d15607c3e47507a2695cb167f5"
+    },
+    "release_request": {
+      "alias": "BATCH",
+      "symbol": "TextBatchConstructor.release_request",
+      "label": "TextBatchConstructor.release_request()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py",
+      "start": 1066,
+      "end": 1155,
+      "line": 1066,
+      "sha256": "fdf4d00ae924cd84a87d95ce98c647e3995dd529626f6093a3559fb7e1e61efa"
+    },
+    "scheduler": {
+      "alias": "SCHED",
+      "symbol": "load_scheduler",
+      "label": "load_scheduler()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/__init__.py",
+      "start": 80,
+      "end": 206,
+      "line": 80,
+      "sha256": "522f0688be508d2f7caf2304d9eb80fccc761a5da2ee694815a431e9d281494a"
+    },
+    "scheduler_execute": {
+      "alias": "TG_SCHED",
+      "symbol": "TokenGenerationScheduler._schedule",
+      "label": "Execute, advance requests and release completed requests",
+      "kind": "definition",
+      "needle": "                responses = self.pipeline.execute(inputs)",
+      "file": "max/python/max/serve/scheduler/text_generation_scheduler.py",
+      "start": 407,
+      "end": 564,
+      "line": 487,
+      "sha256": "c0b780e6be42c829d3ae44ba5768ecf42f0ad690348abcf74bc00a2f9cff93f4"
+    },
+    "scheduler_iteration": {
+      "alias": "TG_SCHED",
+      "symbol": "TokenGenerationScheduler.run_iteration",
+      "label": "TokenGenerationScheduler.run_iteration()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/text_generation_scheduler.py",
+      "start": 304,
+      "end": 405,
+      "line": 304,
+      "sha256": "d33f958c66937c9235a067577956ea21ca5b0d151855f3d0ff61852f9fe05322"
+    },
+    "serve": {
+      "alias": "SERVE",
+      "symbol": "serve_api_server_and_model_worker",
+      "label": "serve_api_server_and_model_worker()",
+      "kind": "definition",
+      "file": "max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py",
+      "start": 60,
+      "end": 176,
+      "line": 60,
+      "sha256": "2506c8386f03b542628aef586144f40718ce7d33e19df09e8188c409be903332"
+    },
+    "session_native": {
+      "alias": "ENGINE",
+      "symbol": "InferenceSession.__init__",
+      "label": "Python session delegates to the native engine",
+      "kind": "definition",
+      "needle": "        self._impl = _InferenceSession(",
+      "file": "max/python/max/engine/api.py",
+      "start": 664,
+      "end": 774,
+      "line": 707,
+      "sha256": "e0cc659854409acb6ccb0b1c4096d3ad853092e6e074c201bbfaa74c1f965c3b"
+    },
+    "spawn": {
+      "alias": "WORKER",
+      "symbol": "start_model_worker",
+      "needle": "proc.start(",
+      "label": "proc.start(ModelWorker(), alive, factory, config, ...)",
+      "kind": "call site",
+      "file": "max/python/max/serve/pipelines/model_worker.py",
+      "start": 759,
+      "end": 829,
+      "line": 801,
+      "sha256": "30d60924fb6db18146cf10458f034da0538ce1d15607c3e47507a2695cb167f5"
+    },
+    "tokenizer_cpu": {
+      "alias": "TOKENIZER",
+      "symbol": "TextTokenizer._encode_text",
+      "label": "TextTokenizer._encode_text()",
+      "kind": "definition",
+      "file": "max/python/max/pipelines/lib/tokenizer.py",
+      "start": 769,
+      "end": 785,
+      "line": 769,
+      "sha256": "5c91b77a4595dce4a77400cf600cc64755632973ba8451721903f0bc1ce9866b"
+    },
+    "uvicorn_cfg": {
+      "alias": "API",
+      "symbol": "fastapi_config",
+      "label": "fastapi_config(app, server_settings=settings)",
+      "kind": "definition",
+      "file": "max/python/max/serve/api_server.py",
+      "start": 482,
+      "end": 503,
+      "line": 482,
+      "sha256": "ac9a927de23c90b29539d8b29d2cb1f57fdf9b65cf66921c33e2b8139e4dd32e"
+    },
+    "worker_run": {
+      "alias": "WORKER",
+      "symbol": "ModelWorker.run",
+      "label": "ModelWorker.run()",
+      "kind": "definition",
+      "file": "max/python/max/serve/pipelines/model_worker.py",
+      "start": 338,
+      "end": 678,
+      "line": 338,
+      "sha256": "5c98b0da1919006256fe732ebd592ab6d1e53dc0599deec044c3137873603221"
+    }
+  },
+  "files": {
+    "max/python/max/serve/pipelines/model_worker.py": {
+      "sha256": "2470a201fd1fcb3f3537dc800f603653d793e052c4a8fbe6e85d50478ecd58b2",
+      "snapshot": "sources/max/python/max/serve/pipelines/model_worker.py"
+    },
+    "max/python/max/serve/api_server.py": {
+      "sha256": "1348dcf0dfa8e50e0d0d9e0dd7c85c50cc3cdf7f91e603f0a84271aa997c1f9e",
+      "snapshot": "sources/max/python/max/serve/api_server.py"
+    },
+    "max/python/max/driver/buffer.py": {
+      "sha256": "572618625e340f65583027ad6cafe138a64b67b3dd9db2c42888a542d7074dcf",
+      "snapshot": "sources/max/python/max/driver/buffer.py"
+    },
+    "max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py": {
+      "sha256": "96dba5cfd2583c2f880bdcf3a4debf7ea0c4adace94f616935428f3ec7ac0cb2",
+      "snapshot": "sources/max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py"
+    },
+    "max/python/max/serve/worker_interface/zmq_interface.py": {
+      "sha256": "77cec3e86d80b5ab02f05ef0cc5daaf296d739d022449f13db53e5ea284a9a2b",
+      "snapshot": "sources/max/python/max/serve/worker_interface/zmq_interface.py"
+    },
+    "max/python/max/serve/process_control.py": {
+      "sha256": "de7b25fc676a2c04eb1b541cf9eadde712c12c161080121d2bc6bdb918a1a0ec",
+      "snapshot": "sources/max/python/max/serve/process_control.py"
+    },
+    "max/python/max/serve/worker_interface/_zmq_queue.py": {
+      "sha256": "96c38bfe03e49697bea71196e8ccfd0eb3bd668f3430aebd00a8283bc7bd579b",
+      "snapshot": "sources/max/python/max/serve/worker_interface/_zmq_queue.py"
+    },
+    "max/python/max/pipelines/architectures/llama3/model.py": {
+      "sha256": "0714e4a71b348c2239ee31885ecd85c7df48af15705627f41e8a20402346f867",
+      "snapshot": "sources/max/python/max/pipelines/architectures/llama3/model.py"
+    },
+    "max/python/max/graph/weights/load.py": {
+      "sha256": "b0b095433f74926f185f2a13c4d9dda07ed251d44412cca7c1a4bab9dd2b5266",
+      "snapshot": "sources/max/python/max/graph/weights/load.py"
+    },
+    "max/python/max/pipelines/lib/pipeline_variants/text_generation.py": {
+      "sha256": "8a2256eb53f5f8bd29c862a3cfa14d827de163caf80c068681f0cee25ffc6d89",
+      "snapshot": "sources/max/python/max/pipelines/lib/pipeline_variants/text_generation.py"
+    },
+    "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py": {
+      "sha256": "5042371189adc416a07f1b8c9ecf9ca465f1ca6a3bc2082e3089cf4e1c38836c",
+      "snapshot": "sources/max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py"
+    },
+    "max/python/max/serve/scheduler/__init__.py": {
+      "sha256": "5ee97a08b9d5f32f033ab8216e0976c041bd2a1b9476fc1e7e25445bb119f635",
+      "snapshot": "sources/max/python/max/serve/scheduler/__init__.py"
+    },
+    "max/python/max/serve/scheduler/text_generation_scheduler.py": {
+      "sha256": "ad1ab2fd027f24dca54d5c3298fddef91876847fc22ddfe59e2858bc039fe993",
+      "snapshot": "sources/max/python/max/serve/scheduler/text_generation_scheduler.py"
+    },
+    "max/python/max/engine/api.py": {
+      "sha256": "97f0592962c1853c884c8d8145a0faf4aa9ca622262271de4b080990b47da017",
+      "snapshot": "sources/max/python/max/engine/api.py"
+    },
+    "max/python/max/pipelines/lib/tokenizer.py": {
+      "sha256": "29996b05cbdbb0693331f585a5f8ecfed0db3342bd818cccebd2affdef002d8b",
+      "snapshot": "sources/max/python/max/pipelines/lib/tokenizer.py"
+    }
+  },
+  "components": [
+    "api",
+    "worker",
+    "threads",
+    "loop",
+    "epoll",
+    "socket",
+    "nic",
+    "ipc",
+    "ready",
+    "memory",
+    "files",
+    "scheduler",
+    "native",
+    "driver",
+    "gpu"
+  ],
+  "flows": {
+    "startup": 9,
+    "request": 10,
+    "device": 7
+  },
+  "machines": {
+    "server": {
+      "states": 8,
+      "paths": 3
+    },
+    "request": {
+      "states": 8,
+      "paths": 3
+    },
+    "thread": {
+      "states": 3,
+      "paths": 2
+    }
+  },
+  "research": [
+    {
+      "id": "nginx",
+      "url": "https://blog.nginx.org/blog/inside-nginx-how-we-designed-for-performance-scale",
+      "snapshot": "evidence/os_systems/nginx.txt",
+      "snapshot_sha256": "b2bf69b1fb9d39cb8f251004bdf12eaf52a486c2bba31482ca66cbbc24b75871"
+    },
+    {
+      "id": "libuv",
+      "url": "https://docs.libuv.org/en/v1.x/design.html",
+      "snapshot": "evidence/os_systems/libuv.txt",
+      "snapshot_sha256": "03765d90d03c02efe9b7ea026529585abefdb92348519b26610deefd83d9820a"
+    },
+    {
+      "id": "epoll",
+      "url": "https://man7.org/linux/man-pages/man7/epoll.7.html",
+      "snapshot": "evidence/os_systems/epoll.txt",
+      "snapshot_sha256": "1477bd30c92f1ea828c706a95ab1cfc1f8be12ec62debffd35c6f069c1ac1279"
+    },
+    {
+      "id": "napi",
+      "url": "https://docs.kernel.org/networking/napi.html",
+      "snapshot": "evidence/os_systems/napi.txt",
+      "snapshot_sha256": "93d3a7e138f1d718725f4c60e825a8bbbfff0cd1fc66b7e0a64cb496039906c0"
+    },
+    {
+      "id": "dma",
+      "url": "https://docs.kernel.org/core-api/dma-api-howto.html",
+      "snapshot": "evidence/os_systems/dma.txt",
+      "snapshot_sha256": "a4de912693f56ef4395bb0fd2e09ce8f80503d539eb8bb0ca1d03d8d3d910670"
+    },
+    {
+      "id": "memory",
+      "url": "https://docs.kernel.org/admin-guide/mm/concepts.html",
+      "snapshot": "evidence/os_systems/memory.txt",
+      "snapshot_sha256": "c0db89529280f0eff70625e4b916f71a0e7dcb7763651407fdbe8e254dea27c1"
+    },
+    {
+      "id": "fdlimit",
+      "url": "https://man7.org/linux/man-pages/man2/getrlimit.2.html",
+      "snapshot": "evidence/os_systems/fdlimit.txt",
+      "snapshot_sha256": "b5270e70ee64b8d75a163d1a0f93be1e13c3b2cdddce7ac3eed5354f39b433aa"
+    },
+    {
+      "id": "spawn",
+      "url": "https://docs.python.org/3/library/multiprocessing.html",
+      "snapshot": "evidence/os_systems/spawn.txt",
+      "snapshot_sha256": "4222ffacb2ccd0afefb6b523734be852df9f3f9f6587a0550671dd180b8a222d"
+    },
+    {
+      "id": "uvicorn",
+      "url": "https://uvicorn.dev/server-behavior/",
+      "snapshot": "evidence/os_systems/uvicorn.txt",
+      "snapshot_sha256": "40e694a604a47ae883f45a082bc349c0e641468169116dc1e17e75b9e57d4e4b"
+    },
+    {
+      "id": "zmq",
+      "url": "https://libzmq.readthedocs.io/en/latest/zmq_ipc.html",
+      "snapshot": "evidence/os_systems/zmq.txt",
+      "snapshot_sha256": "0a321f64b96aeeb920a120d3de7ecd9ad8668d6eb9747b40087ac8ed8e93bf0a"
+    },
+    {
+      "id": "cuda_async",
+      "url": "https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/asynchronous-execution.html",
+      "snapshot": "evidence/os_systems/cuda_async.txt",
+      "snapshot_sha256": "9c98087d0e599a1372efe653e06f9f9dda53ad8760bb0f91c321946d1c1a42b2"
+    },
+    {
+      "id": "cuda_driver",
+      "url": "https://docs.nvidia.com/cuda/cuda-programming-guide/03-advanced/driver-api.html",
+      "snapshot": "evidence/os_systems/cuda_driver.txt",
+      "snapshot_sha256": "c6bfa2a9a376ddc7aa837e9a5bc0ee53c556964272f3cdc27bd1c4765290ac51"
+    },
+    {
+      "id": "nvidia_kernel",
+      "url": "https://raw.githubusercontent.com/NVIDIA/open-gpu-kernel-modules/main/README.md",
+      "snapshot": "evidence/os_systems/nvidia_kernel.txt",
+      "snapshot_sha256": "91743e6129b4814542ecc5867f5fabaebff52d2f56309a6b13465f60606d7a3a"
+    }
+  ]
+}

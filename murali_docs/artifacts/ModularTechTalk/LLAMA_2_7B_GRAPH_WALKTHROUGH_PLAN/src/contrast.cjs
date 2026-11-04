@@ -51,6 +51,7 @@ module.exports = function auditRenderedContrast() {
     if (e.matches(".actor-subtitle, .object-hint")) backing = rgba(style(e.closest(".actor").querySelector(".actor-box")).fill);
     if (e.classList.contains("step-number-text")) backing = rgba(style(e.parentElement.querySelector(".step-number-box")).fill);
     if (e.matches(".sequence-packet text")) backing = rgba(style(e.parentElement.querySelector("circle")).fill);
+    if (e.matches(".state-label, .state-owner")) backing = rgba(style(e.closest(".state-node").querySelector(".state-box")).fill);
     if (text && !["SCRIPT", "STYLE", "OPTION"].includes(e.tagName)) {
       check(e, e instanceof SVGElement ? s.fill : s.color, backing, text, large ? 3 : 4.5);
     }
@@ -58,7 +59,7 @@ module.exports = function auditRenderedContrast() {
       check(e, s.color, backing, e.value || "input text", 4.5);
       if (e.placeholder && !e.value) check(e, getComputedStyle(e, "::placeholder").color, backing, e.placeholder, 4.5, "placeholder");
     }
-    if (e.matches(".call-arrow, .lifeline")) check(e, s.stroke, backing, "diagram line", 3, "graphic");
+    if (e.matches(".call-arrow, .lifeline, .state-edge")) check(e, s.stroke, backing, "diagram line", 3, "graphic");
     if (e.matches(".call-arrowhead")) check(e, s.fill, backing, "diagram arrowhead", 3, "graphic");
     if (e.matches("button, input, select") && parseFloat(s.borderTopWidth) > 0) {
       check(e, s.borderTopColor, background(e.parentElement), "control outline", 3, "control");

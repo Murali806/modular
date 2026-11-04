@@ -146,3 +146,14 @@ Llama 2 7B geometry and weight estimate reuse saved checkpoint provenance.
 The conservative reservation rule, ideal N slots, API waiting gate and fleet
 policies are identified as simulation/deployment assumptions. Neither the
 animation nor the research establishes hardware throughput or latency.
+
+## Focused OS roles and state transitions — 2026-11-05
+
+The [focused OS reader](link_htmls/max_serve_os_components_and_flow.html)
+reuses the reviewed NGINX, libuv/epoll, Linux memory/network/DMA, Python spawn,
+Uvicorn, ZeroMQ and NVIDIA references. Its visual structure emphasizes the
+two process owners, kernel services, device boundaries and event order.
+Separate server, request and OS-thread state diagrams explain readiness,
+waiting, execution, cancellation and cleanup without treating those states
+as one shared scheduler. The diagram names are teaching labels; source links
+identify the actual MAX calls.

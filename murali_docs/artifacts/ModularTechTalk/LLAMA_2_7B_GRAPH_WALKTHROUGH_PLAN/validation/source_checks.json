@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-11-04T17:07:52.956681+00:00",
+  "checked_at": "2026-11-04T18:45:29.069906+00:00",
   "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
   "command": "PYTHONDONTWRITEBYTECODE=1 python3 src/validate.py",
   "result": "PASS",
@@ -21,7 +21,14 @@
   "os_systems_steps": 48,
   "os_systems_objects": 22,
   "os_systems_research_extracts": 17,
-  "local_links_checked": 1543,
+  "os_components_source_targets": 32,
+  "os_components_source_files": 15,
+  "os_components_count": 15,
+  "os_components_flow_steps": 26,
+  "os_components_state_machines": 3,
+  "os_components_states": 19,
+  "os_components_paths": 8,
+  "local_links_checked": 1804,
   "external_runtime_dependencies": 0,
   "evidence": "Document/source validation only; no MAX model execution."
 }

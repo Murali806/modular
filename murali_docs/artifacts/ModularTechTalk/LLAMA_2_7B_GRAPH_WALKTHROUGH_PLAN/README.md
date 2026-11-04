@@ -12,6 +12,8 @@ architecture registration timing. The
 | [Interactive guide](index.html) | Concept → diagram → exact code → line-linked explanation → full-file context |
 | [MAX Serve startup call stack](max_serve_llama2_7b_startup_call_stack.html) | One continuous tree combining QnA 1.1.1–1.1.6, from CLI parsing to HTTP readiness |
 | [Memory planning and MemoryPlan](link_htmls/llama2_7b_memory_planning_and_memory_plan.html) | Nested QnA cells with input origins, initialization calls and example objects, a budget waterfall, KV pages, parent/worker handoff and complete pinned source |
+| [OS components, roles and flow](link_htmls/max_serve_os_components_and_flow.html) | Focused user-space/kernel/hardware map, three animated flows and server/request/OS-thread state machines for one serving instance |
+| [Focused OS companion](OS_COMPONENTS_GUIDE.md) / [validation](validation/OS_COMPONENTS_VALIDATION.md) | Portable ownership/sequence/state diagrams, 32 source targets and browser results |
 | [MAX Serve OS / GPU systems lab](link_htmls/max_serve_os_driver_and_scaling.html) | Six animated Linux/NVIDIA scenes, 48 detailed step cards, 22 object cards and a deterministic client/queue/KV/fleet simulator |
 | [Portable systems guide](OS_SYSTEMS_GUIDE.md) / [systems manifest](os_systems_manifest.json) | Actor-complete ASCII sequences, example objects, exact source targets and research hashes |
 | [Memory explanation design](MEMORY_PLANNING_DESIGN.md) / [validation](validation/MEMORY_PLANNING_VALIDATION.md) | Disclosure structure, diagram controls, source checks and browser results |
@@ -100,6 +102,12 @@ all twelve references and explains where each method is applied.
   reader speed and routing. Add/Crash/Replace demonstrate readiness and
   failure boundaries for independent one-GPU replicas. All rates are explicit
   teaching inputs; charts are simulation results.
+- The focused **OS components & flow** page explains the roles and interaction
+  of 15 components in one serving instance. Three animations contain 26
+  handoffs: startup/readiness, one request/response, and the GPU driver/buffer
+  boundary. Server, request and OS-thread diagrams contain 19 teaching states
+  with eight selectable paths. Green labels open persistent role/transition
+  cards; optional source links open the complete original files.
 
 ## Source scope
 
@@ -135,13 +143,17 @@ finalization and device-graph finalization have their own explanations.
 7. Select a function or a **call site** link to inspect exact source. Expand
    **Source map** for file aliases. Long text lines scroll inside the tree,
    preserving indentation on small screens.
-8. Open **OS / GPU systems lab ↗** in the call-stack reader header. Follow
+8. Open **OS components & flow ↗** in the call-stack reader header. Inspect
+   component roles, Step/Play through a high-level flow, or select a server,
+   request or OS-thread state-machine path. Hover/focus/tap labels and use
+   Hold/Close/Escape to control the explanation card.
+9. Open **OS / GPU systems lab ↗** in the call-stack reader header. Follow
    the six scenes with Step/Play; hover, focus or tap green labels and object
    headers. Hold/Close/Escape control the persistent explanation card.
-9. In the lab, choose a preset, Step or Play, and select a request to inspect
-   its state and KV/output ownership. Input changes take effect with
-   **Apply & restart**. Adding a replica introduces a two-second illustrative
-   warmup and affects future routing; existing requests retain their owners.
+10. In the lab, choose a preset, Step or Play, and select a request to inspect
+    its state and KV/output ownership. Input changes take effect with
+    **Apply & restart**. Adding a replica introduces a two-second illustrative
+    warmup and affects future routing; existing requests retain their owners.
 
 ## Rebuilding
 
@@ -180,6 +192,12 @@ The earlier readers' source manifests/payloads remain unchanged.
 `src/fetch_os_systems_evidence.py --refresh` deliberately refreshes the 17
 public-reference extracts. Normal builds never fetch them. Simulator and
 browser commands are in [the systems validation record](validation/OS_SYSTEMS_VALIDATION.md).
+
+`src/os_components.py` builds the focused OS reader from its content, HTML,
+CSS and browser controller. It reuses existing pinned snapshots and the
+reviewed OS/device references. Its [manifest](os_components_manifest.json)
+and [validation record](validation/OS_COMPONENTS_VALIDATION.md) record the
+component, source and state-path checks.
 
 This version starts from the restored baseline checkpoint. The rejected
 radio-button prototype is not part of the guide.
