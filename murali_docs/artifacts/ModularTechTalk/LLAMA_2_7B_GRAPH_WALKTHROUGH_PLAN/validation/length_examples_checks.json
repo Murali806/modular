@@ -1,0 +1,25 @@
+{
+  "checked_at": "2026-11-04T04:56:08.208Z",
+  "result": "PASS",
+  "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "command": "NODE_PATH=/tmp/max-v4-playwright/node_modules node src/check_initialize_and_limits.cjs",
+  "worked_examples": 6,
+  "table_link_targets": [
+    "length-example-architecture",
+    "length-example-batch",
+    "length-example-batch",
+    "length-example-pages",
+    "length-example-oom",
+    "length-example-caps",
+    "length-example-resident"
+  ],
+  "source_targets": 98,
+  "keyboard_disclosures": true,
+  "viewports": [
+    1600,
+    390,
+    320
+  ],
+  "no_document_overflow": true,
+  "errors": []
+}

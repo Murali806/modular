@@ -180,6 +180,50 @@ is a model-config operation; graph finalization and compilation have separate st
 {{code:initialize}}
 {{code:initialize_config}}
 {{code:kv_construct}}
+<details class="explanation init-sequence-cell" id="initialize-sequence">
+<summary><span class="summary-main"><strong>Sequence diagram · Llama3Config.initialize()</strong><span>Follow the calls, source lines and example objects returned to the planner</span></span></summary>
+<div class="detail-body">
+<p><span class="badge source">SOURCE</span> Call order at <code>{{revision-short}}</code> · <span class="badge example">EXAMPLE</span> Llama 2 7B metadata with an explicit BF16 configuration.</p>
+<p class="small init-sequence-key"><span>Green step labels and arrows open source.</span><span>Amber object labels open their example fields below.</span></p>
+<div class="init-sequence-scroll" tabindex="0" aria-label="Scrollable initialization sequence with source and object links">{{initialize-sequence}}</div>
+<p class="small">This example sets <code>quantization_encoding="bfloat16"</code> and <code>kv_cache_format=None</code>, so the model and KV-cache dtypes resolve to BF16.
+<code>P1</code>, <code>M1</code>, <code>H1</code>, <code>K1</code>, <code>V1</code> and <code>A1</code> are teaching labels for objects. Records show selected fields; the metadata comes from the saved public-mirror config.</p>
+<div class="init-object-grid">{{initialize-objects}}</div>
+<p class="sources">Next, {{ref:planner_config_call|arch.memory_planner(arch_config)}} receives <code>A1</code> for the memory estimates.</p>
+<details class="explanation"><summary>Portable sequence with the same object handoffs</summary><div class="detail-body">
+<pre class="text-diagram">API parent · MemoryEstimator.plan()
+  │
+  ├─ P1: PipelineConfig.model ──────────────────────────────► M1: MAXModelConfig
+  │                                                          max_length=4096
+  └─ Llama3Config.initialize(P1, model_config=M1, max_seq_len=4096)
+       │
+       ├─ M1.huggingface_config ────────────────────────────► H1: AutoConfig
+       │   omitted model_config falls back to P1.model        layers=32, hidden=4096
+       │   missing H1 raises ValueError                       Q heads=32, KV heads=32
+       │                                                      head_dim=4096/32=128
+       └─ initialize_from_config(P1, H1, M1, max_seq_len=4096)
+            │
+            ├─ M1.kv_cache ────────────────────────────────► K1: KVCacheConfig
+            │                                                page_size=128
+            ├─ encoding="bfloat16" ─► model dtype=BF16        kv_cache_format=None
+            │                       └► KV dtype=BF16
+            ├─ device_specs=[gpu:0] ─► [DeviceRef("gpu", 0)]
+            │
+            ├─ construct_kv_params(H1, P1, devices, K1, BF16)
+            │    └─ K1.to_params(n_kv_heads=32, head_dim=128,
+            │         num_layers=32, DP=1, num_draft_tokens=0)
+            │         └─ V1: MHAKVCacheParams (KVCacheParams subclass)
+            │              page_size=128, KV heads/device=32
+            │
+            └─ A1: Llama3Config(hidden=4096, layers=32,
+                 max_seq_len=4096, dtype=BF16, kv_params=V1)
+                 │
+                 └─ return A1 ─────────────────────────────► arch_config
+                                                              │
+                                                              ▼
+                                                    PagedMemoryPlanner(A1)</pre>
+</div></details>
+</div></details>
 </div></details>
 
 <details class="qna" id="memory-budget">
@@ -332,37 +376,150 @@ stay with one device and an unquantized cache; quantized scales and alignment ar
 </div></details>
 
 <details class="qna" id="length-and-batch">
-<summary><span class="summary-main"><strong>QnA 1.1.6.1.5 · How are batch and sequence limits chosen?</strong><span>Architecture bound first, then cache capacity; a request-count limit does not guarantee all requests can be full length</span></span><span class="badge source">SOURCE</span></summary>
+<summary><span class="summary-main"><strong>QnA 1.1.6.1.5 · How are batch and sequence limits chosen?</strong><span>Architecture bound first, then cache capacity; work through the inputs, calculations and resulting plan</span></span><span class="badge source">SOURCE + EXAMPLE</span></summary>
 <div class="qna-body">
 <div class="limit-flow"><div><strong>Construction</strong><code>HF limit + requested length</code><small>→ model.max_length</small></div><span aria-hidden="true">→</span><div><strong>Planning</strong><code>candidate batch + KV budget</code><small>→ manager size + capacity</small></div><span aria-hidden="true">→</span><div><strong>Effective plan</strong><code>planned_max_length</code><code>planned_max_batch_size</code></div></div>
+<p><code>max_length</code> bounds the context of <strong>one request</strong>. <code>max_batch_size</code> bounds the <strong>number of requests</strong> considered together.
+The KV pool must also have pages for their current contexts. MAX resolves the checkpoint length first, chooses a candidate request count, then checks the selected cache manager's capacity.</p>
+<p class="example-label"><strong>Shared inputs for the worked examples:</strong> Llama 2 7B; one device; 32 layers; 32 KV heads; 128 values per head;
+two-byte BF16 cache elements; 128 tokens per page. Count distinct request pages, with one shared null block.
+For budget arithmetic, use the exercise's hypothetical 24 GiB free memory, 90% utilization, {{weight-gib}} GiB weight estimate, and zero activation/signal estimates.
+The initial KV budget is therefore about 9.048681 GiB. These are fixed teaching scenarios; the interactive budget controls can be changed separately.</p>
 <div class="table-scroll"><table><thead><tr><th>Limit</th><th>Rule</th><th>Concrete example</th></tr></thead><tbody>
-<tr><td>Construction-resolved length</td><td>Llama's inherited policy bounds requested length by checkpoint <code>max_position_embeddings</code>.</td><td>No <code>--max-length</code> → 4096; <code>--max-length 2048</code> → 2048; 8192 raises here.</td></tr>
-<tr><td>Candidate request batch</td><td>Use explicit runtime max batch size; otherwise planner may suggest one, then framework falls back to 512 for accelerator KV models or 1 for a single CPU.</td><td>Explicit 4 → candidate 4. Unset GPU candidate 512 is a heuristic constant, not a benchmark result.</td></tr>
-<tr><td>Input-token constraint</td><td><code>max_batch_size</code> is lowered if it exceeds <code>runtime.max_batch_input_tokens</code>.</td><td>Candidate 512 and input-token target 128 → candidate 128.</td></tr>
-<tr><td>Full-batch cache demand</td><td>Price full-context pages, but commit at most the budget available to the manager.</td><td>512 × 4096-token two-byte Llama contexts would need 1024 GiB of payload. A ~9 GiB pool supports fewer such full contexts.</td></tr>
-<tr><td>Optional default-length OOM search</td><td>If the estimated footprint exceeds free memory and max length was not explicitly provided, try a fitting length/batch.</td><td>This is a guarded source branch; it is not evidence that every default launch reduces max_length.</td></tr>
-<tr><td>Physical cache capacity</td><td>Ask the selected KV manager for the longest request the committed budget can hold; lower length if necessary. This clamp applies even with an explicit length.</td><td>If a plain 64 MiB/page pool can hold just 16 total blocks, one is null, so a single request can use 15 × 128 = 1920 tokens.</td></tr>
-<tr><td>Resident-token cap</td><td>Propagate user max-batch-total-tokens, or architecture-required default, onto the plan.</td><td>Unset is <code>None</code> for this Llama declaration. A configured 4096 cap limits the summed page-aligned contexts admitted in a batch.</td></tr>
+<tr><td>Construction-resolved length</td><td>Llama's inherited policy bounds the requested length by checkpoint <code>max_position_embeddings</code>.</td><td>The checkpoint cap is 4096. An omitted length selects that cap; a requested 2048 passes because it is below the cap; a requested 8192 fails the cap check before planning.<br><a href="#length-example-architecture">Example 1: follow all three cases</a>.</td></tr>
+<tr><td>Candidate request batch</td><td>Use an explicit runtime batch size; otherwise ask the architecture planner, then use the framework fallback.</td><td>Explicit 4 stays 4. With the Llama planner returning <code>None</code> and one GPU selected, the fallback supplies 512. The number is a source constant; later capacity checks decide which contexts can fit.<br><a href="#length-example-batch">Example 2: trace explicit and omitted batch sizes</a>.</td></tr>
+<tr><td>Input-token constraint</td><td>Lower the candidate request count if it exceeds <code>runtime.max_batch_input_tokens</code>.</td><td>Start at 512 and set the input-token target to 128. Since <code>512 &gt; 128</code>, the candidate becomes 128. The per-request checkpoint length can still be 4096.<br><a href="#length-example-batch">Example 2: separate request count, input tokens and context length</a>.</td></tr>
+<tr><td>Full-batch cache demand</td><td>Price full-context pages, then commit at most the manager's available budget.</td><td>One 4096-token context needs 32 pages, or 2 GiB. Four such contexts need 128 request pages plus one null block: 8.0625 GiB. For 512 contexts the same calculation grows to 1024.0625 GiB, so the manager uses the available budget instead.<br><a href="#length-example-pages">Example 3: calculate both cache sizes and their plan fields</a>.</td></tr>
+<tr><td>Optional default-length OOM search</td><td>Run the fitting search only when the footprint exceeds free memory and length was omitted.</td><td>The four-request baseline has a 20.613819 GiB footprint against 24 GiB free memory. The comparison is false, so this search is skipped. A later physical-capacity clamp can still shorten a request.<br><a href="#length-example-oom">Example 5: evaluate the guard</a>.</td></tr>
+<tr><td>Physical cache capacity</td><td>Ask the selected manager how long one request can be in the committed pool; lower the planned length if needed.</td><td>A 1 GiB pool holds 16 blocks. Reserving one null block leaves 15 request pages, which hold <code>15 × 128 = 1920</code> tokens. A resolved 4096 therefore becomes a planned 1920, including when 4096 was explicitly requested.<br><a href="#length-example-caps">Example 4: compare 4 GiB and 1 GiB pools</a>.</td></tr>
+<tr><td>Resident-token cap</td><td>Propagate the configured total-token cap, or supply an architecture-required default.</td><td>For this Llama declaration, an omitted cap remains <code>None</code>. With a configured 4096 cap, four 1024-token contexts sum to 4096 and fit the token rule. Four 1025-token contexts each round to 1152, summing to 4608, which exceeds it.<br><a href="#length-example-resident">Example 6: account for page alignment</a>.</td></tr>
 </tbody></table></div>
-<details class="explanation"><summary>Example: 4 GiB allocation cap with the same four requests</summary><div class="detail-body">
-<pre class="text-diagram">Initial KV budget: ~9.048681 GiB
-        │
-        └── single allocation cap = 4 GiB
-                    │
-                    ▼
-         64 total blocks × 64 MiB = 4 GiB pool
-                    │
-                    ├── 1 null block
-                    └── 63 request pages
-                              │
-                              ├── one 4096-token request needs 32 pages: fits
-                              └── four full contexts need 128 pages: do not all fit
+<p class="small">Open an example below, or select its link in the table. Each example names the inputs, walks through the arithmetic and identifies the result stored in the plan.</p>
 
-planned_max_batch_size can remain 4.
-planned_max_length can remain 4096 for a single request.
-The scheduler admits work according to real cache capacity and token limits.</pre>
-<p>Select the 4 GiB cap in the budget exercise to see this case. Batch size counts scheduled requests;
-resident page capacity and total-token limits constrain which contexts can be active together.</p>
+<details class="explanation worked-example" id="length-example-architecture"><summary>Example 1 · Choose the length of one request: omitted, 2048 or 8192</summary><div class="detail-body">
+<ol>
+<li><strong>Read the checkpoint limit.</strong> The saved HF config contains <code>max_position_embeddings=4096</code>. Llama's inherited length policy uses this as the upper bound for the selected checkpoint.</li>
+<li><strong>Read the requested length before filling a default.</strong> With no <code>--max-length</code>, the input is <code>None</code>. With <code>--max-length 2048</code>, it is 2048. MAX records whether a length was supplied so the later planner can distinguish user intent from a filled-in default.</li>
+<li><strong>Apply the bound and store the construction result.</strong> The omitted value becomes 4096. The explicit 2048 is accepted. The explicit 8192 exceeds 4096 and raises a <code>ValueError</code>; this case never reaches memory planning.</li>
+<li><strong>Pass the accepted value into initialization.</strong> For the first case, the planner calls <code>initialize(..., max_seq_len=4096)</code>. For the second, it passes 2048. Memory planning can subsequently return a smaller <code>planned_max_length</code> if cache capacity requires it; the construction-resolved value remains on the model config.</li>
+</ol>
+<div class="table-scroll"><table class="example-comparison"><thead><tr><th>Input</th><th>Bound check</th><th>Construction result</th><th>Length supplied by user?</th></tr></thead><tbody>
+<tr><td>Omitted</td><td>Fill the checkpoint default</td><td><code>model.max_length=4096</code></td><td>False</td></tr>
+<tr><td><code>--max-length 2048</code></td><td><code>2048 ≤ 4096</code></td><td><code>model.max_length=2048</code></td><td>True</td></tr>
+<tr><td><code>--max-length 8192</code></td><td><code>8192 &gt; 4096</code></td><td>Configuration error</td><td>No plan is produced</td></tr>
+</tbody></table></div>
+<div class="example-label"><strong>Result:</strong> 4096 and 2048 are valid starting lengths for this checkpoint. They still need a fitting KV pool. Increasing free GPU memory would leave the checkpoint's 4096 bound in place.</div>
+<p class="sources">{{ref:length_policy}} · {{ref:resolve_length}} · {{ref:memory_init_call}}</p>
+</div></details>
+
+<details class="explanation worked-example" id="length-example-batch"><summary>Example 2 · Choose the request count, then apply the input-token target</summary><div class="detail-body">
+<ol>
+<li><strong>Start from the runtime request count.</strong> <code>--max-batch-size 4</code> sets <code>runtime.max_batch_size=4</code>. The planner uses this candidate. When the flag is omitted, the field initially contains <code>None</code>.</li>
+<li><strong>Ask the architecture planner when the value is omitted.</strong> This Llama declaration uses <code>PagedMemoryPlanner</code>, whose inherited <code>infer_max_batch_size()</code> returns <code>None</code>. That defers the choice to the framework.</li>
+<li><strong>Use the framework fallback.</strong> For a KV-cache model on an accelerator, <code>_infer_optimal_batch_size()</code> returns the constant 512. For one CPU it returns 1. Despite the function's name, this branch performs no latency or throughput measurement.</li>
+<li><strong>Cap the candidate by the input-token target.</strong> The source compares the candidate with <code>runtime.max_batch_input_tokens</code>. The default target is 8192, so a candidate of 512 remains 512. If the target is changed to 128, the comparison <code>512 &gt; 128</code> changes the candidate to 128. An explicit candidate of 4 remains 4 with either target.</li>
+</ol>
+<div class="table-scroll"><table class="example-comparison"><thead><tr><th>Runtime batch input</th><th>Candidate before target check</th><th>Input-token target</th><th>Candidate after check</th></tr></thead><tbody>
+<tr><td>Explicit 4, one GPU</td><td>4</td><td>8192</td><td>4</td></tr>
+<tr><td>Omitted, one GPU</td><td>512</td><td>8192</td><td>512</td></tr>
+<tr><td>Omitted, one GPU</td><td>512</td><td>128</td><td>128</td></tr>
+<tr><td>Explicit 4, one GPU</td><td>4</td><td>128</td><td>4</td></tr>
+<tr><td>Omitted, one CPU</td><td>1</td><td>128</td><td>1</td></tr>
+</tbody></table></div>
+<p><strong>Why a 128-token target can coexist with a 4096-token context:</strong> the target controls unencoded input tokens included in a batch and is used for chunked prefill. The context can accumulate over several steps. With chunked prefill enabled, a single 2048-token prompt receiving the whole 128-token budget each step takes <code>2048 / 128 = 16</code> prefill chunks. The checkpoint length remains 4096. Sharing the input budget with other requests changes how those chunks are scheduled.</p>
+<div class="example-label"><strong>Result before cache sizing:</strong> candidate request count 4, 512 or 128 according to the inputs above; construction-resolved length still 4096. The next examples check how many current contexts the available pages can hold.</div>
+<p class="sources">{{ref:planner_batch}} · {{ref:batch_infer}} · {{ref:default_batch}} · {{ref:input_token_setting}} · {{ref:batch_input_clamp}}</p>
+</div></details>
+
+<details class="explanation worked-example" id="length-example-pages"><summary>Example 3 · Price four full contexts, then compare the 512-request candidate</summary><div class="detail-body">
+<ol>
+<li><strong>Calculate bytes for one token's KV data.</strong> Store both K and V across 32 layers, 32 KV heads and 128 values per head. Each value uses two bytes:
+<p><code>2 × 32 × 32 × 128 × 2 = 524,288 bytes/token = 0.5 MiB/token</code>.</p></li>
+<li><strong>Calculate one page and one full context.</strong> A page stores 128 tokens, so it uses <code>128 × 0.5 MiB = 64 MiB</code>. A 4096-token request needs <code>ceil(4096 / 128) = 32</code> pages, consuming <code>32 × 64 MiB = 2 GiB</code> of KV data.</li>
+<li><strong>Price four full contexts and the shared null block.</strong> Four requests need <code>4 × 32 = 128</code> request pages. Add one null block for the pool: <code>(128 + 1) × 64 MiB = 8.0625 GiB</code>.</li>
+<li><strong>Compare with the available budget.</strong> The shared inputs give <code>int(24 GiB × 0.9 − 12.551319 GiB) ≈ 9.048681 GiB</code> for KV cache. The four-request demand of 8.0625 GiB fits. In the exercise's plain single-leaf geometry, the manager commits that smaller amount: <code>8,657,043,456 bytes</code>.</li>
+<li><strong>Resolve the plan's limits.</strong> The 129-block pool leaves 128 usable request pages, enough for four 4096-token contexts. One request could use up to <code>128 × 128 = 16,384</code> page slots, but the checkpoint bound is still 4096. The explicit batch candidate is 4, so the resulting fields are <code>planned_max_batch_size=4</code> and <code>planned_max_length=4096</code>.</li>
+</ol>
+<pre class="text-diagram">Four-request plan, selected fields:
+  planned_max_batch_size       = 4
+  planned_max_length           = 4096
+  available_cache_memory       = 8,657,043,456 bytes (8.0625 GiB)
+  footprint                   = 22,133,919,728 bytes (20.613819 GiB)
+  planned_max_batch_total_tokens = None</pre>
+<p>The footprint is the weight estimate plus the committed cache in this zero-activation/zero-signal exercise. It is below the hypothetical 24 GiB free memory, so the optional OOM search is skipped.</p>
+<details class="explanation"><summary>Same device budget, but batch size omitted: why 512 can remain in the plan</summary><div class="detail-body">
+<ol>
+<li><strong>Start with the GPU fallback of 512.</strong> The default input-token target 8192 leaves it unchanged.</li>
+<li><strong>Price full-length demand.</strong> <code>512 × 32 = 16,384</code> request pages consume 1024 GiB. Adding the one null block makes the full demand <code>1024.0625 GiB</code>.</li>
+<li><strong>Use the available byte budget.</strong> The demand exceeds 9.048681 GiB. The manager's sizing method returns at most the available budget, so this case commits <code>9,715,947,126 bytes</code>. The chosen single-leaf geometry fits 144 whole 64 MiB blocks into it: a 9 GiB physical slab, with 143 request pages after the null block.</li>
+<li><strong>Check one-request capacity and simultaneous full contexts separately.</strong> A single request has a page capacity of <code>143 × 128 = 18,304</code> tokens, so the checkpoint's 4096 limit remains. Full 4096-token contexts need 32 pages each, giving <code>floor(143 / 32) = 4</code> simultaneous full contexts by this page arithmetic.</li>
+</ol>
+<div class="example-label"><strong>Result:</strong> <code>planned_max_batch_size=512</code>, <code>planned_max_length=4096</code>, with room for four distinct full 4096-token contexts in this pool. The request-count field is a ceiling. Actual admission also needs resident pages; shorter contexts consume fewer pages.</div>
+<p>The committed byte budget and the whole-block slab are separate quantities. Here the budget is about 9.048681 GiB, while the physical slab is 9 GiB after block rounding. The scheduler must obey that physical capacity as contexts grow.</p>
+</div></details>
+<p class="sources">{{ref:value_block}} · {{ref:jenga_size}} · {{ref:jenga_geometry}} · {{ref:jenga_capacity}} · {{ref:plan_sizes}}</p>
+</div></details>
+
+<details class="explanation worked-example" id="length-example-caps"><summary>Example 4 · Keep batch 4, then reduce the pool to 4 GiB or 1 GiB</summary><div class="detail-body">
+<p>Keep the same model, four-request candidate and construction-resolved length of 4096. Change only the exercise's allocation cap, which represents the driver-provided maximum allocation size for a single-buffer pool.</p>
+<h3>Case A · A 4 GiB pool keeps the single-request length at 4096</h3>
+<ol>
+<li><strong>Cap the budget.</strong> The initial 9.048681 GiB KV budget becomes <code>min(9.048681, 4) = 4 GiB</code>. The manager cannot reserve the full four-context demand of 8.0625 GiB, so it uses the capped amount.</li>
+<li><strong>Count usable pages.</strong> <code>4 GiB / 64 MiB = 64</code> total blocks. Reserve one null block, leaving <code>64 − 1 = 63</code> request pages.</li>
+<li><strong>Check the longest single request.</strong> The 63 pages cover <code>63 × 128 = 8064</code> token slots. Since <code>4096 ≤ 8064</code>, the planned per-request length remains 4096.</li>
+<li><strong>Check a set of requests.</strong> One full context uses 32 pages and fits. Two full contexts use 64 request pages, exceeding the 63 available. Four shorter contexts can fit when their combined page demand stays within 63.</li>
+</ol>
+<div class="table-scroll"><table class="example-comparison"><thead><tr><th>Contexts at one instant</th><th>Request-page calculation</th><th>Fits 63 request pages?</th></tr></thead><tbody>
+<tr><td>One × 4096 tokens</td><td><code>1 × 32 = 32</code></td><td>Yes</td></tr>
+<tr><td>Two × 4096 tokens</td><td><code>2 × 32 = 64</code></td><td>No</td></tr>
+<tr><td>Four × 2048 tokens</td><td><code>4 × 16 = 64</code></td><td>No; the null block makes the difference</td></tr>
+<tr><td>Four × 1920 tokens</td><td><code>4 × 15 = 60</code></td><td>Yes</td></tr>
+<tr><td>4096, 2048, 1024 and 896 tokens</td><td><code>32 + 16 + 8 + 7 = 63</code></td><td>Yes, exactly</td></tr>
+</tbody></table></div>
+<div class="example-label"><strong>Case A result:</strong> <code>planned_max_batch_size=4</code>, <code>planned_max_length=4096</code>, <code>available_cache_memory=4 GiB</code>. Four requests can be considered, while their current contexts must fit the 63 resident pages. Generating more tokens can require additional pages.</div>
+<h3>Case B · A 1 GiB pool lowers the single-request length to 1920</h3>
+<ol>
+<li><strong>Cap and price the pool.</strong> <code>min(9.048681, 1) = 1 GiB</code>, which holds <code>1 GiB / 64 MiB = 16</code> blocks.</li>
+<li><strong>Remove the null block.</strong> The request capacity is <code>16 − 1 = 15</code> pages, covering <code>15 × 128 = 1920</code> token slots.</li>
+<li><strong>Apply the physical-capacity clamp.</strong> The construction length 4096 is larger than 1920, so MAX returns <code>planned_max_length=1920</code>. This later clamp applies even if the user explicitly requested 4096. The model config retains its construction-resolved 4096; the worker and scheduler consume the plan's effective length.</li>
+<li><strong>Check short batches using whole pages.</strong> One 1920-token context fills all 15 request pages. Four 384-token contexts use three pages each, or 12 pages, and fit. Four 480-token contexts each round to four pages, requiring 16 pages, and exceed the pool.</li>
+</ol>
+<div class="example-label"><strong>Case B result:</strong> <code>planned_max_batch_size=4</code>, <code>planned_max_length=1920</code>, <code>available_cache_memory=1 GiB</code>. A full 1920-token context is a one-request capacity result; dividing 1920 by four would overlook per-request page rounding.</div>
+<p>To explore these cases, open the <a href="#memory-budget">budget exercise</a>, keep 24 GiB free memory, 90% utilization and batch 4, and select the 4 GiB or 1 GiB allocation cap. In the <a href="#kv-pages">KV-page exercise</a>, retain two-byte cache elements and the 4096-token construction limit.</p>
+<p class="sources">{{ref:plan_sizes}} · {{ref:jenga_size}} · {{ref:jenga_capacity}} · {{ref:capacity}} · {{ref:capacity_clamp}}</p>
+</div></details>
+
+<details class="explanation worked-example" id="length-example-oom"><summary>Example 5 · Decide whether the optional default-length OOM search runs</summary><div class="detail-body">
+<ol>
+<li><strong>Use the footprint after initial cache pricing.</strong> In Example 3, weights plus cache total <code>12.551319 + 8.0625 = 20.613819 GiB</code>. The free-memory input is 24 GiB.</li>
+<li><strong>Evaluate the first condition.</strong> The source checks <code>int(total_size) &gt; free_memory</code>. Here <code>20.613819 &lt; 24</code>, so it is false. The fitting search is skipped regardless of whether the accepted length was explicit or filled from the checkpoint.</li>
+<li><strong>Check the second condition when a footprint exceeds free memory.</strong> The search also requires <code>not user_provided_max_length</code>. An omitted length permits the search; an explicit accepted length skips this default-length search. For that explicit-length case, an oversized footprint reaches the later OOM handling.</li>
+<li><strong>Recognize the separate later capacity check.</strong> Example 4's 1 GiB pool has a footprint of only <code>12.551319 + 1 = 13.551319 GiB</code>, so the OOM search is also skipped there. Its length still becomes 1920 because the manager's physical page capacity is checked afterward.</li>
+</ol>
+<div class="table-scroll"><table class="example-comparison"><thead><tr><th>Footprint comparison</th><th>Length input</th><th>Default-length fitting search</th></tr></thead><tbody>
+<tr><td>Baseline: <code>20.613819 GiB &lt; 24 GiB</code></td><td>Omitted or explicit</td><td>Skipped: first condition is false</td></tr>
+<tr><td>1 GiB pool: <code>13.551319 GiB &lt; 24 GiB</code></td><td>Omitted or explicit 4096</td><td>Skipped; later page-capacity clamp yields 1920</td></tr>
+<tr><td>Estimated footprint exceeds free memory</td><td>Omitted</td><td>Run <code>_find_valid_max_length()</code></td></tr>
+<tr><td>Estimated footprint exceeds free memory</td><td>Explicit accepted length</td><td>Skip this search and reach OOM handling</td></tr>
+</tbody></table></div>
+<p>When invoked, <code>_find_valid_max_length()</code> searches between 1 and the current resolved length, repeatedly asking the manager to price a candidate length. It keeps an explicit batch count; if batch size was omitted, it uses the framework inference in that search. The returned length depends on those pricing results. The baseline examples above provide no trigger for this branch.</p>
+<p class="sources">{{ref:oom_search_gate}} · {{ref:length_fit}} · {{ref:capacity_clamp}}</p>
+</div></details>
+
+<details class="explanation worked-example" id="length-example-resident"><summary>Example 6 · Apply a 4096-token resident cap across the batch</summary><div class="detail-body">
+<ol>
+<li><strong>Start from the baseline plan.</strong> Its request ceiling is 4, per-request length is 4096, and the pool has 128 usable request pages.</li>
+<li><strong>Resolve the total-token setting.</strong> If <code>runtime.max_batch_total_tokens</code> is omitted, this Llama declaration leaves <code>planned_max_batch_total_tokens=None</code>. If it is set to 4096, MAX propagates 4096 onto the plan. The scheduler then checks page-aligned context lengths across the batch.</li>
+<li><strong>Round each context independently.</strong> With 128-token pages, 1024 tokens occupy <code>ceil(1024 / 128) × 128 = 1024</code> aligned slots. A context of 1025 tokens needs the next page: <code>ceil(1025 / 128) × 128 = 1152</code> aligned slots.</li>
+<li><strong>Sum the aligned lengths and compare with 4096.</strong> Four 1024-token contexts total 4096 and satisfy the resident-token rule. Four 1025-token contexts total <code>4 × 1152 = 4608</code>, which exceeds it. One 4096-token context also totals 4096 and satisfies this rule.</li>
+</ol>
+<div class="table-scroll"><table class="example-comparison"><thead><tr><th>Candidate contexts</th><th>Aligned total</th><th>Request count ≤ 4?</th><th>Total ≤ 4096?</th></tr></thead><tbody>
+<tr><td>Four × 1024</td><td><code>4 × 1024 = 4096</code></td><td>Yes</td><td>Yes</td></tr>
+<tr><td>Four × 1025</td><td><code>4 × 1152 = 4608</code></td><td>Yes</td><td>No</td></tr>
+<tr><td>One × 4096</td><td>4096</td><td>Yes</td><td>Yes</td></tr>
+</tbody></table></div>
+<div class="example-label"><strong>Result:</strong> <code>planned_max_batch_size=4</code>, <code>planned_max_length=4096</code> and <code>planned_max_batch_total_tokens=4096</code>. The token rule can restrict a candidate batch even when the physical KV pool has more space. With <code>None</code>, this additional token rule is absent and the other request-length, request-count and physical-page checks still apply.</div>
+<p class="sources">{{ref:resident_token_setting}} · {{ref:context_cap}} · {{ref:context_cap_default}}</p>
 </div></details>
 <p class="sources">{{ref:length_policy}} · {{ref:resolve_length}} · {{ref:batch_infer}} · {{ref:default_batch}} · {{ref:length_fit}} · {{ref:capacity}} · {{ref:manager_capacity}} · {{ref:context_cap}}</p>
 {{code:length_policy}}

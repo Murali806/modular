@@ -127,6 +127,34 @@ tbody tr:last-child td { border-bottom: 0; }
 .config-card { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 9px; padding: 18px; background: #30343c; border: 1px solid #82704f; border-radius: 8px; }
 .config-card.arch { border-color: #8d75ab; }
 .config-card.result { border-color: #76a3d1; }
+.init-sequence-key { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+.init-sequence-key span:first-child { color: var(--link); }
+.init-sequence-key span:last-child { color: var(--owner); }
+.init-sequence-scroll { max-width: 100%; overflow: auto; margin: 18px 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-deep); }
+.init-sequence-scroll svg { display: block; width: 100%; min-width: 1120px; height: auto; }
+.init-sequence-scroll text { font-family: inherit; font-size: 16px; fill: var(--text); }
+.init-sequence-scroll .init-actor-box { fill: var(--panel); stroke: var(--border); }
+.init-sequence-scroll .init-actor-label { font-size: 14px; }
+.init-sequence-scroll .init-actor-type { fill: var(--muted); font-size: 12px; }
+.init-sequence-scroll .init-lifeline { stroke: #6b7a8e; stroke-dasharray: 5 6; }
+.init-sequence-scroll .init-message-box { fill: var(--surface-deep); stroke: var(--border); }
+.init-sequence-scroll .init-source text { fill: var(--link); }
+.init-sequence-scroll .init-source .init-call { fill: none; stroke: var(--link); stroke-width: 2; }
+.init-sequence-scroll .init-return { stroke-dasharray: 6 5; }
+.init-sequence-scroll .init-arrowhead { fill: var(--link); }
+.init-sequence-scroll .init-object text { fill: var(--owner); }
+.init-sequence-scroll .init-value { font-family: "SFMono-Regular", Consolas, monospace; font-size: 14px; }
+.init-sequence-scroll .init-source-location { font-size: 12px; }
+.init-sequence-scroll a:hover text, .init-sequence-scroll a:focus-visible text { text-decoration: underline; }
+.init-sequence-scroll a:focus-visible { outline-offset: 2px; }
+.init-sequence-scroll .init-message-number { fill: var(--blue); font-weight: 750; }
+.init-object-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.init-object-record { margin: 0; min-width: 0; }
+.init-object-record > summary { overflow-wrap: anywhere; }
+.init-object-record > summary strong { color: var(--owner); }
+.init-object-record .detail-body { padding-top: 0; }
+.init-object-record pre { margin-top: 8px; font-size: 12px; line-height: 1.6; }
+.init-object-record:target { border-color: var(--owner); }
 .code-cell { background: #1d2128; border-radius: 8px; }
 .code-cell > summary { font-size: 13px; padding: 12px 15px; }
 .code-cell .summary-main { display: inline-flex; max-width: calc(100% - 25px); vertical-align: top; }
@@ -189,6 +217,12 @@ input[type="range"] { accent-color: var(--blue); width: 100%; margin: 8px 0 3px;
 .jenga-view > div, .limit-flow > div { flex: 1; min-width: 0; border: 1px solid #697b93; border-radius: 7px; background: #2d3745; padding: 13px; display: flex; flex-direction: column; gap: 6px; }
 .jenga-view > span, .limit-flow > span { color: var(--blue); font-size: 24px; }
 .limit-flow strong { color: var(--blue); }
+.worked-example ol { padding-left: 24px; }
+.worked-example li { margin-bottom: 15px; }
+.worked-example li p { margin: 8px 0 0; }
+.worked-example h3 { margin: 20px 0 12px; color: var(--blue); }
+.worked-example .example-label { margin: 14px 0; }
+.example-comparison { min-width: 620px; }
 .timeline-lanes { display: grid; grid-template-columns: minmax(0, 1fr) 75px minmax(0, 1fr); grid-template-rows: repeat(7, auto); gap: 22px 15px; }
 .timeline-lanes::before, .timeline-lanes::after { content: ""; grid-row: 1 / -1; border: 1px solid #60738d; border-radius: 9px; background: #242d39; }
 .timeline-lanes::before { grid-column: 1; }
@@ -305,6 +339,7 @@ dialog::backdrop { background: #000a; }
   .timeline-card[data-frame="3"]::after, .timeline-card[data-frame="6"]::after { display: none; }
   .evidence-grid { grid-template-columns: minmax(0, 1fr); }
   .detail-body { padding-left: 10px; padding-right: 10px; }
+  .init-object-grid { grid-template-columns: minmax(0, 1fr); }
   .scope code { font-size: 10px; }
   .command, .text-diagram { font-size: 11px; }
   dialog { padding: 12px; }
@@ -323,8 +358,15 @@ dialog::backdrop { background: #000a; }
   .qna, .explanation, .animation, .frame-note, .config-card, .lane, .timeline-card, .planner-box, .planner-inputs > div, .origin-card, pre, th, td { background: #fff !important; color: #17212f !important; }
   .qna[open] > summary { background: #edf1f6; }
   code, small, p, strong, .owner, .source-location, .summary-main > span { color: #17212f !important; }
+  .worked-example h3 { color: #17212f; }
   a { color: #164d67; }
   pre, .source-code { max-height: none; white-space: pre-wrap; overflow-wrap: anywhere; }
   .source-code .line-text { white-space: pre-wrap; overflow-wrap: anywhere; }
   table { min-width: 0; font-size: 10px; }
+  .init-sequence-scroll { overflow: visible; }
+  .init-sequence-scroll svg { min-width: 0; }
+  .init-sequence-scroll .init-actor-box, .init-sequence-scroll .init-message-box { fill: #fff; }
+  .init-sequence-scroll text, .init-sequence-scroll .init-actor-type, .init-sequence-scroll .init-message-number { fill: #17212f !important; }
+  .init-sequence-scroll .init-call, .init-sequence-scroll .init-lifeline { stroke: #164d67 !important; }
+  .init-sequence-scroll .init-arrowhead { fill: #164d67; }
 }

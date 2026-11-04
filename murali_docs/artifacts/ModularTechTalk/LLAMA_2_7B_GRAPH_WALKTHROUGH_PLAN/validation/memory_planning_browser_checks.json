@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-11-02T06:37:35.651Z",
+  "checked_at": "2026-11-04T04:01:10.198Z",
   "result": "PASS",
   "browser": "141.0.7390.37",
   "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
@@ -16,7 +16,7 @@
     "390px/320px layouts, expanded diagrams/tables, code scrolling, contents toggle and source dialog fit without document overflow",
     "Without JavaScript, native nested disclosures, static page drawing, original code and local source files remain readable"
   ],
-  "source_targets": 85,
+  "source_targets": 98,
   "complete_code_cells": 23,
   "viewports": [
     1440,

@@ -1,6 +1,6 @@
 # Memory-planning page validation
 
-Date: 2026-11-02. Result: **PASS**.
+Date: 2026-11-04. Result: **PASS**.
 
 Artifact: [Llama 2 7B memory planning and MemoryPlan](../link_htmls/llama2_7b_memory_planning_and_memory_plan.html).
 MAX source revision: `610f7111836d9a950d45ba52ec9b3e0ed589fe3f`.
@@ -11,11 +11,21 @@ Device execution: none. These are documentation/browser checks.
 
 - 49 complete snapshots match both the pinned Git revision and the working
   implementation, byte for byte.
-- The new page has 85 verified source targets and 23 complete code cells,
+- The page has 98 verified source targets and 23 complete code cells,
   containing 1,534 original source lines. Definition bounds, decorators,
   comments, docstrings and copy text match the snapshots.
 - Nine QnA cells include eight nested subjects. Deeper explanations, text
-  diagrams and source definitions provide a third disclosure level.
+  diagrams, example objects and source definitions provide up to four
+  disclosure levels.
+- QnA 1.1.6.1.2 places a twelve-step initialization sequence immediately
+  after the three complete source cells. All step links select their exact
+  source lines; object links reveal six input/output records with example
+  values. The BF16 example policy is distinct from the saved HF metadata's
+  `torch_dtype="float16"`.
+- QnA 1.1.6.1.5 has six worked examples, with seven table links to their
+  inputs, ordered calculations, plan fields and source. The cases cover
+  checkpoint bounds, batch defaults, input-token targets, full-context page
+  demand, allocation caps, OOM-search conditions and resident-token rounding.
 - Local links and cross-page anchors pass. The new startup-tree link opens
   input origins in a separate window.
 - The authored call-stack text is identical to its pre-edit backup after
@@ -29,7 +39,8 @@ Complete source targets: [memory_planning_manifest.json](../memory_planning_mani
 ## Browser and visual checks
 
 Chromium `141.0.7390.37`, using the existing Playwright installation.
-Direct `file://` use; viewports 1440×1000, 390×844 and 320×844.
+Direct `file://` use; viewports 1440×1000 and 1600×1100, plus 390×844 and
+320×844.
 
 - Native nested expansion, keyboard control, deep links and the collapsible
   contents sidebar work. Complete code starts collapsed.
@@ -44,6 +55,11 @@ Direct `file://` use; viewports 1440×1000, 390×844 and 320×844.
   results and Escape work.
 - All expanded sections, tables, code scroll areas and the source dialog fit
   at 390px/320px without document-level horizontal overflow.
+- All twelve sequence source links, six object links and seven example
+  navigation links work. Example cells support keyboard expansion; the
+  sequence scrolls within its own container on phones. The 4 GiB example's
+  inputs and ordered calculations were also visually inspected at both
+  phone widths after explicitly scrolling to the expanded cell.
 - Text/control contrast checks pass in all inspected states. The lowest
   inspected normal-text contrast is 5.624:1. This is a targeted color review,
   not a complete accessibility-conformance audit.
@@ -54,6 +70,8 @@ Direct `file://` use; viewports 1440×1000, 390×844 and 320×844.
 Records: [browser checks](memory_planning_browser_checks.json) and
 [contrast checks](memory_planning_contrast_checks.json). The final mobile
 header adjustment also passed [title, header and navigation checks](memory_planning_header_checks.json).
+Focused records: [initialization sequence](initialize_sequence_checks.json)
+and [worked examples](length_examples_checks.json).
 
 Visuals inspected: [overview](memory_planning_overview.png),
 [budget waterfall](memory_budget_waterfall.png),
@@ -64,6 +82,9 @@ Visuals inspected: [overview](memory_planning_overview.png),
 [320px budget](memory_budget_mobile_320.png). Mobile viewport reviews:
 [390px titles and controls](memory_planning_mobile_390.png) and
 [320px titles and controls](memory_planning_mobile_320.png).
+New visuals: [initialization sequence](initialize_sequence.png),
+[390px worked example](length_examples_mobile_390.png) and
+[320px worked example](length_examples_mobile_320.png).
 
 ## Example boundaries
 
@@ -87,7 +108,9 @@ PYTHONDONTWRITEBYTECODE=1 python3 src/build.py
 PYTHONDONTWRITEBYTECODE=1 python3 src/validate.py
 node --check src/memory_planning.js
 node --check src/check_memory_planning.cjs
+node --check src/check_initialize_and_limits.cjs
 NODE_PATH=/tmp/max-v4-playwright/node_modules node src/check_memory_planning.cjs
+NODE_PATH=/tmp/max-v4-playwright/node_modules node src/check_initialize_and_limits.cjs
 git diff --check
 ```
 

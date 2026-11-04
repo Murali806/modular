@@ -11,10 +11,10 @@ connector-only spacer rows.
 |---|---|---|
 | QnA 1.1.6.1 | What does planning produce? | Inputs → pricing → MemoryPlan |
 | QnA 1.1.6.1.1 | Where does each input originate? | CLI / HF / architecture / driver input map |
-| QnA 1.1.6.1.2 | What does Llama3Config.initialize() create? | Model config + architecture declaration → architecture config |
+| QnA 1.1.6.1.2 | What does Llama3Config.initialize() create? | Model inputs → source-linked call sequence → example architecture and KV objects |
 | QnA 1.1.6.1.3 | How is free memory converted into a cache budget? | Budget waterfall and memory partition |
 | QnA 1.1.6.1.4 | How do dimensions, dtype and page size affect demand? | KV pages, null block and element-width controls |
-| QnA 1.1.6.1.5 | How are batch and length limits resolved? | Construction → capacity fitting → effective plan |
+| QnA 1.1.6.1.5 | How are batch and length limits resolved? | Construction → capacity fitting → effective plan, with six worked examples |
 | QnA 1.1.6.1.6 | Who creates and consumes the plan? | API-parent / model-worker sequence |
 | QnA 1.1.6.1.7 | What are all MemoryPlan fields? | Complete object example and consumer table |
 | QnA 1.1.6.1.8 | Which source and checkpoint evidence supports this? | Complete source directory and pinned metadata |
@@ -23,6 +23,24 @@ The root and input map start open. Other QnAs, deeper explanations, portable
 text diagrams and complete source definitions use native expandable cells.
 Code starts collapsed. Deep links reveal the requested cell and its parents.
 The contents sidebar can be hidden and restored.
+
+After the three complete initialization source cells, an expandable sequence
+cell traces twelve steps from `MemoryEstimator.plan()` to the returned
+`Llama3Config`. Green call labels and arrows open the exact source lines;
+amber object labels open six records for the pipeline, model, HF metadata,
+cache config, `MHAKVCacheParams` and architecture config. Example fields use
+the pinned Llama 2 7B metadata with an explicit BF16 policy, one device,
+4096-token length and 128-token pages. A portable text sequence accompanies
+the native SVG, which needs no renderer or network.
+
+The batch/length section expands each concrete example into named inputs,
+ordered calculations and resulting plan fields. Six native disclosure cells
+cover checkpoint length choices; explicit/default batches and prefill targets;
+four-request versus 512-request page demand; 4 GiB and 1 GiB allocation caps;
+the optional OOM-search guard; and page-aligned resident-token limits.
+Links in the table open the relevant example. The cases distinguish a
+single-request length, a request-count ceiling and the pages resident across
+the batch, including null-block overhead and per-request page rounding.
 
 ## Reader-controlled diagrams
 
@@ -45,7 +63,7 @@ text equivalent. No CDN, renderer or network is required to read the page.
 
 MAX claims are `SOURCE` at revision
 `610f7111836d9a950d45ba52ec9b3e0ed589fe3f`. The builder verifies complete
-snapshots against Git. The page has 85 source targets and 23 complete source
+snapshots against Git. The page has 98 source targets and 23 complete source
 cells; annotations remain outside original code. Driver and Transformers
 interfaces are identified as boundaries.
 

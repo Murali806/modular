@@ -11,7 +11,7 @@ architecture registration timing. The
 |---|---|
 | [Interactive guide](index.html) | Concept → diagram → exact code → line-linked explanation → full-file context |
 | [MAX Serve startup call stack](max_serve_llama2_7b_startup_call_stack.html) | One continuous tree combining QnA 1.1.1–1.1.6, from CLI parsing to HTTP readiness |
-| [Memory planning and MemoryPlan](link_htmls/llama2_7b_memory_planning_and_memory_plan.html) | Nested QnA cells with input origins, a budget waterfall, KV pages, parent/worker handoff and complete pinned source |
+| [Memory planning and MemoryPlan](link_htmls/llama2_7b_memory_planning_and_memory_plan.html) | Nested QnA cells with input origins, initialization calls and example objects, a budget waterfall, KV pages, parent/worker handoff and complete pinned source |
 | [Memory explanation design](MEMORY_PLANNING_DESIGN.md) / [validation](validation/MEMORY_PLANNING_VALIDATION.md) | Disclosure structure, diagram controls, source checks and browser results |
 | [Text export](MAX_SERVE_LLAMA2_7B_STARTUP_CALL_STACK.txt) / [Markdown export](MAX_SERVE_LLAMA2_7B_STARTUP_CALL_STACK.md) | The combined Llama 2 7B startup call tree, commands and source-file aliases |
 | [Markdown companion](WALKTHROUGH.md) | Complete reading guide with expandable source and portable diagrams |
@@ -68,6 +68,14 @@ all twelve references and explains where each method is applied.
   reader also includes a source-alias map, text search, copy and download.
 - Dark grey surfaces and checked text/control contrast, including selected
   diagram states, highlighted code, search matches, and a light print layout.
+- In the memory page's **QnA 1.1.6.1.2**, a **Sequence diagram** cell follows
+  the complete initialization source. Its call labels open source lines and
+  its object labels reveal the Llama 2 7B example values, including BF16 dtype,
+  32 layers, 128-wide heads and 128-token KV pages.
+- **QnA 1.1.6.1.5** has six worked examples showing how checkpoint length,
+  batch count, input-token targets and resident KV pages determine the final
+  limits. Each example includes inputs, calculations, source links and plan
+  results, including the 4 GiB and 1 GiB cache cases.
 
 ## Source scope
 

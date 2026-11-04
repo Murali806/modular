@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-11-02T06:40:52.536635+00:00",
+  "checked_at": "2026-11-04T05:02:58.834432+00:00",
   "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
   "command": "PYTHONDONTWRITEBYTECODE=1 python3 src/validate.py",
   "result": "PASS",
@@ -8,12 +8,12 @@
   "displayed_source_lines": 2012,
   "call_stack_sections": 1,
   "call_stack_source_targets": 129,
-  "memory_planning_source_targets": 85,
+  "memory_planning_source_targets": 98,
   "memory_planning_complete_code_cells": 23,
   "memory_planning_displayed_source_lines": 1534,
   "memory_planning_qna_cells": 9,
-  "memory_planning_max_disclosure_depth": 3,
-  "local_links_checked": 1035,
+  "memory_planning_max_disclosure_depth": 4,
+  "local_links_checked": 1119,
   "external_runtime_dependencies": 0,
   "evidence": "Document/source validation only; no MAX model execution."
 }
