@@ -44,14 +44,27 @@ links open source. The card stays within the viewport and uses more vertical
 space on phones. All twelve explanations are also available in a native
 disclosure cell for offline reading without JavaScript and for printing.
 
-The batch/length section expands each concrete example into named inputs,
-ordered calculations and resulting plan fields. Six native disclosure cells
+The batch/length section gives each concrete example named inputs,
+ordered calculations and resulting plan fields. Six complete worked examples
 cover checkpoint length choices; explicit/default batches and prefill targets;
 four-request versus 512-request page demand; 4 GiB and 1 GiB allocation caps;
 the optional OOM-search guard; and page-aligned resident-token limits.
-Links in the table open the relevant example. The cases distinguish a
+Links in the table open the relevant example card. The cases distinguish a
 single-request length, a request-count ceiling and the pages resident across
 the batch, including null-block overhead and per-request page rounding.
+
+Hovering or focusing any of the table's seven **Example** links opens the
+complete corresponding worked example in a card. The two Example 2 links
+share one explanation. Cards retain every calculation, comparison table,
+plan field and source link; nested comparisons start expanded. They share
+the sequence cards' Hold/Release, Close, Escape, keyboard and touch behavior,
+with one card visible at a time. Clicking, Enter or Space holds and enters
+the selected card. Existing example fragment links also open the relevant
+card. Wider example cards fit the tables on desktop; tables scroll inside
+their containers on phones. The separate six-panel list and helper paragraph
+are absent from the screen view. The complete example bodies supply the
+cards and remain available as native disclosures without JavaScript and
+for printing.
 
 ## Reader-controlled diagrams
 

@@ -49,31 +49,31 @@
   },
   {
     "state": "Desktop / full original source and selected line",
-    "samples": 4372,
+    "samples": 4061,
     "minimum_text_ratio": 5.624,
     "failures": []
   },
   {
     "state": "Mobile / expanded explanations / 390",
-    "samples": 1807,
+    "samples": 1496,
     "minimum_text_ratio": 6.155,
     "failures": []
   },
   {
     "state": "Mobile / complete source / 390",
-    "samples": 9515,
+    "samples": 9204,
     "minimum_text_ratio": 5.624,
     "failures": []
   },
   {
     "state": "Mobile / expanded explanations / 320",
-    "samples": 1807,
+    "samples": 1496,
     "minimum_text_ratio": 6.155,
     "failures": []
   },
   {
     "state": "Mobile / complete source / 320",
-    "samples": 9515,
+    "samples": 9204,
     "minimum_text_ratio": 5.624,
     "failures": []
   }

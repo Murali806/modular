@@ -60,10 +60,10 @@ Direct `file://` use; viewports 1440×1000 and 1600×1100, plus 390×844 and
 - All expanded sections, tables, code scroll areas and the source dialog fit
   at 390px/320px without document-level horizontal overflow.
 - All twelve sequence source links, six object links and seven example
-  navigation links work. Example cells support keyboard expansion; the
-  sequence scrolls within its own container on phones. The 4 GiB example's
-  inputs and ordered calculations were also visually inspected at both
-  phone widths after explicitly scrolling to the expanded cell.
+  links work. The sequence scrolls within its own container on phones.
+  The six separate example panels and helper paragraph are absent from the
+  screen view, including after **Expand explanations**. Their full content
+  remains readable in the cards.
 - Hover/focus cards remain open when the pointer leaves. Hold keeps a step
   selected across other hovers; Release restores step switching. Source
   navigation, outside-click dismissal, Close, Escape and keyboard focus
@@ -74,6 +74,20 @@ Direct `file://` use; viewports 1440×1000 and 1600×1100, plus 390×844 and
   card body scrolls while Close and Hold remain visible. The twelve native
   explanations remain readable with JavaScript disabled. Card contrast
   checks cover desktop and both touch widths in the focused sequence report.
+- All seven table **Example** links open the correct complete worked-example
+  card, with six distinct cases and both Example 2 links sharing one case.
+  Card text and table counts match the stored bodies; hovering and clicking
+  preserve the page's reading location. The nested 512-request comparison
+  starts expanded in its card.
+- Example-card Hold/Release, keyboard entry, source links and desktop clicks
+  pass. Click, Enter and Space hold and enter the selected card. Existing
+  example fragment links open cards on desktop and phones. Switching between
+  example and sequence cards keeps one visible card. At both touch widths,
+  cards fit the viewport, comparison tables scroll within their own
+  containers, and source links
+  select the exact code line. Native examples work without JavaScript;
+  all six complete examples are visible and expanded for printing.
+  Example-card contrast results are recorded in the worked-examples report.
 - Text/control contrast checks pass in all inspected states. The lowest
   inspected normal-text contrast is 5.624:1. This is a targeted color review,
   not a complete accessibility-conformance audit.
@@ -97,11 +111,14 @@ Visuals inspected: [overview](memory_planning_overview.png),
 [390px titles and controls](memory_planning_mobile_390.png) and
 [320px titles and controls](memory_planning_mobile_320.png).
 New visuals: [initialization sequence](initialize_sequence.png),
-[390px worked example](length_examples_mobile_390.png) and
-[320px worked example](length_examples_mobile_320.png).
+[390px native fallback example](length_examples_mobile_390.png) and
+[320px native fallback example](length_examples_mobile_320.png).
 Step cards: [desktop](initialize_step_card_desktop.png),
 [390px touch](initialize_step_card_mobile_390.png) and
 [320px touch](initialize_step_card_mobile_320.png).
+Worked-example cards: [desktop](worked_example_card_desktop.png),
+[390px touch](worked_example_card_mobile_390.png) and
+[320px touch](worked_example_card_mobile_320.png).
 
 ## Example boundaries
 

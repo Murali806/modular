@@ -80,6 +80,12 @@ all twelve references and explains where each method is applied.
   batch count, input-token targets and resident KV pages determine the final
   limits. Each example includes inputs, calculations, source links and plan
   results, including the 4 GiB and 1 GiB cache cases.
+  Hover or focus an **Example** link in the table to read the complete case
+  in a card with **Hold card**, **Close** and source links. Touch taps also
+  open cards; clicking, Enter or Space holds and enters the selected card.
+  The separate six-panel list and its helper paragraph are removed from the
+  screen view. Complete examples remain readable without JavaScript and
+  when printing.
 
 ## Source scope
 

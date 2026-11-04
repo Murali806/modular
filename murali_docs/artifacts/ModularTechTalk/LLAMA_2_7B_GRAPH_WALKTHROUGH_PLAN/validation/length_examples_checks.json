@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-11-04T07:10:29.104Z",
+  "checked_at": "2026-11-04T09:32:45.736Z",
   "result": "PASS",
   "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
   "command": "NODE_PATH=/tmp/max-v4-playwright/node_modules node src/check_initialize_and_limits.cjs",
@@ -14,7 +14,42 @@
     "length-example-resident"
   ],
   "source_targets": 100,
-  "keyboard_disclosures": true,
+  "hover_links": 7,
+  "worked_example_cards": 6,
+  "complete_example_content": true,
+  "standalone_example_panels_removed": true,
+  "helper_paragraph_removed": true,
+  "hold_and_release": true,
+  "keyboard_card_access": true,
+  "click_opens_held_card": true,
+  "card_source_navigation": true,
+  "example_deep_links_open_cards": true,
+  "no_javascript_examples": true,
+  "printable_examples": true,
+  "touch_card_viewports": [
+    390,
+    320
+  ],
+  "card_contrast_checks": [
+    {
+      "state": "Touch / example 4 / 390",
+      "samples": 433,
+      "minimum_text_ratio": 6.155,
+      "failures": []
+    },
+    {
+      "state": "Touch / example 4 / 320",
+      "samples": 433,
+      "minimum_text_ratio": 6.155,
+      "failures": []
+    },
+    {
+      "state": "Desktop / example 4",
+      "samples": 1588,
+      "minimum_text_ratio": 6.155,
+      "failures": []
+    }
+  ],
   "viewports": [
     1600,
     390,

@@ -145,16 +145,24 @@
     }
   }
 
-  class InitStepCards {
-    constructor() {
-      this.card = $("#init-step-card");
-      this.sequence = $("#initialize-sequence");
+  let activeCard = null;
+  class HoverCards {
+    constructor({prefix, scope, selector, kind, describe, clickOpensCard = false, anchor = trigger => trigger}) {
+      this.part = name => $("#" + prefix + (name ? "-" + name : ""));
+      this.card = this.part();
+      this.scope = $(scope);
+      this.selector = selector;
+      this.kind = kind;
+      this.describe = describe;
+      this.anchor = anchor;
       this.trigger = null;
+      this.marker = null;
       this.held = false;
       this.dismissed = null;
       this.frame = null;
-      all("#initialize-sequence a[data-init-step]").forEach(trigger => {
-        trigger.addEventListener("pointerenter", event => {
+      [...this.scope.querySelectorAll(selector)].forEach(trigger => {
+        // Scrolling a link under a stationary pointer must not reopen a card.
+        trigger.addEventListener("pointermove", event => {
           if (event.pointerType === "touch") return;
           this.dismissed = null;
           this.show(trigger);
@@ -170,21 +178,24 @@
           this.show(trigger, {force: true, hold: true, focus: true});
         });
       });
-      // A touch tap opens readable logic; its source links retain the code route.
-      this.sequence.addEventListener("click", event => {
-        const trigger = event.target.closest("a[data-init-step]");
-        if (!trigger || event.pointerType !== "touch") return;
-        event.preventDefault();
-        event.stopPropagation();
-        this.show(trigger, {force: true});
+      // Example clicks and touch taps open cards; sequence clicks open source.
+      this.scope.addEventListener("click", event => {
+        const trigger = event.target.closest(selector);
+        if (!trigger) return;
+        if (clickOpensCard || event.pointerType === "touch") {
+          event.preventDefault();
+          event.stopPropagation();
+          const enterCard = clickOpensCard && event.pointerType !== "touch";
+          this.show(trigger, {force: true, hold: enterCard, focus: enterCard});
+        } else this.close();
       }, true);
-      $("#init-step-card-close").addEventListener("click", () => this.close(true));
-      $("#init-step-card-hold").addEventListener("click", () => this.setHeld(!this.held));
+      this.part("close").addEventListener("click", () => this.close(true));
+      this.part("hold").addEventListener("click", () => this.setHeld(!this.held));
       this.card.addEventListener("click", event => {
         if (event.target.closest("a")) this.close();
       });
       document.addEventListener("pointerdown", event => {
-        if (!this.card.contains(event.target) && !event.target.closest("a[data-init-step]")) this.close();
+        if (!this.card.contains(event.target) && !event.target.closest(selector)) this.close();
       });
       document.addEventListener("keydown", event => {
         if (event.key === "Escape" && !this.card.hidden) {
@@ -192,14 +203,14 @@
           this.close(true);
         }
       });
-      // The floating card lives outside the SVG's horizontal scroll container.
+      // Cards live outside the diagram/table scroll areas that contain triggers.
       document.addEventListener("scroll", event => {
         if (this.card.hidden || this.held || this.card.contains(event.target)) return;
         cancelAnimationFrame(this.frame);
         this.frame = requestAnimationFrame(() => this.position());
       }, true);
       window.addEventListener("resize", () => this.position(this.held));
-      let parent = this.sequence;
+      let parent = this.scope;
       while (parent) {
         if (parent.tagName === "DETAILS") parent.addEventListener("toggle", event => {
           if (!event.target.open) this.close();
@@ -209,22 +220,29 @@
     }
     show(trigger, {force = false, hold = false, focus = false} = {}) {
       if ($("#source-dialog").open || (this.held && this.trigger !== trigger && !force)) return;
+      if (activeCard && activeCard !== this) {
+        if (activeCard.held && !force) return;
+        activeCard.close();
+      }
       if (this.trigger !== trigger || this.card.hidden) {
         if (this.trigger) this.deactivate();
-        const step = trigger.dataset.initStep;
-        const record = $("#init-logic-" + step);
-        const title = record.querySelector("h3");
+        const description = this.describe(trigger);
         const fragment = document.createDocumentFragment();
-        [...record.children].filter(node => node !== title).forEach(node => fragment.append(node.cloneNode(true)));
-        $("#init-step-card-title").textContent = title.textContent.replace(/^\d+\s*·\s*/, "");
-        $("#init-step-card-number").textContent = "Step " + step + " of 12 · SOURCE + EXAMPLE";
-        $("#init-step-card-content").replaceChildren(fragment);
-        $("#init-step-card-content").scrollTop = 0;
+        description.nodes.forEach(node => fragment.append(node.cloneNode(true)));
+        fragment.querySelectorAll("[id]").forEach(node => node.removeAttribute("id"));
+        fragment.querySelectorAll("details").forEach(node => node.open = true);
+        this.part("title").textContent = description.title;
+        this.part("number").textContent = description.heading + " · SOURCE + EXAMPLE";
+        this.part("content").replaceChildren(fragment);
+        this.part("content").scrollTop = 0;
         this.trigger = trigger;
-        this.card.dataset.step = step;
+        this.marker = description.marker;
+        this.card.dataset[this.kind] = description.key;
+        this.card.dataset.target = description.target;
         this.card.hidden = false;
+        activeCard = this;
         trigger.setAttribute("aria-expanded", "true");
-        trigger.closest("g[data-step]").setAttribute("data-active", "true");
+        this.marker.setAttribute("data-active", "true");
         this.setHeld(hold);
         this.position();
       } else if (hold) this.setHeld(true);
@@ -233,9 +251,9 @@
     setHeld(held) {
       this.held = held;
       this.card.dataset.held = String(held);
-      $("#init-step-card-hold").setAttribute("aria-pressed", String(held));
-      $("#init-step-card-hold").textContent = held ? "Release card" : "Hold card";
-      $("#init-step-card-state").textContent = held ? "This step stays selected" : "Stays open until closed";
+      this.part("hold").setAttribute("aria-pressed", String(held));
+      this.part("hold").textContent = held ? "Release card" : "Hold card";
+      this.part("state").textContent = held ? "This " + this.kind + " stays selected" : "Stays open until closed";
     }
     position(keepPosition = false) {
       if (this.card.hidden || !this.trigger) return;
@@ -250,7 +268,7 @@
         return;
       }
       let card = this.card.getBoundingClientRect();
-      const label = this.trigger.querySelector(".init-step-label").getBoundingClientRect();
+      const label = this.anchor(this.trigger).getBoundingClientRect();
       keepPosition ||= label.bottom < safeTop || label.top > height;
       let left = parseFloat(this.card.style.left) || margin;
       let top = parseFloat(this.card.style.top) || safeTop;
@@ -277,7 +295,8 @@
     }
     deactivate() {
       this.trigger.setAttribute("aria-expanded", "false");
-      this.trigger.closest("g[data-step]").removeAttribute("data-active");
+      this.marker.removeAttribute("data-active");
+      this.marker = null;
     }
     close(restoreFocus = false) {
       if (!this.trigger) return;
@@ -286,12 +305,35 @@
       this.deactivate();
       this.trigger = null;
       this.card.hidden = true;
+      if (activeCard === this) activeCard = null;
       this.setHeld(false);
       cancelAnimationFrame(this.frame);
       if (restoreFocus && trigger.getBoundingClientRect().height) trigger.focus({preventScroll: true});
     }
   }
-  const initCards = new InitStepCards();
+  const readingCards = [
+    new HoverCards({prefix: "init-step-card", scope: "#initialize-sequence", selector: "a[data-init-step]", kind: "step",
+      anchor: trigger => trigger.querySelector(".init-step-label"),
+      describe: trigger => {
+        const step = trigger.dataset.initStep;
+        const record = $("#init-logic-" + step);
+        const title = record.querySelector("h3");
+        return {key: step, target: record.id, heading: "Step " + step + " of 12",
+          title: title.textContent.replace(/^\d+\s*·\s*/, ""),
+          nodes: [...record.childNodes].filter(node => node !== title), marker: trigger.closest("g[data-step]")};
+      }}),
+    new HoverCards({prefix: "example-card", scope: "#length-and-batch", selector: "a[data-example-card]", kind: "example", clickOpensCard: true,
+      describe: trigger => {
+        const record = $(trigger.getAttribute("href"));
+        const title = record.querySelector(":scope > summary").textContent;
+        const number = title.match(/^Example (\d+)/)[1];
+        return {key: number, target: record.id, heading: "Example " + number + " of 6",
+          title: title.replace(/^Example \d+\s*·\s*/, ""),
+          nodes: [...record.querySelector(":scope > .detail-body").childNodes], marker: trigger.closest("tr")};
+      }}),
+  ];
+  // The same complete content supplies cards, no-JavaScript reading and print.
+  document.documentElement.classList.add("example-cards-ready");
 
   function calculate() {
     const batchInput = $("#candidate-batch");
@@ -416,9 +458,17 @@
     try { id = decodeURIComponent(location.hash.slice(1)); } catch { return; }
     const target = document.getElementById(id);
     if (!target) return;
-    if (target.tagName === "DETAILS") target.open = true;
     let parent = target.parentElement;
     while (parent) { if (parent.tagName === "DETAILS") parent.open = true; parent = parent.parentElement; }
+    if (target.classList.contains("worked-example")) {
+      const trigger = all("#limits-example-table a[data-example-card]").find(link => link.getAttribute("href") === "#" + id);
+      requestAnimationFrame(() => {
+        trigger.scrollIntoView({block: "center", behavior: "auto"});
+        readingCards.find(card => card.kind === "example").show(trigger, {force: true, hold: true, focus: true});
+      });
+      return;
+    }
+    if (target.tagName === "DETAILS") target.open = true;
     requestAnimationFrame(() => target.scrollIntoView({block: "start", behavior: "auto"}));
   }
   window.addEventListener("hashchange", revealHash);
@@ -440,7 +490,7 @@
   function openSource(key) {
     const ref = data.references[key];
     if (!ref) return;
-    initCards.close();
+    readingCards.forEach(card => card.close());
     selectedReference = ref;
     const file = data.files[ref.file];
     const fragment = document.createDocumentFragment();
@@ -513,7 +563,7 @@
 
   let printState;
   window.addEventListener("beforeprint", () => {
-    initCards.close();
+    readingCards.forEach(card => card.close());
     animations.forEach(animation => animation.pause());
     printState = all("details").map(node => [node, node.open]);
     printState.forEach(([node]) => node.open = true);

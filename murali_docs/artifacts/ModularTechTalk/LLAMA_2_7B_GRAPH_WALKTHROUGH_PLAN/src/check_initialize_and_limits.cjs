@@ -12,10 +12,11 @@ const url = pathToFileURL(path.join(task, "link_htmls/llama2_7b_memory_planning_
   const browser = await chromium.launch({headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"]});
   const errors = [];
   const cardContrast = [];
-  const auditCard = async (page, state) => {
+  const exampleContrast = [];
+  const auditCard = async (page, state, records = cardContrast) => {
     const result = await page.evaluate(auditRenderedContrast);
     assert.deepEqual(result.failures, [], "Step-card contrast: " + state);
-    cardContrast.push({state, ...result});
+    records.push({state, ...result});
   };
   const context = await browser.newContext({viewport: {width: 1600, height: 1100}, reducedMotion: "reduce"});
   await context.route(/^https?:/, route => {errors.push(route.request().url()); return route.abort();});
@@ -155,47 +156,156 @@ const url = pathToFileURL(path.join(task, "link_htmls/llama2_7b_memory_planning_
       await touchCard.locator("#init-step-card-close").tap();
       assert.equal(await touchCard.isVisible(), false);
       assert.ok(await touchPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+      await touchPage.goto(url + "#length-and-batch");
+      await touchPage.locator("#limits-example-table").evaluate(node => node.parentElement.scrollLeft = node.parentElement.scrollWidth);
+      const touchExampleLink = touchPage.locator('#limits-example-table a[href="#length-example-caps"]');
+      await touchExampleLink.tap();
+      const exampleCard = touchPage.locator("#example-card");
+      assert.equal(await exampleCard.isVisible(), true);
+      assert.equal(await exampleCard.getAttribute("data-target"), "length-example-caps");
+      assert.equal(await touchPage.locator(".worked-example-library").isVisible(), false, "Standalone examples are absent from the page");
+      assert.equal(new URL(touchPage.url()).hash, "#length-and-batch", "Touch preserves the reading location");
+      await touchPage.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.ok(await exampleCard.evaluate(node => {
+        const bounds = node.getBoundingClientRect();
+        return bounds.left >= 0 && bounds.top >= 0 && bounds.right <= innerWidth + 1 && bounds.bottom <= innerHeight + 1;
+      }), "Example card stays in the viewport at " + width);
+      assert.ok(await exampleCard.locator("#example-card-content").evaluate(node => node.scrollWidth <= node.clientWidth + 1));
+      assert.ok(await exampleCard.locator(".table-scroll").first().evaluate(node => node.scrollWidth > node.clientWidth), "Comparison table scrolls inside its container");
+      await touchPage.screenshot({path: path.join(task, "validation/worked_example_card_mobile_" + width + ".png")});
+      await auditCard(touchPage, "Touch / example 4 / " + width, exampleContrast);
+      await exampleCard.locator("#example-card-hold").tap();
+      assert.equal(await exampleCard.getAttribute("data-held"), "true");
+      await exampleCard.locator('a[data-ref="capacity_clamp"]').tap();
+      assert.equal(await exampleCard.isVisible(), false);
+      assert.equal(await touchPage.locator("#source-file .selected-line").getAttribute("data-line"), String(payload.references.capacity_clamp.line));
+      await touchPage.locator("#close-source").tap();
+      await touchExampleLink.tap();
+      await exampleCard.locator("#example-card-close").tap();
+      assert.equal(await exampleCard.isVisible(), false);
+      assert.equal(await touchPage.locator("#length-example-caps").isVisible(), false);
+      assert.equal(new URL(touchPage.url()).hash, "#length-and-batch");
+      assert.ok(await touchPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
       await touchContext.close();
     }
     await page.setViewportSize({width: 1600, height: 1100});
     await page.goto(url + "#length-and-batch");
     const limits = page.locator("#length-and-batch");
     assert.equal(await limits.locator(".worked-example").count(), 6);
+    assert.equal(await limits.locator(".worked-example-library").isVisible(), false);
+    assert.equal(await page.locator("#example-card-hint").isVisible(), false);
+    assert.equal(await page.locator("#example-card-open").count(), 0);
     const exampleLinks = limits.locator(':scope > .qna-body > .table-scroll a[href^="#length-example-"]');
     assert.equal(await exampleLinks.count(), 7);
+    const exampleCard = page.locator("#example-card");
     const exampleTargets = [];
     for (let index = 0; index < await exampleLinks.count(); index++) {
       const link = exampleLinks.nth(index);
       const target = (await link.getAttribute("href")).slice(1);
+      const original = page.locator("#" + target);
+      const wasOpen = await original.evaluate(node => node.open);
+      const previousHash = new URL(page.url()).hash;
+      await link.hover();
+      await page.waitForFunction(target => {
+        const card = document.getElementById("example-card");
+        return !card.hidden && card.dataset.target === target;
+      }, target);
+      assert.equal(await original.evaluate(node => node.open), wasOpen, "Hover preserves the fallback disclosure state");
+      assert.equal(await original.isVisible(), false, "The example is available only through its card on screen");
+      assert.equal(new URL(page.url()).hash, previousHash, "Hover preserves the reading location");
+      const normalize = node => node.textContent.replace(/\s+/g, " ").trim();
+      assert.equal(await exampleCard.locator("#example-card-content").evaluate(normalize), await original.locator(":scope > .detail-body").evaluate(normalize), "Card contains the complete worked example");
+      assert.equal(await exampleCard.locator("table").count(), await original.locator("table").count());
+      assert.equal(await link.getAttribute("aria-expanded"), "true");
+      if (target === "length-example-pages") {
+        assert.ok(await exampleCard.locator("details").evaluateAll(nodes => nodes.every(node => node.open)), "512-request comparison is expanded in the card");
+      }
+      if (target === "length-example-caps") {
+        await exampleCard.locator("#example-card-content").hover();
+        await page.mouse.move(5, 5);
+        await page.waitForTimeout(700);
+        assert.equal(await exampleCard.isVisible(), true);
+        await exampleCard.locator("#example-card-hold").click();
+        await exampleLinks.first().hover();
+        assert.equal(await exampleCard.getAttribute("data-target"), target, "Held example survives other hovers");
+        await exampleCard.locator("#example-card-hold").click();
+        await link.hover();
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        await auditCard(page, "Desktop / example 4", exampleContrast);
+        await page.screenshot({path: path.join(task, "validation/worked_example_card_desktop.png")});
+        await exampleCard.locator('a[data-ref="capacity_clamp"]').click();
+        assert.equal(await exampleCard.isVisible(), false);
+        assert.equal(await page.locator("#source-file .selected-line").getAttribute("data-line"), String(payload.references.capacity_clamp.line));
+        await page.keyboard.press("Escape");
+        await link.hover();
+      }
       await link.click();
-      await page.waitForFunction(id => document.getElementById(id).open, target);
-      assert.equal(new URL(page.url()).hash, "#" + target);
-      assert.ok(await page.locator("#" + target).locator(":scope > .detail-body > ol > li").count() >= 4);
+      assert.equal(await exampleCard.isVisible(), true);
+      assert.equal(await exampleCard.getAttribute("data-held"), "true", "Click holds the selected example");
+      assert.equal(await page.evaluate(() => document.activeElement.id), "example-card");
+      assert.equal(new URL(page.url()).hash, previousHash, "Click preserves the reading location");
+      assert.ok(await exampleCard.locator("#example-card-content > ol > li").count() >= 4);
       exampleTargets.push(target);
+      await exampleCard.locator("#example-card-close").click();
     }
-    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    await page.locator("#length-example-resident > summary").focus();
+    const keyboardExample = page.locator('#limits-example-table a[href="#length-example-pages"]');
+    await keyboardExample.focus();
+    await page.keyboard.press("Space");
+    assert.equal(await exampleCard.getAttribute("data-held"), "true");
+    assert.equal(await page.evaluate(() => document.activeElement.id), "example-card");
+    await page.keyboard.press("Escape");
+    assert.equal(await exampleCard.isVisible(), false);
+    assert.ok(await keyboardExample.evaluate(node => document.activeElement === node));
     await page.keyboard.press("Enter");
-    await page.waitForFunction(() => !document.getElementById("length-example-resident").open);
-    await page.keyboard.press("Enter");
-    await page.waitForFunction(() => document.getElementById("length-example-resident").open);
-    for (const key of ["input_token_setting", "resident_token_setting", "batch_input_clamp", "oom_search_gate", "capacity_clamp"]) {
-      await limits.locator('a[data-ref="' + key + '"]').first().click();
+    assert.equal(new URL(page.url()).hash, "#length-and-batch");
+    assert.equal(await exampleCard.isVisible(), true);
+    assert.equal(await exampleCard.getAttribute("data-held"), "true");
+    assert.equal(await page.evaluate(() => document.activeElement.id), "example-card");
+    await page.keyboard.press("Escape");
+    await keyboardExample.hover();
+    await page.evaluate(() => {
+      document.getElementById("arch-initialization").open = true;
+      document.getElementById("initialize-sequence").open = true;
+    });
+    await cell.locator('g[data-step="1"] .init-step-label').hover();
+    assert.equal(await exampleCard.isVisible(), false, "Switching readers keeps only one card visible");
+    assert.equal(await card.isVisible(), true);
+    await page.keyboard.press("Escape");
+    for (const [key, target] of [["input_token_setting", "batch"], ["resident_token_setting", "resident"],
+      ["batch_input_clamp", "batch"], ["oom_search_gate", "oom"], ["capacity_clamp", "caps"]]) {
+      await page.locator('#limits-example-table a[href="#length-example-' + target + '"]').first().hover();
+      await exampleCard.locator('a[data-ref="' + key + '"]').click();
       assert.equal(await page.locator("#source-file .selected-line").getAttribute("data-line"), String(payload.references[key].line));
       await page.keyboard.press("Escape");
     }
-    await page.evaluate(() => {location.hash = "length-example-pages";});
-    await page.screenshot({path: "/tmp/llama_length_examples_desktop.png"});
+    for (const target of new Set(exampleTargets)) {
+      await page.goto(url + "#" + target);
+      await page.waitForFunction(target => {
+        const card = document.getElementById("example-card");
+        return !card.hidden && card.dataset.target === target;
+      }, target);
+      assert.equal(await exampleCard.getAttribute("data-held"), "true");
+      assert.equal(await page.locator("#" + target).isVisible(), false);
+      await exampleCard.locator("#example-card-close").click();
+    }
     for (const width of [390, 320]) {
       await page.setViewportSize({width, height: 844});
       await page.goto(url + "#length-example-caps");
+      await page.reload();
+      await page.waitForFunction(() => !document.getElementById("example-card").hidden);
+      assert.equal(await exampleCard.isVisible(), true, "Example deep links open the card on phones");
+      await exampleCard.locator("#example-card-close").click();
       await page.locator("#expand-explanations").click();
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "Worked-example overflow at " + width);
-      await page.locator("#length-example-caps").evaluate(node => node.scrollIntoView({block: "start"}));
-      await page.screenshot({path: path.join(task, "validation/length_examples_mobile_" + width + ".png")});
-      await page.evaluate(() => window.scrollBy(0, 560));
-      await page.screenshot({path: "/tmp/llama_length_steps_" + width + ".png"});
+      assert.equal(await page.locator(".worked-example-library").isVisible(), false, "Expand all keeps the duplicate panels removed");
     }
+    await page.emulateMedia({media: "print"});
+    await page.evaluate(() => window.dispatchEvent(new Event("beforeprint")));
+    assert.equal(await limits.locator(".worked-example:visible").count(), 6, "All complete examples remain printable");
+    assert.equal(await exampleCard.isVisible(), false);
+    await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+    await page.emulateMedia({media: "screen"});
+    assert.equal(await page.locator(".worked-example-library").isVisible(), false);
     const fallbackContext = await browser.newContext({javaScriptEnabled: false, viewport: {width: 390, height: 844}});
     const fallback = await fallbackContext.newPage();
     await fallback.goto(url);
@@ -209,6 +319,11 @@ const url = pathToFileURL(path.join(task, "link_htmls/llama2_7b_memory_planning_
     assert.equal(await fallback.locator("[data-init-logic]").count(), 12);
     assert.ok((await fallback.locator("#init-logic-6").innerText()).includes("float32"));
     assert.equal(await fallback.locator("#init-step-card").isVisible(), false);
+    await fallback.locator("#length-and-batch > summary").click();
+    await fallback.locator("#length-example-caps > summary").click();
+    assert.equal(await fallback.locator("#length-example-caps").evaluate(node => node.open), true);
+    assert.equal(await fallback.locator("#length-example-caps").isVisible(), true);
+    assert.equal(await fallback.locator("#example-card").isVisible(), false);
     await fallbackContext.close();
     assert.deepEqual(errors, []);
     const report = {checked_at: new Date().toISOString(), result: "PASS", revision: payload.revision,
@@ -224,7 +339,13 @@ const url = pathToFileURL(path.join(task, "link_htmls/llama2_7b_memory_planning_
     fs.writeFileSync(path.join(task, "validation/length_examples_checks.json"), JSON.stringify({
       checked_at: report.checked_at, result: "PASS", revision: payload.revision, command: report.command,
       worked_examples: 6, table_link_targets: exampleTargets, source_targets: Object.keys(payload.references).length,
-      keyboard_disclosures: true, viewports: [1600, 390, 320], no_document_overflow: true, errors
+      hover_links: 7, worked_example_cards: 6, complete_example_content: true,
+      standalone_example_panels_removed: true, helper_paragraph_removed: true,
+      hold_and_release: true, keyboard_card_access: true, click_opens_held_card: true,
+      card_source_navigation: true, example_deep_links_open_cards: true,
+      no_javascript_examples: true, printable_examples: true,
+      touch_card_viewports: [390, 320], card_contrast_checks: exampleContrast,
+      viewports: [1600, 390, 320], no_document_overflow: true, errors
     }, null, 2) + "\n");
     console.log(JSON.stringify(report, null, 2));
   } finally {
