@@ -109,6 +109,48 @@ header; individual function cards and task-selection radios are absent.
 - [x] Link 127 verified source targets to complete original files.
 - [x] Validate reader launch, exact text/source, search, copy, mobile and print.
 
+## Option B: OS/GPU systems lab — 2026-11-04
+
+The user selected an expanded standalone systems page linked from the
+call-stack reader. Scope: Linux + NVIDIA, the pinned MAX single-instance
+startup path, and an explicitly illustrative external replica fleet.
+
+| Scene | Boundary and teaching goal |
+|---|---|
+| Startup/readiness | Fresh worker interpreter, session before weight loading, retained device state, readiness/IPC before HTTP serving. |
+| Network arrival | NIC/DMA, IRQ/NAPI, TCP listen/connection buffers, FDs, epoll/libuv and ASGI callbacks. |
+| API/worker handoff | Tokenizer default executor, effective completion limit, request IDs, local Unix IPC, N and pending CE M. |
+| GPU execution | MAX token batching/KV ownership, native engine, user/kernel-driver boundaries, streams, copies and completion. |
+| Streaming/pressure | Early HTTP status boundary, unbounded application outputs, transport flow control, slow readers and safe cancellation/reuse. |
+| Fleet | External routing, unequal request work, warmup/readiness, fixed request owners, worker/API failure and fresh replacement. |
+
+The lab starts paused at 1,000 clients / 100 seeded tokenized contexts /
+four prefill members / 96 waiting. Finite N and M are chosen teaching inputs;
+MAX defaults both to unbounded in this source. M counts active prefill as
+well as waiting CE. Each added replica includes one independent GPU/model
+allocation and receives only new traffic after a compressed warmup.
+
+The pure simulator conserves generated tokens as delivered + buffered +
+discarded, maintains one unfinished request per conceptual client, bounds
+page reservations and delays cancellation page reuse until a live pass ends.
+The controller updates the selected request's state without closing its
+transition disclosure. Historical graph/event/terminal-record storage and
+rendered request lists are bounded.
+
+- [x] Review system-design articles and official OS/GPU references.
+- [x] Build six native animated sequences with 48 detailed green step cards.
+- [x] Add 22 component/object cards and six worked arithmetic cards.
+- [x] Implement traffic, memory, admission, routing, readers and fleet controls.
+- [x] Preserve the existing source call tree and earlier source payloads.
+- [x] Verify 53 source targets, 11 complete definitions and 17 research extracts.
+- [x] Verify 15 meaningful simulator invariants and scenario behaviors.
+- [x] Verify offline/browser/touch/keyboard/reduced-motion/print presentation.
+
+Deliverables: [systems HTML](link_htmls/max_serve_os_driver_and_scaling.html),
+[portable companion](OS_SYSTEMS_GUIDE.md),
+[source/evidence manifest](os_systems_manifest.json) and
+[validation record](validation/OS_SYSTEMS_VALIDATION.md).
+
 The [reader](max_serve_llama2_7b_startup_call_stack.html),
 [text export](MAX_SERVE_LLAMA2_7B_STARTUP_CALL_STACK.txt) and
 [checkpoint record](CHECKPOINTS.md) are the deliverables for this revision.

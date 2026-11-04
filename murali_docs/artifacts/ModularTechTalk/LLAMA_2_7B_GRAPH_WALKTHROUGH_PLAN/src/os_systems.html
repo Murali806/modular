@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>MAX Serve · Linux, GPU drivers and serving at scale</title>
+<!-- OS_CSS -->
+</head>
+<body id="top">
+<a class="skip-link" href="#main">Skip to the systems lab</a>
+<header class="topbar"><a class="brand" href="#top"><span class="brand-mark">M</span><span>MAX / SYSTEMS LAB</span></a><div class="top-actions"><a href="../max_serve_llama2_7b_startup_call_stack.html">Call stack ↗</a><a href="llama2_7b_memory_planning_and_memory_plan.html">Memory planning ↗</a><button id="print-page" data-interactive hidden>Print</button></div></header>
+<nav class="section-nav" aria-label="Page sections"><a href="#system-map">System map</a><a href="#guided-scenes">Six animations</a><a href="#scale-lab">Scaling lab</a><a href="#worked-examples">Examples</a><a href="#deep-dives">OS details</a><a href="#source-evidence">Source &amp; research</a></nav>
+<main id="main">
+<section class="hero" aria-labelledby="page-title"><div><p class="eyebrow">Linux + NVIDIA · Llama 2 7B · Option B</p><h1 id="page-title">From a socket<br>to a token.</h1><p class="hero-lead">Follow MAX Serve through Linux processes, network queues and GPU drivers. Then change the load and see where thousands of clients wait.</p><div class="hero-actions"><a class="primary-link" href="#guided-scenes">Walk through the system ↓</a><a href="#scale-lab">Open the scaling lab ↓</a></div></div><div class="hero-panel"><div class="hero-numbers"><div><strong>1,000</strong><span>client connections</span></div><span>→</span><div><strong>4</strong><span>GPU batch members</span></div></div><p>Connections, queued requests and model sequences have different owners and limits.</p><div class="mini-flow"><span>SOCKETS</span><i>→</i><span>CPU / IPC</span><i>→</i><span>KV / GPU</span><i>→</i><span>SSE</span></div><span class="badge example-badge">EXAMPLE · explore the arithmetic</span></div></section>
+<div class="evidence-strip"><span><b class="badge">SOURCE</b> MAX calls at <code>{{revision-short}}</code></span><span><b class="badge">BOUNDARY</b> Linux / NVIDIA mechanisms</span><span><b class="badge example-badge">EXAMPLE</b> Illustrative animation and rates</span></div>
+<noscript><p class="notice">JavaScript is disabled. All sequences, object explanations, worked examples and complete source remain readable in the disclosures below. Animation and the interactive simulation require JavaScript.</p></noscript>
+
+<section id="system-map" class="page-section"><div class="section-heading"><div><p class="eyebrow">Start with ownership</p><h2>One server spans several schedulers.</h2></div><a href="#deep-dives">See the OS details ↓</a></div>
+{{systems-map}}
+</section>
+
+<section id="guided-scenes" class="page-section"><div class="section-heading"><div><p class="eyebrow">Six guided scenes</p><h2>Cross one boundary at a time.</h2></div><span class="badge">No autoplay</span></div>
+<p class="section-intro">Use <strong>Step</strong> or <strong>Play</strong> to follow event order. Hover, focus or tap a green step label for inputs, logic, example results and sources. <strong>Hold card</strong> keeps it selected; Space or a tap enters the card. Component labels explain their objects.</p>
+<div id="scenes">{{scenes}}</div>
+</section>
+
+<section id="scale-lab" class="page-section"><div class="section-heading"><div><p class="eyebrow">Interactive scaling lab · EXAMPLE</p><h2>Make the queues visible.</h2></div><span class="badge example-badge">Deterministic simulation</span></div>
+<p class="section-intro">The opening snapshot has 100 already-tokenized requests: four selected for GPU prefill and 96 waiting, with 900 idle clients. New arrivals traverse the full API → IPC → worker path. Each replica represents its own GPU and model allocation.</p>
+<div id="lab" data-interactive hidden>
+ <div class="preset-bar" role="group" aria-label="Teaching scenarios"><span>Try a case</span><button data-preset="connections" aria-pressed="true">1,000 connections</button><button data-preset="overload" aria-pressed="false">Overload</button><button data-preset="memory" aria-pressed="false">1 GiB KV pool</button><button data-preset="slow" aria-pressed="false">Slow readers</button><button data-preset="skew" aria-pressed="false">Unequal requests</button></div>
+ <div class="lab-layout">
+  <details class="lab-settings" id="lab-settings" open><summary>Scenario inputs <span class="badge example-badge">EXAMPLE</span></summary>
+   <form id="lab-form">
+    <div class="control-group"><h3>Traffic</h3>
+     <label>Client connections<input name="clients" type="number" min="1" max="10000" step="1" value="1000" required></label>
+     <label>Arrivals / second<input name="arrivalRate" type="number" min="0" max="1000" step="0.5" value="6" required></label>
+     <label>Prompt tokens<input name="promptTokens" type="number" min="1" max="4095" step="1" value="512" required></label>
+     <label>Requested output tokens<input name="outputTokens" type="number" min="1" max="4096" step="1" value="64" required></label>
+     <label>Request shapes<select name="shape"><option value="uniform">Same token lengths</option><option value="mixed">Short + long (one in five)</option></select></label>
+     <label>Slow readers (%)<input name="slowPercent" type="number" min="0" max="100" step="5" value="0" required></label>
+    </div>
+    <div class="control-group"><h3>Fleet + admission</h3>
+     <label>Starting replicas<input name="replicas" type="number" min="1" max="8" step="1" value="1" required></label>
+     <label>Routing<select name="routing"><option value="round_robin">Round robin</option><option value="least_outstanding">Least outstanding streams</option><option value="token_work">Least estimated token work</option><option value="power_two">Power of two choices</option></select></label>
+     <label>IPC cap N <small>0 = unbounded; exact slots in the lab</small><input name="transitLimit" type="number" min="0" max="1024" step="1" value="32" required></label>
+     <label>Pending CE cap M <small>includes prefill; 0 = unbounded</small><input name="pendingLimit" type="number" min="0" max="2048" step="1" value="128" required></label>
+     <label>API waiting gate <small>external/lab policy; 0 = unbounded</small><input name="apiLimit" type="number" min="0" max="2048" step="1" value="256" required></label>
+    </div>
+    <div class="control-group"><h3>GPU + memory</h3>
+     <label>Batch ceiling<input name="batchSize" type="number" min="1" max="32" step="1" value="4" required></label>
+     <label>Input tokens / pass<input name="inputBudget" type="number" min="32" max="8192" step="32" value="1024" required></label>
+     <label>Available GPU memory (GiB)<input name="gpuGiB" type="number" min="13" max="96" step="0.5" value="24" required></label>
+     <label>Budget utilization<input name="utilization" type="number" min="0.5" max="1" step="0.05" value="0.9" required></label>
+     <label>KV pool cap (GiB) <small>0 = use the illustrated plan budget</small><input name="poolCapGiB" type="number" min="0" max="64" step="0.25" value="0" required></label>
+    </div>
+    <details class="service-settings"><summary>Teaching service rates</summary><p>Hypothetical inputs, not GPU benchmark results. The GPU timeline serializes its modeled work.</p>
+     <label>Tokenizer tokens/s per thread<input name="tokenizerRate" type="number" min="100" max="200000" step="100" value="20000" required></label>
+     <label>Tokenizer threads / replica<input name="tokenizerThreads" type="number" min="1" max="16" step="1" value="2" required></label>
+     <label>Prefill tokens/s per GPU<input name="prefillRate" type="number" min="100" max="200000" step="100" value="12000" required></label>
+     <label>Decode iterations/s<input name="decodeRate" type="number" min="1" max="1000" step="1" value="80" required></label>
+     <label>Pass overhead (ms)<input name="launchMs" type="number" min="0" max="100" step="1" value="2" required></label>
+     <label>Normal reader tokens/s<input name="readerRate" type="number" min="1" max="10000" step="1" value="120" required></label>
+     <label>Slow reader tokens/s<input name="slowReaderRate" type="number" min="0.1" max="100" step="0.1" value="1" required></label>
+     <label>Initial tokenized requests<input name="seedRequests" type="number" min="0" max="500" step="1" value="100" required></label>
+    </details>
+    <p id="config-pending" class="pending-change" role="status" hidden>Inputs changed. Apply &amp; restart to use them.</p><button class="apply-button" type="submit">Apply &amp; restart</button>
+   </form>
+  </details>
+  <div class="lab-stage">
+   <div class="lab-toolbar"><div><button id="lab-play" class="play-button" aria-pressed="false">Play</button><button id="lab-step">Step 100 ms</button><button id="lab-reset">Restart</button></div><label>Playback <select id="lab-speed"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select></label><output id="lab-clock">t = 0.00 s</output></div>
+   <p id="lab-status" class="lab-status" role="status">Paused at the opening snapshot.</p>
+   <div class="client-population"><div><span class="eyebrow">Client population</span><strong id="client-count">1,000</strong><small>conceptual frontend connections</small></div><div class="population-track" id="population-track" aria-label="Idle and unfinished clients"></div><div class="population-legend"><span><i class="idle-dot"></i><b id="idle-count">900</b> idle</span><span><i class="waiting-dot"></i><b id="unfinished-count">100</b> unfinished</span><span><i class="gpu-dot"></i><b id="gpu-count">4</b> GPU members</span></div></div>
+   <div class="metric-grid" id="lab-metrics"><div><span>Submitted</span><strong id="metric-submitted">100</strong><small>requests since restart</small></div><div><span>Pending + IPC</span><strong id="metric-waiting">96</strong><small>includes CE prefill separately below</small></div><div><span>Buffered output</span><strong id="metric-buffered">0</strong><small>tokens across output layers</small></div><div><span>Rejected / failed</span><strong id="metric-errors">0 / 0</strong><small>admission / replica failure</small></div><div><span>Delivered rate</span><strong id="metric-rate">—</strong><small>tokens/s · last 2 simulated seconds</small></div><div><span>p95 delivered TTFT</span><strong id="metric-ttft">—</strong><small>last 2,048 first-delivery samples</small></div></div>
+   <div class="fleet-toolbar"><strong>Independent replicas</strong><button id="lab-add">Add replica <small>2 s warmup</small></button><span id="routing-label">Round robin</span></div>
+   <div id="replica-rows" class="replica-rows"></div>
+   <div class="chart-grid"><div class="chart-panel"><h3>Waiting work over time</h3><p>Worker waiting + IPC contexts; selected prefill shown in each replica.</p><svg id="queue-chart" viewBox="0 0 460 150" role="img" aria-label="Simulated waiting request history"></svg></div><div class="chart-panel"><h3>Delivered tokens / second</h3><p>Output consumed by clients in the last two simulated seconds.</p><svg id="rate-chart" viewBox="0 0 460 150" role="img" aria-label="Simulated delivered token rate history"></svg></div></div>
+   <div class="request-layout"><div class="request-panel"><div class="request-heading"><h3>Inspect a request</h3><label>Show <select id="request-filter"><option value="all">Live + recent</option><option value="active">GPU members</option><option value="waiting">Waiting stages</option><option value="sending">Sending</option><option value="terminal">Finished / rejected / failed</option></select></label></div><p class="small-note">Select a row to hold its live state. The list shows up to 60 records; all active records remain in the simulation.</p><div id="request-list" class="request-list" role="list" aria-label="Request states"></div></div><aside id="request-inspector" class="request-inspector" aria-label="Selected request state"><h3>R1 · live state</h3><div id="request-detail"></div></aside></div>
+   <details class="lab-log"><summary>Recent state transitions</summary><ol id="lab-events"></ol></details>
+   <details class="lab-assumptions"><summary>Read the simulation contract and memory arithmetic</summary>
+    <p>All rates are teaching inputs. The model advances in deterministic 10 ms ticks. Each replica has an API tokenizer queue, exact N-slot IPC queue, CE set bounded by M, a batch ceiling, one conceptual GPU service timeline and token-counted output buffers.</p>
+    <p>Generation produces its first token when prompt prefill finishes. Ordinary decode passes produce one token for each eligible decoder. Mixed passes sum linear prefill service, decode service and pass overhead. The model omits real kernel/bandwidth/cache interactions and cannot predict hardware performance.</p>
+    <p>The lab reserves prompt plus effective output pages conservatively at GPU admission. Assigned pages grow with token progress. MAX uses its own allocation/preemption; the lab models the safe ownership invariant and retained pool, not that entire algorithm.</p>
+    <pre id="memory-arithmetic" class="object-values"></pre>
+    <p>N is exact here; real ZeroMQ HWM is approximate. M includes waiting and active prefill contexts. The example API waiting gate and fleet Add/Crash/Replace actions represent external/lab policy. Client count limits this teaching population to one unfinished request per client; unmet arrivals are reported as busy-client demand.</p>
+    <p>The opening snapshot seeds contexts after tokenization/IPC. Future arrivals follow the normal stages. Changing inputs restarts the scenario. New replicas warm before receiving new work; existing requests stay with their selected replica. A crash fails unfinished streams instead of replaying tokens.</p>
+    <p>{{ref:queue_settings}} · {{ref:proxy_submit}} · {{ref:scheduler_pending}} · {{ref:release_request}}</p>
+   </details>
+  </div>
+ </div>
+</div>
+<noscript><pre class="flow-pre">EXAMPLE SNAPSHOT
+clients 1,000 = idle 900 + waiting 96 + GPU prefill 4
+per-replica path: API / tokenizer -> IPC N -> CE waiting/prefill M -> GPU -> output
+allocated KV pool: 129 × 64 MiB = 8.0625 GiB; usable pages = 128
+four 512+64 token requests: reserve 20 pages; initially assign 16 prompt pages</pre></noscript>
+</section>
+
+<section id="worked-examples" class="page-section"><div class="section-heading"><div><p class="eyebrow">Worked arithmetic · EXAMPLE</p><h2>Explain the numbers in the lab.</h2></div></div><p class="section-intro">Hover, focus or tap an Example in the table for the complete inputs, calculations and conclusions. Hold keeps the card selected.</p>{{worked-examples}}</section>
+<section id="deep-dives" class="page-section"><div class="section-heading"><div><p class="eyebrow">OS and system-design details</p><h2>Name the resource before changing its limit.</h2></div></div>{{deep-dives}}</section>
+<section id="object-library" class="page-section reading-library"><h2>Object explanations</h2>{{objects}}</section>
+<section id="source-evidence" class="page-section"><div class="section-heading"><div><p class="eyebrow">Reviewable evidence</p><h2>Source calls and external mechanisms.</h2></div><span class="badge">{{source-count}} source targets · {{research-count}} references</span></div>
+<p>MAX source is pinned at <code>{{revision}}</code>. Complete definitions retain their original comments and whitespace. Linux/NVIDIA links explain external boundaries. Example rates and animations are illustrative; no model or GPU benchmark was run.</p>
+<details class="source-directory"><summary>MAX source directory · exact definitions and call sites</summary><ul>{{source-directory}}</ul></details>
+<div id="complete-source">{{source-cells}}</div>
+<details id="research-library" class="research-library"><summary>System-design articles, tutorials and official references</summary><p>Reviewed sources shaped the event/queue animations and the fleet lab. Small saved extracts support offline review; open the original references for complete explanations. Driver versions and documentation examples belong to their source pages, not this host.</p>{{research}}</details>
+</section>
+<footer><p><a href="../OS_SYSTEMS_GUIDE.md">Portable systems guide ↗</a> · <a href="../os_systems_manifest.json">Source / evidence manifest ↗</a> · <a href="../README.md">Artifact directory ↗</a></p><p>Native HTML, SVG and JavaScript · offline rendering · keyboard and touch controls · reduced-motion support</p></footer>
+</main>
+
+<aside id="reading-card" class="reading-card" tabindex="-1" role="region" aria-labelledby="reading-card-title" hidden><div class="card-toolbar"><button id="card-close" aria-label="Close explanation">Close ×</button><button id="card-hold" aria-pressed="false">Hold card</button><span class="badge" id="card-evidence">EXAMPLE</span></div><h3 id="reading-card-title"></h3><div id="reading-card-content" class="card-content"></div></aside>
+<dialog id="source-dialog" aria-labelledby="source-title"><div class="source-toolbar"><h2 id="source-title">Complete source</h2><button id="source-close">Close ×</button></div><p id="source-location"></p><div class="source-controls"><label>Find in file <input id="source-search" type="search" placeholder="Function, field or text"></label><button id="source-prev" aria-label="Previous source match">↑</button><button id="source-next" aria-label="Next source match">↓</button><output id="source-match-count"></output><button id="source-copy">Copy definition</button><a id="source-download" download>Download file</a></div><pre id="source-file" tabindex="0"></pre></dialog>
+<div id="copy-status" class="copy-status" role="status" hidden></div>
+<!-- OS_DATA -->
+<!-- OS_JS -->
+</body>
+</html>

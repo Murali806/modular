@@ -1,0 +1,7 @@
+NVIDIA Linux GPU kernel modules and user-space components
+https://raw.githubusercontent.com/NVIDIA/open-gpu-kernel-modules/main/README.md
+Retrieved: 2026-11-04T16:45:39.649866+00:00
+
+This is the source release of the NVIDIA Linux open GPU kernel modules, version 615.78.08.
+
+Note that the kernel modules built here must be used with GSP firmware and user-space NVIDIA GPU driver components from a corresponding 615.78.08 driver release. This can be achieved by installing the NVIDIA GPU driver from the .run file using the `--no-kernel-modules` option. E.g.,

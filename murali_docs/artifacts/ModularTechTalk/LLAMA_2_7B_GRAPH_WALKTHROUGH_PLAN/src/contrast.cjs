@@ -41,11 +41,16 @@ module.exports = function auditRenderedContrast() {
   }
   for (const e of document.body.querySelectorAll("*")) {
     if (!e.checkVisibility({checkOpacity:true, checkVisibilityCSS:true}) || e.closest(":disabled")) continue;
+    // SVG text can report visibility even inside a display:none group.
+    if (e instanceof SVGTextElement && e.getBoundingClientRect().width === 0) continue;
     const s = style(e);
     const text = [...e.childNodes].filter(n => n.nodeType === Node.TEXT_NODE).map(n => n.textContent.trim()).join("");
     const large = parseFloat(s.fontSize) >= 24 || (parseFloat(s.fontSize) >= 18.66 && Number(s.fontWeight) >= 700);
     let backing = background(e);
     if (e.classList.contains("actor-label")) backing = rgba(style(e.closest("svg").querySelector(".actor-box")).fill);
+    if (e.matches(".actor-subtitle, .object-hint")) backing = rgba(style(e.closest(".actor").querySelector(".actor-box")).fill);
+    if (e.classList.contains("step-number-text")) backing = rgba(style(e.parentElement.querySelector(".step-number-box")).fill);
+    if (e.matches(".sequence-packet text")) backing = rgba(style(e.parentElement.querySelector("circle")).fill);
     if (text && !["SCRIPT", "STYLE", "OPTION"].includes(e.tagName)) {
       check(e, e instanceof SVGElement ? s.fill : s.color, backing, text, large ? 3 : 4.5);
     }

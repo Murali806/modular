@@ -1,0 +1,24 @@
+{
+  "checked_at": "2026-11-04T16:59:11.059Z",
+  "result": "PASS",
+  "tests": 15,
+  "checks": [
+    "saved checkpoint geometry drives the simulator",
+    "opening snapshot separates 1,000 connections, 100 requests and batch 4",
+    "a 1 GiB pool admits three five-page requests, not four",
+    "full CE M backs up IPC N and rejects before generation",
+    "tokenizer CPU pressure precedes worker/GPU admission",
+    "slow sending requests no longer own KV pages",
+    "in-flight cancellation holds pages until the pass boundary",
+    "cancelling a sending request discards only undelivered tokens",
+    "effective output limit is capped to remaining context",
+    "warm replicas receive new traffic only after readiness; old owners stay",
+    "worker crash fails streams, excludes routing and replaces fresh state",
+    "estimated-work routing distinguishes equal counts with unequal tokens",
+    "power-of-two routing and mixed workloads replay deterministically",
+    "client population caps unfinished streams without inventing requests",
+    "invalid memory cannot over-assign pages; long histories stay bounded"
+  ],
+  "command": "node src/check_os_systems_lab.cjs",
+  "evidence": "CPU-RUN: deterministic simulator checks; no model/device execution"
+}

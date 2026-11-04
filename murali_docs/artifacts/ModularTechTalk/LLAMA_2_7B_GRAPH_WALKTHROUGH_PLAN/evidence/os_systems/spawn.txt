@@ -1,0 +1,5 @@
+Python multiprocessing: spawn and process lifecycle
+https://docs.python.org/3/library/multiprocessing.html
+Retrieved: 2026-11-04T16:45:39.649866+00:00
+
+The parent process starts a fresh Python interpreter process. The child process will only inherit those resources necessary to run the process object’s run() method. In particular, unnecessary file descriptors and handles from the parent process will not be inherited. Starting a process using this method is rather slow compared to using fork or forkserver.

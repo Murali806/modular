@@ -204,10 +204,12 @@ def build_guide(data: dict) -> None:
     import markdown
     from call_stack import READER_NAME, build_call_stack, startup_html
     from memory_planning import build_memory_planning
+    from os_systems import build_os_systems
     from widgets import WIDGETS, stage_data
 
     reference_count = build_call_stack(data, TASK, SRC, python_span)
     memory_references, memory_cells = build_memory_planning(data, TASK, SRC, python_span)
+    systems_references, systems_cells = build_os_systems(data, TASK, SRC, python_span)
 
     cells = {c["id"]: c for c in data["cells"]}
     template = (SRC / "content.md").read_text()
@@ -379,6 +381,7 @@ def build_guide(data: dict) -> None:
     print(f"Built six chapters, {len(cells)} complete cells, and {len(files)} full-file snapshots.")
     print(f"Built one combined MAX Serve startup call tree: {reference_count} verified source targets.")
     print(f"Built memory-planning QnA: {memory_references} source targets, {memory_cells} complete code cells.")
+    print(f"Built OS/GPU systems lab: {systems_references} source targets, {systems_cells} complete code cells.")
 
 
 if __name__ == "__main__":

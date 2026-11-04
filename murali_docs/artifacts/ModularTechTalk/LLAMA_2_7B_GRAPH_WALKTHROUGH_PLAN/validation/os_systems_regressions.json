@@ -1,0 +1,378 @@
+{
+  "result": "PASS",
+  "evidence": "CPU-RUN documentation regressions; no model execution",
+  "main_and_call_stack": {
+    "result": "PASS",
+    "checked_at": "2026-11-04T17:06:10.837Z",
+    "browser": "156.0.8078.4",
+    "checks": [
+      "Six chapters and 39 initially collapsed complete source cells",
+      "All six QnA 1.1.x cells expand and contain linked call-flow trees",
+      "QnA 1.1.2 function links open Source Explorer at the linked definition line",
+      "QnA 1 follows the first paragraph, contains three answers, expands/collapses by keyboard, and opens source/deep links",
+      "All displayed function text equals the original source payload",
+      "Keyboard expansion and signature annotation highlight original lines",
+      "Copy preserves the entire original Graph.output function",
+      "Whole-file fidelity, source switching, text search, next match, and Escape close",
+      "Every finalization, compiler, reuse, and buffer state; previous/next bounds",
+      "Diagram-to-source jump, collapse all, direct code deep link, and chapter expansion",
+      "Direct file:// opening works with embedded source and interactions",
+      "Expanded nested call-flow tree stays within 390px and 320px mobile viewports",
+      "390px mobile layout, expanded code, and full-file dialog stay within viewport",
+      "Expanded QnA stays within both 390px and 320px viewports",
+      "Print colors remain readable and disclosure states restore after printing",
+      "Rendered text contrast meets WCAG text thresholds in inspected states; controls, SVG lines, and keyboard focus checked separately",
+      "QnA 1.1 opens one combined MAX Serve startup tree without toggling the parent cell; both command examples remain visible",
+      "Startup map is initially collapsed and expands/collapses in the guide and separate reader",
+      "One continuous tree matches the export; startup entry points appear once, three config initializations remain, and worker/compile/readiness order is preserved",
+      "Source links covering all six QnA topics and the alias map open exact files; definition/caller highlighting, source search and Escape work",
+      "Tree search/next/no-match states work; Copy all text exactly preserves the exported text",
+      "Text-tree printing expands the map and restores disclosure state afterward",
+      "390px/320px reader preserves text indentation with horizontal scrolling inside trees; source map/dialog fit the viewport",
+      "Renamed startup reader works directly from file://; without JavaScript, the combined tree, map and snapshots remain readable"
+    ],
+    "console_errors": [],
+    "viewports": [
+      "1440x1000",
+      "390x844",
+      "320x760"
+    ],
+    "offline_file_url": true
+  },
+  "main_and_call_stack_contrast": {
+    "result": "PASS",
+    "checked_at": "2026-11-04T17:06:10.837Z",
+    "states": [
+      {
+        "state": "Desktop: initial dark theme",
+        "samples": 655,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: QnA expanded and keyboard focused",
+        "samples": 837,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: QnA complete-source dialog",
+        "samples": 2013,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: expanded code and active annotation",
+        "samples": 881,
+        "minimum_text_ratio": 5.418,
+        "failures": []
+      },
+      {
+        "state": "Desktop: source search and current match",
+        "samples": 4306,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: finalize state 1",
+        "samples": 882,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: finalize state 2",
+        "samples": 884,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: finalize state 3",
+        "samples": 884,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: finalize state 4",
+        "samples": 884,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: finalize state 5",
+        "samples": 884,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: finalize state 6",
+        "samples": 882,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: compiler state 1",
+        "samples": 884,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: compiler state 2",
+        "samples": 886,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: compiler state 3",
+        "samples": 886,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: compiler state 4",
+        "samples": 886,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: compiler state 5",
+        "samples": 886,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: compiler state 6",
+        "samples": 886,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: compiler state 7",
+        "samples": 884,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: cache state 1",
+        "samples": 886,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: cache state 2",
+        "samples": 884,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: cache state 3",
+        "samples": 884,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: buffers state 1",
+        "samples": 884,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: buffers state 2",
+        "samples": 881,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Mobile: expanded QnA",
+        "samples": 778,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Mobile: source dialog and placeholder",
+        "samples": 1187,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Desktop: hovered control",
+        "samples": 655,
+        "minimum_text_ratio": 6.431,
+        "failures": []
+      },
+      {
+        "state": "Print: expanded guide on white paper",
+        "samples": 5406,
+        "minimum_text_ratio": 7.118,
+        "failures": []
+      },
+      {
+        "state": "Call-tree window: commands, closed map and text",
+        "samples": 495,
+        "minimum_text_ratio": 6.886,
+        "failures": []
+      },
+      {
+        "state": "Call-tree window: exact source dialog",
+        "samples": 1420,
+        "minimum_text_ratio": 6.886,
+        "failures": []
+      },
+      {
+        "state": "Call-tree window: matching text",
+        "samples": 495,
+        "minimum_text_ratio": 4.995,
+        "failures": []
+      },
+      {
+        "state": "Call-tree window: print colors",
+        "samples": 543,
+        "minimum_text_ratio": 7.118,
+        "failures": []
+      },
+      {
+        "state": "Call-tree window: 390px source view",
+        "samples": 3972,
+        "minimum_text_ratio": 6.886,
+        "failures": []
+      },
+      {
+        "state": "Call-tree window: 320px source view",
+        "samples": 3972,
+        "minimum_text_ratio": 6.886,
+        "failures": []
+      }
+    ],
+    "note": "Rendered color checks, not a full accessibility-conformance audit."
+  },
+  "initialization_sequence": {
+    "checked_at": "2026-11-04T16:59:20.816Z",
+    "result": "PASS",
+    "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+    "command": "NODE_PATH=/tmp/max-v4-playwright/node_modules node src/check_initialize_and_limits.cjs",
+    "sequence_steps": 12,
+    "source_keys": [
+      "planner_model_access",
+      "memory_init_call",
+      "initialize_hf_access",
+      "initialize_delegate",
+      "initialize_settings",
+      "kv_dtype",
+      "head_dim",
+      "kv_construct",
+      "kv_to_params_call",
+      "kv_params",
+      "initialize_result",
+      "memory_init_call"
+    ],
+    "object_records": [
+      "pipeline",
+      "model",
+      "hf",
+      "kv-config",
+      "kv-params",
+      "arch"
+    ],
+    "hover_cards": 12,
+    "persistent_cards": true,
+    "hold_and_release": true,
+    "keyboard_card_access": true,
+    "escape_focus_return": true,
+    "outside_click": true,
+    "card_source_navigation": true,
+    "touch_card_viewports": [
+      390,
+      320
+    ],
+    "card_contrast_checks": [
+      {
+        "state": "Desktop / step 6",
+        "samples": 316,
+        "minimum_text_ratio": 6.155,
+        "failures": []
+      },
+      {
+        "state": "Touch / step 6 / 390",
+        "samples": 305,
+        "minimum_text_ratio": 6.155,
+        "failures": []
+      },
+      {
+        "state": "Touch / step 6 / 320",
+        "samples": 305,
+        "minimum_text_ratio": 6.155,
+        "failures": []
+      }
+    ],
+    "viewports": [
+      1600,
+      390,
+      320
+    ],
+    "source_navigation": true,
+    "object_navigation": true,
+    "offline": true,
+    "javascript_disabled": true,
+    "no_document_overflow": true,
+    "errors": []
+  },
+  "length_examples": {
+    "checked_at": "2026-11-04T16:59:20.816Z",
+    "result": "PASS",
+    "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+    "command": "NODE_PATH=/tmp/max-v4-playwright/node_modules node src/check_initialize_and_limits.cjs",
+    "worked_examples": 6,
+    "table_link_targets": [
+      "length-example-architecture",
+      "length-example-batch",
+      "length-example-batch",
+      "length-example-pages",
+      "length-example-oom",
+      "length-example-caps",
+      "length-example-resident"
+    ],
+    "source_targets": 100,
+    "hover_links": 7,
+    "worked_example_cards": 6,
+    "complete_example_content": true,
+    "standalone_example_panels_removed": true,
+    "helper_paragraph_removed": true,
+    "hold_and_release": true,
+    "keyboard_card_access": true,
+    "click_opens_held_card": true,
+    "card_source_navigation": true,
+    "example_deep_links_open_cards": true,
+    "no_javascript_examples": true,
+    "printable_examples": true,
+    "touch_card_viewports": [
+      390,
+      320
+    ],
+    "card_contrast_checks": [
+      {
+        "state": "Touch / example 4 / 390",
+        "samples": 433,
+        "minimum_text_ratio": 6.155,
+        "failures": []
+      },
+      {
+        "state": "Touch / example 4 / 320",
+        "samples": 433,
+        "minimum_text_ratio": 6.155,
+        "failures": []
+      },
+      {
+        "state": "Desktop / example 4",
+        "samples": 1588,
+        "minimum_text_ratio": 6.155,
+        "failures": []
+      }
+    ],
+    "viewports": [
+      1600,
+      390,
+      320
+    ],
+    "no_document_overflow": true,
+    "errors": []
+  }
+}

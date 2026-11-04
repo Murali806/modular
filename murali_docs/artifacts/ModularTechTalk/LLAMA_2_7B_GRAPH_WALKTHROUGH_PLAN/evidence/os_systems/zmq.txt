@@ -1,0 +1,11 @@
+ZeroMQ ipc transport: local Unix-domain sockets
+https://libzmq.readthedocs.io/en/latest/zmq_ipc.html
+Retrieved: 2026-11-04T16:45:39.649866+00:00
+
+The inter-process transport passes messages between local processes using a system-dependent IPC mechanism.
+
+The inter-process transport is currently only implemented on operating systems that provide UNIX domain sockets.
+
+When binding a 'socket' to a local address using zmq_bind() with the 'ipc' transport, the 'endpoint' shall be interpreted as an arbitrary string identifying the 'pathname' to create. The 'pathname' must be unique within the operating system namespace used by the 'ipc' implementation, and must fulfill any restrictions placed by the operating system on the format and length of a 'pathname'.
+
+on Linux only, when the endpoint pathname starts with @, the abstract namespace shall be used. The abstract namespace is independent of the filesystem and if a process attempts to bind an endpoint already bound by a process, it will fail. See unix(7) for details.

@@ -14,6 +14,7 @@ from build import REPO, TASK, cpp_span, python_span
 from call_stack import READER_NAME, TEXT_NAME
 from cells import CELLS, REVISION
 from memory_planning import PAGE_NAME
+from os_systems import PAGE_NAME as OS_PAGE_NAME
 
 
 class GuideParser(HTMLParser):
@@ -110,6 +111,14 @@ class MemoryParser(GuideParser):
         super().handle_endtag(tag)
         if tag == "details":
             self.disclosure_depth -= 1
+
+
+class SystemsParser(GuideParser):
+    def handle_starttag(self, tag, attrs):
+        super().handle_starttag(tag, attrs)
+        attrs = dict(attrs)
+        if tag == "script" and attrs.get("id") == "os-data":
+            self.in_payload = True
 
 
 def main():
@@ -212,8 +221,77 @@ def main():
     assert provenance["official"]["total_selected_weight_bytes"] == memory_payload["example"]["weightBytes"]
     assert hashlib.sha256((TASK / provenance["public_mirror"]["snapshot"]).read_bytes()).hexdigest() == provenance["public_mirror"]["snapshot_sha256"]
 
+    systems_page = TASK / "link_htmls" / OS_PAGE_NAME
+    systems_parser = SystemsParser()
+    systems_parser.feed(systems_page.read_text())
+    systems_payload = json.loads("".join(systems_parser.payload))
+    systems_manifest = json.loads((TASK / "os_systems_manifest.json").read_text())
+    assert systems_manifest["revision"] == systems_payload["revision"] == REVISION
+    assert len(systems_parser.ids) == len(set(systems_parser.ids)), "Duplicate systems-page IDs"
+    assert not systems_parser.dependencies, "Systems page must render offline"
+    for key in ("weightBytes", "layers", "kvHeads", "headDim", "cacheBytes", "pageSize"):
+        assert systems_payload["example"][key] == memory_payload["example"][key], key
+    assert systems_payload["example"]["maxContext"] == memory_payload["example"]["maxPosition"]
+    assert systems_manifest["example"] == systems_payload["example"]
+    assert set(systems_manifest["complete_code_cells"]) == set(systems_parser.lines)
+    assert systems_manifest["complete_code_cells"] == systems_payload["cells"]
+    systems_source = {}
+    for record in systems_manifest["files"]:
+        raw = (TASK / record["snapshot"]).read_bytes()
+        assert hashlib.sha256(raw).hexdigest() == record["sha256"], record["path"]
+        pinned = subprocess.check_output(["git", "show", f'{REVISION}:{record["path"]}'], cwd=REPO)
+        assert raw == pinned == (REPO / record["path"]).read_bytes(), record["path"]
+        assert systems_payload["files"][record["path"]]["text"].encode() == raw
+        systems_source[record["path"]] = raw.decode()
+    systems_line_count = 0
+    for key, ref in systems_payload["references"].items():
+        assert systems_manifest["references"][key] == {k: v for k, v in ref.items() if k != "code"}
+        source = systems_source[ref["file"]]
+        assert python_span(source, ref["symbol"]) == (ref["start"], ref["end"]), key
+        code = "".join(source.splitlines(keepends=True)[ref["start"] - 1:ref["end"]])
+        assert ref["code"] == code
+        assert hashlib.sha256(code.encode()).hexdigest() == ref["sha256"]
+        if ref.get("needle"):
+            assert code.count(ref["needle"]) == 1
+            assert ref["line"] == ref["start"] + code[:code.index(ref["needle"])].count("\n")
+        if key in systems_parser.lines:
+            assert systems_parser.lines[key] == code.splitlines(), key
+            systems_line_count += len(code.splitlines())
+    docs = {record["id"]: record for record in systems_payload["research"]["records"]}
+    assert systems_payload["research"] == json.loads((TASK / "evidence/os_systems_research.json").read_text())
+    assert len(docs) == systems_manifest["research_count"] == 17
+    for record in docs.values():
+        raw = (TASK / record["snapshot"]).read_bytes()
+        assert hashlib.sha256(raw).hexdigest() == record["snapshot_sha256"]
+        assert record["url"].startswith("https://")
+        assert record["paragraphs"] and all(paragraph in raw.decode() for paragraph in record["paragraphs"])
+    for evidence in systems_manifest["evidence_files"]:
+        assert hashlib.sha256((TASK / evidence["path"]).read_bytes()).hexdigest() == evidence["sha256"]
+    assert len(systems_payload["scenes"]) == 6
+    assert systems_manifest["scenes"] == {scene["id"]: len(scene["steps"]) for scene in systems_payload["scenes"]}
+    assert systems_manifest["objects"] == list(systems_payload["objects"])
+    for scene in systems_payload["scenes"]:
+        actors = {actor[0] for actor in scene["actors"]}
+        assert len(actors) == len(scene["actors"])
+        assert all(actor[3] in systems_payload["objects"] for actor in scene["actors"])
+        assert len(scene["steps"]) >= 6 and scene["ascii"]
+        for index, step in enumerate(scene["steps"]):
+            assert step["from"] in actors and step["to"] in actors
+            assert step["inputs"] and len(step["logic"]) >= 3
+            assert "SOURCE" in step["evidence"] or "BOUNDARY" in step["evidence"]
+            assert set(step["refs"]) <= systems_manifest["references"].keys()
+            assert set(step["docs"]) <= docs.keys()
+            assert f'logic-{scene["id"]}-{index}' in systems_parser.ids
+    for record in systems_payload["objects"].values():
+        assert record["fields"] and len(record["logic"]) >= 3
+        assert set(record["refs"]) <= systems_manifest["references"].keys()
+        assert set(record["docs"]) <= docs.keys()
+    assert systems_payload["scenes"][0]["steps"][3]["inputs"]["cached_weight_bytes"] == provenance["official"]["total_selected_weight_bytes"]
+    assert systems_payload["objects"]["kv"]["fields"]["page_bytes"] == systems_payload["example"]["pageBytes"]
+
     checked_links = 0
-    page_parsers = {TASK / "index.html": parser, TASK / READER_NAME: stack_parser, memory_page: memory_parser}
+    page_parsers = {TASK / "index.html": parser, TASK / READER_NAME: stack_parser,
+                    memory_page: memory_parser, systems_page: systems_parser}
     for page, parsed in list(page_parsers.items()):
         for href in parsed.links:
             if href.startswith("http"):
@@ -257,6 +335,14 @@ def main():
         memory_planning_displayed_source_lines=memory_line_count,
         memory_planning_qna_cells=memory_parser.qna_cells,
         memory_planning_max_disclosure_depth=memory_parser.max_disclosure_depth,
+        os_systems_source_targets=len(systems_manifest["references"]),
+        os_systems_source_files=len(systems_manifest["files"]),
+        os_systems_complete_code_cells=len(systems_manifest["complete_code_cells"]),
+        os_systems_displayed_source_lines=systems_line_count,
+        os_systems_scenes=len(systems_payload["scenes"]),
+        os_systems_steps=sum(len(scene["steps"]) for scene in systems_payload["scenes"]),
+        os_systems_objects=len(systems_payload["objects"]),
+        os_systems_research_extracts=len(docs),
         local_links_checked=checked_links, external_runtime_dependencies=0,
         evidence="Document/source validation only; no MAX model execution.",
     )

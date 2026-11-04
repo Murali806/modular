@@ -1,0 +1,13 @@
+Ray Serve: proxies, replica queues and failure recovery
+https://docs.ray.io/en/latest/serve/architecture.html
+Retrieved: 2026-11-04T16:45:39.649866+00:00
+
+HTTP Proxy: By default there is one HTTP proxy actor on the head node. This actor runs a Uvicorn HTTP server that accepts incoming requests, forwards them to replicas, and responds once they are completed. For scalability and high availability, you can also run a proxy on each node in the cluster via the proxy_location field inside serve.start() or the config file.
+
+Replicas: Actors that actually execute the code in response to a request. For example, they may contain an instantiation of an ML model. Each replica processes individual requests from the proxy. The replica may batch the requests using @serve.batch. See the batching docs.
+
+For each request in a deployment’s queue, an available replica is looked up and the request is sent to it. If no replicas are available (that is, more than max_ongoing_requests requests are outstanding at each replica), the request is left in the queue until a replica becomes available.
+
+When replica Actors fail, the Controller Actor replaces them with new ones.
+
+Ray Serve Autoscaling# Ray Serve’s autoscaling feature automatically increases or decreases a deployment’s number of

@@ -439,7 +439,12 @@ dialog::backdrop { background: #090b10cc; backdrop-filter: blur(3px); }
   .text-tree, .startup-text-map pre, .stack-commands { overflow: visible; font-size: 8px; }
   .text-tree code { white-space: pre-wrap; min-width: 0; overflow-wrap: anywhere; }
   .startup-text-map pre, .stack-commands { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .tree-line .object-owner, .tree-line a:hover .object-owner, .stack-key .object-owner {
+    color: #624617; background: #fff0d6;
+  }
 }
+/* Separate systems reader; the source call tree remains unchanged. */
+.stack-header-links{display:flex;gap:18px;flex-wrap:wrap;justify-content:flex-end}
 </style></head>
 <body><a class="skip-link" href="#main">Skip to the walkthrough</a>
 <header class="topbar"><div class="topbar-start"><button id="toggle-sidebar" class="sidebar-toggle" type="button" aria-controls="chapter-sidebar" aria-expanded="true" title="Hide sidebar" hidden><svg class="sidebar-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 3v18"/><path class="sidebar-chevron" d="m16 8-4 4 4 4"/></svg><span>Hide sidebar</span></button><a href="#top" class="brand" aria-label="MAX source study: back to top"><span class="brand-mark">M</span><span class="brand-title">MAX / SOURCE STUDY</span></a></div><div class="top-actions"><a href="WALKTHROUGH.md">Markdown</a><a href="EXPLANATION_RESEARCH.md">Research</a><button id="open-explorer">Source explorer</button><button id="print-guide" title="Print the guide">Print</button></div></header>

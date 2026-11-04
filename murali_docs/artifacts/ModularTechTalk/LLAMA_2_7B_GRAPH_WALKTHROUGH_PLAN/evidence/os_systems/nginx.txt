@@ -1,0 +1,13 @@
+NGINX: event-driven server architecture
+https://blog.nginx.org/blog/inside-nginx-how-we-designed-for-performance-scale
+Retrieved: 2026-11-04T16:45:39.649866+00:00
+
+When an NGINX server is active, only the worker processes are busy. Each worker process handles multiple connections in a nonblocking fashion, reducing the number of context switches.
+
+Each worker process is single‑threaded and runs independently, grabbing new connections and processing them. The processes can communicate using shared memory for shared cache data, session persistence data, and other shared resources.
+
+The NGINX worker processes begin by waiting for events on the listen sockets (accept_mutex and kernel socket sharding). Events are initiated by new incoming connections. These connections are assigned to a state machine – the HTTP state machine is the most commonly used, but NGINX also implements state machines for stream (raw TCP) traffic and for a number of mail protocols (SMTP, IMAP, and POP3).
+
+The state machine is essentially the set of instructions that tell NGINX how to process a request. Most web servers that perform the same functions as NGINX use a similar state machine – the difference lies in the implementation.
+
+Scheduling the State Machine Think of the state machine like the rules for chess.

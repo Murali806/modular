@@ -1,0 +1,11 @@
+Anyscale: continuous batching for LLM inference
+https://www.anyscale.com/blog/continuous-batching-llm-inference
+Retrieved: 2026-11-04T16:45:39.649866+00:00
+
+One recent such proposed optimization is continuous batching, also known as dynamic batching, or batching with iteration-level scheduling. We wanted to see how this optimization performs. We will get into details below, including how we simulate a production workload, but to summarize our findings:
+
+Completing four sequences using static batching. On the first iteration (left), each sequence generates one token (blue) from the prompt tokens (yellow). After several iterations (right), the completed sequences each have different sizes because each emits their end-of-sequence-token (red) at different iterations. Even though sequence 3 finished after two iterations, static batching means that the GPU will be underutilized until the last sequence in the batch finishes generation (in this example, sequence 2 after six iterations).cb 02 diagram-static-batching
+
+The industry recognized the inefficiency and came up with a better approach. Orca: A Distributed Serving System for Transformer-Based Generative Models is a paper presented in OSDI ‘22 which is the first to our knowledge to tackle this problem.
+
+Completing seven sequences using continuous batching. Left shows the batch after a single iteration, right shows the batch after

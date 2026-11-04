@@ -1,0 +1,235 @@
+{
+  "retrieved_at": "2026-11-04T16:45:39.649866+00:00",
+  "evidence": "Public documentation and visual-design references",
+  "records": [
+    {
+      "id": "nginx",
+      "title": "NGINX: event-driven server architecture",
+      "url": "https://blog.nginx.org/blog/inside-nginx-how-we-designed-for-performance-scale",
+      "paragraphs": [
+        "When an NGINX server is active, only the worker processes are busy. Each worker process handles multiple connections in a nonblocking fashion, reducing the number of context switches.",
+        "Each worker process is single\u2011threaded and runs independently, grabbing new connections and processing them. The processes can communicate using shared memory for shared cache data, session persistence data, and other shared resources.",
+        "The NGINX worker processes begin by waiting for events on the listen sockets (accept_mutex and kernel socket sharding). Events are initiated by new incoming connections. These connections are assigned to a state machine \u2013 the HTTP state machine is the most commonly used, but NGINX also implements state machines for stream (raw TCP) traffic and for a number of mail protocols (SMTP, IMAP, and POP3).",
+        "The state machine is essentially the set of instructions that tell NGINX how to process a request. Most web servers that perform the same functions as NGINX use a similar state machine \u2013 the difference lies in the implementation.",
+        "Scheduling the State Machine Think of the state machine like the rules for chess."
+      ],
+      "source_sha256": "d7961504d2a9ef35ad28d5a44b57ce63ac0c919f30f617a8a4afa8b658cf8ad8",
+      "snapshot": "evidence/os_systems/nginx.txt",
+      "snapshot_sha256": "b2bf69b1fb9d39cb8f251004bdf12eaf52a486c2bba31482ca66cbbc24b75871"
+    },
+    {
+      "id": "balancing",
+      "title": "Sam Who: interactive Load Balancing",
+      "url": "https://samwho.dev/load-balancing/",
+      "paragraphs": [
+        "No more dropped requests! The way our load balancer is behaving here, sending a request to each server in turn, is called \"round robin\" load balancing. It's one of the simplest forms of load balancing, and works well when either your servers are all equally powerful and your requests are all equally expensive, or you have plenty of headroom to absorb imbalances.",
+        "# When round robin doesn't cut it In the real world, it's rare for servers to be equally powerful and requests to be equally expensive. Even if you use the exact same hardware, performance can differ. Applications often service many different types of requests, and these have different performance characteristics. Fetching a list of 10 items will take less time than fetching a list of 1000. Let's see what happens when we vary request cost. In the following simulation, requests aren't equally expensive. You'll be able to see this by some requests taking longer to disappear than others.",
+        "While most requests get served successfully, we do drop some. One of the ways we can mitigate this is to"
+      ],
+      "source_sha256": "459a791eefb821e86b928e20cfd717f134d5ed211506a5fe5722552a223504ca",
+      "snapshot": "evidence/os_systems/balancing.txt",
+      "snapshot_sha256": "b56489fa9402cb188eb223c7d716c68258e3cbd5cf85902b5415ba8bbe291cb4"
+    },
+    {
+      "id": "batching",
+      "title": "Anyscale: continuous batching for LLM inference",
+      "url": "https://www.anyscale.com/blog/continuous-batching-llm-inference",
+      "paragraphs": [
+        "One recent such proposed optimization is continuous batching, also known as dynamic batching, or batching with iteration-level scheduling. We wanted to see how this optimization performs. We will get into details below, including how we simulate a production workload, but to summarize our findings:",
+        "Completing four sequences using static batching. On the first iteration (left), each sequence generates one token (blue) from the prompt tokens (yellow). After several iterations (right), the completed sequences each have different sizes because each emits their end-of-sequence-token (red) at different iterations. Even though sequence 3 finished after two iterations, static batching means that the GPU will be underutilized until the last sequence in the batch finishes generation (in this example, sequence 2 after six iterations).cb 02 diagram-static-batching",
+        "The industry recognized the inefficiency and came up with a better approach. Orca: A Distributed Serving System for Transformer-Based Generative Models is a paper presented in OSDI \u201822 which is the first to our knowledge to tackle this problem.",
+        "Completing seven sequences using continuous batching. Left shows the batch after a single iteration, right shows the batch after"
+      ],
+      "source_sha256": "46ada1038c7253815a3f840ba44e4ab295181918b11e8110f5f6f9ff09bd89bc",
+      "snapshot": "evidence/os_systems/batching.txt",
+      "snapshot_sha256": "c94c2b3afc05db6d30e80904beef1c221cb3fab30cd5821ff651165100ed3b84"
+    },
+    {
+      "id": "ray",
+      "title": "Ray Serve: proxies, replica queues and failure recovery",
+      "url": "https://docs.ray.io/en/latest/serve/architecture.html",
+      "paragraphs": [
+        "HTTP Proxy: By default there is one HTTP proxy actor on the head node. This actor runs a Uvicorn HTTP server that accepts incoming requests, forwards them to replicas, and responds once they are completed. For scalability and high availability, you can also run a proxy on each node in the cluster via the proxy_location field inside serve.start() or the config file.",
+        "Replicas: Actors that actually execute the code in response to a request. For example, they may contain an instantiation of an ML model. Each replica processes individual requests from the proxy. The replica may batch the requests using @serve.batch. See the batching docs.",
+        "For each request in a deployment\u2019s queue, an available replica is looked up and the request is sent to it. If no replicas are available (that is, more than max_ongoing_requests requests are outstanding at each replica), the request is left in the queue until a replica becomes available.",
+        "When replica Actors fail, the Controller Actor replaces them with new ones.",
+        "Ray Serve Autoscaling# Ray Serve\u2019s autoscaling feature automatically increases or decreases a deployment\u2019s number of"
+      ],
+      "source_sha256": "ff1ce6428f7ce0300053e617a880f2792522a80b929bbf04c36504078905755b",
+      "snapshot": "evidence/os_systems/ray.txt",
+      "snapshot_sha256": "6e44669a5f67f729bc7bad59bdc0df4b797d3b0e4e053c7ac686412e429e51e8"
+    },
+    {
+      "id": "libuv",
+      "title": "libuv: design of the I/O event loop",
+      "url": "https://docs.libuv.org/en/v1.x/design.html",
+      "paragraphs": [
+        "The I/O (or event) loop is the central part of libuv. It establishes the content for all I/O operations, and it\u2019s meant to be tied to a single thread. One can run multiple event loops as long as each runs in a different thread. The libuv event loop (or any other API involving the loop or handles, for that matter) is not thread-safe except where stated otherwise.",
+        "The event loop follows the rather usual single threaded asynchronous I/O approach: all (network) I/O is performed on non-blocking sockets which are polled using the best mechanism available on the given platform: epoll on Linux, kqueue on OSX and other BSDs, event ports on SunOS and IOCP on Windows. As part of a loop iteration the loop will block waiting for I/O activity on sockets which have been added to the poller and callbacks will be fired indicating socket conditions (readable, writable hangup) so handles can read, write or perform the desired I/O operation.",
+        "libuv uses a thread pool to make asynchronous file I/O operations possible, but network I/O is always performed in"
+      ],
+      "source_sha256": "398cbe4c1ae6b5afb6bd02e8ddf35893eb9a093bfdd913bf177b9a3cb9e3cf89",
+      "snapshot": "evidence/os_systems/libuv.txt",
+      "snapshot_sha256": "03765d90d03c02efe9b7ea026529585abefdb92348519b26610deefd83d9820a"
+    },
+    {
+      "id": "epoll",
+      "title": "Linux epoll: interest and ready lists",
+      "url": "https://man7.org/linux/man-pages/man7/epoll.7.html",
+      "paragraphs": [
+        "\u2022 The interest list (sometimes also called the epoll set): the set of file descriptors that the process has registered an interest in monitoring.",
+        "\u2022 The ready list: the set of file descriptors that are \"ready\" for I/O. The ready list is a subset of (or, more precisely, a set of references to) the file descriptors in the interest list. The ready list is dynamically populated by the kernel as a result of I/O activity on those file descriptors.",
+        "\u2022 Interest in particular file descriptors is then registered via epoll_ctl(2), which adds items to the interest list of the epoll instance.",
+        "\u2022 epoll_wait(2) waits for I/O events, blocking the calling thread if no events are currently available. (This system call can be thought of as fetching items from the ready list of the epoll instance.)",
+        "(3) A call to epoll_wait(2) is done that will return rfd as a ready file descriptor.",
+        "(5) A call to epoll_wait(2) is done. If the rfd file descriptor has been added to the epoll interface using the EPOLLET (edge-triggered) flag, the call to epoll_wait(2) done"
+      ],
+      "source_sha256": "bbc1eb5e9e5fe34342d6836ee6283f510cceedbf4ba55fc9b8d0557d52f9f14e",
+      "snapshot": "evidence/os_systems/epoll.txt",
+      "snapshot_sha256": "1477bd30c92f1ea828c706a95ab1cfc1f8be12ec62debffd35c6f069c1ac1279"
+    },
+    {
+      "id": "napi",
+      "title": "Linux NAPI: network-driver event processing",
+      "url": "https://docs.kernel.org/networking/napi.html",
+      "paragraphs": [
+        "NAPI is the event handling mechanism used by the Linux networking stack. The name NAPI no longer stands for anything in particular [1].",
+        "NAPI processing usually happens in the software interrupt context, but there is an option to use separate kernel threads for NAPI processing.",
+        "napi_schedule() is the basic method of scheduling a NAPI poll. Drivers should call this function in their interrupt handler (see Scheduling and IRQ masking for more info). A successful call to napi_schedule() will take ownership of the NAPI instance.",
+        "Scheduling and IRQ masking\u00b6 Drivers should keep the interrupts masked after scheduling the NAPI instance - until NAPI polling finishes any further interrupts are unnecessary. Drivers which have to mask the interrupts explicitly (as opposed to IRQ being auto-masked by the device) should use the napi_schedule_prep() and __napi_schedule() calls:",
+        "Drivers which have to mask the interrupts explicitly (as opposed to IRQ being auto-masked by the device) should use the napi_schedule_prep() and __napi_schedule() calls:",
+        "if (napi_schedule_prep(&v->napi)) { mydrv_mask_rxtx_irq(v->idx); /* schedule after masking to avoid races */ __napi_schedule(&v->napi); }"
+      ],
+      "source_sha256": "3dc9c397ce87a18fd1749189513e6eda0c059b9b4bfe09ddf154b58e9e2246e3",
+      "snapshot": "evidence/os_systems/napi.txt",
+      "snapshot_sha256": "93d3a7e138f1d718725f4c60e825a8bbbfff0cd1fc66b7e0a64cb496039906c0"
+    },
+    {
+      "id": "dma",
+      "title": "Linux DMA API: CPU, physical and device addresses",
+      "url": "https://docs.kernel.org/core-api/dma-api-howto.html",
+      "paragraphs": [
+        "I/O devices use a third kind of address: a \u201cbus address\u201d. If a device has registers at an MMIO address, or if it performs DMA to read or write system memory, the addresses used by the device are bus addresses. In some systems, bus addresses are identical to CPU physical addresses, but in general they are not. IOMMUs and host bridges can produce arbitrary mappings between physical and bus addresses.",
+        "From a device\u2019s point of view, DMA uses the bus address space, but it may be restricted to a subset of that space. For example, even if a system supports 64-bit addresses for main memory and PCI BARs, it may use an IOMMU so devices only need to use 32-bit DMA addresses.",
+        "+-------+ +------+ +------+ | | |MMIO | Offset | | | | Virtual |Space | applied | | C +-------+ --------> B +------+ ----------> +------+ A | | mapping | | by host | | +-----+ | | | | bridge | | +--------+ | | | | +------+ | | | | | CPU | | |"
+      ],
+      "source_sha256": "4171749f80b07c90f03013db0c87ea44a35a22889effcdd0469a404182dba089",
+      "snapshot": "evidence/os_systems/dma.txt",
+      "snapshot_sha256": "a4de912693f56ef4395bb0fd2e09ce8f80503d539eb8bb0ca1d03d8d3d910670"
+    },
+    {
+      "id": "memory",
+      "title": "Linux memory-management concepts",
+      "url": "https://docs.kernel.org/admin-guide/mm/concepts.html",
+      "paragraphs": [
+        "The memory management in Linux is a complex system that evolved over the years and included more and more functionality to support a variety of systems from MMU-less microcontrollers to supercomputers. The memory management for systems without an MMU is called nommu and it definitely deserves a dedicated document, which hopefully will be eventually written. Yet, although some of the concepts are the same, here we assume that an MMU is available and a CPU can translate a virtual address to a physical address.",
+        "The physical memory in a computer system is a limited resource and even for systems that support memory hotplug there is a hard limit on the amount of memory that can be installed. The physical memory is not necessarily contiguous; it might be accessible as a set of distinct address ranges. Besides, different CPU architectures, and even different implementations of the same architecture have different views of how these address ranges are defined.",
+        "All this makes dealing directly with physical memory quite complex and to avoid this complexity a concept of virtual memory was developed."
+      ],
+      "source_sha256": "6441c355b5b7b14c9a84133de6a7645fabe210b85e0506ba8ac5a5006d0300c8",
+      "snapshot": "evidence/os_systems/memory.txt",
+      "snapshot_sha256": "c0db89529280f0eff70625e4b916f71a0e7dcb7763651407fdbe8e254dea27c1"
+    },
+    {
+      "id": "cgroup",
+      "title": "Linux cgroup v2: CPU and RAM limits",
+      "url": "https://docs.kernel.org/admin-guide/cgroup-v2.html",
+      "paragraphs": [
+        "cpu.max A read-write two value file which exists on non-root cgroups. The default is \u201cmax 100000\u201d. The maximum bandwidth limit. It\u2019s in the following format:",
+        "cpu.max.burst A read-write single value file which exists on non-root cgroups. The default is \u201c0\u201d. This file affects only processes under the fair-class scheduler and a BPF scheduler with the cgroup_set_bandwidth callback depending on what the callback actually does.",
+        "memory.max A read-write single value file which exists on non-root cgroups. The default is \u201cmax\u201d. Memory usage hard limit. This is the main mechanism to limit memory usage of a cgroup. If a cgroup\u2019s memory usage reaches this limit and can\u2019t be reduced, the OOM killer is invoked in the cgroup. Under certain circumstances, the usage may go over the limit temporarily."
+      ],
+      "source_sha256": "9c7ea0827bdc8cf0007b26acac105111c210cea7a34b9b00e7e07ad17805165d",
+      "snapshot": "evidence/os_systems/cgroup.txt",
+      "snapshot_sha256": "395c561f4bdd49deb5c127082ea80c754f8a3810b985278eef65d36754f27300"
+    },
+    {
+      "id": "fdlimit",
+      "title": "Linux getrlimit: open-file-descriptor limits",
+      "url": "https://man7.org/linux/man-pages/man2/getrlimit.2.html",
+      "paragraphs": [
+        "RLIMIT_NOFILE This specifies a value one greater than the maximum file descriptor number that can be opened by this process. Attempts (open(2), pipe(2), dup(2), etc.) to exceed this limit yield the error EMFILE. (Historically, this limit was named RLIMIT_OFILE on BSD.)",
+        "EPERM The caller tried to increase the hard RLIMIT_NOFILE limit above the maximum defined by /proc/sys/fs/nr_open (see proc(5))"
+      ],
+      "source_sha256": "23a6b91999ed770f7260aeb763199512080d2b6daf55ebf42e3fb02635b14376",
+      "snapshot": "evidence/os_systems/fdlimit.txt",
+      "snapshot_sha256": "b5270e70ee64b8d75a163d1a0f93be1e13c3b2cdddce7ac3eed5354f39b433aa"
+    },
+    {
+      "id": "spawn",
+      "title": "Python multiprocessing: spawn and process lifecycle",
+      "url": "https://docs.python.org/3/library/multiprocessing.html",
+      "paragraphs": [
+        "The parent process starts a fresh Python interpreter process. The child process will only inherit those resources necessary to run the process object\u2019s run() method. In particular, unnecessary file descriptors and handles from the parent process will not be inherited. Starting a process using this method is rather slow compared to using fork or forkserver."
+      ],
+      "source_sha256": "d0b3689cb55959fe28443a74b7baa3b9c869d9169839d8e85b0e57f848832c19",
+      "snapshot": "evidence/os_systems/spawn.txt",
+      "snapshot_sha256": "4222ffacb2ccd0afefb6b523734be852df9f3f9f6587a0550671dd180b8a222d"
+    },
+    {
+      "id": "uvicorn",
+      "title": "Uvicorn: flow control and server limits",
+      "url": "https://uvicorn.dev/server-behavior/",
+      "paragraphs": [
+        "Flow Control\u00b6 Proper flow control ensures that large amounts of data do not become buffered on the transport when either side of a connection is sending data faster than its counterpart is able to handle. If the write buffer passes a high water mark, then Uvicorn ensures the ASGI send messages will only return once the write buffer has been drained below the low water mark.",
+        "Proper flow control ensures that large amounts of data do not become buffered on the transport when either side of a connection is sending data faster than its counterpart is able to handle.",
+        "Write flow control\u00b6 If the write buffer passes a high water mark, then Uvicorn ensures the ASGI send messages will only return once the write buffer has been drained below the low water mark. Uvicorn will pause reading from a transport once the buffered request body hits a high water mark, and will only resume once receive has been called, or once the response has been sent."
+      ],
+      "source_sha256": "cf0483cc4ea4fe9a6ea217dc355713eb9541990e3a38497bf90b2f788593a0e1",
+      "snapshot": "evidence/os_systems/uvicorn.txt",
+      "snapshot_sha256": "40e694a604a47ae883f45a082bc349c0e641468169116dc1e17e75b9e57d4e4b"
+    },
+    {
+      "id": "zmq",
+      "title": "ZeroMQ ipc transport: local Unix-domain sockets",
+      "url": "https://libzmq.readthedocs.io/en/latest/zmq_ipc.html",
+      "paragraphs": [
+        "The inter-process transport passes messages between local processes using a system-dependent IPC mechanism.",
+        "The inter-process transport is currently only implemented on operating systems that provide UNIX domain sockets.",
+        "When binding a 'socket' to a local address using zmq_bind() with the 'ipc' transport, the 'endpoint' shall be interpreted as an arbitrary string identifying the 'pathname' to create. The 'pathname' must be unique within the operating system namespace used by the 'ipc' implementation, and must fulfill any restrictions placed by the operating system on the format and length of a 'pathname'.",
+        "on Linux only, when the endpoint pathname starts with @, the abstract namespace shall be used. The abstract namespace is independent of the filesystem and if a process attempts to bind an endpoint already bound by a process, it will fail. See unix(7) for details."
+      ],
+      "source_sha256": "c53b2d7c4973019fb1fbc73e314362dce5c0c20588990c3800e4f32025a24254",
+      "snapshot": "evidence/os_systems/zmq.txt",
+      "snapshot_sha256": "0a321f64b96aeeb920a120d3de7ecd9ad8668d6eb9747b40087ac8ed8e93bf0a"
+    },
+    {
+      "id": "cuda_async",
+      "title": "NVIDIA CUDA: asynchronous execution, streams and events",
+      "url": "https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/asynchronous-execution.html",
+      "paragraphs": [
+        "The concurrency is expressed via an asynchronous interface, where a dispatching function call or kernel launch returns immediately. Asynchronous calls usually return before the dispatched operation has completed and may return before the asynchronous operation has started. The application is then free to perform other tasks at the same time as the originally dispatched operation. When the final results of the initially dispatched operation are needed, the application must perform some form of synchronization to ensure that the operation in question has completed. A typical example of a concurrent execution pattern is the overlapping of host and device memory transfers with computation and thus reducing or eliminating their overhead.",
+        "In Synchronizing CPU and GPU, the CUDA runtime function cudaDeviceSynchronize() was introduced, which is a blocking call which waits for all previously issued work to complete. The reason the cudaDeviceSynchronize() call was needed is because the kernel launch is asynchronous and returns immediately. CUDA provides an API for both blocking and non-blocking approaches to synchronization and even supports the use of host-side callback functions."
+      ],
+      "source_sha256": "125cf5383ce3c2af399bbd2296661cd681c2d3d9fa6df362e6a37db5a819220f",
+      "snapshot": "evidence/os_systems/cuda_async.txt",
+      "snapshot_sha256": "9c98087d0e599a1372efe653e06f9f9dda53ad8760bb0f91c321946d1c1a42b2"
+    },
+    {
+      "id": "cuda_driver",
+      "title": "NVIDIA CUDA: driver API and context address spaces",
+      "url": "https://docs.nvidia.com/cuda/cuda-programming-guide/03-advanced/driver-api.html",
+      "paragraphs": [
+        "Previous sections of this guide have covered the CUDA runtime. As mentioned in CUDA Runtime API and CUDA Driver API, the CUDA runtime is written on top of the lower level CUDA driver API. This section covers some of the differences between the CUDA runtime and the driver APIs, as well has how to intermix them. Most applications can operate at full performance without ever needing to interact with the CUDA driver API. However, new interfaces are sometimes available in the driver API earlier than the runtime API, and some advanced interfaces, such as Virtual Memory Management, are only exposed in the driver API.",
+        "The driver API is implemented in the cuda dynamic library (cuda.dll or cuda.so) which is copied on the system during the installation of the device driver. All its entry points are prefixed with cu.",
+        "The driver API must be initialized with cuInit() before any function from the driver API is called.",
+        "// Initialize cuInit(0); // Get number of devices supporting CUDA int deviceCount = 0; cuDeviceGetCount(&deviceCount); if (deviceCount == 0) { printf(\"There is no device supporting"
+      ],
+      "source_sha256": "832ef037c8c9915a4d6493009f04c57706e100016812ce718422fa3f30163210",
+      "snapshot": "evidence/os_systems/cuda_driver.txt",
+      "snapshot_sha256": "c6bfa2a9a376ddc7aa837e9a5bc0ee53c556964272f3cdc27bd1c4765290ac51"
+    },
+    {
+      "id": "nvidia_kernel",
+      "title": "NVIDIA Linux GPU kernel modules and user-space components",
+      "url": "https://raw.githubusercontent.com/NVIDIA/open-gpu-kernel-modules/main/README.md",
+      "paragraphs": [
+        "This is the source release of the NVIDIA Linux open GPU kernel modules, version 615.78.08.",
+        "Note that the kernel modules built here must be used with GSP firmware and user-space NVIDIA GPU driver components from a corresponding 615.78.08 driver release. This can be achieved by installing the NVIDIA GPU driver from the .run file using the `--no-kernel-modules` option. E.g.,"
+      ],
+      "source_sha256": "55db91bbb78b84cc4810fa44daa1cd34eac9d4330fc854c7f1c60c59cb195177",
+      "snapshot": "evidence/os_systems/nvidia_kernel.txt",
+      "snapshot_sha256": "91743e6129b4814542ecc5867f5fabaebff52d2f56309a6b13465f60606d7a3a"
+    }
+  ]
+}

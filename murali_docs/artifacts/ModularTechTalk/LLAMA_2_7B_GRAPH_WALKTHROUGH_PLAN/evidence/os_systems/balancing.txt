@@ -1,0 +1,9 @@
+Sam Who: interactive Load Balancing
+https://samwho.dev/load-balancing/
+Retrieved: 2026-11-04T16:45:39.649866+00:00
+
+No more dropped requests! The way our load balancer is behaving here, sending a request to each server in turn, is called "round robin" load balancing. It's one of the simplest forms of load balancing, and works well when either your servers are all equally powerful and your requests are all equally expensive, or you have plenty of headroom to absorb imbalances.
+
+# When round robin doesn't cut it In the real world, it's rare for servers to be equally powerful and requests to be equally expensive. Even if you use the exact same hardware, performance can differ. Applications often service many different types of requests, and these have different performance characteristics. Fetching a list of 10 items will take less time than fetching a list of 1000. Let's see what happens when we vary request cost. In the following simulation, requests aren't equally expensive. You'll be able to see this by some requests taking longer to disappear than others.
+
+While most requests get served successfully, we do drop some. One of the ways we can mitigate this is to

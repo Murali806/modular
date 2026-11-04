@@ -42,7 +42,9 @@ module.exports = async function checkCallStack({browser, context, base, watch, a
 
   const payload = await page.evaluate(()=>JSON.parse(document.querySelector("#stack-data").textContent));
   for (const section of payload.sections) {
-    assert.equal(await page.locator("#" + section.id + " .text-tree code").textContent(), section.text);
+    // Local-document links show their title; portable exports retain the path.
+    const visibleText = section.text.replace(/ \(link_htmls\/[^)\n]+\)/g, "");
+    assert.equal(await page.locator("#" + section.id + " .text-tree code").textContent(), visibleText);
     assert.ok(await page.locator("#" + section.id).isVisible());
   }
   const sequence = await page.locator(".text-tree [data-ref]").evaluateAll(es=>es.map(e=>e.dataset.ref));

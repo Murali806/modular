@@ -108,3 +108,41 @@ illustration cannot be mistaken for captured Llama execution or compiler IR.
 
 The concrete chapter and build plan is in [DESIGN_PLAN.md](DESIGN_PLAN.md).
 The earlier verified source route remains in [SOURCE_MAP.md](SOURCE_MAP.md).
+
+## Linux/GPU systems lab research — 2026-11-04
+
+The [systems page](link_htmls/max_serve_os_driver_and_scaling.html) uses native
+SVG/HTML animation and a deterministic queue model. The sources below informed
+the design; exact MAX behavior is checked separately against revision
+`610f7111836d9a950d45ba52ec9b3e0ed589fe3f`.
+
+| Reference | Teaching decision |
+|---|---|
+| [NGINX server architecture](https://blog.nginx.org/blog/inside-nginx-how-we-designed-for-performance-scale) | Separate connection state from runnable CPU work; show event-driven waiting. |
+| [Sam Who: Load Balancing](https://samwho.dev/load-balancing/) | Let readers change routing and see per-replica queue imbalance; keep arrival/service assumptions visible. |
+| [Anyscale: continuous batching](https://www.anyscale.com/blog/continuous-batching-llm-inference) | Show iteration-level membership and prefill/decode lifetimes. Historical performance claims are not transferred to MAX. |
+| [Ray Serve architecture](https://docs.ray.io/en/latest/serve/architecture.html) | Distinguish proxy/replica data paths from external health, warmup, scaling and recovery. |
+| [libuv design](https://docs.libuv.org/en/v1.x/design.html) / [Linux epoll](https://man7.org/linux/man-pages/man7/epoll.7.html) | Animate ready FDs and callbacks; distinguish a coroutine from an OS thread. |
+| [Linux NAPI](https://docs.kernel.org/networking/napi.html) / [DMA API](https://docs.kernel.org/core-api/dma-api-howto.html) | Expand NIC descriptors, DMA addresses, polling and host packet processing. |
+| [Linux memory concepts](https://docs.kernel.org/admin-guide/mm/concepts.html) / [cgroup v2](https://docs.kernel.org/admin-guide/cgroup-v2.html) / [FD limits](https://man7.org/linux/man-pages/man2/getrlimit.2.html) | Distinguish CPU virtual pages, host RAM/CPU quotas, sockets and GPU KV blocks. |
+| [Python multiprocessing](https://docs.python.org/3/library/multiprocessing.html) | Explain the fresh interpreter and resource boundary created by spawn. |
+| [Uvicorn server behavior](https://uvicorn.dev/server-behavior/) / [ZeroMQ IPC](https://libzmq.readthedocs.io/en/latest/zmq_ipc.html) | Separate transport flow control from MAX N/M admission and local Unix-domain message channels. |
+| [CUDA asynchronous execution](https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/asynchronous-execution.html) / [driver API](https://docs.nvidia.com/cuda/cuda-programming-guide/03-advanced/driver-api.html) / [NVIDIA Linux kernel modules](https://github.com/NVIDIA/open-gpu-kernel-modules) | Separate device submission from completion, control from data movement, and user-space from kernel-driver resources. |
+
+Brief attributed extracts, original URLs and hashes are saved in
+[the research evidence index](evidence/os_systems_research.json). Each source
+contributes at most 180 quoted words. The normal builder is offline; the fetch
+script has an explicit `--refresh` flag.
+
+The resulting diagrams pair actor ownership with one selected event and a
+reader-controlled moving marker. Green labels reveal detailed inputs, logic,
+results and links in held cards. Portable ASCII and full backing explanations
+remain available without JavaScript and in print. The scaling model separates
+API/CPU, IPC, pending CE, active GPU and buffered output instead of representing
+all client activity as one queue.
+
+The model uses 10 ms ticks and hypothetical linear service inputs. The fixed
+Llama 2 7B geometry and weight estimate reuse saved checkpoint provenance.
+The conservative reservation rule, ideal N slots, API waiting gate and fleet
+policies are identified as simulation/deployment assumptions. Neither the
+animation nor the research establishes hardware throughput or latency.

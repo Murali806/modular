@@ -1,0 +1,9 @@
+Linux cgroup v2: CPU and RAM limits
+https://docs.kernel.org/admin-guide/cgroup-v2.html
+Retrieved: 2026-11-04T16:45:39.649866+00:00
+
+cpu.max A read-write two value file which exists on non-root cgroups. The default is “max 100000”. The maximum bandwidth limit. It’s in the following format:
+
+cpu.max.burst A read-write single value file which exists on non-root cgroups. The default is “0”. This file affects only processes under the fair-class scheduler and a BPF scheduler with the cgroup_set_bandwidth callback depending on what the callback actually does.
+
+memory.max A read-write single value file which exists on non-root cgroups. The default is “max”. Memory usage hard limit. This is the main mechanism to limit memory usage of a cgroup. If a cgroup’s memory usage reaches this limit and can’t be reduced, the OOM killer is invoked in the cgroup. Under certain circumstances, the usage may go over the limit temporarily.

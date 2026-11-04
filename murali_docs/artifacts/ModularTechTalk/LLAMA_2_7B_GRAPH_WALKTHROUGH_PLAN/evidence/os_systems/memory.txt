@@ -1,0 +1,9 @@
+Linux memory-management concepts
+https://docs.kernel.org/admin-guide/mm/concepts.html
+Retrieved: 2026-11-04T16:45:39.649866+00:00
+
+The memory management in Linux is a complex system that evolved over the years and included more and more functionality to support a variety of systems from MMU-less microcontrollers to supercomputers. The memory management for systems without an MMU is called nommu and it definitely deserves a dedicated document, which hopefully will be eventually written. Yet, although some of the concepts are the same, here we assume that an MMU is available and a CPU can translate a virtual address to a physical address.
+
+The physical memory in a computer system is a limited resource and even for systems that support memory hotplug there is a hard limit on the amount of memory that can be installed. The physical memory is not necessarily contiguous; it might be accessible as a set of distinct address ranges. Besides, different CPU architectures, and even different implementations of the same architecture have different views of how these address ranges are defined.
+
+All this makes dealing directly with physical memory quite complex and to avoid this complexity a concept of virtual memory was developed.

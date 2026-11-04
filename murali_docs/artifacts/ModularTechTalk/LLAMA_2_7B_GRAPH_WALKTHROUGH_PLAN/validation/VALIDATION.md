@@ -156,3 +156,12 @@ nested QnAs, reader-controlled diagrams, exact copying, direct-file use,
 and 390px/320px layouts. Source/link and browser checks passed. Memory inputs
 for the numerical exercise are explicitly hypothetical; no model execution
 or GPU measurement was performed.
+
+## OS / GPU systems supplement — 2026-11-04
+
+The [systems validation record](OS_SYSTEMS_VALIDATION.md) covers the new
+standalone animated page, 53 verified source targets, 17 research extracts,
+15 deterministic simulator checks and 14 grouped browser checks. All 48 step
+cards, 22 object cards, 11 source cells and 22 contrast states passed, including
+offline, touch, keyboard, print and reduced-motion behavior. Rates and fleet
+actions are explicitly illustrative.

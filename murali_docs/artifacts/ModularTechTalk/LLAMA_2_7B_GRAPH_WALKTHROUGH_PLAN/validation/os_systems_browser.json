@@ -1,0 +1,171 @@
+{
+  "checked_at": "2026-11-04T17:04:12.058Z",
+  "result": "PASS",
+  "checks": [
+    "offline load, no autoplay and exact opening counts",
+    "all 48 step cards, inputs, logic, results and selected animation frames",
+    "persistent hover, hold/release, Space/Tab/Escape and source focus return",
+    "all 22 object cards and their example fields",
+    "six detailed worked examples in cards",
+    "all 11 complete source cells, exact copy, full-file search and highlights",
+    "controls apply/restart consistently, small-pool capacity and cancellation boundary",
+    "new-replica readiness, crash/failure and fresh replacement without stream replay",
+    "overload rejections, playback/pause and held live request disclosure",
+    "390/320 touch cards, examples, bounded layouts and memory lab",
+    "no-JavaScript sequences, examples, source and mobile fallback",
+    "print expands all explanations/source and suppresses simulation controls",
+    "native SVG packet movement and explicit play/pause",
+    "call-stack header opens the new standalone systems lab"
+  ],
+  "step_cards": 48,
+  "object_cards": 22,
+  "source_cells": 11,
+  "console_errors": [],
+  "external_runtime_requests": [],
+  "contrast": [
+    {
+      "state": "Desktop initial page",
+      "samples": 763,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "startup final step card",
+      "samples": 790,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "network final step card",
+      "samples": 863,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "ipc final step card",
+      "samples": 931,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "gpu final step card",
+      "samples": 1004,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "pressure final step card",
+      "samples": 1071,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "fleet final step card",
+      "samples": 1140,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "Example 1",
+      "samples": 1142,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "Example 2",
+      "samples": 1146,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "Example 3",
+      "samples": 1143,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "Example 4",
+      "samples": 1143,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "Example 5",
+      "samples": 1145,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "Example 6",
+      "samples": 1145,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "Source search and selected definition",
+      "samples": 2214,
+      "minimum_text_ratio": 5.317,
+      "failures": []
+    },
+    {
+      "state": "Desktop running lab then paused",
+      "samples": 1913,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "Touch GPU driver card 390",
+      "samples": 853,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "Touch source explorer 390",
+      "samples": 1571,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "Touch memory lab 390",
+      "samples": 772,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "Touch GPU driver card 320",
+      "samples": 853,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "Touch source explorer 320",
+      "samples": 1571,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "Touch memory lab 320",
+      "samples": 772,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    },
+    {
+      "state": "Animated network packet",
+      "samples": 839,
+      "minimum_text_ratio": 5.674,
+      "failures": []
+    }
+  ],
+  "screenshots": [
+    "os_systems_overview.png",
+    "os_systems_example_card.png",
+    "os_systems_scaling_lab.png",
+    "os_systems_card_mobile_390.png",
+    "os_systems_lab_mobile_390.png",
+    "os_systems_card_mobile_320.png",
+    "os_systems_lab_mobile_320.png",
+    "os_systems_network_animation.png"
+  ],
+  "evidence": "CPU-RUN browser/UI checks; no model execution or GPU measurements",
+  "command": "NODE_PATH=/tmp/max-os-playwright/node_modules node src/check_os_systems_browser.cjs"
+}

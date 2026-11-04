@@ -1,0 +1,15 @@
+Linux NAPI: network-driver event processing
+https://docs.kernel.org/networking/napi.html
+Retrieved: 2026-11-04T16:45:39.649866+00:00
+
+NAPI is the event handling mechanism used by the Linux networking stack. The name NAPI no longer stands for anything in particular [1].
+
+NAPI processing usually happens in the software interrupt context, but there is an option to use separate kernel threads for NAPI processing.
+
+napi_schedule() is the basic method of scheduling a NAPI poll. Drivers should call this function in their interrupt handler (see Scheduling and IRQ masking for more info). A successful call to napi_schedule() will take ownership of the NAPI instance.
+
+Scheduling and IRQ masking¶ Drivers should keep the interrupts masked after scheduling the NAPI instance - until NAPI polling finishes any further interrupts are unnecessary. Drivers which have to mask the interrupts explicitly (as opposed to IRQ being auto-masked by the device) should use the napi_schedule_prep() and __napi_schedule() calls:
+
+Drivers which have to mask the interrupts explicitly (as opposed to IRQ being auto-masked by the device) should use the napi_schedule_prep() and __napi_schedule() calls:
+
+if (napi_schedule_prep(&v->napi)) { mydrv_mask_rxtx_irq(v->idx); /* schedule after masking to avoid races */ __napi_schedule(&v->napi); }

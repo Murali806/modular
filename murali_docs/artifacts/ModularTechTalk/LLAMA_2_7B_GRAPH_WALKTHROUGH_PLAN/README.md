@@ -12,10 +12,12 @@ architecture registration timing. The
 | [Interactive guide](index.html) | Concept → diagram → exact code → line-linked explanation → full-file context |
 | [MAX Serve startup call stack](max_serve_llama2_7b_startup_call_stack.html) | One continuous tree combining QnA 1.1.1–1.1.6, from CLI parsing to HTTP readiness |
 | [Memory planning and MemoryPlan](link_htmls/llama2_7b_memory_planning_and_memory_plan.html) | Nested QnA cells with input origins, initialization calls and example objects, a budget waterfall, KV pages, parent/worker handoff and complete pinned source |
+| [MAX Serve OS / GPU systems lab](link_htmls/max_serve_os_driver_and_scaling.html) | Six animated Linux/NVIDIA scenes, 48 detailed step cards, 22 object cards and a deterministic client/queue/KV/fleet simulator |
+| [Portable systems guide](OS_SYSTEMS_GUIDE.md) / [systems manifest](os_systems_manifest.json) | Actor-complete ASCII sequences, example objects, exact source targets and research hashes |
 | [Memory explanation design](MEMORY_PLANNING_DESIGN.md) / [validation](validation/MEMORY_PLANNING_VALIDATION.md) | Disclosure structure, diagram controls, source checks and browser results |
 | [Text export](MAX_SERVE_LLAMA2_7B_STARTUP_CALL_STACK.txt) / [Markdown export](MAX_SERVE_LLAMA2_7B_STARTUP_CALL_STACK.md) | The combined Llama 2 7B startup call tree, commands and source-file aliases |
 | [Markdown companion](WALKTHROUGH.md) | Complete reading guide with expandable source and portable diagrams |
-| [Explanation research](EXPLANATION_RESEARCH.md) | Twelve reviewed references across hardware, framework internals, and LLM engineering; teaching methods selected from them |
+| [Explanation research](EXPLANATION_RESEARCH.md) | Hardware/framework/LLM references plus 17 OS/GPU/system-design sources and the teaching methods selected from them |
 | [Revised design plan](DESIGN_PLAN.md) | Chapter structure, code-cell contract, and completed acceptance checklist |
 | [Source map](SOURCE_MAP.md) | Compact navigation through repository files and symbols |
 | [Source manifest](source_manifest.json) | Revision, SHA-256 hashes, complete code ranges, and annotations |
@@ -86,6 +88,18 @@ all twelve references and explains where each method is applied.
   The separate six-panel list and its helper paragraph are removed from the
   screen view. Complete examples remain readable without JavaScript and
   when printing.
+- The separate **OS / GPU systems lab** follows startup/readiness, NIC DMA and
+  Linux TCP/epoll, tokenizer/executor and local Unix IPC, native GPU execution,
+  SSE pressure/cancellation, and an external fleet deployment layer. Green
+  step labels open persistent cards with inputs, ordered logic, results and
+  source/reference links. Its six worked examples stay in table-triggered
+  cards without a duplicate visible list.
+- The scaling lab separates idle connections, API CPU work, IPC N, pending
+  CE M, GPU membership, retained KV allocation and output buffers. Controls
+  vary token lengths, arrival/client counts, finite admission, memory,
+  reader speed and routing. Add/Crash/Replace demonstrate readiness and
+  failure boundaries for independent one-GPU replicas. All rates are explicit
+  teaching inputs; charts are simulation results.
 
 ## Source scope
 
@@ -121,6 +135,13 @@ finalization and device-graph finalization have their own explanations.
 7. Select a function or a **call site** link to inspect exact source. Expand
    **Source map** for file aliases. Long text lines scroll inside the tree,
    preserving indentation on small screens.
+8. Open **OS / GPU systems lab ↗** in the call-stack reader header. Follow
+   the six scenes with Step/Play; hover, focus or tap green labels and object
+   headers. Hold/Close/Escape control the persistent explanation card.
+9. In the lab, choose a preset, Step or Play, and select a request to inspect
+   its state and KV/output ownership. Input changes take effect with
+   **Apply & restart**. Adding a replica introduces a two-second illustrative
+   warmup and affects future routing; existing requests retain their owners.
 
 ## Rebuilding
 
@@ -149,6 +170,16 @@ framework, model and phase covered: CLI/configuration, registry/tokenizer,
 worker weight loading, graph compilation/initialization and HTTP readiness.
 The main startup entry points appear once; genuine repeated configuration
 calls and the separate worker process remain explicit.
+
+`src/os_systems.py` builds the new standalone page from
+`src/os_systems_content.py`, `src/os_systems.html`, `src/os_systems.css`,
+`src/os_systems_lab.js` and `src/os_systems.js`. It reuses pinned source and
+model provenance, adding eight source snapshots only to the systems manifest.
+The earlier readers' source manifests/payloads remain unchanged.
+
+`src/fetch_os_systems_evidence.py --refresh` deliberately refreshes the 17
+public-reference extracts. Normal builds never fetch them. Simulator and
+browser commands are in [the systems validation record](validation/OS_SYSTEMS_VALIDATION.md).
 
 This version starts from the restored baseline checkpoint. The rejected
 radio-button prototype is not part of the guide.

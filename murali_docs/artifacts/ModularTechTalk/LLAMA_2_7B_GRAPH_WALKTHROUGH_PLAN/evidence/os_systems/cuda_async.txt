@@ -1,0 +1,7 @@
+NVIDIA CUDA: asynchronous execution, streams and events
+https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/asynchronous-execution.html
+Retrieved: 2026-11-04T16:45:39.649866+00:00
+
+The concurrency is expressed via an asynchronous interface, where a dispatching function call or kernel launch returns immediately. Asynchronous calls usually return before the dispatched operation has completed and may return before the asynchronous operation has started. The application is then free to perform other tasks at the same time as the originally dispatched operation. When the final results of the initially dispatched operation are needed, the application must perform some form of synchronization to ensure that the operation in question has completed. A typical example of a concurrent execution pattern is the overlapping of host and device memory transfers with computation and thus reducing or eliminating their overhead.
+
+In Synchronizing CPU and GPU, the CUDA runtime function cudaDeviceSynchronize() was introduced, which is a blocking call which waits for all previously issued work to complete. The reason the cudaDeviceSynchronize() call was needed is because the kernel launch is asynchronous and returns immediately. CUDA provides an API for both blocking and non-blocking approaches to synchronization and even supports the use of host-side callback functions.

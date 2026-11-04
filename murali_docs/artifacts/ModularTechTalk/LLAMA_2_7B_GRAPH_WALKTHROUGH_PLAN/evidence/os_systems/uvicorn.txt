@@ -1,0 +1,9 @@
+Uvicorn: flow control and server limits
+https://uvicorn.dev/server-behavior/
+Retrieved: 2026-11-04T16:45:39.649866+00:00
+
+Flow Control¶ Proper flow control ensures that large amounts of data do not become buffered on the transport when either side of a connection is sending data faster than its counterpart is able to handle. If the write buffer passes a high water mark, then Uvicorn ensures the ASGI send messages will only return once the write buffer has been drained below the low water mark.
+
+Proper flow control ensures that large amounts of data do not become buffered on the transport when either side of a connection is sending data faster than its counterpart is able to handle.
+
+Write flow control¶ If the write buffer passes a high water mark, then Uvicorn ensures the ASGI send messages will only return once the write buffer has been drained below the low water mark. Uvicorn will pause reading from a transport once the buffered request body hits a high water mark, and will only resume once receive has been called, or once the response has been sent.

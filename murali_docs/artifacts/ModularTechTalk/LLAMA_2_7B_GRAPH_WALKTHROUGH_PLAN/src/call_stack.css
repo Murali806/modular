@@ -64,4 +64,9 @@
   .text-tree, .startup-text-map pre, .stack-commands { overflow: visible; font-size: 8px; }
   .text-tree code { white-space: pre-wrap; min-width: 0; overflow-wrap: anywhere; }
   .startup-text-map pre, .stack-commands { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .tree-line .object-owner, .tree-line a:hover .object-owner, .stack-key .object-owner {
+    color: #624617; background: #fff0d6;
+  }
 }
+/* Separate systems reader; the source call tree remains unchanged. */
+.stack-header-links{display:flex;gap:18px;flex-wrap:wrap;justify-content:flex-end}

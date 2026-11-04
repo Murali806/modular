@@ -1,0 +1,7 @@
+Linux getrlimit: open-file-descriptor limits
+https://man7.org/linux/man-pages/man2/getrlimit.2.html
+Retrieved: 2026-11-04T16:45:39.649866+00:00
+
+RLIMIT_NOFILE This specifies a value one greater than the maximum file descriptor number that can be opened by this process. Attempts (open(2), pipe(2), dup(2), etc.) to exceed this limit yield the error EMFILE. (Historically, this limit was named RLIMIT_OFILE on BSD.)
+
+EPERM The caller tried to increase the hard RLIMIT_NOFILE limit above the maximum defined by /proc/sys/fs/nr_open (see proc(5))
