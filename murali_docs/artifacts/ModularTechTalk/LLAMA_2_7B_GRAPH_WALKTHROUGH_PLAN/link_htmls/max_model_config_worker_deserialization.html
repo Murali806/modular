@@ -34,7 +34,15 @@
     .badge { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; color: var(--green); background: var(--panel); font-size: 12px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
     h1 { margin: 0 0 12px; font-size: clamp(28px, 4vw, 42px); line-height: 1.2; letter-spacing: -.025em; }
     .subtitle { margin: 0 0 24px; color: var(--muted); }
-    .answer { padding: clamp(18px, 4vw, 34px); border: 1px solid var(--line); border-radius: 13px; background: var(--panel); }
+    .answer { margin: 18px 0; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); overflow: hidden; }
+    .qna-cell > summary { padding: 18px 21px; cursor: pointer; color: var(--ink); background: var(--panel-soft); font-weight: 650; }
+    .qna-cell > summary::marker { color: var(--amber); }
+    .qna-cell > summary strong { color: var(--cyan); margin-right: 12px; }
+    .qna-body { padding: clamp(18px, 4vw, 34px); }
+    h2 { margin: 25px 0 12px; color: var(--blue); font-size: 1.15rem; }
+    .issues-table { min-width: 760px; }
+    .issues-table td:first-child { white-space: normal; min-width: 180px; }
+    .research-note { margin: 20px 0 0; color: var(--muted); font-size: .9rem; }
     p { margin: 0 0 19px; }
     strong { color: var(--cyan); }
     code { color: var(--amber); font: .92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
@@ -66,7 +74,8 @@
     .provenance { margin-top: 22px; color: var(--muted); font-size: .88rem; }
     @media (max-width: 640px) {
       .page { width: min(100% - 22px, 1040px); padding-top: 18px; }
-      .answer { padding: 20px 15px; }
+      .qna-body { padding: 20px 15px; }
+      .qna-cell > summary { padding: 15px; }
       body { font-size: 15px; }
       pre { padding: 14px 11px; font-size: 12px; }
       th, td { padding: 9px 11px; }
@@ -74,7 +83,10 @@
     @media print {
       :root { color-scheme: light; --page: #fff; --panel: #fff; --panel-soft: #eee; --code-bg: #f4f5f7; --line: #aaa; --ink: #151515; --muted: #444; --cyan: #075e73; --blue: #174f91; --green: #246526; --amber: #755000; --violet: #5b3282; }
       .page { width: 100%; padding: 0; }
-      .answer { padding: 18px 0; border: 0; }
+      .answer { border: 0; overflow: visible; }
+      .qna-body { padding: 18px 0; }
+      .issues-table { min-width: 0; }
+      .issues-table td:first-child { min-width: 0; }
       .topline a, .skip-link { display: none; }
       pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 10px; }
       .table-scroll { overflow: visible; }
@@ -93,7 +105,10 @@
     <h1>Worker deserialization and configuration rebuilding</h1>
     <p class="subtitle"><code>MAXModelConfig.__getstate__()</code> → serialized state → <code>MAXModelConfig.__setstate__()</code></p>
 
-    <article class="answer" id="explanation" aria-label="Full explanation of worker deserialization">
+    <section class="qna-list" id="explanation" aria-label="Worker configuration questions and answers">
+    <details class="answer qna-cell" id="worker-deserialization-overview">
+      <summary><strong>QnA 1</strong><span>What is deserialization, and why is the configuration populated again?</span></summary>
+      <div class="qna-body">
       <p class="lead">Your understanding is correct: <strong>the parent process has already populated the configuration. However, MAX deliberately excludes four derived objects when transferring it to the worker.</strong> The worker recreates those objects. This is explicit in the guide’s saved <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1000"><code>__getstate__()</code> implementation</a>.</p>
 
       <p><strong>Deserialization</strong> means reconstructing Python objects from serialized bytes. Serialization performs the reverse conversion: Python objects → bytes. Python’s <code>pickle</code> system calls these operations <em>pickling</em> and <em>unpickling</em>.
@@ -138,11 +153,41 @@ private_state[<span class="field">"_generation_config"</span>] = <span class="ke
 
       <p>These changes affect the serialized copy; the parent retains its populated objects. Ordinary saved fields, including the model path and revision, remain available for reconstruction. See the implementation linked above.</p>
 
-      <p>MAX’s comments explain the reason: repository objects can contain cached HF API responses that may not be pickleable, and HF configuration objects can involve dynamically loaded classes from <code>trust_remote_code</code>. Rebuilding them lets the worker resolve those classes in its own interpreter. MAX also treats the generation configuration as derived state and clears it. <strong>This is a choice in MAX’s serialization design; Python does not inherently require every populated configuration to be reloaded.</strong> See <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1024"><code>__setstate__()</code> and its reconstruction comments</a>.</p>
+      <p>MAX’s comments explain the reason: repository objects can contain cached HF API responses that may not be pickleable, and HF configuration objects can involve dynamically loaded classes from <a href="#trust-remote-code-issues"><code>trust_remote_code</code></a>. Rebuilding them lets the worker resolve those classes in its own interpreter. MAX also treats the generation configuration as <a href="#derived-generation-state">derived state and clears it</a>. <strong>This is a choice in MAX’s serialization design; Python does not inherently require every populated configuration to be reloaded.</strong> See <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1024"><code>__setstate__()</code> and its reconstruction comments</a>.</p>
 
-      <details class="clarification" id="derived-generation-state" open>
-        <summary>In depth · What “derived state” and “clears it” mean</summary>
-        <div class="clarification-body">
+      <p>That explains each repeated operation:</p>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Configuration objects reconstructed in the worker">
+        <table>
+          <thead><tr><th scope="col">Worker operation</th><th scope="col">What it reconstructs</th></tr></thead>
+          <tbody>
+            <tr><td><code>_populate_repo_handles()</code></td><td>Repository objects from the restored model/weights identifiers, revisions, and related settings.</td></tr>
+            <tr><td><code>_populate_hf_config()</code></td><td>The HF configuration object, using <code>load_huggingface_config(repo)</code>.</td></tr>
+            <tr><td><code>_populate_generation_config()</code></td><td>The generation configuration; its loader returns a default <code>GenerationConfig()</code> if loading fails.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The first two are defined <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1055">here</a>; the generation loader and fallback are <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1378">here</a>.</p>
+
+      <p>The cache statement refers to two different kinds of reuse:</p>
+      <ul>
+        <li><strong>Python object cache:</strong> <code>_hf_config.py</code> maintains an in-memory <code>_config_cache</code>. The spawned worker starts with its own empty cache; subsequent loads within that worker can reuse its entries. <a href="../sources/max/python/max/pipelines/lib/_hf_config.py#L23">Source</a>.</li>
+        <li><strong>Downloaded-file cache:</strong> Parent and worker can read the same files on disk when they use the same Hub cache location. Recreating Python objects therefore does <strong>not necessarily download the files again</strong>, although online metadata checks can still occur.
+          <a class="source" href="https://huggingface.co/docs/huggingface_hub/guides/manage-cache">Hugging Face: caching</a>
+          <a class="source" href="https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables#hfhuboffline">Hugging Face: metadata checks</a>
+        </li>
+      </ul>
+
+      <aside class="callout" aria-label="Reading the call-tree arrow">
+        <p>One detail in the tree: the arrow between <code>_populate_repo_handles()</code> and <code>_populate_hf_config()</code> represents execution order. In the actual <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1051"><code>__setstate__()</code> body</a>, all three population methods are called directly and sequentially.</p>
+      </aside>
+
+      </div>
+    </details>
+
+    <details class="answer qna-cell" id="derived-generation-state">
+      <summary><strong>QnA 2</strong><span>What does “derived state” mean, and why is GenerationConfig cleared?</span></summary>
+        <div class="qna-body">
           <p><strong>MAX keeps the information needed to reload the generation configuration, while omitting the already-loaded Python object from the serialized copy.</strong> “Derived state” describes that rebuildable object. This is the behavior of <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1000"><code>__getstate__()</code></a> and <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1087"><code>_populate_generation_config()</code></a>.</p>
 
           <p>There are three pieces to distinguish:</p>
@@ -182,37 +227,122 @@ GenerationConfig A       _generation_config       initially None
 
           <p>Being derived does not automatically make a field disposable. The same class explicitly preserves <code>_resolved_dtype_cast</code>, because recomputing it against the resolved weight path can produce a different answer. MAX chooses which state to carry and which state to rebuild. <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L970">Source: preserved dtype-cast state</a>.</p>
         </div>
-      </details>
 
-      <p>That explains each repeated operation:</p>
-      <div class="table-scroll" tabindex="0" role="region" aria-label="Configuration objects reconstructed in the worker">
-        <table>
-          <thead><tr><th scope="col">Worker operation</th><th scope="col">What it reconstructs</th></tr></thead>
-          <tbody>
-            <tr><td><code>_populate_repo_handles()</code></td><td>Repository objects from the restored model/weights identifiers, revisions, and related settings.</td></tr>
-            <tr><td><code>_populate_hf_config()</code></td><td>The HF configuration object, using <code>load_huggingface_config(repo)</code>.</td></tr>
-            <tr><td><code>_populate_generation_config()</code></td><td>The generation configuration; its loader returns a default <code>GenerationConfig()</code> if loading fails.</td></tr>
-          </tbody>
-        </table>
+    </details>
+
+    <details class="answer qna-cell" id="trust-remote-code-issues">
+      <summary><strong>QnA 3</strong><span>What issues can <code>trust_remote_code</code> cause, and what does MAX’s reconstruction prevent?</span></summary>
+      <div class="qna-body">
+        <p class="lead"><strong><code>trust_remote_code=True</code> permits repository-supplied Python classes to be loaded and executed.</strong> For a custom HF configuration, that introduces a dependency on its Python module as well as its JSON values. Rebuilding in the worker addresses the transfer of that object; loading its code can still fail. <a class="source" href="https://github.com/huggingface/transformers/blob/v5.6.0/src/transformers/models/auto/configuration_auto.py#L375">SOURCE · AutoConfig selection</a> <a class="source" href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1045">SOURCE · MAX reconstruction</a></p>
+
+        <h2>How a repository supplies a class</h2>
+        <p>An illustrative <code>config.json</code> can name a custom configuration class:</p>
+        <pre tabindex="0" aria-label="Illustrative custom configuration mapping"><code>{
+  <span class="field">"model_type"</span>: <span class="worker">"example"</span>,
+  <span class="field">"auto_map"</span>: {
+    <span class="field">"AutoConfig"</span>: <span class="worker">"configuration_example.ExampleConfig"</span>
+  }
+}</code></pre>
+        <p>On the remote-code branch, Transformers locates the Python file and its relative imports, imports the module into the current interpreter, and obtains <code>ExampleConfig</code>. A Hub-loaded module can have a qualified name shaped like <code>transformers_modules.&lt;repo&gt;.&lt;revision&gt;.configuration_example</code>; the exact naming depends on the loader and repository path. <a class="source" href="https://github.com/huggingface/transformers/blob/v5.6.0/src/transformers/dynamic_module_utils.py#L266">SOURCE · Dynamic module loader</a></p>
+
+        <figure aria-labelledby="remote-loader-caption">
+          <pre tabindex="0" aria-label="Custom configuration loading sequence"><code><span class="parent">MAX / current process</span>      <span class="transfer">Transformers + code files</span>
+<span class="method">AutoConfig.from_pretrained</span> --&gt; inspect config.json / auto_map
+       trust_remote_code=True --&gt; locate configuration_example.py
+                                   locate relative imports
+                                   register module in <span class="field">sys.modules</span>
+                                   execute module / define class
+                           &lt;-- return <span class="worker">ExampleConfig instance</span></code></pre>
+          <figcaption id="remote-loader-caption">SOURCE · Simplified remote-code branch. The files can come from an existing local cache. The module and class objects live in this Python interpreter.</figcaption>
+        </figure>
+
+        <h2>Why the Python object can be difficult to transfer</h2>
+        <p>Ordinary pickle identifies a class by its module and qualified name, while serializing the instance’s state separately. The receiving interpreter must be able to resolve that class. Python does not bundle the class’s source code into an ordinary instance pickle. <a class="source" href="https://docs.python.org/3.11/library/pickle.html#what-can-be-pickled-and-unpickled">SOURCE · Python pickle contract</a></p>
+        <figure aria-labelledby="pickle-boundary-caption">
+          <pre tabindex="0" aria-label="Dynamic class references at the worker boundary"><code><span class="parent">PARENT / serializer</span>                       <span class="worker">WORKER / unpickler</span>
+instance uses class A
+    |
+    +-- module now exposes class B?
+    |     A is not B --&gt; <span class="transfer">PicklingError</span>
+    |
+    +-- class reference + object state ----&gt; import module / resolve class
+                                               |
+                                               +-- module unavailable?
+                                                     <span class="transfer">ModuleNotFoundError</span></code></pre>
+          <figcaption id="pickle-boundary-caption">SOURCE + CPU-RUN · Two different failure points. A dynamically loaded class can also pickle successfully when the class identity and import environment are suitable.</figcaption>
+        </figure>
+
+        <h2>Concrete issue types and evidence</h2>
+        <p>The reports below describe particular versions and model paths. Some concern configuration objects; others concern custom model loading and illustrate the same import mechanisms. They are historical examples, not a claim that every version or MAX model has these bugs.</p>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="Remote-code issue types and evidence">
+          <table class="issues-table">
+            <thead><tr><th scope="col">Issue</th><th scope="col">What can happen</th><th scope="col">Primary evidence</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Class identity changes</strong><br>Parent serialization</td><td>A module reload can replace a class object while an older instance still refers to the original class. Pickle can reject the object even when both classes print the same name.</td><td><a href="https://github.com/vllm-project/vllm/issues/14925">vLLM #14925</a>, March 2025: a custom <code>DeepseekV2Config</code> produced a “not the same object” error in vLLM <code>0.7.4.dev497</code>. The local probe below separately demonstrates this Python mechanism.</td></tr>
+              <tr><td><strong>Dynamic module cannot be imported</strong><br>Worker deserialization</td><td>A fresh worker may lack the import setup needed by a dynamically named module. Historical path-name handling bugs have also broken imports.</td><td><a href="https://github.com/huggingface/transformers/issues/34303">Transformers #34303</a>, October 2024, <code>4.44.2</code>: a pickled custom model using <code>spawn</code> failed to find its <code>transformers_modules</code> module. The report involved a dot in the repository name.</td></tr>
+              <tr><td><strong>Code files unavailable offline</strong></td><td>Having saved weights and config data may still leave required custom Python files or relative imports unavailable. The loader can attempt a Hub access and fail offline.</td><td><a href="https://github.com/huggingface/transformers/issues/34855">Transformers #34855</a>, November 2024, <code>4.46.3</code>: loading a saved custom model on a new offline machine still needed remote code.</td></tr>
+              <tr><td><strong>Dependency or API incompatibility</strong></td><td>Repository code can import a symbol or package that is absent in the installed environment, causing an import-time failure.</td><td><a href="https://github.com/huggingface/transformers/issues/44561">Transformers #44561</a>, March 2026, <code>5.0.0</code>: older custom DeepSeek code imported the removed <code>is_torch_fx_available</code> helper.</td></tr>
+              <tr><td><strong>Different configuration behavior</strong></td><td>Selecting a repository class can change computed fields and validation compared with the built-in class, even for the same checkpoint.</td><td><a href="https://github.com/huggingface/transformers/issues/43643">Transformers #43643</a>, January 2026, <code>5.0.0</code>: the reported remote <code>DeepseekV3Config</code> lacked <code>qk_head_dim</code>, which the built-in route supplied.</td></tr>
+              <tr><td><strong>Repository code executes locally</strong></td><td>The imported code runs with the process’s permissions. Its imports and top-level statements can have side effects. A changing code revision can also change what runs.</td><td><a href="https://github.com/huggingface/transformers/blob/v5.6.0/SECURITY.md#remote-code">Transformers security policy</a> describes the trust decision and recommends checking the code and fixing its revision. Rebuilding an object does not sandbox that code.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2>What MAX’s reconstruction changes</h2>
+        <p>MAX’s saved implementation sets <code>_huggingface_config</code> to <code>None</code> in <code>__getstate__()</code>. The worker’s <code>__setstate__()</code> then restores the repository identity and invokes the loader. For this config field, pickle no longer has to transfer the parent’s dynamic HF object or resolve its class during unpickling. The worker creates its own instance through the normal loading path. <a class="source" href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1000">SOURCE · Get/set state</a> <a class="source" href="../sources/max/python/max/pipelines/lib/_hf_config.py#L90">SOURCE · HF loader</a></p>
+        <p>Missing code, incompatible dependencies and different repository behavior can still cause problems during that reload. This protection concerns the omitted HF config field; it is not a guarantee about every other object passed to the worker. The generation-config reset described in QnA 2 is part of the same reconstruction policy, but the source gives no separate <code>GenerationConfig</code> pickling failure.</p>
+
+        <aside class="callout">
+          <p><strong>For this Llama 2 walkthrough:</strong> the saved example config has <code>model_type = "llama"</code> and no <code>auto_map</code>. It follows the built-in configuration route. The remote-class discussion explains why MAX needs a general serialization policy across model families. <a href="../evidence/llama2_7b_public_mirror_config.json">Saved example config</a> · <a href="https://github.com/huggingface/transformers/blob/v5.6.0/src/transformers/models/auto/configuration_auto.py#L375">AutoConfig branch selection</a>.</p>
+        </aside>
+
+        <details class="clarification" id="remote-code-cpu-probe">
+          <summary>CPU-RUN · Four outcomes from a local Python experiment</summary>
+          <div class="clarification-body">
+            <p>A standard-library experiment creates a synthetic <code>DemoConfig</code> class in a temporary local file. Python <code>3.10.12</code> produced these results:</p>
+            <pre tabindex="0" aria-label="Observed results of the dynamic class experiment"><code><span class="worker">1. Same-process pickle round trip: success</span>
+<span class="transfer">2. Fresh interpreter, class module unavailable:
+   ModuleNotFoundError: No module named 'worker_config_demo'</span>
+<span class="transfer">3. Parent reload replaces the class object:
+   PicklingError: ... not the same object ...</span>
+<span class="worker">4. Transfer source identity, load class and JSON in worker:
+   success; hidden_size = 4096</span></code></pre>
+            <p>This reproduces the Python mechanisms with fresh isolated interpreters. It does not load a Hugging Face model or execute MAX inference. <a href="../../../../labs/worker_config_pickle_demo.py">Complete reproducible experiment</a> · <a href="../validation/TRUST_REMOTE_CODE_PICKLE_PROBE.json">Recorded output</a>.</p>
+          </div>
+        </details>
+
+        <p class="research-note">SOURCE / BOUNDARY · Loader source inspected at Transformers <code>v5.6.0</code>, selected by this checkout’s Linux dependency lock. Historical issue reports retain their own versions. Research checked November 5, 2026. <a href="../evidence/trust_remote_code_research.json">Source URLs, hashes and scope</a>.</p>
       </div>
+    </details>
 
-      <p>The first two are defined <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1055">here</a>; the generation loader and fallback are <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1378">here</a>.</p>
+    </section>
 
-      <p>The cache statement refers to two different kinds of reuse:</p>
-      <ul>
-        <li><strong>Python object cache:</strong> <code>_hf_config.py</code> maintains an in-memory <code>_config_cache</code>. The spawned worker starts with its own empty cache; subsequent loads within that worker can reuse its entries. <a href="../sources/max/python/max/pipelines/lib/_hf_config.py#L23">Source</a>.</li>
-        <li><strong>Downloaded-file cache:</strong> Parent and worker can read the same files on disk when they use the same Hub cache location. Recreating Python objects therefore does <strong>not necessarily download the files again</strong>, although online metadata checks can still occur.
-          <a class="source" href="https://huggingface.co/docs/huggingface_hub/guides/manage-cache">Hugging Face: caching</a>
-          <a class="source" href="https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables#hfhuboffline">Hugging Face: metadata checks</a>
-        </li>
-      </ul>
-
-      <aside class="callout" aria-label="Reading the call-tree arrow">
-        <p>One detail in the tree: the arrow between <code>_populate_repo_handles()</code> and <code>_populate_hf_config()</code> represents execution order. In the actual <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1051"><code>__setstate__()</code> body</a>, all three population methods are called directly and sequentially.</p>
-      </aside>
-    </article>
-
-    <footer class="provenance">SOURCE · The same saved source as the startup guide, revision <code>610f7111836d9a950d45ba52ec9b3e0ed589fe3f</code>. The diagram illustrates the implementation; it is not a captured execution trace.</footer>
+    <footer class="provenance">SOURCE · MAX revision <code>610f7111836d9a950d45ba52ec9b3e0ed589fe3f</code>. BOUNDARY · Referenced Python and Transformers implementations. CPU-RUN · The separately labeled synthetic experiment. Diagrams illustrate the source; no MAX model execution was recorded.</footer>
   </main>
+  <script>
+    (() => {
+      function revealQuestion() {
+        let id;
+        try { id = decodeURIComponent(location.hash.slice(1)); }
+        catch { return; }
+        const target = document.getElementById(id);
+        if (!target) return;
+        for (let node = target; node; node = node.parentElement) {
+          if (node.tagName === "DETAILS") node.open = true;
+        }
+        if (target.closest("details")) target.scrollIntoView({block: "start"});
+      }
+      revealQuestion();
+      window.addEventListener("hashchange", revealQuestion);
+      let printState = [];
+      window.addEventListener("beforeprint", () => {
+        printState = [...document.querySelectorAll("details")].map(node => [node, node.open]);
+        printState.forEach(([node]) => node.open = true);
+      });
+      window.addEventListener("afterprint", () => {
+        printState.forEach(([node, open]) => node.open = open);
+      });
+    })();
+  </script>
 </body>
 </html>

@@ -1,0 +1,182 @@
+{
+  "checked_on": "2026-11-05",
+  "documentation_baseline": "7a106e54e648cacf6f975c363e6aff9da868f849",
+  "max_saved_revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "question": "What issues can trust_remote_code introduce, and why does MAX reconstruct configuration objects in a spawned worker?",
+  "version_selection": {
+    "path": "bazel/pip/requirements/uv.lock",
+    "line": 15150,
+    "transformers": "5.6.0",
+    "reason": "Linux dependency resolution in the checked-out repository; not a claim about every installed runtime or the latest release.",
+    "other_platform_note": "This lock also includes Transformers 5.12.1 for a Darwin dependency group."
+  },
+  "upstream_sources": [
+    {
+      "id": "dynamic_module_loader",
+      "evidence": "SOURCE / BOUNDARY",
+      "version": "v5.6.0",
+      "url": "https://github.com/huggingface/transformers/blob/v5.6.0/src/transformers/dynamic_module_utils.py",
+      "download_url": "https://raw.githubusercontent.com/huggingface/transformers/v5.6.0/src/transformers/dynamic_module_utils.py",
+      "sha256": "bf7df9726c658edfdae520844488037b714bcdf6ae19e61961c4d84654efdeb8",
+      "relevant_lines": [
+        85,
+        266,
+        314,
+        476,
+        569
+      ],
+      "finding": "Adds the module cache to the import path, resolves code files and relative imports, registers modules, executes code, and resolves the requested class."
+    },
+    {
+      "id": "auto_config_selection",
+      "evidence": "SOURCE / BOUNDARY",
+      "version": "v5.6.0",
+      "url": "https://github.com/huggingface/transformers/blob/v5.6.0/src/transformers/models/auto/configuration_auto.py",
+      "download_url": "https://raw.githubusercontent.com/huggingface/transformers/v5.6.0/src/transformers/models/auto/configuration_auto.py",
+      "sha256": "bb9a2eb985900d5e2a6237f14f63b6144b385d4b212783ab8b1f59830a33c735",
+      "relevant_lines": [
+        375,
+        390,
+        400
+      ],
+      "finding": "Selects the remote configuration class when the AutoConfig mapping and trust settings permit it; otherwise selects a registered built-in configuration."
+    },
+    {
+      "id": "remote_code_security_policy",
+      "evidence": "SOURCE / BOUNDARY",
+      "version": "v5.6.0",
+      "url": "https://github.com/huggingface/transformers/blob/v5.6.0/SECURITY.md",
+      "download_url": "https://raw.githubusercontent.com/huggingface/transformers/v5.6.0/SECURITY.md",
+      "sha256": "e774a4809fe39d34259a40f14eb4b8d2e8b01c3435b93f673e83661b3716bcca",
+      "relevant_lines": [
+        19,
+        26
+      ],
+      "finding": "Requires review of repository code and recommends fixing the revision when trusting remote code."
+    },
+    {
+      "id": "python_pickle_contract",
+      "evidence": "SOURCE / BOUNDARY",
+      "url": "https://docs.python.org/3.11/library/pickle.html#what-can-be-pickled-and-unpickled",
+      "finding": "Ordinary pickling uses a class module and qualified name. Class definitions must be importable in the receiving environment; instance state is serialized separately from class code."
+    }
+  ],
+  "historical_reports": [
+    {
+      "url": "https://github.com/vllm-project/vllm/issues/14925",
+      "api_url": "https://api.github.com/repos/vllm-project/vllm/issues/14925",
+      "created_at_utc": "2025-03-17T05:00:58Z",
+      "reported_library": "vLLM",
+      "reported_version": "0.7.4.dev497+ga73e183e",
+      "scope": "DeepSeek-V2-Lite / V0 engine / tensor parallelism 2",
+      "finding": "PicklingError for a custom DeepseekV2Config with a class-identity mismatch.",
+      "limits": "The report documents the symptom; the synthetic experiment separately demonstrates module replacement as one mechanism. No claim that module replacement is the report's established root cause.",
+      "evidence": "BOUNDARY / primary upstream issue report",
+      "retrieved_api_response_sha256": "fa321a5c4a3ff68bfce7c67b3d63a96471be04662d32e0defc168d5769859f4a"
+    },
+    {
+      "url": "https://github.com/huggingface/transformers/issues/34303",
+      "api_url": "https://api.github.com/repos/huggingface/transformers/issues/34303",
+      "created_at_utc": "2024-10-22T04:20:55Z",
+      "reported_library": "Transformers",
+      "reported_version": "4.44.2",
+      "scope": "briaai/RMBG-1.4 / spawn / pickled custom model",
+      "finding": "ModuleNotFoundError when a spawned process tries to resolve the transformers_modules package for a repository name containing a dot.",
+      "limits": "Historical custom-model example; not a MAX or configuration-only reproduction.",
+      "evidence": "BOUNDARY / primary upstream issue report",
+      "retrieved_api_response_sha256": "57792b08f338cf85dd43dd08d7f8feb0e38c80d10b2184abdc4dbc892e1f53d3"
+    },
+    {
+      "url": "https://github.com/huggingface/transformers/issues/34855",
+      "api_url": "https://api.github.com/repos/huggingface/transformers/issues/34855",
+      "created_at_utc": "2024-11-21T13:42:46Z",
+      "reported_library": "Transformers",
+      "reported_version": "4.46.3",
+      "scope": "jinaai/jina-embeddings-v3 / save_pretrained / offline machine",
+      "finding": "Loading a saved model on a new offline machine still attempts to retrieve custom code.",
+      "limits": "A saved weights/config directory does not prove all referenced custom Python code is available.",
+      "evidence": "BOUNDARY / primary upstream issue report",
+      "retrieved_api_response_sha256": "4fdaabd8f5747c91f5d9258a0c83f4c25ea4f82af27a1486ca59a8cf885e243b"
+    },
+    {
+      "url": "https://github.com/huggingface/transformers/issues/44561",
+      "api_url": "https://api.github.com/repos/huggingface/transformers/issues/44561",
+      "created_at_utc": "2026-03-10T09:22:21Z",
+      "reported_library": "Transformers",
+      "reported_version": "5.0.0",
+      "scope": "deepseek-ai/deepseek-moe-16b-base / custom modeling code",
+      "finding": "ImportError for is_torch_fx_available after an upstream API removal.",
+      "limits": "A custom-model import example, not evidence that MAX loads that modeling file during AutoConfig reconstruction.",
+      "evidence": "BOUNDARY / primary upstream issue report",
+      "retrieved_api_response_sha256": "7cff0a6b18810c208a6ba11cac790f2dc469cc084e807a09c399e3b6569f2a32"
+    },
+    {
+      "url": "https://github.com/huggingface/transformers/issues/43643",
+      "api_url": "https://api.github.com/repos/huggingface/transformers/issues/43643",
+      "created_at_utc": "2026-01-31T07:13:33Z",
+      "reported_library": "Transformers",
+      "reported_version": "5.0.0",
+      "scope": "deepseek-ai/DeepSeek-V3.1 / AutoConfig",
+      "finding": "Remote DeepseekV3Config lacks qk_head_dim while the built-in configuration computes it.",
+      "limits": "The observation applies to the reported model and versions; it is not a general statement that remote configuration fields are always missing.",
+      "evidence": "BOUNDARY / primary upstream issue report",
+      "retrieved_api_response_sha256": "733f3174ab2768b6eda21928f91989cddd99f647ecc79ca77ce3eaef5972bb37"
+    }
+  ],
+  "max_sources": [
+    {
+      "path": "sources/max/python/max/pipelines/lib/config/model_config.py",
+      "lines": [
+        1000,
+        1024,
+        1045,
+        1051,
+        1087,
+        1378
+      ],
+      "finding": "Drops HF and generation config objects and repository handles in copied state; rebuilds them from saved identity during unpickling. No separate GenerationConfig pickling failure is identified."
+    },
+    {
+      "path": "sources/max/python/max/pipelines/lib/_hf_config.py",
+      "lines": [
+        23,
+        90
+      ],
+      "finding": "Maintains an interpreter-local HF config cache and invokes the HF configuration loader."
+    },
+    {
+      "path": "sources/max/python/max/serve/pipelines/model_worker.py",
+      "lines": [
+        797
+      ],
+      "finding": "Uses the spawn context for the model worker."
+    },
+    {
+      "path": "evidence/llama2_7b_public_mirror_config.json",
+      "finding": "The saved example uses model_type llama and has no auto_map; this configuration follows the built-in route."
+    }
+  ],
+  "cpu_experiment": {
+    "evidence": "CPU-RUN",
+    "command": "python3 -B murali_docs/labs/worker_config_pickle_demo.py --json-output murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/validation/TRUST_REMOTE_CODE_PICKLE_PROBE.json",
+    "script_sha256": "a6bac41df780e7b5d87b894e1226160a271d0a0b88ff482b206147bc91839143",
+    "output_sha256": "8b77a558d2f11623722ffe04c787673dd9e697697a55991c02b4b0ffe31196de",
+    "output": "validation/TRUST_REMOTE_CODE_PICKLE_PROBE.json",
+    "python": "3.10.12",
+    "device": "CPU; standard-library Python subprocesses",
+    "model_id": null,
+    "scope": "Synthetic local DemoConfig in fresh isolated Python interpreters. No HF imports, remote-code execution, model weights, MAX inference or GPU execution.",
+    "outcomes": [
+      "Same-process round trip succeeds.",
+      "Missing worker module raises ModuleNotFoundError.",
+      "Replacing the parent module class raises PicklingError for an older instance.",
+      "Transferring plain source identity and rebuilding succeeds."
+    ]
+  },
+  "interpretation_limits": [
+    "The demonstrated pickle mechanisms can explain why dynamic objects need special handling; not every dynamic class is unpickleable.",
+    "MAX avoids transferring the omitted HF configuration object. Other objects passed to a worker are outside this conclusion.",
+    "Reconstruction does not provide repository code, install compatible dependencies, guarantee identical behavior across revisions, or sandbox code execution.",
+    "Primary issue reports preserve their reported versions. They are not an assertion of currently unfixed bugs in the inspected Transformers release."
+  ]
+}

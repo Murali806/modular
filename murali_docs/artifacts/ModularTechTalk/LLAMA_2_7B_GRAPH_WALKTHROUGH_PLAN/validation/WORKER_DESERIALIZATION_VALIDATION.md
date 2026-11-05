@@ -1,9 +1,11 @@
 # Worker deserialization explanation validation
 
 - Date: 2026-11-05.
-- Evidence: `SOURCE` for MAX behavior; `CPU-RUN` for browser checks.
+- Evidence: `SOURCE` for MAX behavior; `BOUNDARY` for upstream reports;
+  `CPU-RUN` for browser checks and the synthetic Python experiment.
 - Saved MAX source revision: `610f7111836d9a950d45ba52ec9b3e0ed589fe3f`.
 - Documentation baseline: `36b70c3f4f5e96314076532baf80f5c6cfadca79`.
+- QnA/research follow-up baseline: `7a106e54e648cacf6f975c363e6aff9da868f849`.
 - Model context: `meta-llama/Llama-2-7b-hf`; temperature examples are illustrative.
 - Device: local CPU browser; no model inference or GPU measurement.
 
@@ -46,20 +48,54 @@ git diff --check
 
 The temporary Playwright check used the installed browser at
 `/tmp/max-os-playwright/node_modules/playwright`. Chromium required execution
-outside the filesystem sandbox. The final run passed all nine check groups:
+outside the filesystem sandbox. The final run passed all eleven check groups:
 
 - Exact link placement, one occurrence and opening in a new tab.
 - Visible tree, copy payload, text/Markdown exports and manifest agree.
-- Complete original answer, code excerpt, diagrams and reconstruction table.
-- Added derived-state explanation and keyboard disclosure controls.
-- Existing local navigation and saved-source links resolve.
-- Layout at 1440px, 390px and 320px; horizontal scrolling stays inside diagrams.
-- Print colours and keyboard navigation.
+- Three initially collapsed sibling QnA cells; independent Enter/Space controls.
+- Complete original and derived-state answers, diagrams and source excerpts.
+- Six remote-code issue types, versioned evidence and the labeled CPU probe.
+- Local links, fragment targets, source lines and experiment evidence hashes.
+- Deep links and cross references reveal the relevant answer and its ancestors;
+  malformed hashes preserve the disclosure state without JavaScript errors.
+- Collapsed and expanded layouts at 1440px, 390px and 320px; horizontal
+  scrolling stays inside diagrams and tables. Screenshots visually reviewed.
+- Print expands all answers and restores their prior state; print colours and
+  keyboard skip navigation pass.
 - Existing source explorer still highlights `__setstate__()` at line 1024.
-- Direct `file://` use and return navigation with JavaScript disabled.
+- Native QnA controls and return navigation work directly from `file://` with
+  offline mode enabled and JavaScript disabled.
 
-The final contrast check examined 158 samples per screen width, with a minimum
-text ratio of 6.621:1. Print checked 156 samples, with a minimum of 6.233:1.
+The final contrast check examined 270 samples per screen width, with a minimum
+text ratio of 6.621:1. Print checked 268 samples, with a minimum of 6.233:1.
 No contrast failures, JavaScript errors or external resource requests occurred.
 Temporary screenshots and the detailed report are in
 `/tmp/max-worker-deserialization-checks/`.
+
+## Research and Python experiment
+
+Inspected the saved MAX source and Transformers `v5.6.0`, matching this
+checkout's Linux dependency lock. Five primary upstream reports illustrate
+specific historical failures; each retains its reported date, library version
+and model context. Source URLs, downloaded-source hashes and interpretation
+limits are recorded in
+[`trust_remote_code_research.json`](../evidence/trust_remote_code_research.json).
+
+```bash
+python3 -B murali_docs/labs/worker_config_pickle_demo.py --json-output murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/validation/TRUST_REMOTE_CODE_PICKLE_PROBE.json
+```
+
+Result with Python `3.10.12` on CPU:
+
+- Same-process round trip preserves the synthetic configuration class.
+- An isolated worker with no importable module raises `ModuleNotFoundError`.
+- Replacing the parent module's class makes an older instance raise
+  `PicklingError` during serialization.
+- Transferring plain source identity and rebuilding in the worker succeeds
+  with `hidden_size = 4096`.
+
+The standard-library program creates its own local class and uses fresh
+isolated Python subprocesses. It exercises the pickle mechanisms without
+loading HF/MAX or executing repository-supplied remote code. These results
+are not a reproduction of the reported model-specific bugs. The recorded
+output is [`TRUST_REMOTE_CODE_PICKLE_PROBE.json`](TRUST_REMOTE_CODE_PICKLE_PROBE.json).

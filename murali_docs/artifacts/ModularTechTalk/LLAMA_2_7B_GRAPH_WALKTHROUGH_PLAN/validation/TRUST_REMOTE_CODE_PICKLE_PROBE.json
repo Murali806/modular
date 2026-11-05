@@ -1,0 +1,26 @@
+{
+  "evidence": "CPU-RUN",
+  "python": "3.10.12",
+  "scope": "Synthetic dynamic class; fresh isolated interpreters; no HF or MAX model execution",
+  "same_process_roundtrip": {
+    "outcome": "success",
+    "hidden_size": 4096,
+    "same_class": true
+  },
+  "worker_missing_import": {
+    "outcome": "ModuleNotFoundError",
+    "message": "No module named 'worker_config_demo'",
+    "exit_code": 1
+  },
+  "parent_class_identity_changed": {
+    "outcome": "PicklingError",
+    "message": "Can't pickle <class 'worker_config_demo.DemoConfig'>: it's not the same object as worker_config_demo.DemoConfig",
+    "same_class_name": true,
+    "same_class_object": false
+  },
+  "worker_rebuild_from_source": {
+    "outcome": "success",
+    "hidden_size": 4096,
+    "exit_code": 0
+  }
+}
