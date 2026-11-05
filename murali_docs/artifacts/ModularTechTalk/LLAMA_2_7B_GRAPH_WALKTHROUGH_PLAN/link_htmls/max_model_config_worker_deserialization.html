@@ -43,6 +43,12 @@
     .issues-table { min-width: 760px; }
     .issues-table td:first-child { white-space: normal; min-width: 180px; }
     .research-note { margin: 20px 0 0; color: var(--muted); font-size: .9rem; }
+    .identity-demo { padding: 18px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-soft); }
+    .identity-controls:not([hidden]) { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+    .identity-choice { padding: 9px 13px; border: 1px solid var(--muted); border-radius: 7px; background: var(--code-bg); color: var(--ink); font: inherit; cursor: pointer; }
+    .identity-choice[aria-pressed="true"] { border-color: var(--cyan); color: var(--cyan); font-weight: 700; }
+    .identity-status { margin-bottom: 0; color: var(--amber); }
+    .identity-panel p { margin-bottom: 10px; }
     p { margin: 0 0 19px; }
     strong { color: var(--cyan); }
     code { color: var(--amber); font: .92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
@@ -90,6 +96,8 @@
       .topline a, .skip-link { display: none; }
       pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 10px; }
       .table-scroll { overflow: visible; }
+      .identity-controls, .identity-status { display: none !important; }
+      .identity-panel[hidden] { display: block; }
       table { min-width: 0; }
       tr { break-inside: avoid; }
     }
@@ -278,7 +286,7 @@ instance uses class A
           <table class="issues-table">
             <thead><tr><th scope="col">Issue</th><th scope="col">What can happen</th><th scope="col">Primary evidence</th></tr></thead>
             <tbody>
-              <tr><td><strong>Class identity changes</strong><br>Parent serialization</td><td>A module reload can replace a class object while an older instance still refers to the original class. Pickle can reject the object even when both classes print the same name.</td><td><a href="https://github.com/vllm-project/vllm/issues/14925">vLLM #14925</a>, March 2025: a custom <code>DeepseekV2Config</code> produced a “not the same object” error in vLLM <code>0.7.4.dev497</code>. The local probe below separately demonstrates this Python mechanism.</td></tr>
+              <tr><td><strong>Class identity changes</strong><br>Parent serialization</td><td>A module reload can replace a class object while an older instance still refers to the original class. Pickle can reject the object even when both classes print the same name.</td><td><a href="https://github.com/vllm-project/vllm/issues/14925">vLLM #14925</a>, March 2025: a custom <code>DeepseekV2Config</code> produced a “not the same object” error in vLLM <code>0.7.4.dev497</code>. The local probe below separately demonstrates this Python mechanism. <a href="#pickle-class-identity">QnA 4 explains it step by step.</a></td></tr>
               <tr><td><strong>Dynamic module cannot be imported</strong><br>Worker deserialization</td><td>A fresh worker may lack the import setup needed by a dynamically named module. Historical path-name handling bugs have also broken imports.</td><td><a href="https://github.com/huggingface/transformers/issues/34303">Transformers #34303</a>, October 2024, <code>4.44.2</code>: a pickled custom model using <code>spawn</code> failed to find its <code>transformers_modules</code> module. The report involved a dot in the repository name.</td></tr>
               <tr><td><strong>Code files unavailable offline</strong></td><td>Having saved weights and config data may still leave required custom Python files or relative imports unavailable. The loader can attempt a Hub access and fail offline.</td><td><a href="https://github.com/huggingface/transformers/issues/34855">Transformers #34855</a>, November 2024, <code>4.46.3</code>: loading a saved custom model on a new offline machine still needed remote code.</td></tr>
               <tr><td><strong>Dependency or API incompatibility</strong></td><td>Repository code can import a symbol or package that is absent in the installed environment, causing an import-time failure.</td><td><a href="https://github.com/huggingface/transformers/issues/44561">Transformers #44561</a>, March 2026, <code>5.0.0</code>: older custom DeepSeek code imported the removed <code>is_torch_fx_available</code> helper.</td></tr>
@@ -315,6 +323,124 @@ instance uses class A
       </div>
     </details>
 
+    <details class="answer qna-cell" id="pickle-class-identity">
+      <summary><strong>QnA 4</strong><span>Can objects be sent to a model worker? Why can pickle reject two classes with the same name?</span></summary>
+      <div class="qna-body">
+        <p class="lead"><strong>Yes, Python objects can be transferred between processes by serializing their state and reconstructing them in the receiving process.</strong> The class-identity error is a particular failure during <em>parent-side serialization</em>. It does not mean API-to-model object transfer is impossible. The experiment below demonstrates both a successful transfer and this failure. <a class="source" href="../validation/CLASS_IDENTITY_PICKLE_PROBE.json">CPU-RUN · Observed outcomes</a></p>
+
+        <h2>1. First distinguish the file, the class and the instance</h2>
+        <p>Suppose a small Python file contains:</p>
+        <pre tabindex="0" aria-label="Definition in model_types.py"><code><span class="method"># model_types.py</span>
+<span class="keyword">class</span> <span class="parent">DemoConfig</span>:
+    <span class="keyword">def</span> __init__(self, hidden_size):
+        self.hidden_size = hidden_size</code></pre>
+        <p>Another file imports it and creates a configuration:</p>
+        <pre tabindex="0" aria-label="Create a configuration instance"><code><span class="keyword">import</span> model_types
+cfg = model_types.<span class="parent">DemoConfig</span>(hidden_size=<span class="field">4096</span>)</code></pre>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="Module, class, instance and object identity vocabulary">
+          <table>
+            <thead><tr><th scope="col">Expression</th><th scope="col">What it means here</th></tr></thead>
+            <tbody>
+              <tr><td><code>model_types</code></td><td>The imported module: Python’s runtime representation of <code>model_types.py</code>.</td></tr>
+              <tr><td><code>model_types.DemoConfig</code></td><td>The class object currently assigned to that name in the module. Call the first class object <strong>A</strong>.</td></tr>
+              <tr><td><code>cfg</code></td><td>An instance created using class A. Its saved field is <code>hidden_size = 4096</code>.</td></tr>
+              <tr><td><code>type(cfg)</code></td><td>The actual class object used by this instance: A. <code>cfg.__class__</code> also refers to A in this example.</td></tr>
+              <tr><td><code>x is y</code></td><td>Checks whether two references identify the <em>same Python object</em>. Matching names or matching field values do not establish this.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>A Python class is itself an object created at runtime. Executing the same class definition again can create another class object with the same name. The lab verifies the resulting identities. <a class="source" href="../../../../labs/pickle_class_identity_walkthrough.py">CPU-RUN · Complete example</a></p>
+
+        <h2>2. What pickle sends in the successful case</h2>
+        <p><code>pickle.dumps(cfg)</code> produces binary data describing how to reconstruct the instance. For this ordinary class, the description includes a reference to its class and its instance fields:</p>
+        <pre tabindex="0" aria-label="Conceptual contents of a serialized configuration"><code><span class="transfer">Class reference</span>: module <span class="field">"model_types"</span>, class <span class="field">"DemoConfig"</span>
+<span class="transfer">Instance state</span>: {<span class="field">"hidden_size"</span>: 4096}</code></pre>
+        <p>This is a readable illustration of the contents, not pickle’s actual byte format. Ordinary pickle does not include this class’s Python implementation. The worker must be able to import the module and find the class. It then creates an instance and restores its fields; <code>__init__()</code> is usually skipped during unpickling. <a class="source" href="https://docs.python.org/3.10/library/pickle.html#what-can-be-pickled-and-unpickled">SOURCE · Class references</a> <a class="source" href="https://docs.python.org/3.10/library/pickle.html#pickling-class-instances">SOURCE · Instance restoration</a></p>
+        <p><strong>The worker gets its own instance and its own class object.</strong> If the parent uses class A and the worker imports class C, that is normal. Their memory addresses do not need to match. The identity check that causes the quoted error compares two references <em>inside the parent</em>. <a class="source" href="https://github.com/python/cpython/blob/v3.10.12/Lib/pickle.py#L1075">SOURCE · Sender identity check</a></p>
+
+        <h2>3. What changes when the parent reloads the module</h2>
+        <p>Assume <code>cfg</code> already exists. The following operations all occur in the parent:</p>
+        <pre tabindex="0" aria-label="Reloading creates a new class while the old instance keeps its original class"><code><span class="keyword">import</span> importlib, pickle
+
+class_a = <span class="method">type</span>(cfg)
+pickle.<span class="method">dumps</span>(cfg)              <span class="worker"># succeeds before the reload</span>
+
+importlib.<span class="method">reload</span>(model_types)  <span class="transfer"># execute the file again</span>
+class_b = model_types.DemoConfig
+
+<span class="method">type</span>(cfg) <span class="keyword">is</span> class_a           <span class="worker"># True: cfg still uses A</span>
+class_a.__name__ == class_b.__name__  <span class="worker"># True: both say DemoConfig</span>
+class_a <span class="keyword">is</span> class_b             <span class="transfer"># False: two class objects</span>
+
+pickle.<span class="method">dumps</span>(cfg)              <span class="transfer"># raises PicklingError</span></code></pre>
+        <p>The reload executes the <code>class DemoConfig:</code> statement again and assigns a new class object, B, to <code>model_types.DemoConfig</code>. The existing <code>cfg</code> still refers to A. A remains alive while referenced. In this experiment, the file contents never change: merely executing the definition again is enough. <a class="source" href="https://docs.python.org/3.10/library/importlib.html#importlib.reload">SOURCE · Reload and existing instances</a></p>
+        <p>A repeated ordinary <code>import model_types</code> normally reuses the cached module. An explicit reload, or a loader that re-executes the class definition, is the relevant step here. Importing the module in a separate worker does not replace the parent’s class.</p>
+
+        <h2>4. Compare the two paths</h2>
+        <figure class="identity-demo" id="pickle-identity-demo" aria-labelledby="identity-demo-caption">
+          <div class="identity-controls" role="group" aria-label="Choose a pickle scenario" hidden>
+            <button class="identity-choice" type="button" data-identity-choice="normal" aria-pressed="true" aria-controls="identity-normal identity-reloaded">Normal transfer</button>
+            <button class="identity-choice" type="button" data-identity-choice="reloaded" aria-pressed="false" aria-controls="identity-normal identity-reloaded">Reload before pickling</button>
+          </div>
+          <div class="identity-panel" id="identity-normal" data-identity-panel="normal">
+            <p><strong>Normal transfer: the parent’s two references agree.</strong></p>
+            <pre tabindex="0" aria-label="Successful pickle transfer to a fresh worker"><code><span class="parent">PARENT INTERPRETER</span>                    <span class="worker">WORKER INTERPRETER</span>
+model_types.DemoConfig --&gt; <span class="parent">[class A]</span>   imports model_types
+type(cfg) --------------&gt; <span class="parent">[class A]</span>   DemoConfig --&gt; <span class="worker">[class C]</span>
+cfg.hidden_size = 4096
+
+<span class="method">pickle.dumps(cfg)</span>
+  <span class="worker">A is A: pass</span> ------- <span class="transfer">bytes</span> ------&gt; <span class="method">pickle.loads(bytes)</span>
+                                       <span class="worker">new worker instance</span>
+                                       type = class C
+                                       hidden_size = 4096</code></pre>
+          </div>
+          <div class="identity-panel" id="identity-reloaded" data-identity-panel="reloaded">
+            <p><strong>After a reload: both references are still in the parent, but they disagree.</strong></p>
+            <pre tabindex="0" aria-label="Reload creates a sender-side class identity mismatch"><code><span class="parent">PARENT: before reload</span>          <span class="parent">PARENT: after reload</span>
+module.DemoConfig --&gt; <span class="parent">[A]</span>      module.DemoConfig --&gt; <span class="transfer">[B]</span>
+type(cfg) ---------&gt; <span class="parent">[A]</span>      type(cfg) ---------&gt; <span class="parent">[A]</span>
+                               cfg.hidden_size is still 4096
+                                          |
+                                <span class="method">pickle.dumps(cfg)</span>
+                                   <span class="transfer">A is B? False
+                                   PicklingError
+                                   no completed pickle</span></code></pre>
+          </div>
+          <p class="identity-status" id="identity-status" role="status" aria-live="polite" hidden></p>
+          <figcaption id="identity-demo-caption">SOURCE + CPU-RUN · A, B and C label class objects, not class-name strings or addresses to compare across processes. The controls switch illustrative diagrams; the Python execution is recorded in the linked lab. Both diagrams remain available without JavaScript and in print.</figcaption>
+        </figure>
+
+        <h2>5. Why pickle refuses the old instance</h2>
+        <p>For this top-level class, the sender’s check is equivalent to the following simplified logic:</p>
+        <pre tabindex="0" aria-label="Simplified sender identity check"><code>actual_class = <span class="method">type</span>(cfg)                <span class="parent"># A</span>
+class_found_by_name = model_types.DemoConfig  <span class="transfer"># B after reload</span>
+
+<span class="keyword">if</span> actual_class <span class="keyword">is not</span> class_found_by_name:
+    <span class="keyword">raise</span> PicklingError(<span class="field">"class reference no longer matches"</span>)</code></pre>
+        <p><strong>The name would identify B, but this instance belongs to A.</strong> Pickle refuses to write that mismatched reference. It does not attempt to prove that two independently created classes have equivalent code or behavior. Both can print as <code>&lt;class 'model_types.DemoConfig'&gt;</code> because that display uses their names. <a class="source" href="https://github.com/python/cpython/blob/v3.10.12/Lib/pickle.py#L1056">SOURCE · Python implementation</a> <a class="source" href="https://github.com/python/cpython/blob/v3.10.12/Modules/_pickle.c#L3665">SOURCE · C implementation</a></p>
+        <p>Here the config object and <code>hidden_size</code> field are still valid in the parent. The problem is the class reference needed to serialize it. A newly created <code>model_types.DemoConfig(4096)</code> uses B and passes this check in the lab. Real applications must also preserve any intended state when reconstructing an object.</p>
+
+        <h2>6. How this relates to the vLLM report</h2>
+        <p>In <a href="https://github.com/vllm-project/vllm/issues/14925">vLLM #14925</a>, reported March 17, 2025 with <code>0.7.4.dev497</code>, substitute the dynamically loaded <code>DeepseekV2Config</code> for <code>DemoConfig</code>. The traceback reaches the multiprocessing serializer while the V0 engine starts a tensor-parallel worker:</p>
+        <pre tabindex="0" aria-label="Location of the serialization failure in the reported vLLM traceback"><code><span class="parent">V0 engine / parent of a worker</span>
+  ProcessWorkerWrapper
+    process.start()
+      reduction.dump(...)
+        ForkingPickler.dump(...)
+          <span class="transfer">PicklingError: class identity mismatch</span></code></pre>
+        <p><strong>The report establishes a sender-side class mismatch.</strong> Our reload example demonstrates one concrete mechanism that produces it; the report alone does not prove which operation replaced that particular class. It also involves a V0-engine-to-worker boundary, so it should not be read as evidence that every API-to-model transfer fails. A worker-side <code>ModuleNotFoundError</code> is a separate failure, after a valid pickle was produced and the worker tries to resolve a module.</p>
+
+        <h2>7. What MAX does at the boundary in this walkthrough</h2>
+        <p><strong>MAX still transfers the <code>PipelineConfig</code> and its <code>MAXModelConfig</code> using serialization.</strong> Its <code>__getstate__()</code> omits the parent’s HF config object by storing <code>_huggingface_config = None</code> in the copied state. Saved model identity fields travel to the worker; <code>__setstate__()</code> restores them and loads a worker-owned HF config. This removes that HF object’s class reference from the pickle, while keeping the outer configuration transfer. <a class="source" href="../sources/max/python/max/serve/pipelines/model_worker.py#L797">SOURCE · Worker arguments</a> <a class="source" href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1000">SOURCE · Omitted fields and reconstruction</a></p>
+
+        <aside class="callout" aria-label="Observed class identity experiment results">
+          <p><strong>CPU-RUN · Python 3.10.12:</strong> the normal instance transfer succeeded in a fresh interpreter; reloading the parent module made the old instance fail during pickling; a new instance of the current class transferred successfully. All successful workers restored <code>hidden_size = 4096</code>.</p>
+          <p><a href="../../../../labs/pickle_class_identity_walkthrough.py">Reproducible walkthrough</a> · <a href="../validation/CLASS_IDENTITY_PICKLE_PROBE.json">Recorded results</a> · <a href="../evidence/trust_remote_code_research.json">Source versions and evidence scope</a>. This is a synthetic Python demonstration, not a reproduction of the vLLM model or MAX inference.</p>
+        </aside>
+      </div>
+    </details>
+
     </section>
 
     <footer class="provenance">SOURCE · MAX revision <code>610f7111836d9a950d45ba52ec9b3e0ed589fe3f</code>. BOUNDARY · Referenced Python and Transformers implementations. CPU-RUN · The separately labeled synthetic experiment. Diagrams illustrate the source; no MAX model execution was recorded.</footer>
@@ -334,6 +460,21 @@ instance uses class A
       }
       revealQuestion();
       window.addEventListener("hashchange", revealQuestion);
+      const identityDemo = document.getElementById("pickle-identity-demo");
+      const identityChoices = [...identityDemo.querySelectorAll("[data-identity-choice]")];
+      const identityPanels = [...identityDemo.querySelectorAll("[data-identity-panel]")];
+      const identityStatus = document.getElementById("identity-status");
+      function showIdentityScenario(scenario) {
+        identityPanels.forEach(panel => panel.hidden = panel.dataset.identityPanel !== scenario);
+        identityChoices.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.identityChoice === scenario)));
+        identityStatus.textContent = scenario === "normal"
+          ? "A is A: the parent serializes successfully, and the worker restores its own instance."
+          : "A and B are different objects. The parent raises PicklingError before it can return a complete pickle.";
+      }
+      identityDemo.querySelector(".identity-controls").hidden = false;
+      identityStatus.hidden = false;
+      identityChoices.forEach(button => button.addEventListener("click", () => showIdentityScenario(button.dataset.identityChoice)));
+      showIdentityScenario("normal");
       let printState = [];
       window.addEventListener("beforeprint", () => {
         printState = [...document.querySelectorAll("details")].map(node => [node, node.open]);

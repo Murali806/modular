@@ -1,0 +1,55 @@
+{
+  "evidence": "CPU-RUN",
+  "python": "3.10.12",
+  "scope": "Synthetic local class; ordinary pickle bytes through a pipe to fresh isolated interpreters; no HF/MAX model execution",
+  "normal_transfer": {
+    "sender_class_lookup_matches": true,
+    "repeated_import_preserves_class": true,
+    "pickle_protocol": 4,
+    "pickle_strings": [
+      "model_types",
+      "DemoConfig",
+      "hidden_size"
+    ],
+    "local_roundtrip": {
+      "same_instance": false,
+      "same_class": true,
+      "same_state": true
+    },
+    "worker": {
+      "outcome": "success",
+      "state": {
+        "hidden_size": 4096
+      },
+      "module": "model_types",
+      "class_name": "DemoConfig",
+      "matches_worker_class": true
+    }
+  },
+  "parent_after_reload": {
+    "source_code_changed": false,
+    "same_module_name": true,
+    "same_class_name": true,
+    "same_class_object": false,
+    "instance_still_uses_class_a": true,
+    "sender_class_lookup_matches": false,
+    "state": {
+      "hidden_size": 4096
+    },
+    "outcome": "PicklingError",
+    "message": "Can't pickle <class 'model_types.DemoConfig'>: it's not the same object as model_types.DemoConfig",
+    "phase": "parent serialization; no completed pickle returned"
+  },
+  "new_instance_after_reload": {
+    "sender_class_lookup_matches": true,
+    "worker": {
+      "outcome": "success",
+      "state": {
+        "hidden_size": 4096
+      },
+      "module": "model_types",
+      "class_name": "DemoConfig",
+      "matches_worker_class": true
+    }
+  }
+}

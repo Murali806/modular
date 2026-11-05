@@ -178,5 +178,92 @@
     "MAX avoids transferring the omitted HF configuration object. Other objects passed to a worker are outside this conclusion.",
     "Reconstruction does not provide repository code, install compatible dependencies, guarantee identical behavior across revisions, or sandbox code execution.",
     "Primary issue reports preserve their reported versions. They are not an assertion of currently unfixed bugs in the inspected Transformers release."
-  ]
+  ],
+  "class_identity_followup": {
+    "checked_on": "2026-11-05",
+    "documentation_baseline": "6d980861f181e2b4fda1849429a86039c1cee921",
+    "question": "Does class identity mismatch make API-to-model object transfer impossible? Explain pickle, reload and the reported vLLM error from first principles.",
+    "source_version": "CPython v3.10.12, matching the local experiment runtime",
+    "primary_sources": [
+      {
+        "url": "https://github.com/python/cpython/blob/v3.10.12/Lib/pickle.py",
+        "download_url": "https://raw.githubusercontent.com/python/cpython/v3.10.12/Lib/pickle.py",
+        "sha256": "f29792b7bad19b9b7a6096aae01e9a6a0a3ec28029576af74efc530ee331c412",
+        "relevant_lines": [
+          1056,
+          1065,
+          1075
+        ],
+        "finding": "The serializer resolves the class name in the sending interpreter and raises PicklingError if the resolved object is not the class being serialized."
+      },
+      {
+        "url": "https://github.com/python/cpython/blob/v3.10.12/Modules/_pickle.c",
+        "download_url": "https://raw.githubusercontent.com/python/cpython/v3.10.12/Modules/_pickle.c",
+        "sha256": "d98407ab7afff56a77fbd7f8a3181d5c0b1dcd9aa4963c4f8d13e2329dbbda62",
+        "relevant_lines": [
+          3648,
+          3657,
+          3665
+        ],
+        "finding": "The accelerated serializer implements the same class identity check."
+      },
+      {
+        "url": "https://github.com/python/cpython/blob/v3.10.12/Doc/library/importlib.rst",
+        "download_url": "https://raw.githubusercontent.com/python/cpython/v3.10.12/Doc/library/importlib.rst",
+        "sha256": "8344489d9a7c24a773f10b8761887be3b854aa9c5a1b6fb1a1452c3274cbd324",
+        "relevant_lines": [
+          157,
+          168,
+          203
+        ],
+        "finding": "Reload re-executes module code and rebinds names; pre-existing instances continue to use their old class definition."
+      },
+      {
+        "url": "https://github.com/python/cpython/blob/v3.10.12/Doc/library/pickle.rst",
+        "download_url": "https://raw.githubusercontent.com/python/cpython/v3.10.12/Doc/library/pickle.rst",
+        "sha256": "3fd536993078a067d81a66d4b6749a353c43e70057597f505cf4ab7602b70294",
+        "relevant_lines": [
+          521,
+          528,
+          541,
+          560,
+          610,
+          619
+        ],
+        "finding": "Ordinary instance pickle stores a class reference and instance state. Unpickling finds the class and restores an instance, usually without calling __init__."
+      }
+    ],
+    "vllm_report_interpretation": {
+      "url": "https://github.com/vllm-project/vllm/issues/14925",
+      "reported_version": "0.7.4.dev497+ga73e183e",
+      "reported_on": "2025-03-17",
+      "observed_boundary": "V0 engine creates a tensor-parallel worker; process.start reaches reduction.dump and ForkingPickler.dump before PicklingError.",
+      "limit": "The report establishes the class mismatch, not which earlier operation replaced that class. Reload is an independently demonstrated mechanism, not a claimed root-cause diagnosis of this vLLM report."
+    },
+    "cpu_experiment": {
+      "evidence": "CPU-RUN",
+      "command": "python3 -B murali_docs/labs/pickle_class_identity_walkthrough.py --json-output murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/validation/CLASS_IDENTITY_PICKLE_PROBE.json",
+      "script_sha256": "58f2f5d0e1a83d341dc8d089cd4118f3d166a30dfe73118676d0b34bc9e5dc89",
+      "output_sha256": "5a04614b2bdedb77d2a5467dc02130677a0fdba279888b5530fb491f991add86",
+      "output": "validation/CLASS_IDENTITY_PICKLE_PROBE.json",
+      "python": "3.10.12",
+      "device": "CPU; fresh isolated Python subprocesses and a stdin pipe",
+      "model_id": null,
+      "outcomes": [
+        "Ordinary instance pickle is transferred as bytes and successfully unpickled in a fresh worker.",
+        "Repeated ordinary import preserves the parent class identity.",
+        "An unchanged source file, explicitly reloaded, creates a different class object with the same module and class names.",
+        "The old instance keeps its original class and fails parent-side serialization.",
+        "A new instance of the currently published class serializes and transfers successfully."
+      ],
+      "limits": "Synthetic local DemoConfig only; no Hugging Face/MAX imports, remote code, model weights, GPU execution or reproduction of a model-specific issue."
+    },
+    "teaching_boundaries": [
+      "A, B and C in the diagrams identify class objects, not class-name strings. A and B coexist in the sender; C belongs to the receiver.",
+      "The failure check is within the sender. Different object identities in separate processes are expected.",
+      "The readable class-reference/state example is conceptual, not the binary pickle format.",
+      "The normal and reload diagrams are browser illustrations grounded in the Python run; browser buttons do not execute Python.",
+      "MAX still serializes the outer PipelineConfig and MAXModelConfig. Its custom state omits the HF config object and reconstructs that field in the worker."
+    ]
+  }
 }
