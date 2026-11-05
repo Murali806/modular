@@ -27,7 +27,7 @@ FILES = {**STACK_FILES, **MEMORY_FILES, **{key: BASE + path for key, path in {
 REFS = {key: STACK_REFS[key] for key in (
     "cli", "serve", "config_call", "bundle", "app", "server", "uvicorn_cfg", "eventloop",
     "lifespan", "start_worker", "spawn", "ready", "connected", "invoke",
-    "pipeline_init", "worker_run", "alive", "http", "load_weights",
+    "pipeline_init", "worker_entry", "worker_run", "worker_queues", "alive", "http", "load_weights",
 )}
 REFS.update({key: MEMORY_REFS[key] for key in (
     "load_devices", "load_device", "free_memory", "plan_type", "plan_sizes",
@@ -241,7 +241,7 @@ def build_os_systems(data, task, src, span_finder):
     payload = json.dumps(viewer, ensure_ascii=False).replace('<', '\\u003c')
     template = template.replace('<!-- OS_DATA -->', '<script id="os-data" type="application/json">' + payload + '</script>')
     template = template.replace('<!-- OS_CSS -->', '<style>' + (src / "os_systems.css").read_text() + '\n' + (src / "serve_story.css").read_text() + '</style>')
-    scripts = ('os_systems_lab.js', 'os_systems.js', 'serve_story_model.js', 'serve_api_model.js', 'serve_story.js')
+    scripts = ('os_systems_lab.js', 'os_systems.js', 'serve_story_model.js', 'serve_api_model.js', 'serve_worker_model.js', 'serve_worker.js', 'serve_story.js')
     template = template.replace('<!-- OS_JS -->', ''.join('<script>' + (src / name).read_text() + '</script>' for name in scripts))
     (task / "link_htmls" / PAGE_NAME).write_text(template)
     manifest = dict(revision=data["revision"], page='link_htmls/' + PAGE_NAME,

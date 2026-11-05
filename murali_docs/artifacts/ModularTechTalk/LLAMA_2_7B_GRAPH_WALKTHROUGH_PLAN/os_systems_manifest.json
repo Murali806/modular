@@ -173,6 +173,17 @@
       "line": 208,
       "sha256": "3759fd837cd9a09185f93a58b1c1bf35a405c8a527bc9b16158360ea00567581"
     },
+    "worker_entry": {
+      "alias": "WORKER",
+      "symbol": "ModelWorker.__call__",
+      "label": "ModelWorker.__call__()",
+      "kind": "definition",
+      "file": "max/python/max/serve/pipelines/model_worker.py",
+      "start": 680,
+      "end": 727,
+      "line": 680,
+      "sha256": "cc2e5d21933ecd635c5c73249cfb9cb9c4a7a5932e9e3c0248da97b3daa17fef"
+    },
     "worker_run": {
       "alias": "WORKER",
       "symbol": "ModelWorker.run",
@@ -183,6 +194,17 @@
       "end": 678,
       "line": 338,
       "sha256": "5c98b0da1919006256fe732ebd592ab6d1e53dc0599deec044c3137873603221"
+    },
+    "worker_queues": {
+      "alias": "ZMQ",
+      "symbol": "ZmqModelWorkerInterface.model_worker_queues",
+      "label": "ZmqModelWorkerInterface.model_worker_queues()",
+      "kind": "definition",
+      "file": "max/python/max/serve/worker_interface/zmq_interface.py",
+      "start": 320,
+      "end": 328,
+      "line": 320,
+      "sha256": "89932f23b04acaf75b16caed0386bbea235ded55642cfec46186c243066e586c"
     },
     "alive": {
       "alias": "WORKER",

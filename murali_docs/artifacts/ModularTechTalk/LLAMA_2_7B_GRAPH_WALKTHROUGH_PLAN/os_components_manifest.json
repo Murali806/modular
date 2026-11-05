@@ -216,6 +216,28 @@
       "line": 24,
       "sha256": "b8940979c72ec4b063fe6847cb86df45ecde25995ee88e8586b9e1c3061e075f"
     },
+    "manager_load": {
+      "alias": "KV_REGISTRY",
+      "symbol": "load_kv_manager",
+      "label": "load_kv_manager()",
+      "kind": "definition",
+      "file": "max/python/max/pipelines/kv_cache/registry.py",
+      "start": 164,
+      "end": 254,
+      "line": 164,
+      "sha256": "a624d93649c56376ae81a0374145254f15149cc2bf2698eef387318befd8ccd5"
+    },
+    "pipeline_execute": {
+      "alias": "TEXT",
+      "symbol": "TextGenerationPipeline._execute",
+      "label": "TextGenerationPipeline._execute()",
+      "kind": "definition",
+      "file": "max/python/max/pipelines/lib/pipeline_variants/text_generation.py",
+      "start": 594,
+      "end": 731,
+      "line": 594,
+      "sha256": "c73dde411f303cd737cfb60f3557bcaecc590a08690b6dfcf5f74a38b3c279ac"
+    },
     "pipeline_init": {
       "alias": "TEXT",
       "symbol": "TextGenerationPipeline.__init__",
@@ -497,6 +519,28 @@
       "line": 482,
       "sha256": "ac9a927de23c90b29539d8b29d2cb1f57fdf9b65cf66921c33e2b8139e4dd32e"
     },
+    "worker_entry": {
+      "alias": "WORKER",
+      "symbol": "ModelWorker.__call__",
+      "label": "ModelWorker.__call__()",
+      "kind": "definition",
+      "file": "max/python/max/serve/pipelines/model_worker.py",
+      "start": 680,
+      "end": 727,
+      "line": 680,
+      "sha256": "cc2e5d21933ecd635c5c73249cfb9cb9c4a7a5932e9e3c0248da97b3daa17fef"
+    },
+    "worker_queues": {
+      "alias": "ZMQ",
+      "symbol": "ZmqModelWorkerInterface.model_worker_queues",
+      "label": "ZmqModelWorkerInterface.model_worker_queues()",
+      "kind": "definition",
+      "file": "max/python/max/serve/worker_interface/zmq_interface.py",
+      "start": 320,
+      "end": 328,
+      "line": 320,
+      "sha256": "89932f23b04acaf75b16caed0386bbea235ded55642cfec46186c243066e586c"
+    },
     "worker_run": {
       "alias": "WORKER",
       "symbol": "ModelWorker.run",
@@ -553,6 +597,10 @@
     "max/python/max/graph/weights/load.py": {
       "sha256": "b0b095433f74926f185f2a13c4d9dda07ed251d44412cca7c1a4bab9dd2b5266",
       "snapshot": "sources/max/python/max/graph/weights/load.py"
+    },
+    "max/python/max/pipelines/kv_cache/registry.py": {
+      "sha256": "0dfbece0ebfb9cc5fd2f1ea176da12da0ec8c264934f81328c0ccdcddf36d63e",
+      "snapshot": "sources/max/python/max/pipelines/kv_cache/registry.py"
     },
     "max/python/max/pipelines/lib/pipeline_variants/text_generation.py": {
       "sha256": "8a2256eb53f5f8bd29c862a3cfa14d827de163caf80c068681f0cee25ffc6d89",

@@ -3,6 +3,7 @@
 from html import escape
 
 from serve_api import API_REFS, api_intro_markdown, render_api_intro
+from serve_worker import WORKER_REFS, render_worker_intro, worker_intro_markdown
 
 
 LEGEND = [
@@ -13,6 +14,10 @@ LEGEND = [
     ("tokenizer", "Tokenizer executor", "CPU thread pool", "CPU tokenization runs via run_in_executor(None, …) on executor threads in the API process.", ["tokenizer_executor"]),
     ("ipc", "ZeroMQ channels", "IPC · Unix sockets", "Local ipc:// PUSH/PULL channels carry requests, responses and cancellation. Each drawn slot holds one request context; N is exact only in this teaching model.", ["ipc_address", "ipc_config"]),
     ("worker", "Model worker / scheduler", "Spawned OS process", "Owns pending work, batch selection and model execution. The scheduler runs on the worker's loop thread; it selects the next pass.", ["spawn", "worker_run"]),
+    ("pending", "CE / TG request sets", "CPU collections · worker", "CE holds prefill work; TG holds decoding contexts. These are worker-owned Python collections, not IPC channels or separate threads.", ["scheduler_pending", "construct_batch"]),
+    ("scheduler", "Batch constructor", "Python object · worker loop", "Chooses eligible work within batch, token and KV limits. It is called on the worker's loop thread. P = prefill; D = decode; work-tile counts are input tokens.", ["construct_batch"]),
+    ("pipeline", "Model pipeline", "Python → compiled model", "Prepares inputs and calls the native runtime for selected model work. It returns per-request results; it is not another OS process.", ["pipeline_execute", "scheduler_execute"]),
+    ("kv", "KV manager", "Host bookkeeping + device pool", "Tracks request attention-cache ownership and reusable blocks. Releasing a finished request makes its blocks reusable while the backing pool remains allocated. This is resource management, not a mutex.", ["manager_load", "release_request"]),
     ("driver", "MAX runtime / user driver", "Native code · worker", "Submits compiled model work and manages device completion. Internal native threads sit behind this boundary.", ["session_native"]),
     ("kernel", "OS GPU driver", "Kernel boundary", "The operating system's device driver connects the user-space runtime to the GPU.", []),
     ("gpu", "GPU device", "Hardware", "Executes the selected model pass and holds device data, including model weights and KV cache.", []),
@@ -40,27 +45,27 @@ def render_legend():
 
 STORIES = {
     "components": [
-        dict(id="one", number="02", label="Start with one request", title="Accepted. Then scheduled.",
+        dict(id="one", number="03", label="Start with one request", title="Accepted. Then scheduled.",
              intro="A valid request R1 arrives at a ready MAX Serve instance. Follow it through tokenization, the admission gate, prefill and repeated decode passes.",
              lesson="Admission gives R1 a place on the request channel. The worker later chooses when it can execute. Output tokens return to the client while generation continues.",
              try_it="Press Play. Click a request to follow its state; Step advances one event.",
              action="Send another request", refs=["proxy_submit", "scheduler_iteration", "first_chunk"],
              ascii="Client → API/tokenize → admission → request IPC → worker pending\n                                                  ↓\nClient ← TCP/SSE ← API ← response IPC ← GPU/native ← selected batch\n                                      ↑ prefill, then repeated decode"),
-        dict(id="busy", number="03", label="Now the worker is busy", title="There is room to wait.",
+        dict(id="busy", number="04", label="Now the worker is busy", title="There is room to wait.",
              intro="R1 is already generating. Send R2 while the worker is inside a model pass. Watch where R2 waits and when it joins a batch.",
              lesson="With one batch slot, R2 waits for R1 to finish. With two slots and enough KV space, R2 can join a later pass while R1 is still decoding. A running pass keeps its selected members.",
              try_it="Send R2, then replay with two batch slots. Compare the waiting location.",
              action="Send R2", refs=["proxy_submit", "scheduler_pending", "construct_batch"],
              option=("Batch slots", "batch", [(1, "1 slot"), (2, "2 slots")]),
              ascii="API accepts R2 ──→ IPC  | R1's selected pass is running\nnext worker iteration ─→ pending → batch eligibility\nB=1: R2 waits for a slot   B=2: R2 may join a subsequent pass"),
-        dict(id="pressure", number="04", label="Keep sending work", title="Watch backpressure reach the gate.",
+        dict(id="pressure", number="05", label="Keep sending work", title="Watch backpressure reach the gate.",
              intro="Keep R1 decoding, then send a burst. The worker's pending-prefill queue M fills. It stops pulling from IPC. The request channel N then fills too.",
              lesson="When the API proxy finds that connected channel unwritable, it raises RequestQueueFull. The HTTP handler returns 429 with Retry-After: 1 before streaming begins. Already admitted requests stay in the system.",
              try_it="Send a burst of six. Increase N and replay the same burst to see more waiting room.",
              action="Send a burst of 6", refs=["queue_settings", "scheduler_pending", "proxy_submit", "http_429"],
              option=("IPC waiting room N", "queue", [(2, "2 requests"), (6, "6 requests")]),
              ascii="Long decode holds batch slot\n       ↓\nM full → stop pulling → N fills → API probe fails → HTTP 429\nWork completes → pending drains → IPC drains → admission has room again"),
-        dict(id="scheduler", number="05", label="Look inside the loop", title="A batch is one pass of work.",
+        dict(id="scheduler", number="06", label="Look inside the loop", title="A batch is one pass of work.",
              intro="R1 is decoding a response. R2 has a longer prompt. The scheduler builds each pass from eligible work, within batch, token and KV limits.",
              lesson="This example gives decode one input token per request and uses the remaining budget for chunked prefill. A partial prompt returns for another pass. Completing prefill yields the first output token; ordinary decode then adds one token per selected request per pass.",
              try_it="Step through the five highlighted phases. Compare the pass history below the diagram.",
@@ -69,20 +74,20 @@ STORIES = {
              ascii="repeat: pull within M → construct batch → pipeline.execute()\n             ↑                                  ↓\n       publish by request ID ← advance state / release finished requests\nno eligible work → NO_PROGRESS → yield/backoff → check again"),
     ],
     "systems": [
-        dict(id="clocks", number="02", label="Put the owners side by side", title="Busy belongs to an owner.",
+        dict(id="clocks", number="03", label="Put the owners side by side", title="Busy belongs to an owner.",
              intro="While the model worker executes a pass, the API can tokenize and admit another request. The OS schedules runnable CPU threads; MAX chooses model work; the GPU executes submitted operations.",
              lesson="An HTTP task waiting for output is suspended until data is available. It does not require a dedicated CPU thread. GPU completion and socket readiness are different events. The lanes below show logical ownership, not a measured thread trace.",
              try_it="Send another request during Execute. Compare the API lane with the worker and device lanes.",
              action="Send another request", refs=["worker_run", "eventloop", "tokenizer_cpu", "scheduler_execute", "session_native"],
              ascii="OS:     gives CPU time to runnable threads in both processes\nAPI:    tokenize → admit → await output → SSE\nWorker: drain → select → execute → advance → publish → repeat\nGPU:                     submitted compute → result\nLinux socket readiness wakes I/O; native runtime manages device dependencies."),
-        dict(id="reader", number="03", label="Separate generation from delivery", title="The GPU finishes. The stream remains.",
+        dict(id="reader", number="04", label="Separate generation from delivery", title="The GPU finishes. The stream remains.",
              intro="Make the client read slowly. Output tokens collect after generation, while the worker can release that request's KV ownership and start other work.",
              lesson="Response IPC, API output queues and TCP transport each have buffering. This animation groups them into one output buffer. A slow client can raise egress memory and latency; an admitted stream does not turn into a new HTTP 429 response.",
              try_it="Play until R1 has generated all five tokens. Compare KV ownership with buffered output.",
              action="Send another request", refs=["proxy_responses", "proxy_drain", "release_request", "sse_response"],
              option=("Client reads", "reader", [(12, "Slowly"), (1, "Normally")]),
              ascii="GPU completes → release request KV ownership (pool remains allocated)\n       ↓\nresponse IPC → API output buffer → TCP → slow client\n              tokens can remain after generation finishes"),
-        dict(id="replicas", number="04", label="Give new work another destination", title="Another replica, another worker.",
+        dict(id="replicas", number="05", label="Give new work another destination", title="Another replica, another worker.",
              intro="An external router can send new requests to independent MAX Serve replicas. Each replica has its own API, worker, queues, model allocation and KV pool.",
              lesson="Add B, wait for readiness, then send more requests. Existing streams keep their original owner. This round-robin router and its warmup duration are teaching choices. Adding HTTP connections alone does not add model compute.",
              try_it="Add replica B. After it becomes ready, send a burst and watch which replica owns each request.",
@@ -97,7 +102,7 @@ def story_refs(page):
         "queue_settings", "proxy_submit", "scheduler_pending", "construct_batch",
         "http_429", "worker_run", "scheduler_execute", "release_request",
         "proxy_init", "start_worker", "connected",
-    } | {ref for row in LEGEND for ref in row[4]} | API_REFS
+    } | {ref for row in LEGEND for ref in row[4]} | API_REFS | WORKER_REFS
 
 
 def pipeline_svg(key):
@@ -173,7 +178,7 @@ def queue_slots_svg(fleet=False):
 
 
 def render_stories(page):
-    result = [render_api_intro()]
+    result = [render_api_intro(), render_worker_intro()]
     for story in STORIES[page]:
         key = story["id"]
         option = ""
@@ -212,6 +217,7 @@ def story_contract():
     return '''<details class="ss-contract" id="animation-contract"><summary>What these animations represent</summary>
 <p><b>SOURCE</b> Admission, the N/M backpressure chain, the worker loop and request cleanup follow this checkout's pinned source. <b>BOUNDARY</b> Device execution and OS lanes describe ownership; they are not GPU or Linux traces.</p>
 <p>The opening API-process lesson uses two valid requests and one connected IPC slot. Component removals and the alternative event loop are thought experiments. The no-lock trace selects a possible interleaving where two probes see room before either sends; it does not claim a captured race or queue overflow. Normal playback stops after the first output chunk.</p>
+<p>The second lesson starts inside the separate model worker after API admission. It uses the same teaching worker as the later stories to compare normal batches, a busy pass, KV pressure and an idle loop. CPU request markers, GPU work tiles, KV ownership blocks and response maps show distinct parts of the flow. The process diagrams do not imply a separate thread for each box.</p>
 <p>The diagrams use exact, small N-slot queues, artificial event durations, tiny token counts, one ordinary non-overlap worker and a simple chunked, decode-first policy. Real ZeroMQ high-water marks are approximate. MAX's batch strategy, token budgets, grammar readiness, adapters, cache availability and overlap settings can change the selected work and when results arrive.</p>
 <p>The toy worker conservatively reserves prompt plus output KV pages at batch entry. MAX allocates through its cache manager and can preempt/recompute or use configured transfer paths. A request waiting for cache space is already admitted; this simulation never converts that wait into an HTTP 429.</p>
 <p>M is checked against <code>all_ce_reqs</code> at the start of the iteration. The drawings keep unfinished prefill visible with waiting prefill. Decoders are separate. Both queue limits default to <code>None</code> (unbounded) in the pinned source; finite values here are teaching settings.</p>
@@ -230,6 +236,7 @@ def story_markdown(page):
     lines += ['Admission uses an `asyncio.Lock` around probe/send in the API process. Worker startup uses a `multiprocessing.Event` readiness signal and awaits channel connection.',
               'Dashed boxes show process ownership. Request IPC has visible empty/occupied message slots, redrawn when N changes. Native runtime, kernel driver and hardware are distinct boundaries. Request-pill colors describe lifecycle state separately from component colors.']
     lines += api_intro_markdown()
+    lines += worker_intro_markdown()
     for story in STORIES[page]:
         lines += ['### ' + story['title'], story['intro'], story['lesson'],
                   'Try it: ' + story['try_it'], '```text\n' + story['ascii'] + '\n```']

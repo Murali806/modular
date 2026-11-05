@@ -106,6 +106,14 @@ all twelve references and explains where each method is applied.
   Compact **T1** badges show the shared API loop thread; **T2/T3** label example
   tokenizer executor lanes. These thread labels appear only in lesson 01.
   **R1/R2** still identify requests; thread IDs and pool assignments are illustrative.
+- Lesson **02** zooms into the separate model-worker process: request IPC,
+  CE/TG request sets, batch construction, KV ownership, model execution and
+  results keyed by request ID. **Two requests**, **GPU busy**, **KV pressure**
+  and **No requests** show partial prefill, later batch membership, reusable
+  blocks and idle backoff. The loop highlights each phase; GPU work tiles and
+  response markers distinguish execution from CPU request contexts. Hover 02
+  for the explanation, or open the role table for missing-component outcomes.
+  Later lessons are renumbered; their existing fragment links still work.
 - Animations occupy the full story width. Hover or focus the numbered badge
   inside an animation to reveal its lesson; moving away dismisses the card.
   Touch taps toggle it. The circled **L** at the right edge of the sticky menu
@@ -127,7 +135,7 @@ all twelve references and explains where each method is applied.
   reader speed and routing. Add/Crash/Replace demonstrate readiness and
   failure boundaries for independent one-GPU replicas. All rates are explicit
   teaching inputs; charts are simulation results.
-- After the API introduction, the **Requests, admission and scheduling** page
+- After the API and model-worker introductions, the **Requests, admission and scheduling** page
   follows one request, a late arrival during a busy pass, bounded M/N pressure
   and the five-phase worker loop. The original state machines remain visible
   below the stories.

@@ -56,7 +56,7 @@ async function cardsAndLegend(page,key,audit) {
   assert.equal(await page.evaluate(()=>scrollY),before,"Opening the legend keeps the current scene in place");
   await inViewport(page,legendCard);
   const colors=await page.evaluate(()=>[...document.querySelectorAll(".ss-legend-rows > li")].map(row=>{
-    const key=row.dataset.component, shape=document.querySelector('.ss-pipeline [data-component="'+key+'"] > rect');
+    const key=row.dataset.component, shape=document.querySelector('.ss-visual [data-component="'+key+'"] > .ss-component-box');
     return {key,color:getComputedStyle(row.querySelector(".ss-legend-swatch")).backgroundColor,stroke:shape&&getComputedStyle(shape).stroke};
   }));
   assert.equal(new Set(colors.map(c=>c.color)).size,colors.length,"Every component has a distinct legend color");
@@ -164,6 +164,78 @@ async function apiIntro(page, audit, name) {
   await api.locator('.ss-api-transcript>summary').click();
   checks.push("API introduction on "+name+": keyboard controls, normal stream/429, three absent-role stops, no-lock backpressure, replacement loop, reset and pinned-source links");
 }
+async function stepWorkerUntil(page, predicate) {
+  const success=await page.evaluate(body=>{
+    const test=new Function("s", "return ("+body+")(s)");
+    for(let i=0;i<150;i++) {
+      if(test(window.serveStorySnapshot("worker")))return true;
+      document.querySelector('#story-worker [data-worker-action="step"]').click();
+    }
+    return false;
+  },String(predicate));
+  assert.ok(success,"Worker close-up reaches its expected outcome");
+}
+async function workerIntro(page,audit,name) {
+  const worker=page.locator('#story-worker');
+  assert.equal(await page.locator('.ss-story').nth(1).getAttribute('id'),'story-worker');
+  assert.equal(await worker.locator('.ss-lesson-button').innerText(),'02');
+  assert.equal(await worker.getAttribute('data-worker-step'),'0');
+  assert.equal(await worker.getAttribute('data-playing'),'false');
+  assert.equal(await worker.locator('[data-worker-mode]').count(),4);
+  assert.equal(await worker.locator('[data-api-thread]').count(),0,"Thread badges stay confined to the API animation");
+  assert.equal(await worker.locator('[data-worker-ipc-slot][data-occupied="true"]').count(),2);
+  await worker.locator('[data-worker-action="step"]').focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await worker.getAttribute('data-worker-step'),'1');
+  assert.equal(await worker.locator('[data-worker-ipc-slot][data-occupied="true"]').count(),0);
+  await stepWorkerUntil(page,s=>s.phase==='advance'&&s.requests[0].promptDone===8);
+  assert.match(await worker.locator('[data-worker-state="R1"]').innerText(),/prefill 8\/12 · output 0/);
+  assert.equal(await worker.locator('[data-worker-page-slot][data-occupied="true"]').count(),3);
+  await audit(page,'Worker partial prefill '+name);
+  await worker.screenshot({path:'/tmp/max-serve-worker-prefill-'+name+'.png'});
+  await stepWorkerUntil(page,s=>s.results.length===2);
+  assert.match(await worker.locator('[data-worker-published="R1"]').textContent(),/R1: t1/);
+  assert.match(await worker.locator('[data-worker-published="R2"]').textContent(),/R2: t1/);
+  await stepWorkerUntil(page,s=>s.finished);
+  assert.equal(await worker.locator('[data-worker-page-slot][data-occupied="true"]').count(),0);
+  assert.equal(await worker.locator('[data-worker-page-slot]').count(),4);
+  assert.equal(await worker.locator('[data-worker-action="step"]').isDisabled(),true);
+  assert.match(await worker.locator('[data-worker-action="play"]').innerText(),/Replay/);
+
+  await worker.locator('[data-worker-mode="busy"]').click();
+  assert.equal(await worker.getAttribute('data-phase'),'execute');
+  assert.match(await worker.locator('[data-worker-state="R2"]').innerText(),/waiting in IPC/);
+  assert.match(await worker.locator('[data-worker-gpu-work]').textContent(),/R1/);
+  assert.doesNotMatch(await worker.locator('[data-worker-gpu-work]').textContent(),/R2/);
+  await audit(page,'Worker already executing '+name);
+  await stepWorkerUntil(page,s=>s.phase==='execute'&&s.batch.some(op=>op.id==='R2'));
+  assert.match(await worker.locator('[data-worker-gpu-work]').textContent(),/R2/);
+
+  await worker.locator('[data-worker-mode="cache"]').click();
+  assert.match(await worker.locator('[data-worker-state="R2"]').innerText(),/waiting for reusable KV/);
+  assert.match(await worker.locator('[data-worker-batch-slots]').textContent(),/free slot/);
+  assert.equal(await worker.locator('[data-worker-page-slot][data-owner="R1"]').count(),2);
+  await audit(page,'Worker KV pressure '+name);
+  await worker.screenshot({path:'/tmp/max-serve-worker-cache-'+name+'.png'});
+  await stepWorkerUntil(page,s=>s.requests[1].selected!==null);
+  assert.equal(await worker.locator('[data-worker-page-slot][data-owner="R1"]').count(),0);
+  assert.equal(await worker.locator('[data-worker-page-slot][data-owner="R2"]').count(),1);
+
+  await worker.locator('[data-worker-mode="idle"]').click();
+  await stepWorkerUntil(page,s=>s.finished);
+  assert.match(await worker.locator('[data-worker-loop]').textContent(),/NO_PROGRESS.*backoff/);
+  assert.equal(await worker.locator('[data-worker-phase="idle"]').getAttribute('data-current'),'true');
+  await audit(page,'Worker idle backoff '+name);
+  await worker.locator('[data-worker-mode="normal"]').click();
+  await worker.locator('.ss-worker-transcript>summary').click();
+  assert.equal(await worker.locator('.ss-api-role-table tbody tr').count(),6);
+  await worker.locator('.ss-api-role-table a[data-ref="construct_batch"]').click();
+  assert.equal(await page.locator('#source-dialog').evaluate(n=>n.open),true);
+  assert.match(await page.locator('#source-file').innerText(),/def construct_batch/);
+  await page.keyboard.press('Escape');
+  await worker.locator('.ss-worker-transcript>summary').click();
+  checks.push('Worker close-up on '+name+': second lesson, keyboard controls, partial prefill, result maps, busy-pass membership, KV waiting/reuse, idle backoff, reset and source links');
+}
 (async()=>{
   const browser=await chromium.launch({headless:true,args:["--no-sandbox","--disable-dev-shm-usage"]});
   const setup=async options=>{
@@ -182,7 +254,7 @@ async function apiIntro(page, audit, name) {
     await page.goto(url("components_and_flow"));
     assert.equal(await page.locator("[data-serve-story]").count(),4);
     assert.equal(await page.locator("[data-api-story]").count(),1);
-    assert.deepEqual(await page.locator('.ss-lesson-button').allTextContents(),["01","02","03","04","05"]);
+    assert.deepEqual(await page.locator('.ss-lesson-button').allTextContents(),["01","02","03","04","05","06"]);
     assert.equal(await page.locator("[data-machine]").count(),3);
     assert.equal(await page.locator("#reference-atlas").evaluate(n=>n.open),false);
     await page.waitForTimeout(250);
@@ -191,13 +263,15 @@ async function apiIntro(page, audit, name) {
     await page.screenshot({path:"/tmp/max-serve-request-stories.png"});
     await apiIntro(page,audit,"components");
     await cardsAndLegend(page,"api",audit);
+    await workerIntro(page,audit,"components");
+    await cardsAndLegend(page,"worker",audit);
     await cardsAndLegend(page,"one",audit);
     await page.locator('#story-one [data-ss-action="step"]').focus();
     await page.keyboard.press("Enter");
     assert.notEqual(await page.locator("#story-one").getAttribute("data-time"),"0");
     await stepUntil(page,"one",s=>s[0].done===1);
     assert.match(await page.locator('#story-one [data-request-detail]').innerText(),/Completed/);
-    checks.push("API opening lesson plus four request lessons, three preserved machines, no autoplay and keyboard stepping to completion");
+    checks.push("API and worker opening lessons plus four request lessons, three preserved machines, no autoplay and keyboard stepping to completion");
 
     const pressure=page.locator("#story-pressure");
     await pressure.locator('[data-ss-action="send"]').click();
@@ -259,9 +333,10 @@ async function apiIntro(page, audit, name) {
     await page.goto(url("driver_and_scaling"));
     assert.equal(await page.locator("[data-serve-story]").count(),3);
     assert.equal(await page.locator("[data-api-story]").count(),1);
-    assert.deepEqual(await page.locator('.ss-lesson-button').allTextContents(),["01","02","03","04"]);
+    assert.deepEqual(await page.locator('.ss-lesson-button').allTextContents(),["01","02","03","04","05"]);
     await audit(page,"Systems stories: initial page");
     await apiIntro(page,audit,"systems");
+    await workerIntro(page,audit,"systems");
     await cardsAndLegend(page,"clocks",audit);
     await stepUntil(page,"reader",s=>s[0].requests[0].state==="streaming"&&s[0].buffered>0);
     assert.equal(await page.locator("#story-reader").getAttribute("data-pages"),"0");
@@ -310,6 +385,18 @@ async function apiIntro(page, audit, name) {
         await audit(mobile.page,"Touch legend "+width+" "+name);
         await mobile.page.locator('#ss-legend-card [data-card-dismiss]').tap();
         await audit(mobile.page,"Touch story "+width+" "+name);
+        const worker=mobile.page.locator('#story-worker');
+        await worker.locator('[data-worker-mode="cache"]').tap();
+        await worker.locator('[data-worker-action="step"]').tap();
+        assert.equal(await worker.getAttribute('data-worker-step'),'1');
+        assert.match(await worker.locator('[data-worker-state="R2"]').innerText(),/waiting for reusable KV/);
+        await worker.locator('.ss-lesson-button').tap();
+        assert.equal(await worker.locator('[data-ss-lesson]').evaluate(n=>n.open),true);
+        await inViewport(mobile.page,worker.locator('.ss-lesson-card'));
+        await audit(mobile.page,'Touch worker card '+width+' '+name);
+        await worker.locator('[data-card-dismiss]').tap();
+        assert.equal(await worker.locator('[data-ss-lesson]').evaluate(n=>n.open),false);
+        assert.ok(await mobile.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Worker scene keeps document scrolling contained');
       }
       await mobile.page.screenshot({path:"/tmp/max-serve-story-mobile-"+width+".png"});
       await mobile.context.close();
@@ -323,6 +410,11 @@ async function apiIntro(page, audit, name) {
     await nojs.page.locator('#story-api .ss-api-transcript>summary').click();
     assert.equal(await nojs.page.locator('#story-api .ss-api-role-table').isVisible(),true);
     assert.match(await nojs.page.locator('#story-api .ss-transcript pre').innerText(),/Without lock \(possible interleaving\)/);
+    assert.equal(await nojs.page.locator('#story-worker .ss-lesson-card h2').isVisible(),true);
+    assert.equal(await nojs.page.locator('#story-worker [data-worker-controls]').first().isVisible(),false);
+    await nojs.page.locator('#story-worker .ss-worker-transcript>summary').click();
+    assert.equal(await nojs.page.locator('#story-worker .ss-api-role-table').isVisible(),true);
+    assert.match(await nojs.page.locator('#story-worker .ss-transcript pre').innerText(),/NO_PROGRESS.*backoff/);
     assert.equal(await nojs.page.locator('#story-one .ss-lesson-card h2').isVisible(),true);
     await nojs.page.locator('.ss-legend-button').click();
     assert.equal(await nojs.page.locator('[data-ss-legend]').evaluate(n=>n.open),true);
@@ -351,6 +443,21 @@ async function apiIntro(page, audit, name) {
     await motion.page.locator('#state-machines').scrollIntoViewIfNeeded();
     await motion.page.waitForTimeout(150);
     assert.equal(await apiMotion.getAttribute('data-playing'),'false');
+    const workerMotion=motion.page.locator('#story-worker');
+    await workerMotion.locator('[data-worker-action="play"]').click();
+    const workerDot=workerMotion.locator('[data-worker-request="R1"]');
+    const workerBefore=await workerDot.getAttribute('transform');
+    await motion.page.waitForFunction(()=>window.serveStorySnapshot('worker').index===1);
+    await motion.page.waitForTimeout(250);
+    assert.notEqual(await workerDot.getAttribute('transform'),workerBefore,'Worker contexts move from IPC into the process');
+    await workerMotion.locator('[data-worker-action="play"]').click();
+    const workerPaused=await workerMotion.getAttribute('data-worker-step');
+    await motion.page.waitForTimeout(1450);
+    assert.equal(await workerMotion.getAttribute('data-worker-step'),workerPaused);
+    await workerMotion.locator('[data-worker-action="play"]').click();
+    await motion.page.locator('#state-machines').scrollIntoViewIfNeeded();
+    await motion.page.waitForTimeout(150);
+    assert.equal(await workerMotion.getAttribute('data-playing'),'false');
     await motion.page.locator('#story-one [data-ss-action="send"]').click();
     const dot=motion.page.locator('#story-one [data-dot-id="R2"]');
     const before=await dot.getAttribute("transform");await motion.page.waitForTimeout(200);
@@ -374,6 +481,8 @@ async function apiIntro(page, audit, name) {
       assert.equal(await print.page.locator('#ss-legend-card').isVisible(),true);
       assert.equal(await print.page.locator('#ss-legend-card').evaluate(n=>getComputedStyle(n).position),"static");
       assert.equal(await print.page.locator('#story-api .ss-api-role-table').isVisible(),true);
+      assert.equal(await print.page.locator('#story-worker .ss-api-role-table').isVisible(),true);
+      assert.equal(await print.page.locator('#story-worker .ss-lesson-card h2').isVisible(),true);
       await print.page.emulateMedia({media:"screen"});
       await print.page.evaluate(()=>window.dispatchEvent(new Event("afterprint")));
       assert.equal(await print.page.locator('[data-ss-lesson]').first().evaluate(n=>n.open),false);

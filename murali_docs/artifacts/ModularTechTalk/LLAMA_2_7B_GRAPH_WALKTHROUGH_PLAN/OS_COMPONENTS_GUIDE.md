@@ -29,6 +29,10 @@ Click the circled **L** at the right edge of the sticky section menu for compone
 | Tokenizer executor | CPU thread pool | CPU tokenization runs via run_in_executor(None, …) on executor threads in the API process. |
 | ZeroMQ channels | IPC · Unix sockets | Local ipc:// PUSH/PULL channels carry requests, responses and cancellation. Each drawn slot holds one request context; N is exact only in this teaching model. |
 | Model worker / scheduler | Spawned OS process | Owns pending work, batch selection and model execution. The scheduler runs on the worker's loop thread; it selects the next pass. |
+| CE / TG request sets | CPU collections · worker | CE holds prefill work; TG holds decoding contexts. These are worker-owned Python collections, not IPC channels or separate threads. |
+| Batch constructor | Python object · worker loop | Chooses eligible work within batch, token and KV limits. It is called on the worker's loop thread. P = prefill; D = decode; work-tile counts are input tokens. |
+| Model pipeline | Python → compiled model | Prepares inputs and calls the native runtime for selected model work. It returns per-request results; it is not another OS process. |
+| KV manager | Host bookkeeping + device pool | Tracks request attention-cache ownership and reusable blocks. Releasing a finished request makes its blocks reusable while the backing pool remains allocated. This is resource management, not a mutex. |
 | MAX runtime / user driver | Native code · worker | Submits compiled model work and manages device completion. Internal native threads sit behind this boundary. |
 | OS GPU driver | Kernel boundary | The operating system's device driver connects the user-space runtime to the GPU. |
 | GPU device | Hardware | Executes the selected model pass and holds device data, including model weights and KV cache. |
@@ -81,6 +85,53 @@ An await can let another coroutine run on the SAME loop thread T1.
 Only the CPU tokenization jobs go to T2/T3; request tasks resume on T1.
 Thread IDs and executor assignments are illustrative; pool sizing/reuse vary.
 The admission lock is released before waiting for model output.
+```
+
+### 02 · Inside the model worker
+
+The second animation isolates the separate worker process after API admission: request IPC, CE/TG request sets, batch construction, KV ownership, the model pipeline, native runtime, OS driver, GPU and response IPC. Hover/focus/tap 02 for the lesson; L explains the component colors and ownership.
+
+Play, Step and Reset compare Two requests, GPU busy, KV pressure and No requests. The loop highlights pull → build → execute → advance/release → publish, with NO_PROGRESS/backoff when no work is eligible. P and D show prefill/decode input work. The CPU request markers and GPU work tiles represent different things.
+
+SOURCE: An ordinary worker calls the scheduler on its own loop. It publishes results keyed by request ID and releases finished request/cache ownership. BOUNDARY: The close-up reuses the existing teaching worker, including its illustrative decode-first chunking, exact two-slot request queue and conservative prompt-plus-output block reservation. Timings, capacities and starting snapshots are not measurements. The backing KV pool remains allocated when request ownership is released.
+
+In the busy scenario, R2 waits in IPC until a subsequent worker iteration. Under cache pressure, R2 is already admitted and waits even though a batch slot is available; it starts after R1 releases blocks. Partial prefill emits no token before the full prompt is consumed. The idle scenario checks for work and then yields with backoff.
+
+| Part | Why it exists | If unavailable |
+| --- | --- | --- |
+| Worker loop | Runs the scheduler repeatedly; yields with backoff when it reports no progress. | Without the loop, queued work never reaches another scheduling iteration. |
+| Request IPC + request sets | Pulls admitted contexts into the worker's CE/prefill and TG/decode collections. A configured M limits the prefill backlog. | Without the channel, contexts cannot cross from the API. Without request state, the worker cannot track prompt or generation progress. |
+| Batch constructor | Selects eligible request work using batch, token and cache constraints. | Without batch construction, the pipeline has no valid selection of inputs for its next pass. |
+| KV manager | Tracks each request's cached attention state and reusable blocks in a retained device pool. | Without available blocks, a new prefill can wait. Removing the manager itself breaks this paged-cache pipeline. |
+| Model pipeline + runtime | Prepares inputs, executes the compiled model and produces per-request results through the native device boundary. | Without an executable pipeline/runtime, selected work cannot produce model output. |
+| Advance, release + publish | Moves finished prefill into decode, releases terminated requests and sends results keyed by request ID. | Without advancement or release, work and cache ownership cannot progress correctly. Without publication, the API keeps waiting for results. |
+
+```text
+API PROCESS (offstage)
+    | tokenized, admitted request contexts
+    v
+[request IPC slots] --> +---- MODEL WORKER: separate OS process -----+
+                       | worker uvloop: repeat run_iteration()      |
+                       |                                            |
+                       | pull within M -> CE/TG request sets         |
+                       |                        |                   |
+                       |                 construct next batch       |
+                       |                 slots + tokens + KV        |
+                       |                        |                   |
+                       | KV manager <------> model pipeline         |
+                       | request ownership      | native runtime ---+--> OS driver / GPU
+                       |                        | <--- results ------+---- weights + KV tensors
+                       | advance CE -> TG; release finished work    |
+[response IPC] <-------| publish {request ID: token/result/status}   |
+    |                  |                        |                   |
+    v                  | next iteration <-------+                   |
+API routes / streams   | no eligible work -> NO_PROGRESS -> backoff |
+                       +--------------------------------------------+
+Busy pass: its membership stays fixed; a later request waits for another pass.
+Partial prefill: finish the whole prompt before emitting its first token.
+KV pressure: already-admitted work waits; HTTP 429 is an API admission decision.
+Release: request block ownership becomes reusable; the backing pool stays allocated.
+One ordinary non-overlap pipeline; tiny queues, budgets and reservations are teaching choices.
 ```
 
 ### Accepted. Then scheduled.

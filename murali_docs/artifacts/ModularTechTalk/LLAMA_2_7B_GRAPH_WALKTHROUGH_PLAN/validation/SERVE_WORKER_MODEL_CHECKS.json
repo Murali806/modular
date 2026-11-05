@@ -1,0 +1,11 @@
+{
+  "result": "PASS",
+  "checks": [
+    "Two admitted contexts drain, partial prefill waits, mixed batch membership changes, results preserve IDs and finished requests release KV ownership",
+    "A busy pass keeps its membership; R2 waits in IPC, then joins a later pass before R1 finishes",
+    "KV pressure defers admitted R2 despite a free batch slot; R1's release enables progress without an HTTP 429",
+    "An empty worker checks input, finds no eligible batch and yields with backoff without launching model work",
+    "Completed scenes, snapshots and reset are isolated and deterministic"
+  ],
+  "evidence": "CPU-RUN teaching model; reuses ServeStory.Worker, no model weights, GPU timings or native execution"
+}

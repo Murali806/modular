@@ -532,7 +532,7 @@
     frame = null;
     let work = false;
     for (const c of controllers) {
-      if (c.playing && now >= c.nextAt) { c.step(); c.nextAt = now + (c.key === "api" ? 1300 : 850); }
+      if (c.playing && now >= c.nextAt) { c.step(); c.nextAt = now + (c.interval || (c.key === "api" ? 1300 : 850)); }
       work = c.animate(now) || c.playing || work;
     }
     if (work) startFrames();
@@ -558,6 +558,7 @@
   }, {capture:true, passive:true});
   document.querySelectorAll(".ss-reference").forEach(node => node.open = false);
   document.querySelectorAll("[data-api-story]").forEach(node => controllers.push(new ApiStory(node)));
+  document.querySelectorAll("[data-worker-story]").forEach(node => controllers.push(new window.ServeWorkerView(node, {reduced, startFrames, colors:COLORS, escape, element})));
   document.querySelectorAll("[data-serve-story]").forEach(node => controllers.push(new Story(node)));
   const observer = new IntersectionObserver(entries => {
     for (const entry of entries) if (!entry.isIntersecting) controllers.find(c => c.node === entry.target)?.setPlaying(false);
@@ -580,6 +581,6 @@
   // Small, read-only bridge for browser validation of the actual rendered models.
   window.serveStorySnapshot = key => {
     const c = controllers.find(c => c.key === key);
-    return c ? c.key === "api" ? c.model.snapshot() : c.workers.map(w => w.snapshot()) : null;
+    return c ? ["api", "worker"].includes(c.key) ? c.model.snapshot() : c.workers.map(w => w.snapshot()) : null;
   };
 })();

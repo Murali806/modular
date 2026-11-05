@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-11-05T04:51:43.851Z",
+  "checked_at": "2026-11-05T07:04:59.190Z",
   "result": "PASS",
   "checks": [
     "offline load, no autoplay and exact opening counts",
@@ -25,134 +25,134 @@
   "contrast": [
     {
       "state": "Desktop initial page",
-      "samples": 1092,
-      "minimum_text_ratio": 5.267,
+      "samples": 1186,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "startup final step card",
-      "samples": 1119,
-      "minimum_text_ratio": 5.267,
+      "samples": 1213,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "network final step card",
-      "samples": 1192,
-      "minimum_text_ratio": 5.267,
+      "samples": 1286,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "ipc final step card",
-      "samples": 1260,
-      "minimum_text_ratio": 5.267,
+      "samples": 1354,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "gpu final step card",
-      "samples": 1333,
-      "minimum_text_ratio": 5.267,
+      "samples": 1427,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "pressure final step card",
-      "samples": 1400,
-      "minimum_text_ratio": 5.267,
+      "samples": 1494,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "fleet final step card",
-      "samples": 1469,
-      "minimum_text_ratio": 5.267,
+      "samples": 1563,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "Example 1",
-      "samples": 1471,
-      "minimum_text_ratio": 5.267,
+      "samples": 1565,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "Example 2",
-      "samples": 1475,
-      "minimum_text_ratio": 5.267,
+      "samples": 1569,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "Example 3",
-      "samples": 1472,
-      "minimum_text_ratio": 5.267,
+      "samples": 1566,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "Example 4",
-      "samples": 1472,
-      "minimum_text_ratio": 5.267,
+      "samples": 1566,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "Example 5",
-      "samples": 1474,
-      "minimum_text_ratio": 5.267,
+      "samples": 1568,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "Example 6",
-      "samples": 1474,
-      "minimum_text_ratio": 5.267,
+      "samples": 1568,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "Source search and selected definition",
-      "samples": 2543,
-      "minimum_text_ratio": 5.267,
+      "samples": 2637,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "Desktop running lab then paused",
-      "samples": 2242,
-      "minimum_text_ratio": 5.267,
+      "samples": 2336,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "Touch GPU driver card 390",
-      "samples": 1186,
-      "minimum_text_ratio": 5.267,
+      "samples": 1281,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "Touch source explorer 390",
-      "samples": 1904,
-      "minimum_text_ratio": 5.267,
+      "samples": 1999,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "Touch memory lab 390",
-      "samples": 1105,
-      "minimum_text_ratio": 5.267,
+      "samples": 1200,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "Touch GPU driver card 320",
-      "samples": 1186,
-      "minimum_text_ratio": 5.267,
+      "samples": 1281,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "Touch source explorer 320",
-      "samples": 1904,
-      "minimum_text_ratio": 5.267,
+      "samples": 1999,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "Touch memory lab 320",
-      "samples": 1105,
-      "minimum_text_ratio": 5.267,
+      "samples": 1200,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "state": "Animated network packet",
-      "samples": 1168,
-      "minimum_text_ratio": 5.267,
+      "samples": 1262,
+      "minimum_text_ratio": 5.095,
       "failures": []
     }
   ],

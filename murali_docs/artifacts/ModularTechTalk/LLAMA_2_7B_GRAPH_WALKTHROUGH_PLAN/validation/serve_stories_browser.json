@@ -1,15 +1,18 @@
 {
   "result": "PASS",
-  "checked_at": "2026-11-05T05:24:54.299Z",
+  "checked_at": "2026-11-05T07:08:04.536Z",
   "browser": "156.0.8078.4",
   "checks": [
     "API introduction on components: keyboard controls, normal stream/429, three absent-role stops, no-lock backpressure, replacement loop, reset and pinned-source links",
     "Full-width api animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
+    "Worker close-up on components: second lesson, keyboard controls, partial prefill, result maps, busy-pass membership, KV waiting/reuse, idle backoff, reset and source links",
+    "Full-width worker animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
     "Full-width one animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
-    "API opening lesson plus four request lessons, three preserved machines, no autoplay and keyboard stepping to completion",
+    "API and worker opening lessons plus four request lessons, three preserved machines, no autoplay and keyboard stepping to completion",
     "Burst fills M then visible N slots; 429 selects the rejected request; N=6 redraws six slots; occupancy follows admission, drain and reset",
     "Later batch admission, selected-request lifecycle link and exact-source explorer",
     "API introduction on systems: keyboard controls, normal stream/429, three absent-role stops, no-lock backpressure, replacement loop, reset and pinned-source links",
+    "Worker close-up on systems: second lesson, keyboard controls, partial prefill, result maps, busy-pass membership, KV waiting/reuse, idle backoff, reset and source links",
     "Full-width clocks animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
     "Slow-reader output outlives KV ownership; warming replicas excluded; advanced deep links preserved",
     "320/390 px touch controls, readable contrast and contained diagram scrolling",
@@ -20,194 +23,278 @@
   "audits": [
     {
       "label": "Request stories: initial page",
-      "samples": 601,
-      "minimum_text_ratio": 5.267,
+      "samples": 689,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API shared loop and lock components",
-      "samples": 602,
-      "minimum_text_ratio": 5.267,
+      "samples": 690,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API absent role uvicorn components",
-      "samples": 599,
-      "minimum_text_ratio": 5.267,
+      "samples": 687,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API absent role fastapi components",
-      "samples": 599,
-      "minimum_text_ratio": 5.267,
+      "samples": 687,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API absent role loop components",
-      "samples": 599,
-      "minimum_text_ratio": 5.267,
+      "samples": 687,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API possible no-lock interleaving components",
-      "samples": 598,
-      "minimum_text_ratio": 5.267,
+      "samples": 686,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Lesson hover card api",
-      "samples": 619,
-      "minimum_text_ratio": 5.267,
+      "samples": 707,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Component legend api",
-      "samples": 661,
-      "minimum_text_ratio": 5.267,
+      "samples": 768,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Worker partial prefill components",
+      "samples": 692,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Worker already executing components",
+      "samples": 690,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Worker KV pressure components",
+      "samples": 689,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Worker idle backoff components",
+      "samples": 687,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Lesson hover card worker",
+      "samples": 707,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Component legend worker",
+      "samples": 772,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Lesson hover card one",
-      "samples": 610,
-      "minimum_text_ratio": 5.267,
+      "samples": 698,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Component legend one",
-      "samples": 665,
-      "minimum_text_ratio": 5.267,
+      "samples": 772,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Visible saturation and rejection",
-      "samples": 618,
-      "minimum_text_ratio": 5.267,
+      "samples": 706,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Systems stories: initial page",
-      "samples": 379,
-      "minimum_text_ratio": 5.267,
+      "samples": 467,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API shared loop and lock systems",
-      "samples": 380,
-      "minimum_text_ratio": 5.267,
+      "samples": 468,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API absent role uvicorn systems",
-      "samples": 377,
-      "minimum_text_ratio": 5.267,
+      "samples": 465,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API absent role fastapi systems",
-      "samples": 377,
-      "minimum_text_ratio": 5.267,
+      "samples": 465,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API absent role loop systems",
-      "samples": 377,
-      "minimum_text_ratio": 5.267,
+      "samples": 465,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API possible no-lock interleaving systems",
-      "samples": 376,
-      "minimum_text_ratio": 5.267,
+      "samples": 464,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Worker partial prefill systems",
+      "samples": 470,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Worker already executing systems",
+      "samples": 468,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Worker KV pressure systems",
+      "samples": 467,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Worker idle backoff systems",
+      "samples": 465,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Lesson hover card clocks",
-      "samples": 388,
-      "minimum_text_ratio": 5.267,
+      "samples": 476,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Component legend clocks",
-      "samples": 439,
-      "minimum_text_ratio": 5.267,
+      "samples": 546,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Independent replica routing",
-      "samples": 385,
-      "minimum_text_ratio": 5.267,
+      "samples": 473,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch lesson card 390 components_and_flow",
-      "samples": 624,
-      "minimum_text_ratio": 5.267,
+      "samples": 713,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch legend 390 components_and_flow",
-      "samples": 666,
-      "minimum_text_ratio": 5.267,
+      "samples": 774,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch story 390 components_and_flow",
-      "samples": 606,
-      "minimum_text_ratio": 5.267,
+      "samples": 695,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Touch worker card 390 components_and_flow",
+      "samples": 713,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch lesson card 390 driver_and_scaling",
-      "samples": 401,
-      "minimum_text_ratio": 5.267,
+      "samples": 490,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch legend 390 driver_and_scaling",
-      "samples": 443,
-      "minimum_text_ratio": 5.267,
+      "samples": 551,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch story 390 driver_and_scaling",
-      "samples": 383,
-      "minimum_text_ratio": 5.267,
+      "samples": 472,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Touch worker card 390 driver_and_scaling",
+      "samples": 490,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch lesson card 320 components_and_flow",
-      "samples": 624,
-      "minimum_text_ratio": 5.267,
+      "samples": 713,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch legend 320 components_and_flow",
-      "samples": 666,
-      "minimum_text_ratio": 5.267,
+      "samples": 774,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch story 320 components_and_flow",
-      "samples": 606,
-      "minimum_text_ratio": 5.267,
+      "samples": 695,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Touch worker card 320 components_and_flow",
+      "samples": 713,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch lesson card 320 driver_and_scaling",
-      "samples": 401,
-      "minimum_text_ratio": 5.267,
+      "samples": 490,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch legend 320 driver_and_scaling",
-      "samples": 443,
-      "minimum_text_ratio": 5.267,
+      "samples": 551,
+      "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch story 320 driver_and_scaling",
-      "samples": 383,
-      "minimum_text_ratio": 5.267,
+      "samples": 472,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Touch worker card 320 driver_and_scaling",
+      "samples": 490,
+      "minimum_text_ratio": 5.095,
       "failures": []
     }
   ],

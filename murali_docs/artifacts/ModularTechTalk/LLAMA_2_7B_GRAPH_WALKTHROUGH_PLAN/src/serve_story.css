@@ -87,6 +87,10 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
 [data-component="tokenizer"] { --component-color: #a04415; --component-tint: #fff0de; }
 [data-component="ipc"] { --component-color: #836208; --component-tint: #fff7da; }
 [data-component="worker"] { --component-color: #414ba1; --component-tint: #eff0fd; }
+[data-component="pending"] { --component-color: #626e1b; --component-tint: #f5f6e4; }
+[data-component="scheduler"] { --component-color: #166777; --component-tint: #e6f4f8; }
+[data-component="pipeline"] { --component-color: #805027; --component-tint: #fff2e6; }
+[data-component="kv"] { --component-color: #714c80; --component-tint: #f7ecfb; }
 [data-component="driver"] { --component-color: #913668; --component-tint: #fdebf5; }
 [data-component="kernel"] { --component-color: #4c6475; --component-tint: #edf2f7; }
 [data-component="gpu"] { --component-color: #a53738; --component-tint: #feebeb; }
@@ -106,6 +110,16 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
 .ss-api-diagram [data-api-component][data-missing="true"] > text { fill: #833f2b; }
 .ss-api-diagram [data-api-component][data-missing="true"] > .ss-api-pulse { fill: #fcfcf8; stroke: #833f2b; stroke-width: 2; }
 .ss-api-request { cursor: default; }
+.ss-worker-request { cursor: default; }
+.ss-worker-diagram [data-worker-component][data-active="true"] > .ss-component-box { stroke-width: 3; }
+.ss-worker-slot > rect { fill: #fffefa; stroke: var(--component-color); stroke-width: 1; stroke-dasharray: 3 3; }
+.ss-worker-slot > text { fill: var(--component-color); font: 10px ui-monospace, monospace; }
+.ss-worker-slot[data-occupied="true"] > rect { fill: var(--component-tint); stroke-width: 2; stroke-dasharray: none; }
+.ss-worker-result-map { fill: #fffdf4; stroke: #836208; stroke-dasharray: 3 3; }
+.ss-worker-kv-wire { fill: none; stroke: #714c80; stroke-width: 1.2; stroke-dasharray: 3 3; }
+.ss-worker-token > rect { fill: #dceee4; stroke: #497259; stroke-width: 1.2; }
+.ss-worker-token > text { fill: #31573f; font: 600 10px ui-monospace, monospace; }
+.ss-worker-story .ss-event[data-kind="cache"] { color: #793b28; background: #f8e9df; border-color: #ae684c; }
 .ss-api-story .ss-api-thread-badge { --thread-ink: #54317f; --thread-fill: #f8f2ff; }
 .ss-api-story .ss-api-thread-badge[data-api-thread="T2"] { --thread-ink: #875015; --thread-fill: #fff6df; }
 .ss-api-story .ss-api-thread-badge[data-api-thread="T3"] { --thread-ink: #8a365f; --thread-fill: #fff0f6; }

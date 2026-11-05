@@ -12,8 +12,8 @@ the stories use small synthetic requests, not model weights or real inference.
 
 ## Template and scope
 
-Both pages open with an API-process lesson, followed by the seven existing
-request and systems experiments (five lessons on components, four on systems).
+Both pages open with API-process and model-worker lessons, followed by the seven
+existing request and systems experiments (six lessons on components, five on systems).
 Requests visibly move through API tokenization, the admission gate,
 IPC, pending prefill and active batches. Output tokens use a separate return
 path. Each experiment uses the full story width. Its numbered badge reveals a
@@ -38,6 +38,17 @@ FastAPI and admission; T2/T3 label two example tokenizer executor lanes. Request
 markers enter those lanes during CPU tokenization and return to the API path.
 The lesson card, SVG description and portable flow distinguish thread IDs from
 R1/R2 request IDs and state that executor assignments and pool sizing vary.
+
+The second lesson isolates the separate model worker after API admission.
+It reuses `ServeStory.Worker` with four starting scenarios: two requests, a
+running pass, KV pressure and no requests. CPU context markers move through
+request IPC, CE/TG sets, batch selection and results. GPU tiles show selected
+work; separate response markers carry token IDs. KV blocks expose request
+ownership and remain drawn after release. The loop highlights pull, build,
+execute, advance/release, publish and idle/backoff. Its hover card, six-row
+role table, portable flow and source links explain ownership and missing-role
+outcomes. The L legend adds distinct colors for request sets, the batch
+constructor, model pipeline and KV manager. Thread badges remain in lesson 01.
 
 The three server/request/OS-thread state machines remain intact. Detailed maps,
 source cells, cards and the advanced simulator are available in the reference
@@ -86,6 +97,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 murali_docs/artifacts/ModularTechTalk/LLAMA_2_
 PYTHONDONTWRITEBYTECODE=1 python3 murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/validate.py
 node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/check_serve_stories.cjs
 node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/check_serve_api.cjs
+node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/check_serve_worker.cjs
 NODE_PATH=/tmp/max-os-playwright/node_modules node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/check_serve_stories_browser.cjs
 NODE_PATH=/tmp/max-os-playwright/node_modules node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/check_os_components_browser.cjs
 NODE_PATH=/tmp/max-os-playwright/node_modules node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/check_os_systems_browser.cjs
@@ -107,9 +119,14 @@ R1's first chunk, missing-role stops without invented HTTP codes, the possible
 no-lock interleaving without queue overflow, compatible-loop outcomes, and
 stable snapshots and replay isolation.
 
-Browser checks: **PASS**, thirteen groups and thirty-two rendered-contrast
-audits. They cover the new API lesson on both pages, the seven existing stories,
-hover/click disclosures and rendered contrast.
+Worker model checks: **PASS**, five groups. They verify partial prefill before
+first output, batch/token/KV limits, result-ID correlation, busy-pass membership,
+cache waiting despite a free batch slot, reuse after R1 finishes, idle/backoff,
+and isolated snapshots and replay. These are CPU teaching-model checks.
+
+Browser checks: **PASS**, sixteen groups and forty-six rendered-contrast
+audits. They exercise both introductions on both pages, the seven existing
+stories, hover/click disclosures and rendered contrast.
 Coverage includes controls, moving dots, request selection, 429 inspection,
 queue-setting changes, lifecycle/source links, slow readers, replica readiness,
 320/390-pixel layouts, touch, keyboard, no JavaScript, reduced motion, pause and
@@ -120,17 +137,21 @@ colors, N-slot occupancy and position, queue drain/reset, mobile card bounds,
 and print expansion/restoration. The new API checks exercise all six modes,
 the actual rendered slot and request states, keyboard/touch controls, replay,
 source links, movement, pause and the no-JavaScript outcome table.
+The worker checks cover all four scenarios, visible IPC/KV occupancy,
+batch/GPU work, token maps, release/reuse, keyboard and touch controls, the
+second hover card, source links, pause, and print/no-JavaScript content.
 The machine-readable report records the
 completed group and contrast-audit counts, errors and runtime requests.
 
 Existing reference regressions: **PASS**. Component coverage includes all 15
-components, 26 handoffs, 19 states, eight paths and 45 source targets. Systems
-coverage includes 48 step cards, 22 object cards, 58 source targets and 11
+components, 26 handoffs, 19 states, eight paths and 49 source targets. Systems
+coverage includes 48 step cards, 22 object cards, 60 source targets and 11
 complete source cells. The three browser suites report no page errors or
 external runtime requests.
 
 Machine-readable evidence: [new browser checks](serve_stories_browser.json),
 [API model checks](SERVE_API_MODEL_CHECKS.json),
+[worker model checks](SERVE_WORKER_MODEL_CHECKS.json),
 [component regressions](os_components_browser.json),
 [systems regressions](os_systems_browser.json) and [source checks](source_checks.json).
 Browser screenshots for the new request, overload, replica and mobile stories
