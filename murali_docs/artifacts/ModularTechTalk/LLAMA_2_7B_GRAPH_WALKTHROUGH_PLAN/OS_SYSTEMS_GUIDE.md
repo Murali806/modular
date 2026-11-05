@@ -37,7 +37,7 @@ Dashed boxes show process ownership. Request IPC has visible empty/occupied mess
 
 ### 01 · Inside the API process
 
-The first animation isolates the API process. Play, Step or Reset two requests sharing one event-loop thread and one illustrative IPC slot. Choose All present, No Uvicorn, No FastAPI, No event loop, No admission lock, or Use asyncio loop. Hover/focus/tap 01 for its lesson; the existing L legend explains ownership.
+The first animation isolates the API process. Play, Step or Reset two requests sharing one event-loop thread and one illustrative IPC slot. Choose All present, No Uvicorn, No FastAPI, No event loop, No admission lock, or Use asyncio loop. Hover/focus/tap 01 for its lesson; hover or focus Tokenizer executor for a color-coded explanation of the default pool, T1 handoff and illustrative thread count. Its changing loop-status line is larger and bold; the existing L legend explains ownership.
 
 Thread badges appear only in this opening animation: T1 is repeated on uvloop, Uvicorn, FastAPI and admission to show their shared API loop thread. T2/T3 identify example executor threads running CPU tokenization jobs; the async request tasks resume on T1. R1/R2 continue to identify requests. Thread IDs and executor assignments are illustrative; real pool sizing and reuse vary.
 

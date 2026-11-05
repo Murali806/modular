@@ -410,6 +410,84 @@
       return moving;
     }
   }
+  class ApiTokenizerTip {
+    constructor(node) {
+      this.trigger = node.querySelector("[data-api-tokenizer-trigger]");
+      this.card = node.querySelector("#ss-api-tokenizer-card");
+      this.mode = null;
+      this.timer = null;
+      this.card.hidden = true;
+      // Keep the hover card outside the horizontally scrolling SVG viewport.
+      document.body.append(this.card);
+      this.trigger.addEventListener("pointerenter", event => {
+        if (event.pointerType !== "touch") this.open("pointer");
+      });
+      this.trigger.addEventListener("pointerleave", () => this.deferClose());
+      this.card.addEventListener("pointerenter", () => clearTimeout(this.timer));
+      this.card.addEventListener("pointerleave", () => this.deferClose());
+      this.trigger.addEventListener("focus", () => this.open("keyboard"));
+      this.trigger.addEventListener("blur", () => this.deferClose());
+      this.trigger.addEventListener("pointerdown", event => {
+        if (event.pointerType !== "touch") return;
+        event.preventDefault();
+        if (this.mode === "touch") this.close();
+        else this.open("touch");
+      });
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && this.mode && !document.querySelector("#source-dialog[open]")) {
+          event.preventDefault();
+          this.close();
+        }
+      });
+      document.addEventListener("pointerdown", event => {
+        if (this.mode === "touch" && !this.trigger.contains(event.target) && !this.card.contains(event.target)) this.close();
+      });
+      document.addEventListener("scroll", () => {
+        if (!this.mode) return;
+        if (this.mode === "pointer" && !this.trigger.matches(":hover") && !this.card.matches(":hover")) this.close();
+        else this.position();
+      }, {capture:true, passive:true});
+      window.addEventListener("resize", () => this.position());
+    }
+    open(mode) {
+      clearTimeout(this.timer);
+      this.mode = mode;
+      this.card.hidden = false;
+      this.trigger.setAttribute("aria-expanded", "true");
+      this.position();
+    }
+    deferClose() {
+      clearTimeout(this.timer);
+      this.timer = setTimeout(() => {
+        if (this.mode === "pointer" && !this.trigger.matches(":hover") && !this.card.matches(":hover")) this.close();
+        if (this.mode === "keyboard" && document.activeElement !== this.trigger) this.close();
+      }, 140);
+    }
+    close() {
+      clearTimeout(this.timer);
+      this.card.hidden = true;
+      this.card.style.visibility = "";
+      this.mode = null;
+      this.trigger.setAttribute("aria-expanded", "false");
+    }
+    position() {
+      if (!this.mode) return;
+      const anchor = this.trigger.getBoundingClientRect();
+      const pad = 12, gap = 9;
+      const header = document.querySelector(".topbar");
+      const menu = document.querySelector(".ss-menu");
+      const safeTop = Math.max(pad, (header?.getBoundingClientRect().bottom || 0) + 8, (menu?.getBoundingClientRect().bottom || 0) + 8);
+      const below = innerHeight - anchor.bottom - pad;
+      const above = anchor.top - safeTop - pad;
+      this.card.style.visibility = "hidden";
+      this.card.style.maxHeight = Math.max(110, innerHeight - safeTop - pad) + "px";
+      const card = this.card.getBoundingClientRect();
+      const down = below >= card.height || below >= above;
+      this.card.style.left = Math.max(pad, Math.min(innerWidth - card.width - pad, anchor.left)) + "px";
+      this.card.style.top = Math.max(safeTop, Math.min(innerHeight - card.height - pad, down ? anchor.bottom + gap : anchor.top - card.height - gap)) + "px";
+      this.card.style.visibility = "";
+    }
+  }
   class ApiStory {
     constructor(node) {
       this.node = node;
@@ -418,6 +496,7 @@
       this.playing = false;
       this.nextAt = 0;
       this.dots = new Map();
+      this.tokenizerTip = new ApiTokenizerTip(node);
       node.querySelectorAll("[data-api-controls]").forEach(el => el.hidden = false);
       node.addEventListener("click", e => {
         const mode = e.target.closest("[data-api-mode]");

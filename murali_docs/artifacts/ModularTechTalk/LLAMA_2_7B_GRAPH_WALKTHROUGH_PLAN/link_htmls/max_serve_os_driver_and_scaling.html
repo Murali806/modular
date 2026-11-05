@@ -156,6 +156,30 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
 .ss-api-story .ss-api-thread-badge > rect { fill: var(--thread-fill); stroke: var(--thread-ink); stroke-width: 1.2; }
 .ss-api-story .ss-api-thread-badge > text { fill: var(--thread-ink); font: 600 11px ui-monospace, monospace; }
 .ss-api-story .ss-api-thread-lane { fill: #fffaf2; stroke: #ae754c; stroke-width: 1; stroke-dasharray: 3 2; }
+.ss-api-story .ss-api-loop-task { fill: #3f6247; font-size: 13px; font-weight: 700; }
+.ss-api-story [data-api-tokenizer-trigger] { cursor: help; }
+.ss-api-story [data-api-tokenizer-trigger]:hover > .ss-component-box,
+.ss-api-story [data-api-tokenizer-trigger]:focus-visible > .ss-component-box { stroke-width: 3; }
+.ss-api-tokenizer-card { position: fixed; z-index: 75; box-sizing: border-box; width: min(510px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 15px 17px; overflow: auto; overscroll-behavior: contain; border: 1.5px solid #a04415; border-radius: 10px; background: #fffefa; color: #35483a; box-shadow: 0 12px 38px #17251d35; font: 12.5px/1.55 ui-sans-serif, system-ui, sans-serif; text-align: left; }
+.ss-api-tokenizer-card-title { margin: 0 0 9px; color: #873a12; font-size: 13px; font-weight: 750; letter-spacing: .015em; }
+.ss-api-tokenizer-tip { margin: 6px 0; padding: 6px 9px; border-left: 3px solid; border-radius: 0 5px 5px 0; }
+.ss-api-tokenizer-tip b { display: block; margin-bottom: 1px; font: 700 9px/1.45 ui-monospace, monospace; letter-spacing: .035em; }
+.ss-api-tokenizer-tip span { display: block; }
+.ss-api-tokenizer-tip code { color: inherit; background: transparent; font-size: .92em; }
+.ss-api-tip-lanes { border-color: #865117; background: #fff5e5; color: #68400f; }
+.ss-api-tip-lanes b { color: #74440d; }
+.ss-api-tip-submit { border-color: #315f91; background: #edf4fc; color: #354e68; }
+.ss-api-tip-submit b { color: #244d77; }
+.ss-api-tip-wait { border-color: #704e92; background: #f5f0fb; color: #4f435f; }
+.ss-api-tip-wait b { color: #563778; }
+.ss-api-tip-return { border-color: #3f744e; background: #edf6ee; color: #3e5944; }
+.ss-api-tip-return b { color: #356342; }
+.ss-api-tip-pool { border-color: #52686a; background: #eff3f1; color: #405456; }
+.ss-api-tip-pool b { color: #405456; }
+.ss-api-tip-throughput { border-color: #754d3e; background: #f8f0eb; color: #5c463c; }
+.ss-api-tip-throughput b { color: #70412e; }
+.ss-api-tokenizer-fallback { margin: 12px 0; padding: 9px 12px; border-left: 3px solid #a04415; background: #fff7ee; }
+.ss-api-tokenizer-fallback > summary { color: #793e19; font-weight: 650; }
 .ss-api-progress { font: 11px/1.5 ui-monospace, monospace; color: #506456; }
 .ss-api-requests { display: flex; gap: 12px 30px; flex-wrap: wrap; padding: 14px 18px; color: #405b45; font-size: 12px; line-height: 1.6; }
 .ss-api-requests > span { display: flex; gap: 9px; align-items: baseline; }
@@ -292,6 +316,8 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
   .ss-api-modes > span { flex: 0 0 100%; margin: 0 0 3px; }
   .ss-api-modes button { min-height: 39px; padding: 7px 10px; }
   .ss-api-purpose { padding: 8px 12px 12px; }
+  .ss-api-tokenizer-card { padding: 12px 13px; font-size: 12px; }
+  .ss-api-tokenizer-tip { padding: 5px 7px; }
   .ss-api-requests { padding: 12px; gap: 7px; flex-direction: column; }
   .ss-api-progress { flex: 0 0 100%; }
   .ss-control-gap { display: none; }
@@ -323,6 +349,8 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
   .ss-visual svg { min-width: 0; }
   .ss-api-role-table { overflow: visible; }
   .ss-api-role-table table { min-width: 0; }
+  .ss-api-tokenizer-card { display: block !important; position: static !important; width: auto; max-height: none !important; overflow: visible; box-shadow: none; margin: 12px 0; }
+  .ss-api-tokenizer-fallback { display: none; }
   .ss-experiment { box-shadow: none; }
   .ss-reference-body, .story-page .machine-panel { background: #fff; color: #172936; }
 }
@@ -376,17 +404,29 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
 <text class="ss-svg-muted" x="1128" y="82">IPC BOUNDARY</text><text class="ss-svg-muted" x="1128" y="348">worker offstage</text><text class="ss-svg-muted" x="1128" y="411" data-api-worker>connected · not pulling yet</text>
 <path class="ss-return" data-component="ipc" d="M1128 324 V370 H271 V296" marker-end="url(#ss-api-arrow)"/><text class="ss-svg-muted" x="780" y="389">response IPC → resume task → SSE / TCP</text>
 <path class="ss-wire" d="M510 296 V396 M536 396 V296" marker-end="url(#ss-api-arrow)"/>
-<g data-component="tokenizer" data-api-component="tokenizer"><rect class="ss-component-box" x="406" y="396" width="234" height="81" rx="8"/><text class="ss-node-label" x="523" y="417">Tokenizer executor</text><text class="ss-svg-muted" x="523" y="436">CPU threads · same process</text><rect class="ss-api-thread-lane" x="416" y="444" width="102" height="29" rx="5"/><rect class="ss-api-thread-lane" x="528" y="444" width="102" height="29" rx="5"/><g class="ss-api-thread-badge" data-api-thread="T2" transform="translate(436 459)" role="img" aria-label="T2: Example tokenizer executor thread; assignment and pool size are illustrative"><title>T2: Example tokenizer executor thread; assignment and pool size are illustrative</title><rect x="-14" y="-10" width="28" height="20" rx="4"/><text y="4">T2</text></g><g class="ss-api-thread-badge" data-api-thread="T3" transform="translate(548 459)" role="img" aria-label="T3: Example tokenizer executor thread; assignment and pool size are illustrative"><title>T3: Example tokenizer executor thread; assignment and pool size are illustrative</title><rect x="-14" y="-10" width="28" height="20" rx="4"/><text y="4">T3</text></g></g>
+<g data-component="tokenizer" data-api-component="tokenizer" data-api-tokenizer-trigger role="group" tabindex="0" aria-label="Tokenizer executor. Hover or focus for a color-coded explanation." aria-describedby="ss-api-tokenizer-card" aria-expanded="false"><rect class="ss-component-box" x="406" y="396" width="234" height="81" rx="8"/><text class="ss-node-label" x="523" y="417">Tokenizer executor</text><text class="ss-svg-muted" x="523" y="436">CPU threads · same process</text><rect class="ss-api-thread-lane" x="416" y="444" width="102" height="29" rx="5"/><rect class="ss-api-thread-lane" x="528" y="444" width="102" height="29" rx="5"/><g class="ss-api-thread-badge" data-api-thread="T2" transform="translate(436 459)" role="img" aria-label="T2: Example tokenizer executor thread; assignment and pool size are illustrative"><title>T2: Example tokenizer executor thread; assignment and pool size are illustrative</title><rect x="-14" y="-10" width="28" height="20" rx="4"/><text y="4">T2</text></g><g class="ss-api-thread-badge" data-api-thread="T3" transform="translate(548 459)" role="img" aria-label="T3: Example tokenizer executor thread; assignment and pool size are illustrative"><title>T3: Example tokenizer executor thread; assignment and pool size are illustrative</title><rect x="-14" y="-10" width="28" height="20" rx="4"/><text y="4">T3</text></g></g>
 <text class="ss-svg-muted" x="523" y="496">CPU job → T2 / T3 · result → T1</text>
 <text class="ss-node-label" x="271" y="418">When a task awaits…</text><text class="ss-svg-muted" x="271" y="440">the loop can run another ready task.</text><text class="ss-svg-muted" x="802" y="440">The lock ends after send.</text><text class="ss-svg-muted" x="802" y="460">It does not cover generation.</text>
 <text class="ss-svg-muted" x="53" y="397">output</text><text class="ss-svg-muted" x="53" y="473">429</text>
 <g data-api-dots aria-hidden="true"><g class="ss-request-dot ss-api-request" data-api-request="R1" transform="translate(53 219)"><rect x="-21" y="-12" width="42" height="24" rx="12" fill="#edf0e2" stroke="#778662"/><text y="4" fill="#414f33">R1</text></g><g class="ss-request-dot ss-api-request" data-api-request="R2" transform="translate(53 261)"><rect x="-21" y="-12" width="42" height="24" rx="12" fill="#edf0e2" stroke="#778662"/><text y="4" fill="#414f33">R2</text></g></g>
 </svg></div>
+<aside class="ss-api-tokenizer-card" id="ss-api-tokenizer-card" role="tooltip" aria-label="Tokenizer executor explanation" hidden><p class="ss-api-tokenizer-card-title">Tokenizer executor · API process</p><p class="ss-api-tokenizer-tip ss-api-tip-lanes"><b>T2 / T3 · EXAMPLE LANES</b><span>These are teaching lanes: two jobs such as R1 and R2 can tokenize at once. MAX does not set the tokenizer pool to exactly two threads here.</span></p>
+<p class="ss-api-tokenizer-tip ss-api-tip-submit"><b>SUBMIT · FROM T1</b><span>T1 submits synchronous tokenization with <code>run_in_executor(None, ...)</code> and awaits it. <code>None</code> selects the event loop's default thread pool.</span></p>
+<p class="ss-api-tokenizer-tip ss-api-tip-wait"><b>AWAIT · THE LOOP STAYS AVAILABLE</b><span>The request task pauses. A pool worker tokenizes while T1 runs other ready async tasks and handles I/O.</span></p>
+<p class="ss-api-tokenizer-tip ss-api-tip-return"><b>RETURN · RESUME ON T1</b><span>When tokenization ends, its result resumes the waiting coroutine on T1. Requests can use any available worker.</span></p>
+<p class="ss-api-tokenizer-tip ss-api-tip-pool"><b>POOL · REUSE AND REAL SIZING</b><span>Workers are created as needed and reused; the maximum depends on Python and CPU count. Python 3.13: <code>min(32, (process_cpu_count() or 1) + 4)</code>. With 8 CPUs, that is at most 12 workers.</span></p>
+<p class="ss-api-tokenizer-tip ss-api-tip-throughput"><b>THROUGHPUT · NOT A 2× PROMISE</b><span>Two workers let separate jobs overlap, but do not guarantee twice the CPU throughput.</span></p></aside>
 <div class="ss-controls" data-api-controls hidden><button class="ss-play" data-api-action="play" aria-pressed="false">▶ Play</button><button data-api-action="step">Step</button><button data-api-action="reset">↺ Reset</button><span class="ss-control-gap"></span><span class="ss-api-progress" data-api-progress>Ready · event 0</span></div>
 <div class="ss-api-requests" aria-label="Request states"><span><b>R1</b> <span data-api-state="R1">at client</span></span><span><b>R2</b> <span data-api-state="R2">at client</span></span></div>
 <p class="ss-event" data-current-event role="status" aria-live="polite">Ready. Press Play or Step. The worker is connected, but is not pulling requests yet.</p>
 <details class="ss-transcript ss-api-transcript"><summary>Why each role exists · missing-role outcomes · source and portable flow</summary>
 <p><b>SOURCE</b> The normal path follows the pinned Python control flow. <b>BOUNDARY</b> Removing or replacing a component is a thought experiment, not a MAX configuration switch. The no-lock scene shows one possible interleaving; it does not claim a measured race or queue overflow. Real ZeroMQ high-water marks are approximate.</p>
+<details class="ss-api-tokenizer-fallback"><summary>Tokenizer executor · color-coded explanation in text</summary><p class="ss-api-tokenizer-tip ss-api-tip-lanes"><b>T2 / T3 · EXAMPLE LANES</b><span>These are teaching lanes: two jobs such as R1 and R2 can tokenize at once. MAX does not set the tokenizer pool to exactly two threads here.</span></p>
+<p class="ss-api-tokenizer-tip ss-api-tip-submit"><b>SUBMIT · FROM T1</b><span>T1 submits synchronous tokenization with <code>run_in_executor(None, ...)</code> and awaits it. <code>None</code> selects the event loop's default thread pool.</span></p>
+<p class="ss-api-tokenizer-tip ss-api-tip-wait"><b>AWAIT · THE LOOP STAYS AVAILABLE</b><span>The request task pauses. A pool worker tokenizes while T1 runs other ready async tasks and handles I/O.</span></p>
+<p class="ss-api-tokenizer-tip ss-api-tip-return"><b>RETURN · RESUME ON T1</b><span>When tokenization ends, its result resumes the waiting coroutine on T1. Requests can use any available worker.</span></p>
+<p class="ss-api-tokenizer-tip ss-api-tip-pool"><b>POOL · REUSE AND REAL SIZING</b><span>Workers are created as needed and reused; the maximum depends on Python and CPU count. Python 3.13: <code>min(32, (process_cpu_count() or 1) + 4)</code>. With 8 CPUs, that is at most 12 workers.</span></p>
+<p class="ss-api-tokenizer-tip ss-api-tip-throughput"><b>THROUGHPUT · NOT A 2× PROMISE</b><span>Two workers let separate jobs overlap, but do not guarantee twice the CPU throughput.</span></p></details>
 <div class="ss-api-role-table" tabindex="0" aria-label="API roles and missing-role outcomes"><table><thead><tr><th>Role</th><th>Why it exists</th><th>If absent, with no replacement</th><th>Source</th></tr></thead><tbody><tr><th scope="row">Uvicorn / Server</th><td>Turns HTTP traffic into ASGI calls and writes the response to the connection.</td><td>Without an HTTP/ASGI server, this configuration has no HTTP service to accept requests.</td><td><a data-ref="server" href="../sources/max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L134">Server(config) <small>[SERVE:L134]</small></a></td></tr><tr><th scope="row">FastAPI app</th><td>Provides MAX routes, request validation and the handlers that call the pipeline.</td><td>Without an ASGI app, the configured MAX service cannot be assembled; its routes and handlers are unavailable.</td><td><a data-ref="app" href="../sources/max/python/max/serve/api_server.py#L346">fastapi_app(settings, pipeline_settings) <small>[API:L346]</small></a></td></tr><tr><th scope="row">uvloop event loop</th><td>Runs ready callbacks and request coroutines on the API loop thread; resumes them when awaited work is ready.</td><td>Without a running event loop, async startup, request handling and response delivery cannot progress.</td><td><a data-ref="eventloop" href="../sources/max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L176">uvloop.run(serve()) <small>[SERVE:L176]</small></a></td></tr><tr><th scope="row">Admission asyncio.Lock</th><td>Lets one coroutine at a time check channel writability and send its request context.</td><td>Without this guard, two probes can observe the same space. A later send can face backpressure, losing the immediate-rejection guarantee.</td><td><a data-ref="proxy_submit" href="../sources/max/python/max/serve/worker_interface/zmq_interface.py#L105">ZmqModelWorkerProxy.stream() <small>[ZMQ:L105]</small></a></td></tr></tbody></table></div>
 <p><b>Implementations can be replaced.</b> Another HTTP/ASGI server or ASGI app can fill the first two roles if integrated appropriately. A compatible asyncio loop can replace uvloop with the needed startup/configuration changes. This checkout explicitly calls <code>uvloop.run(serve())</code> and selects <code>loop="uvloop"</code>; uninstalling uvloop alone does not enable a fallback. <a data-ref="http" href="../sources/max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L147">await server.serve(sockets=sockets) <small>[SERVE:L147]</small></a> · <a data-ref="uvicorn_cfg" href="../sources/max/python/max/serve/api_server.py#L482">fastapi_config(app, server_settings=settings) <small>[API:L482]</small></a></p>
 <p>Request connectivity is established before HTTP serving: <a data-ref="connected" href="../sources/max/python/max/serve/worker_interface/zmq_interface.py#L87">ZmqModelWorkerProxy.wait_until_connected() <small>[ZMQ:L87]</small></a>. Returned worker output wakes the API response path: <a data-ref="proxy_responses" href="../sources/max/python/max/serve/worker_interface/zmq_interface.py#L247">ZmqModelWorkerProxy.response_worker() <small>[ZMQ:L247]</small></a> · <a data-ref="proxy_drain" href="../sources/max/python/max/serve/worker_interface/zmq_interface.py#L167">ZmqModelWorkerProxy._drain_responses() <small>[ZMQ:L167]</small></a> · <a data-ref="first_chunk" href="../sources/max/python/max/serve/router/openai_routes.py#L189">_start_stream() <small>[OPENAI:L189]</small></a>.</p>
@@ -4192,6 +4232,84 @@ GPU KV logical token -> request page table -> retained VRAM page</pre>
       return moving;
     }
   }
+  class ApiTokenizerTip {
+    constructor(node) {
+      this.trigger = node.querySelector("[data-api-tokenizer-trigger]");
+      this.card = node.querySelector("#ss-api-tokenizer-card");
+      this.mode = null;
+      this.timer = null;
+      this.card.hidden = true;
+      // Keep the hover card outside the horizontally scrolling SVG viewport.
+      document.body.append(this.card);
+      this.trigger.addEventListener("pointerenter", event => {
+        if (event.pointerType !== "touch") this.open("pointer");
+      });
+      this.trigger.addEventListener("pointerleave", () => this.deferClose());
+      this.card.addEventListener("pointerenter", () => clearTimeout(this.timer));
+      this.card.addEventListener("pointerleave", () => this.deferClose());
+      this.trigger.addEventListener("focus", () => this.open("keyboard"));
+      this.trigger.addEventListener("blur", () => this.deferClose());
+      this.trigger.addEventListener("pointerdown", event => {
+        if (event.pointerType !== "touch") return;
+        event.preventDefault();
+        if (this.mode === "touch") this.close();
+        else this.open("touch");
+      });
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && this.mode && !document.querySelector("#source-dialog[open]")) {
+          event.preventDefault();
+          this.close();
+        }
+      });
+      document.addEventListener("pointerdown", event => {
+        if (this.mode === "touch" && !this.trigger.contains(event.target) && !this.card.contains(event.target)) this.close();
+      });
+      document.addEventListener("scroll", () => {
+        if (!this.mode) return;
+        if (this.mode === "pointer" && !this.trigger.matches(":hover") && !this.card.matches(":hover")) this.close();
+        else this.position();
+      }, {capture:true, passive:true});
+      window.addEventListener("resize", () => this.position());
+    }
+    open(mode) {
+      clearTimeout(this.timer);
+      this.mode = mode;
+      this.card.hidden = false;
+      this.trigger.setAttribute("aria-expanded", "true");
+      this.position();
+    }
+    deferClose() {
+      clearTimeout(this.timer);
+      this.timer = setTimeout(() => {
+        if (this.mode === "pointer" && !this.trigger.matches(":hover") && !this.card.matches(":hover")) this.close();
+        if (this.mode === "keyboard" && document.activeElement !== this.trigger) this.close();
+      }, 140);
+    }
+    close() {
+      clearTimeout(this.timer);
+      this.card.hidden = true;
+      this.card.style.visibility = "";
+      this.mode = null;
+      this.trigger.setAttribute("aria-expanded", "false");
+    }
+    position() {
+      if (!this.mode) return;
+      const anchor = this.trigger.getBoundingClientRect();
+      const pad = 12, gap = 9;
+      const header = document.querySelector(".topbar");
+      const menu = document.querySelector(".ss-menu");
+      const safeTop = Math.max(pad, (header?.getBoundingClientRect().bottom || 0) + 8, (menu?.getBoundingClientRect().bottom || 0) + 8);
+      const below = innerHeight - anchor.bottom - pad;
+      const above = anchor.top - safeTop - pad;
+      this.card.style.visibility = "hidden";
+      this.card.style.maxHeight = Math.max(110, innerHeight - safeTop - pad) + "px";
+      const card = this.card.getBoundingClientRect();
+      const down = below >= card.height || below >= above;
+      this.card.style.left = Math.max(pad, Math.min(innerWidth - card.width - pad, anchor.left)) + "px";
+      this.card.style.top = Math.max(safeTop, Math.min(innerHeight - card.height - pad, down ? anchor.bottom + gap : anchor.top - card.height - gap)) + "px";
+      this.card.style.visibility = "";
+    }
+  }
   class ApiStory {
     constructor(node) {
       this.node = node;
@@ -4200,6 +4318,7 @@ GPU KV logical token -> request page table -> retained VRAM page</pre>
       this.playing = false;
       this.nextAt = 0;
       this.dots = new Map();
+      this.tokenizerTip = new ApiTokenizerTip(node);
       node.querySelectorAll("[data-api-controls]").forEach(el => el.hidden = false);
       node.addEventListener("click", e => {
         const mode = e.target.closest("[data-api-mode]");

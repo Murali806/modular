@@ -43,6 +43,13 @@ Only the CPU tokenization jobs go to T2/T3; request tasks resume on T1.
 Thread IDs and executor assignments are illustrative; pool sizing/reuse vary.
 The admission lock is released before waiting for model output."""
 
+TOKENIZER_TOOLTIP = '''<p class="ss-api-tokenizer-tip ss-api-tip-lanes"><b>T2 / T3 · EXAMPLE LANES</b><span>These are teaching lanes: two jobs such as R1 and R2 can tokenize at once. MAX does not set the tokenizer pool to exactly two threads here.</span></p>
+<p class="ss-api-tokenizer-tip ss-api-tip-submit"><b>SUBMIT · FROM T1</b><span>T1 submits synchronous tokenization with <code>run_in_executor(None, ...)</code> and awaits it. <code>None</code> selects the event loop's default thread pool.</span></p>
+<p class="ss-api-tokenizer-tip ss-api-tip-wait"><b>AWAIT · THE LOOP STAYS AVAILABLE</b><span>The request task pauses. A pool worker tokenizes while T1 runs other ready async tasks and handles I/O.</span></p>
+<p class="ss-api-tokenizer-tip ss-api-tip-return"><b>RETURN · RESUME ON T1</b><span>When tokenization ends, its result resumes the waiting coroutine on T1. Requests can use any available worker.</span></p>
+<p class="ss-api-tokenizer-tip ss-api-tip-pool"><b>POOL · REUSE AND REAL SIZING</b><span>Workers are created as needed and reused; the maximum depends on Python and CPU count. Python 3.13: <code>min(32, (process_cpu_count() or 1) + 4)</code>. With 8 CPUs, that is at most 12 workers.</span></p>
+<p class="ss-api-tokenizer-tip ss-api-tip-throughput"><b>THROUGHPUT · NOT A 2× PROMISE</b><span>Two workers let separate jobs overlap, but do not guarantee twice the CPU throughput.</span></p>'''
+
 
 def thread_badge(thread, x, y):
     description = ("Shared API loop thread: Uvicorn, FastAPI and admission"
@@ -67,7 +74,7 @@ def api_svg():
 <text class="ss-svg-muted" x="1128" y="82">IPC BOUNDARY</text><text class="ss-svg-muted" x="1128" y="348">worker offstage</text><text class="ss-svg-muted" x="1128" y="411" data-api-worker>connected · not pulling yet</text>
 <path class="ss-return" data-component="ipc" d="M1128 324 V370 H271 V296" marker-end="url(#ss-api-arrow)"/><text class="ss-svg-muted" x="780" y="389">response IPC → resume task → SSE / TCP</text>
 <path class="ss-wire" d="M510 296 V396 M536 396 V296" marker-end="url(#ss-api-arrow)"/>
-<g data-component="tokenizer" data-api-component="tokenizer"><rect class="ss-component-box" x="406" y="396" width="234" height="81" rx="8"/><text class="ss-node-label" x="523" y="417">Tokenizer executor</text><text class="ss-svg-muted" x="523" y="436">CPU threads · same process</text><rect class="ss-api-thread-lane" x="416" y="444" width="102" height="29" rx="5"/><rect class="ss-api-thread-lane" x="528" y="444" width="102" height="29" rx="5"/>{thread_badge('T2', 436, 459)}{thread_badge('T3', 548, 459)}</g>
+<g data-component="tokenizer" data-api-component="tokenizer" data-api-tokenizer-trigger role="group" tabindex="0" aria-label="Tokenizer executor. Hover or focus for a color-coded explanation." aria-describedby="ss-api-tokenizer-card" aria-expanded="false"><rect class="ss-component-box" x="406" y="396" width="234" height="81" rx="8"/><text class="ss-node-label" x="523" y="417">Tokenizer executor</text><text class="ss-svg-muted" x="523" y="436">CPU threads · same process</text><rect class="ss-api-thread-lane" x="416" y="444" width="102" height="29" rx="5"/><rect class="ss-api-thread-lane" x="528" y="444" width="102" height="29" rx="5"/>{thread_badge('T2', 436, 459)}{thread_badge('T3', 548, 459)}</g>
 <text class="ss-svg-muted" x="523" y="496">CPU job → T2 / T3 · result → T1</text>
 <text class="ss-node-label" x="271" y="418">When a task awaits…</text><text class="ss-svg-muted" x="271" y="440">the loop can run another ready task.</text><text class="ss-svg-muted" x="802" y="440">The lock ends after send.</text><text class="ss-svg-muted" x="802" y="460">It does not cover generation.</text>
 <text class="ss-svg-muted" x="53" y="397">output</text><text class="ss-svg-muted" x="53" y="473">429</text>
@@ -96,11 +103,13 @@ def render_api_intro():
 <p class="ss-api-purpose" data-api-purpose>All roles present. Follow two requests sharing one event-loop thread.</p>
 <p class="ss-pan-hint">Scroll sideways to follow HTTP → app → admission → IPC</p>
 <div class="ss-visual" tabindex="0" aria-label="API-process diagram; scroll horizontally on a narrow screen">''' + api_svg() + '''</div>
+<aside class="ss-api-tokenizer-card" id="ss-api-tokenizer-card" role="tooltip" aria-label="Tokenizer executor explanation" hidden><p class="ss-api-tokenizer-card-title">Tokenizer executor · API process</p>''' + TOKENIZER_TOOLTIP + '''</aside>
 <div class="ss-controls" data-api-controls hidden><button class="ss-play" data-api-action="play" aria-pressed="false">▶ Play</button><button data-api-action="step">Step</button><button data-api-action="reset">↺ Reset</button><span class="ss-control-gap"></span><span class="ss-api-progress" data-api-progress>Ready · event 0</span></div>
 <div class="ss-api-requests" aria-label="Request states"><span><b>R1</b> <span data-api-state="R1">at client</span></span><span><b>R2</b> <span data-api-state="R2">at client</span></span></div>
 <p class="ss-event" data-current-event role="status" aria-live="polite">Ready. Press Play or Step. The worker is connected, but is not pulling requests yet.</p>
 <details class="ss-transcript ss-api-transcript"><summary>Why each role exists · missing-role outcomes · source and portable flow</summary>
 <p><b>SOURCE</b> The normal path follows the pinned Python control flow. <b>BOUNDARY</b> Removing or replacing a component is a thought experiment, not a MAX configuration switch. The no-lock scene shows one possible interleaving; it does not claim a measured race or queue overflow. Real ZeroMQ high-water marks are approximate.</p>
+<details class="ss-api-tokenizer-fallback"><summary>Tokenizer executor · color-coded explanation in text</summary>''' + TOKENIZER_TOOLTIP + '''</details>
 <div class="ss-api-role-table" tabindex="0" aria-label="API roles and missing-role outcomes"><table><thead><tr><th>Role</th><th>Why it exists</th><th>If absent, with no replacement</th><th>Source</th></tr></thead><tbody>''' + rows + '''</tbody></table></div>
 <p><b>Implementations can be replaced.</b> Another HTTP/ASGI server or ASGI app can fill the first two roles if integrated appropriately. A compatible asyncio loop can replace uvloop with the needed startup/configuration changes. This checkout explicitly calls <code>uvloop.run(serve())</code> and selects <code>loop="uvloop"</code>; uninstalling uvloop alone does not enable a fallback. {{ref:http}} · {{ref:uvicorn_cfg}}</p>
 <p>Request connectivity is established before HTTP serving: {{ref:connected}}. Returned worker output wakes the API response path: {{ref:proxy_responses}} · {{ref:proxy_drain}} · {{ref:first_chunk}}.</p>
@@ -112,7 +121,7 @@ def render_api_intro():
 def api_intro_markdown():
     return [
         '### 01 · Inside the API process',
-        'The first animation isolates the API process. Play, Step or Reset two requests sharing one event-loop thread and one illustrative IPC slot. Choose All present, No Uvicorn, No FastAPI, No event loop, No admission lock, or Use asyncio loop. Hover/focus/tap 01 for its lesson; the existing L legend explains ownership.',
+        'The first animation isolates the API process. Play, Step or Reset two requests sharing one event-loop thread and one illustrative IPC slot. Choose All present, No Uvicorn, No FastAPI, No event loop, No admission lock, or Use asyncio loop. Hover/focus/tap 01 for its lesson; hover or focus Tokenizer executor for a color-coded explanation of the default pool, T1 handoff and illustrative thread count. Its changing loop-status line is larger and bold; the existing L legend explains ownership.',
         'Thread badges appear only in this opening animation: T1 is repeated on uvloop, Uvicorn, FastAPI and admission to show their shared API loop thread. T2/T3 identify example executor threads running CPU tokenization jobs; the async request tasks resume on T1. R1/R2 continue to identify requests. Thread IDs and executor assignments are illustrative; real pool sizing and reuse vary.',
         '\n'.join(['| Role | Why it exists | If absent, with no replacement |', '| --- | --- | --- |'] +
                   [f'| {name} | {why} | {missing} |' for name, why, missing, _ in API_ROLES]),

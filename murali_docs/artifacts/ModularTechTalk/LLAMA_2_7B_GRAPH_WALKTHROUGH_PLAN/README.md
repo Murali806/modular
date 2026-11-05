@@ -106,6 +106,9 @@ all twelve references and explains where each method is applied.
   Compact **T1** badges show the shared API loop thread; **T2/T3** label example
   tokenizer executor lanes. These thread labels appear only in lesson 01.
   **R1/R2** still identify requests; thread IDs and pool assignments are illustrative.
+  Hover or focus **Tokenizer executor** for a color-coded text card explaining
+  the default executor, the T1 handoff, thread reuse and actual pool sizing.
+  The changing loop-status line is slightly larger and bold for readability.
 - Lesson **02** zooms into the separate model-worker process: request IPC,
   CE/TG request sets, batch construction, KV ownership, model execution and
   results keyed by request ID. **Two requests**, **GPU busy**, **KV pressure**

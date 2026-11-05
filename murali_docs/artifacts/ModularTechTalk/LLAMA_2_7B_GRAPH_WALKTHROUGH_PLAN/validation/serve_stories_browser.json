@@ -1,8 +1,9 @@
 {
   "result": "PASS",
-  "checked_at": "2026-11-05T07:08:04.536Z",
+  "checked_at": "2026-11-05T12:37:45.570Z",
   "browser": "156.0.8078.4",
   "checks": [
+    "Tokenizer executor color card opens on hover/focus, remains readable while hovered and hides after leaving; API loop status is larger and bold",
     "API introduction on components: keyboard controls, normal stream/429, three absent-role stops, no-lock backpressure, replacement loop, reset and pinned-source links",
     "Full-width api animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
     "Worker close-up on components: second lesson, keyboard controls, partial prefill, result maps, busy-pass membership, KV waiting/reuse, idle backoff, reset and source links",
@@ -11,6 +12,7 @@
     "API and worker opening lessons plus four request lessons, three preserved machines, no autoplay and keyboard stepping to completion",
     "Burst fills M then visible N slots; 429 selects the rejected request; N=6 redraws six slots; occupancy follows admission, drain and reset",
     "Later batch admission, selected-request lifecycle link and exact-source explorer",
+    "Tokenizer executor color card opens on hover/focus, remains readable while hovered and hides after leaving; API loop status is larger and bold",
     "API introduction on systems: keyboard controls, normal stream/429, three absent-role stops, no-lock backpressure, replacement loop, reset and pinned-source links",
     "Worker close-up on systems: second lesson, keyboard controls, partial prefill, result maps, busy-pass membership, KV waiting/reuse, idle backoff, reset and source links",
     "Full-width clocks animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
@@ -24,6 +26,12 @@
     {
       "label": "Request stories: initial page",
       "samples": 689,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Tokenizer executor hover card components",
+      "samples": 705,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
@@ -126,6 +134,12 @@
     {
       "label": "Systems stories: initial page",
       "samples": 467,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Tokenizer executor hover card systems",
+      "samples": 483,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
