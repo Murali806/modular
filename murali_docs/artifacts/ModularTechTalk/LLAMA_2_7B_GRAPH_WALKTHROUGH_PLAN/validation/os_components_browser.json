@@ -1,6 +1,6 @@
 {
   "result": "PASS",
-  "checked_at": "2026-11-04T18:43:25.858Z",
+  "checked_at": "2026-11-05T01:39:02.509Z",
   "browser": "156.0.8078.4",
   "command": "NODE_PATH=/tmp/max-os-playwright/node_modules node src/check_os_components_browser.cjs",
   "checks": [
@@ -9,7 +9,7 @@
     "keyboard card entry, Tab/Escape and source-dialog focus return",
     "all 26 owner/interaction/state-change cards and readiness before HTTP serving",
     "all 8 legal state paths, 19 state meanings, failure/cancellation and decode transitions",
-    "all 32 exact source targets, full-file fidelity, complete copying and search",
+    "all exact source targets, full-file fidelity, complete copying and search",
     "print expands complete explanations and restores disclosure state",
     "390/320 touch cards, source view, state controls and bounded document layout",
     "no-JavaScript role explanations and portable sequence/state fallback",
@@ -20,108 +20,108 @@
   "flow_steps": 26,
   "state_paths": 8,
   "state_cards": 19,
-  "source_targets": 32,
+  "source_targets": 37,
   "contrast": [
     {
       "state": "Initial focused page",
-      "samples": 358,
-      "minimum_text_ratio": 6.29,
+      "samples": 477,
+      "minimum_text_ratio": 5.311,
       "failures": []
     },
     {
       "state": "startup selected step and roles",
-      "samples": 381,
-      "minimum_text_ratio": 6.29,
+      "samples": 702,
+      "minimum_text_ratio": 5.311,
       "failures": []
     },
     {
       "state": "request selected step and roles",
-      "samples": 459,
-      "minimum_text_ratio": 6.29,
+      "samples": 780,
+      "minimum_text_ratio": 5.311,
       "failures": []
     },
     {
       "state": "device selected step and roles",
-      "samples": 526,
-      "minimum_text_ratio": 6.29,
+      "samples": 847,
+      "minimum_text_ratio": 5.311,
       "failures": []
     },
     {
       "state": "server state machine and card",
-      "samples": 519,
-      "minimum_text_ratio": 6.29,
+      "samples": 840,
+      "minimum_text_ratio": 5.311,
       "failures": []
     },
     {
       "state": "request state machine and card",
-      "samples": 519,
-      "minimum_text_ratio": 6.29,
+      "samples": 840,
+      "minimum_text_ratio": 5.311,
       "failures": []
     },
     {
       "state": "thread state machine and card",
-      "samples": 522,
-      "minimum_text_ratio": 6.29,
+      "samples": 843,
+      "minimum_text_ratio": 5.311,
       "failures": []
     },
     {
       "state": "Exact source, selection and search",
-      "samples": 3435,
+      "samples": 3766,
       "minimum_text_ratio": 5.237,
       "failures": []
     },
     {
       "state": "Driver role card",
-      "samples": 589,
-      "minimum_text_ratio": 6.29,
+      "samples": 920,
+      "minimum_text_ratio": 5.311,
       "failures": []
     },
     {
       "state": "Printed roles, sequences and state meanings",
-      "samples": 1571,
-      "minimum_text_ratio": 7.977,
+      "samples": 1911,
+      "minimum_text_ratio": 5.311,
       "failures": []
     },
     {
       "state": "Touch driver card 390",
-      "samples": 442,
-      "minimum_text_ratio": 6.29,
+      "samples": 763,
+      "minimum_text_ratio": 5.311,
       "failures": []
     },
     {
       "state": "Touch source explorer 390",
-      "samples": 3287,
+      "samples": 3608,
       "minimum_text_ratio": 5.237,
       "failures": []
     },
     {
       "state": "Touch state machine 390",
-      "samples": 427,
-      "minimum_text_ratio": 6.29,
+      "samples": 748,
+      "minimum_text_ratio": 5.311,
       "failures": []
     },
     {
       "state": "Touch driver card 320",
-      "samples": 442,
-      "minimum_text_ratio": 6.29,
+      "samples": 763,
+      "minimum_text_ratio": 5.311,
       "failures": []
     },
     {
       "state": "Touch source explorer 320",
-      "samples": 3287,
+      "samples": 3608,
       "minimum_text_ratio": 5.237,
       "failures": []
     },
     {
       "state": "Touch state machine 320",
-      "samples": 427,
-      "minimum_text_ratio": 6.29,
+      "samples": 748,
+      "minimum_text_ratio": 5.311,
       "failures": []
     },
     {
       "state": "Animated event marker",
-      "samples": 361,
-      "minimum_text_ratio": 6.29,
+      "samples": 682,
+      "minimum_text_ratio": 5.311,
       "failures": []
     }
   ],

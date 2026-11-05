@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark light">
-<title>MAX Serve · Linux, GPU drivers and serving at scale</title>
+<meta name="color-scheme" content="light dark">
+<title>MAX Serve · Busy workers, slow readers and another replica</title>
 <style>:root{--bg:#161a1c;--panel:#202629;--raised:#293034;--inset:#191f22;--text:#edf3f5;--muted:#bac6cb;--line:#7b8a92;--green:#92e8be;--green-dark:#244a3c;--blue:#a3cefa;--amber:#f5d296;--red:#ffb0b6;--purple:#d8bdff;--radius:13px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark}
 *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:118px}body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;font-size:15px}button,input,select{font:inherit;color:inherit}button,input,select{background:var(--raised);border:1px solid var(--line);border-radius:7px}button{cursor:pointer;padding:.5em .8em;line-height:1.4}button:hover{background:#364147}button:disabled{cursor:default;opacity:.55}input,select{padding:.4em .55em;min-width:0}a{color:var(--blue);text-underline-offset:3px}a:hover{color:#d2e8ff}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--green);outline-offset:3px}[hidden]{display:none!important}code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace}code{font-size:.9em;color:#dbe9ee}p{margin:.6em 0 1em}h1,h2,h3,h4{line-height:1.22;margin:0 0 .6em}h2{font-size:clamp(23px,2.2vw,32px);letter-spacing:-.025em}h3{font-size:18px}h4{font-size:15px;margin-top:1.4em}small,.small-note{font-size:12px;color:var(--muted)}strong{font-weight:650}pre{margin:1em 0;overflow:auto;white-space:pre;tab-size:4;line-height:1.65;font-size:12px}summary{cursor:pointer;list-style-position:inside}summary:hover{color:var(--green)}details[open]>summary{margin-bottom:1em}details summary::marker{color:var(--green)}li{margin:.5em 0}main{max-width:1456px;margin:auto;padding:0 40px}section,details[id]{scroll-margin-top:120px}.page-section{margin:70px 0}.section-heading{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:18px}.section-intro{max-width:980px;color:var(--muted);margin-bottom:24px}.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.13em;font-weight:650;color:var(--green);margin:0 0 10px}.badge{display:inline-block;font-size:10px;line-height:1.5;letter-spacing:.06em;border:1px solid var(--line);color:var(--muted);padding:3px 8px;border-radius:5px;white-space:nowrap;font-weight:650}.example-badge{color:var(--amber);border-color:#baa070}.notice{border-left:3px solid var(--amber);background:var(--panel);padding:20px}.topbar{position:sticky;top:0;z-index:20;background:#1b2124;border-bottom:1px solid #58666d;display:flex;justify-content:space-between;align-items:center;padding:13px 28px;gap:16px}.brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--text);font-size:12px;font-weight:650;letter-spacing:.09em}.brand-mark{display:grid;place-items:center;width:28px;height:28px;border:1px solid var(--green);border-radius:7px;color:var(--green);font-size:17px}.top-actions{display:flex;gap:16px;align-items:center;font-size:12px}.section-nav{display:flex;gap:23px;max-width:1456px;margin:0 auto;padding:18px 40px;border-bottom:1px solid #58666d;overflow:auto;white-space:nowrap;font-size:12px}.section-nav a{color:var(--muted);text-decoration:none}.section-nav a:hover{color:var(--green)}.skip-link{position:fixed;top:-80px;left:12px;z-index:90;background:var(--green-dark);padding:12px}.skip-link:focus{top:12px}.hero{display:grid;grid-template-columns:1.2fr 1fr;gap:7%;align-items:center;padding:60px 0 30px}h1{font-size:clamp(44px,5.3vw,76px);letter-spacing:-.055em;line-height:1.04;margin:16px 0 24px}.hero-lead{font-size:17px;max-width:600px;color:var(--muted)}.hero-actions{display:flex;gap:22px;align-items:center;margin-top:28px;font-size:13px;flex-wrap:wrap}.primary-link{padding:12px 16px;background:var(--green-dark);border:1px solid var(--green);border-radius:8px;color:var(--green);text-decoration:none}.hero-panel{border:1px solid #63747d;border-radius:var(--radius);background:var(--panel);padding:34px}.hero-numbers{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:5px 0 24px}.hero-numbers strong{font-size:clamp(36px,3vw,52px);letter-spacing:-.05em;color:var(--green);display:block;line-height:1.2}.hero-numbers span{font-size:12px;color:var(--muted)}.hero-panel>p{font-size:14px;color:var(--muted)}.mini-flow{display:flex;align-items:center;gap:10px;margin:25px 0;font-size:10px;letter-spacing:.03em}.mini-flow span{padding:7px 8px;background:var(--inset);border:1px solid #65777f;border-radius:5px}.mini-flow i{font-style:normal;color:var(--green)}.evidence-strip{display:flex;gap:20px;flex-wrap:wrap;border-top:1px solid #58666d;border-bottom:1px solid #58666d;padding:18px 0;font-size:12px;color:var(--muted)}.evidence-strip>span{display:flex;gap:8px;align-items:center}
 .ownership-map{border:1px solid #63747d;border-radius:var(--radius);padding:18px;background:var(--inset)}.map-lane{background:var(--panel);border:1px solid #63747d;border-radius:8px;margin:10px 0;padding:15px 18px}.lane-title{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:12px}.map-row{display:flex;gap:14px;align-items:center}.map-row button{flex:1;text-align:left;padding:14px 16px;background:var(--raised)}.map-row button strong{display:block;font-size:15px}.map-row button small{display:block;margin-top:4px}.map-arrow{flex:0 0 auto;font-size:12px;color:var(--green);text-align:center}.map-boundary{display:flex;justify-content:space-around;font-size:11px;color:var(--amber)}.map-caption{color:var(--muted);font-size:12px;margin:15px 0 25px}.scheduler-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.scheduler-grid button{text-align:left;padding:20px;background:var(--panel)}.scheduler-grid .eyebrow{display:block;font-size:10px;line-height:1.6}.scheduler-grid strong{display:block;margin:10px 0;font-size:16px}.scheduler-grid small{display:block;line-height:1.6}.text-fallback{margin-top:16px;font-size:12px;color:var(--muted)}.text-fallback pre,.flow-pre{background:var(--inset);border:1px solid #63747d;padding:18px;border-radius:8px;color:var(--text)}
@@ -27,16 +27,287 @@ dialog{background:#20282d;color:var(--text);border:1px solid #95a8b5;border-radi
 body{overflow-wrap:anywhere}
 input::placeholder{color:var(--muted);opacity:1}
 @media(prefers-reduced-motion:reduce){.request-mover{transition:none}}
+
+/* Shared article template. The detailed source atlas retains its own palette. */
+body.story-page { background: #f6f5f0; color: #26372f; font-size: 16px; line-height: 1.7; color-scheme: light; }
+.story-page .topbar { position: relative; background: #f6f5f0; border-bottom: 1px solid #d6dcd5; padding: 22px max(24px, calc((100vw - 1300px) / 2)); }
+.story-page .brand { color: #223c30; letter-spacing: .06em; font-size: 12px; }
+.story-page .brand-mark { border: 0; background: #234d3d; color: #f9faf3; border-radius: 50%; width: 31px; height: 31px; font-size: 16px; }
+.story-page .topbar a { color: #254e3b; }
+.story-page .topbar button { background: transparent; color: #33483c; border-color: #70826d; }
+.story-page .section-nav { position: sticky; z-index: 21; top: 0; background: #f6f5f0f5; backdrop-filter: blur(10px); max-width: none; padding: 13px max(24px, calc((100vw - 1300px) / 2)); border-bottom: 1px solid #d6dcd5; gap: 27px; }
+.story-page .section-nav a { color: #486050; font-size: 12px; }
+.story-page .section-nav a:hover { color: #0c5338; }
+.story-page main { max-width: 1372px; padding: 0 36px; }
+.ss-hero { padding: 72px 0 46px; max-width: 930px; }
+.ss-kicker { display: flex; align-items: center; gap: 12px; color: #486c57; font: 600 11px/1.5 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
+.ss-kicker span { display: inline-grid; place-items: center; border: 1px solid #789783; border-radius: 50%; width: 28px; height: 28px; flex: 0 0 28px; }
+.ss-hero h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(46px, 5.8vw, 80px); letter-spacing: -.055em; font-weight: 400; line-height: 1.06; color: #20382b; max-width: 880px; }
+.ss-hero h1 em { color: #3a7053; font-style: italic; }
+.ss-hero > p:not(.ss-kicker) { max-width: 720px; font-size: 19px; color: #536356; line-height: 1.65; margin-top: 24px; }
+.ss-hero-links { display: flex; gap: 25px; align-items: center; flex-wrap: wrap; font-size: 13px; margin-top: 26px; }
+.ss-hero-links a { color: #27543b; }
+.ss-hero-links a:first-child { border-radius: 6px; padding: 12px 19px; background: #264e3b; color: #fff; text-decoration: none; }
+.ss-reading-key { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; padding: 20px 0 25px; border-bottom: 1px solid #bdc9bf; font-size: 12px; color: #4f6555; }
+.ss-reading-key span { display: flex; align-items: center; gap: 8px; }
+.ss-dot-key { width: 25px; height: 25px; border: 1px solid #5d8e72; border-radius: 50%; display: inline-grid; place-items: center; background: #d9eddd; font: 600 10px ui-monospace, monospace; color: #234e37; }
+.ss-token-key { width: 9px; height: 9px; border-radius: 2px; background: #376b4e; }
+.ss-story { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 35px; align-items: start; padding: 64px 0; border-bottom: 1px solid #c4cec5; scroll-margin-top: 72px; }
+.ss-prose { position: sticky; top: 85px; }
+.ss-prose h2 { font-family: Georgia, "Times New Roman", serif; font-size: 34px; line-height: 1.12; font-weight: 400; letter-spacing: -.035em; margin: 17px 0 22px; color: #263d2e; }
+.ss-prose p { font-size: 14px; color: #4c6052; line-height: 1.75; }
+.ss-prose .ss-kicker { font-size: 10px; color: #436e54; }
+.ss-prose .ss-try { border-left: 2px solid #64846b; padding: 1px 0 1px 15px; margin: 23px 0; color: #304d3a; font-size: 13px; }
+.ss-try strong { display: block; font: 600 10px/2 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
+.ss-evidence { font-size: 11px; color: #486650; margin-top: 18px; }
+.ss-evidence p { font-size: 11px; line-height: 1.9; }
+.ss-evidence a, .ss-evidence a small, .ss-contract a { color: #315c42; font-size: inherit; }
+.ss-evidence summary:hover, .ss-transcript summary:hover, .ss-contract summary:hover { color: #194b2f; }
+.ss-prose .ss-setting-note { font-size: 11px; padding: 12px; background: #e9eee2; border-radius: 5px; color: #40593f; }
+.ss-experiment { min-width: 0; background: #fcfcf8; border: 1px solid #bfcfc0; border-radius: 13px; overflow: hidden; box-shadow: 0 3px 0 #dfe5dc; }
+.ss-experiment-top { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #dfe5db; font: 10px/1.5 ui-monospace, monospace; color: #586a5c; }
+.ss-signal { display: inline-flex; align-items: center; gap: 7px; letter-spacing: .06em; color: #365c42; }
+.ss-signal i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #53795c; }
+.ss-visual { overflow-x: auto; overscroll-behavior-x: contain; background: #fcfcf8; }
+.ss-visual svg { display: block; width: 100%; min-width: 700px; font-family: ui-sans-serif, system-ui, sans-serif; }
+.ss-visual svg text { text-anchor: middle; }
+.ss-process { fill: #f0f4ec; stroke: #afc3b2; stroke-width: 1.2; }
+.ss-process-label { fill: #526b56; font-size: 11px; font-weight: 600; letter-spacing: .08em; }
+.ss-station > rect { fill: #fcfcf8; stroke: #a2b8a6; stroke-width: 1.2; }
+.ss-node-label { fill: #324d3b; font-size: 12px; font-weight: 600; }
+.ss-svg-muted { fill: #526856; font-size: 11px; }
+.ss-count { fill: #304f3a; font: 600 13px ui-monospace, monospace; }
+.ss-wire, .ss-return { fill: none; stroke: #8ba090; stroke-width: 1.4; }
+.ss-return { stroke-dasharray: 3 5; }
+.ss-client { fill: #e5ede2; stroke: #819d87; stroke-width: 1.5; }
+.ss-client-icon { fill: none; stroke: #4a6951; stroke-width: 3; stroke-linecap: round; }
+.ss-gate path { fill: #daeedd; stroke: #5b8064; stroke-width: 1.5; }
+.ss-gate text { fill: #284f32; font-size: 15px; font-weight: 600; }
+.ss-gate[data-gate="closed"] path { fill: #f6dfd4; stroke: #b26d55; }
+.ss-gate[data-gate="closed"] text { fill: #8b3d24; }
+.ss-gpu rect { fill: #e5eddc; stroke: #7b9571; stroke-width: 1.5; }
+.ss-gpu[data-busy="true"] rect { fill: #d5e7c7; stroke: #517943; stroke-width: 2.5; }
+.ss-request-dot rect { stroke-width: 1.2; }
+.ss-request-dot { cursor: pointer; }
+.ss-request-dot text { font: 600 11px ui-monospace, monospace; pointer-events: none; }
+.ss-request-dot[data-selected="true"] > rect { stroke-width: 2.8; }
+.ss-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid #d9e1d5; background: #f4f6ef; }
+.ss-controls button, .ss-controls select { color: #344c3a; background: #fffefb; border: 1px solid #70866d; padding: 7px 11px; border-radius: 5px; font-size: 12px; min-height: 34px; }
+.ss-controls button:hover { background: #e5eddf; }
+.ss-controls .ss-play { color: #fff; background: #2f573b; border-color: #2f573b; min-width: 76px; }
+.ss-controls .ss-play:hover { background: #21482c; }
+.ss-controls .ss-send { border-color: #56775a; color: #2e5337; }
+.ss-control-gap { flex: 1; }
+.ss-option { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #4b6251; }
+.ss-option select { padding: 6px; font-size: 11px; }
+.ss-meters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 15px 18px; border-top: 1px solid #d9e1d5; gap: 10px; }
+.ss-meters span { display: flex; flex-direction: column; font: 10px/1.5 ui-monospace, monospace; color: #536755; }
+.ss-meters b { color: #294a31; font-size: 22px; font-weight: 500; }
+.ss-meters .ss-negative b { color: #934629; }
+.ss-phases { display: flex; flex-wrap: wrap; gap: 5px; padding: 10px 17px; margin: 0; border-top: 1px solid #dfe5db; list-style: none; }
+.ss-phases li { margin: 0; padding: 5px 7px; border-radius: 4px; font-size: 10px; color: #56685a; border: 1px solid transparent; }
+.ss-phases li span { font-family: ui-monospace, monospace; margin-right: 5px; }
+.ss-phases li[data-current="true"] { background: #e2edda; color: #284b32; border-color: #89a180; }
+.ss-event { padding: 13px 16px; margin: 0 16px 16px; min-height: 69px; background: #eef3e7; border-left: 3px solid #80976e; font-size: 13px; line-height: 1.65; color: #354d34; border-radius: 0 5px 5px 0; }
+.ss-event[data-kind="reject"] { color: #793b28; background: #f8e9df; border-color: #ae684c; }
+.ss-inspection { border-top: 1px solid #dfe5db; margin: 0 16px; padding: 14px 0; }
+.ss-request-strip { display: flex; gap: 6px; flex-wrap: wrap; min-height: 28px; margin-bottom: 10px; }
+.ss-request-strip button { border-radius: 13px; padding: 3px 10px; font: 11px/1.6 ui-monospace, monospace; color: #385e40; background: #e7f0df; border: 1px solid #73896b; }
+.ss-request-strip button[aria-pressed="true"] { outline: 2px solid #4d754f; outline-offset: 1px; }
+.ss-request-strip button[data-terminal="rejected"] { background: #f9e6d8; border-color: #ba826b; color: #8a3f25; }
+.ss-request-detail { font-size: 12px; line-height: 1.75; color: #4b6450; }
+.ss-request-detail strong { color: #314d36; font-weight: 600; }
+.ss-request-detail p { margin: 4px 0; }
+.ss-state-trail { display: flex; flex-wrap: wrap; gap: 4px; margin: 7px 0; font: 9px/1.6 ui-monospace, monospace; }
+.ss-state-trail span { padding: 3px 5px; background: #f0f2e9; color: #55644f; border: 1px solid #d4dbce; border-radius: 4px; }
+.ss-state-trail span[data-current="true"] { background: #dfedd6; color: #2c5231; border-color: #729966; }
+.ss-request-detail a { color: #376342; }
+.ss-transcript { font-size: 11px; margin: 0; padding: 12px 16px; color: #4d6450; background: #f6f7f0; border-top: 1px solid #dfe5db; }
+.ss-transcript ol { padding-left: 20px; max-height: 210px; overflow-y: auto; }
+.ss-transcript pre { font-size: 11px; background: #fbfcf7; color: #3d5940; border-color: #bfceba; line-height: 1.7; }
+.ss-lanes { margin: 0 16px 16px; display: grid; gap: 6px; }
+.ss-lanes > div { display: grid; grid-template-columns: 100px 1fr; align-items: baseline; gap: 12px; padding: 9px 12px; border-radius: 4px; background: #f1f4eb; font-size: 11px; color: #455e45; }
+.ss-lanes b { font: 600 10px/1.5 ui-monospace, monospace; }
+.ss-batch-history { padding: 0 16px 12px; display: flex; gap: 7px; overflow-x: auto; }
+.ss-batch-history > div { min-width: 105px; border: 1px solid #bdd0b5; border-radius: 5px; padding: 8px; font: 10px/1.75 ui-monospace, monospace; color: #42613f; background: #f5f8ef; }
+.ss-batch-history strong { display: block; color: #2d5133; font-weight: 600; }
+.ss-contract { padding: 20px 24px; background: #ebefe4; border: 1px solid #bac9b4; border-radius: 8px; margin: 34px 0; color: #445d44; font-size: 13px; }
+.ss-contract summary { font-weight: 600; }
+.ss-contract p { max-width: 950px; }
+.ss-bridge { padding: 48px 0 15px; max-width: 750px; }
+.ss-bridge h2 { font-family: Georgia, serif; font-size: 37px; font-weight: 400; letter-spacing: -.035em; color: #293f2f; }
+.ss-bridge p { color: #4e6452; font-size: 15px; }
+.ss-bridge a { color: #285d3d; }
+.story-page #state-machines > .eyebrow { color: #426c4e; }
+.story-page #state-machines > .section-intro { color: #4d6452; }
+.story-page .machine-panel { color: var(--text); }
+.ss-reference { border: 1px solid #b2c4ad; border-radius: 10px; margin: 32px 0; overflow: hidden; }
+.ss-reference > summary { padding: 23px 25px; color: #34523a; font-size: 16px; background: #edf1e6; }
+.ss-reference[open] > summary { margin: 0; }
+.ss-reference > summary:hover { color: #1e502f; }
+.ss-reference-body { padding: 1px 25px 24px; background: #171c1f; color: #edf4f7; }
+.ss-reference-body .page-section { margin: 40px 0; }
+.story-page .reading-card { color: #edf4f7; }
+.story-page #copy-status { color: #edf4f7; }
+.story-page footer { color: #536954; border-color: #b9c9b1; padding: 26px 0; }
+.story-page footer a { color: #315f3e; }
+.story-page :focus-visible { outline-color: #356c42; }
+.story-page .reading-card :focus-visible, .story-page dialog :focus-visible, .ss-reference-body :focus-visible, .story-page .machine-panel :focus-visible { outline-color: #9aebc3; }
+.ss-nojs { color: #405e46; padding: 15px; border-left: 3px solid #77906e; background: #edf2e5; font-size: 13px; }
+.ss-pan-hint { display: none; }
+.story-page .ss-reference-body, .story-page .reading-card, .story-page dialog, .story-page .machine-panel { color-scheme: dark; }
+@media (min-width: 1600px) { .ss-story { grid-template-columns: 305px minmax(0, 1fr); gap: 42px; } }
+@media (max-width: 1100px) { .ss-story { grid-template-columns: 1fr; gap: 22px; } .ss-prose { position: static; max-width: 720px; } .ss-prose h2 { font-size: 36px; } .ss-prose p { font-size: 15px; } .ss-prose .ss-try { margin: 16px 0; } }
+@media (max-width: 600px) {
+  .story-page main { padding: 0 17px; }
+  .story-page .topbar { padding: 16px 17px; gap: 8px; }
+  .story-page .brand { font-size: 9px; gap: 7px; }
+  .story-page .brand-mark { width: 26px; height: 26px; font-size: 13px; }
+  .story-page .top-actions, .story-page .header-links { gap: 10px; font-size: 10px; }
+  .story-page .section-nav { padding: 12px 17px; gap: 21px; }
+  .ss-hero { padding: 45px 0 29px; }
+  .ss-hero h1 { font-size: 48px; }
+  .ss-hero > p:not(.ss-kicker) { font-size: 16px; }
+  .ss-kicker { font-size: 9px; }
+  .ss-story { padding: 38px 0; }
+  .ss-prose h2 { font-size: 32px; }
+  .ss-experiment-top { align-items: flex-start; flex-direction: column; gap: 3px; padding: 11px 13px; }
+  .ss-pan-hint { display: block; margin: 0; padding: 7px 13px; font-size: 10px; color: #4d6953; border-bottom: 1px solid #dfe5db; }
+  .ss-controls { padding: 12px; gap: 7px; }
+  .ss-controls button { min-height: 39px; }
+  .ss-control-gap { display: none; }
+  .ss-option { flex: 1 0 100%; }
+  .ss-meters { gap: 6px; padding: 13px; }
+  .ss-meters span { font-size: 9px; }
+  .ss-meters b { font-size: 21px; }
+  .ss-event { margin: 0 12px 12px; padding: 11px; font-size: 12px; }
+  .ss-phases { padding: 8px 10px; }
+  .ss-phases li { font-size: 9px; padding: 4px; }
+  .ss-lanes > div { grid-template-columns: 77px 1fr; gap: 6px; padding: 8px; }
+  .ss-reference-body { padding: 1px 12px 18px; }
+  .ss-contract { padding: 16px; font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .ss-request-dot, .ss-visual * { transition: none !important; animation: none !important; } }
+@media print {
+  .story-page { background: #fff; color: #253b2a; }
+  .ss-hero { padding: 10px 0; }
+  .ss-hero h1 { font-size: 40px; }
+  .ss-hero-links, .ss-controls, .ss-request-strip { display: none !important; }
+  .ss-story { display: block; padding: 24px 0; break-inside: avoid; }
+  .ss-prose { position: static; max-width: none; }
+  .ss-visual svg { min-width: 0; }
+  .ss-experiment { box-shadow: none; }
+  .ss-reference-body, .story-page .machine-panel { background: #fff; color: #172936; }
+}
 </style>
 </head>
-<body id="top">
-<a class="skip-link" href="#main">Skip to the systems lab</a>
-<header class="topbar"><a class="brand" href="#top"><span class="brand-mark">M</span><span>MAX / SYSTEMS LAB</span></a><div class="top-actions"><a href="../max_serve_llama2_7b_startup_call_stack.html">Call stack ↗</a><a href="llama2_7b_memory_planning_and_memory_plan.html">Memory planning ↗</a><button id="print-page" data-interactive hidden>Print</button></div></header>
-<nav class="section-nav" aria-label="Page sections"><a href="#system-map">System map</a><a href="#guided-scenes">Six animations</a><a href="#scale-lab">Scaling lab</a><a href="#worked-examples">Examples</a><a href="#deep-dives">OS details</a><a href="#source-evidence">Source &amp; research</a></nav>
+<body id="top" class="story-page">
+<a class="skip-link" href="#main">Skip to the worker stories</a>
+<header class="topbar"><a class="brand" href="#top"><span class="brand-mark">M</span><span>MAX SERVE / EXPLAINED</span></a><div class="top-actions"><a href="max_serve_os_components_and_flow.html">← Requests &amp; scheduling</a><button id="print-page" data-interactive hidden>Print</button></div></header>
+<nav class="section-nav" aria-label="Page sections"><a href="#story-clocks">Who is busy?</a><a href="#story-reader">Slow readers</a><a href="#story-replicas">Another replica</a><a href="#scale-lab">Advanced lab</a><a href="#reference-atlas">OS &amp; driver reference</a></nav>
 <main id="main">
-<section class="hero" aria-labelledby="page-title"><div><p class="eyebrow">Linux + NVIDIA · Llama 2 7B · Option B</p><h1 id="page-title">From a socket<br>to a token.</h1><p class="hero-lead">Follow MAX Serve through Linux processes, network queues and GPU drivers. Then change the load and see where thousands of clients wait.</p><div class="hero-actions"><a class="primary-link" href="#guided-scenes">Walk through the system ↓</a><a href="#scale-lab">Open the scaling lab ↓</a></div></div><div class="hero-panel"><div class="hero-numbers"><div><strong>1,000</strong><span>client connections</span></div><span>→</span><div><strong>4</strong><span>GPU batch members</span></div></div><p>Connections, queued requests and model sequences have different owners and limits.</p><div class="mini-flow"><span>SOCKETS</span><i>→</i><span>CPU / IPC</span><i>→</i><span>KV / GPU</span><i>→</i><span>SSE</span></div><span class="badge example-badge">EXAMPLE · explore the arithmetic</span></div></section>
-<div class="evidence-strip"><span><b class="badge">SOURCE</b> MAX calls at <code>610f7111836d</code></span><span><b class="badge">BOUNDARY</b> Linux / NVIDIA mechanisms</span><span><b class="badge example-badge">EXAMPLE</b> Illustrative animation and rates</span></div>
-<noscript><p class="notice">JavaScript is disabled. All sequences, object explanations, worked examples and complete source remain readable in the disclosures below. Animation and the interactive simulation require JavaScript.</p></noscript>
+<section class="ss-hero" aria-labelledby="page-title"><p class="ss-kicker">An interactive explanation · 02 / drivers &amp; scaling</p><h1 id="page-title">One busy GPU.<br>A whole system<br><em>still moving.</em></h1><p>Watch the API and model worker act independently. Slow down a client. Add another ready replica. See which part of the system changes—and which requests keep waiting.</p><div class="ss-hero-links"><a href="#story-clocks">See the owners in motion ↓</a><a href="max_serve_os_components_and_flow.html">Start with admission &amp; scheduling</a></div></section>
+<div class="ss-reading-key"><span><i class="ss-dot-key">R1</i> Follow one request owner</span><span><i class="ss-token-key"></i> Separate tokens from requests</span><span>SOURCE 610f7111836d · Linux / NVIDIA BOUNDARY</span><span>Illustrative events, rates and routing</span></div>
+<noscript><p class="ss-nojs">The lesson text, portable flows and source evidence are readable below. Enable JavaScript for the moving requests and controls.</p></noscript>
+<section class="ss-story" id="story-clocks" data-serve-story="clocks">
+<div class="ss-prose"><p class="ss-kicker"><span>01</span> Put the owners side by side</p><h2>Busy belongs to an owner.</h2><p>While the model worker executes a pass, the API can tokenize and admit another request. The OS schedules runnable CPU threads; MAX chooses model work; the GPU executes submitted operations.</p><p>An HTTP task waiting for output is suspended until data is available. It does not require a dedicated CPU thread. GPU completion and socket readiness are different events. The lanes below show logical ownership, not a measured thread trace.</p><p class="ss-try"><strong>Try it</strong> Send another request during Execute. Compare the API lane with the worker and device lanes.</p><details class="ss-evidence"><summary>SOURCE · follow the code</summary><p><a data-ref="worker_run" href="../sources/max/python/max/serve/pipelines/model_worker.py#L338">ModelWorker.run() <small>[WORKER:L338]</small></a> · <a data-ref="eventloop" href="../sources/max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py#L176">uvloop.run(serve()) <small>[SERVE:L176]</small></a> · <a data-ref="tokenizer_cpu" href="../sources/max/python/max/pipelines/lib/tokenizer.py#L769">TextTokenizer._encode_text() <small>[TOKENIZER:L769]</small></a> · <a data-ref="scheduler_execute" href="../sources/max/python/max/serve/scheduler/text_generation_scheduler.py#L487">Execute, advance requests and release completed requests <small>[TG_SCHED:L487]</small></a> · <a data-ref="session_native" href="../sources/max/python/max/engine/api.py#L707">Python session delegates to the native engine <small>[ENGINE:L707]</small></a></p></details></div>
+<div class="ss-experiment"><div class="ss-experiment-top"><span class="ss-signal"><i></i> LIVE EXPLANATION</span><span>Illustrative events · no measured timings</span></div>
+<p class="ss-pan-hint">Scroll the diagram sideways to follow the worker →</p>
+<div class="ss-visual" tabindex="0" aria-label="Busy belongs to an owner. diagram; scroll horizontally on a narrow screen"><svg class="ss-pipeline" viewBox="0 0 980 392" role="group" aria-labelledby="ss-title-clocks" aria-describedby="ss-desc-clocks">
+<title id="ss-title-clocks">Animated requests from API admission to worker batches and client output</title>
+<desc id="ss-desc-clocks">Request IDs move through separate queues. Read the current event and request details below for an equivalent text explanation.</desc>
+<defs><marker id="ss-arrow-clocks" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7" fill="#81918b"/></marker></defs>
+<rect class="ss-process" x="126" y="46" width="212" height="241" rx="14"/><text class="ss-process-label" x="232" y="73">API PROCESS</text>
+<rect class="ss-process" x="510" y="46" width="300" height="241" rx="14"/><text class="ss-process-label" x="660" y="73">MODEL-WORKER PROCESS</text>
+<path class="ss-wire" d="M83 176 H876" marker-end="url(#ss-arrow-clocks)"/>
+<circle class="ss-client" cx="62" cy="176" r="27"/><path class="ss-client-icon" d="M48 182 Q62 167 76 182 M62 159 v4"/>
+<text class="ss-node-label" x="62" y="125">Client</text>
+<g class="ss-station" data-station="api"><rect x="142" y="108" width="116" height="137" rx="10"/><text x="200" y="129" class="ss-node-label">API</text><text x="200" y="265" class="ss-svg-muted" data-cap="api">tokenize</text><text x="200" y="232" class="ss-count" data-count="api">0</text></g><g class="ss-station" data-station="ipc"><rect x="362" y="108" width="116" height="137" rx="10"/><text x="420" y="129" class="ss-node-label">Request IPC</text><text x="420" y="265" class="ss-svg-muted" data-cap="ipc">waiting room N</text><text x="420" y="232" class="ss-count" data-count="ipc">0</text></g><g class="ss-station" data-station="pending"><rect x="528" y="108" width="116" height="137" rx="10"/><text x="586" y="129" class="ss-node-label">Pending prefill</text><text x="586" y="265" class="ss-svg-muted" data-cap="pending">worker cap M</text><text x="586" y="232" class="ss-count" data-count="pending">0</text></g><g class="ss-station" data-station="batch"><rect x="678" y="108" width="116" height="137" rx="10"/><text x="736" y="129" class="ss-node-label">Batch members</text><text x="736" y="265" class="ss-svg-muted" data-cap="batch">slots + KV</text><text x="736" y="232" class="ss-count" data-count="batch">0</text></g>
+<g class="ss-gate" data-gate="open"><path d="M294 146 L311 176 L294 206 L277 176 Z"/><text x="294" y="181">✓</text></g>
+<text class="ss-svg-muted" x="294" y="225">gate</text>
+<g class="ss-gpu"><rect x="846" y="112" width="117" height="130" rx="12"/><text class="ss-node-label" x="904" y="139">Native / GPU</text><text class="ss-count" x="904" y="180" data-gpu>Idle</text><text class="ss-svg-muted" x="904" y="209">selected pass</text></g>
+<path class="ss-return" d="M904 244 V304 H62 V207" marker-end="url(#ss-arrow-clocks)"/>
+<text class="ss-svg-muted" x="498" y="329">response IPC → API / SSE → TCP → client</text>
+<text class="ss-svg-muted" x="88" y="363">delivered</text><text class="ss-svg-muted" x="285" y="363">429 rejected</text>
+<g data-request-dots></g><g data-output-dots aria-hidden="true"></g>
+</svg></div>
+<div class="ss-controls" data-ss-controls hidden><button class="ss-play" data-ss-action="play" aria-pressed="false">▶ Play</button><button data-ss-action="step">Step</button><button data-ss-action="reset" aria-label="Replay Busy belongs to an owner.">↺ Reset</button><span class="ss-control-gap"></span><button class="ss-send" data-ss-action="send">Send another request</button></div>
+<div class="ss-meters" data-meters><span>Accepted <b>0</b></span><span>Waiting <b>0</b></span><span>In batch <b>0</b></span><span>Rejected <b>0</b></span></div>
+<ol class="ss-phases" aria-label="Worker loop"><li data-phase="drain"><span>1</span>Pull requests</li><li data-phase="select"><span>2</span>Build batch</li><li data-phase="execute"><span>3</span>Execute</li><li data-phase="advance"><span>4</span>Advance / release</li><li data-phase="publish"><span>5</span>Publish</li></ol>
+<p class="ss-event" data-current-event role="status" aria-live="polite">Ready. Press Play or Step to follow the next event.</p>
+<div class="ss-lanes" data-owner-lanes></div>
+<div class="ss-inspection"><div class="ss-request-strip" data-request-list aria-label="Choose a request"></div><div data-request-detail class="ss-request-detail">Request details appear here as the scene runs.</div></div>
+<details class="ss-transcript"><summary>Event transcript and portable flow</summary><ol data-transcript></ol><pre>OS:     gives CPU time to runnable threads in both processes
+API:    tokenize → admit → await output → SSE
+Worker: drain → select → execute → advance → publish → repeat
+GPU:                     submitted compute → result
+Linux socket readiness wakes I/O; native runtime manages device dependencies.</pre></details>
+</div></section>
+<section class="ss-story" id="story-reader" data-serve-story="reader">
+<div class="ss-prose"><p class="ss-kicker"><span>02</span> Separate generation from delivery</p><h2>The GPU finishes. The stream remains.</h2><p>Make the client read slowly. Output tokens collect after generation, while the worker can release that request's KV ownership and start other work.</p><p>Response IPC, API output queues and TCP transport each have buffering. This animation groups them into one output buffer. A slow client can raise egress memory and latency; an admitted stream does not turn into a new HTTP 429 response.</p><p class="ss-try"><strong>Try it</strong> Play until R1 has generated all five tokens. Compare KV ownership with buffered output.</p><details class="ss-evidence"><summary>SOURCE · follow the code</summary><p><a data-ref="proxy_responses" href="../sources/max/python/max/serve/worker_interface/zmq_interface.py#L247">ZmqModelWorkerProxy.response_worker() <small>[ZMQ:L247]</small></a> · <a data-ref="proxy_drain" href="../sources/max/python/max/serve/worker_interface/zmq_interface.py#L167">ZmqModelWorkerProxy._drain_responses() <small>[ZMQ:L167]</small></a> · <a data-ref="release_request" href="../sources/max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py#L1066">TextBatchConstructor.release_request() <small>[BATCH:L1066]</small></a> · <a data-ref="sse_response" href="../sources/max/python/max/serve/router/openai_routes.py#L2615">Return the SSE response after admission and first chunk <small>[OPENAI:L2615]</small></a></p></details></div>
+<div class="ss-experiment"><div class="ss-experiment-top"><span class="ss-signal"><i></i> LIVE EXPLANATION</span><span>Illustrative events · no measured timings</span></div>
+<p class="ss-pan-hint">Scroll the diagram sideways to follow the worker →</p>
+<div class="ss-visual" tabindex="0" aria-label="The GPU finishes. The stream remains. diagram; scroll horizontally on a narrow screen"><svg class="ss-pipeline" viewBox="0 0 980 392" role="group" aria-labelledby="ss-title-reader" aria-describedby="ss-desc-reader">
+<title id="ss-title-reader">Animated requests from API admission to worker batches and client output</title>
+<desc id="ss-desc-reader">Request IDs move through separate queues. Read the current event and request details below for an equivalent text explanation.</desc>
+<defs><marker id="ss-arrow-reader" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7" fill="#81918b"/></marker></defs>
+<rect class="ss-process" x="126" y="46" width="212" height="241" rx="14"/><text class="ss-process-label" x="232" y="73">API PROCESS</text>
+<rect class="ss-process" x="510" y="46" width="300" height="241" rx="14"/><text class="ss-process-label" x="660" y="73">MODEL-WORKER PROCESS</text>
+<path class="ss-wire" d="M83 176 H876" marker-end="url(#ss-arrow-reader)"/>
+<circle class="ss-client" cx="62" cy="176" r="27"/><path class="ss-client-icon" d="M48 182 Q62 167 76 182 M62 159 v4"/>
+<text class="ss-node-label" x="62" y="125">Client</text>
+<g class="ss-station" data-station="api"><rect x="142" y="108" width="116" height="137" rx="10"/><text x="200" y="129" class="ss-node-label">API</text><text x="200" y="265" class="ss-svg-muted" data-cap="api">tokenize</text><text x="200" y="232" class="ss-count" data-count="api">0</text></g><g class="ss-station" data-station="ipc"><rect x="362" y="108" width="116" height="137" rx="10"/><text x="420" y="129" class="ss-node-label">Request IPC</text><text x="420" y="265" class="ss-svg-muted" data-cap="ipc">waiting room N</text><text x="420" y="232" class="ss-count" data-count="ipc">0</text></g><g class="ss-station" data-station="pending"><rect x="528" y="108" width="116" height="137" rx="10"/><text x="586" y="129" class="ss-node-label">Pending prefill</text><text x="586" y="265" class="ss-svg-muted" data-cap="pending">worker cap M</text><text x="586" y="232" class="ss-count" data-count="pending">0</text></g><g class="ss-station" data-station="batch"><rect x="678" y="108" width="116" height="137" rx="10"/><text x="736" y="129" class="ss-node-label">Batch members</text><text x="736" y="265" class="ss-svg-muted" data-cap="batch">slots + KV</text><text x="736" y="232" class="ss-count" data-count="batch">0</text></g>
+<g class="ss-gate" data-gate="open"><path d="M294 146 L311 176 L294 206 L277 176 Z"/><text x="294" y="181">✓</text></g>
+<text class="ss-svg-muted" x="294" y="225">gate</text>
+<g class="ss-gpu"><rect x="846" y="112" width="117" height="130" rx="12"/><text class="ss-node-label" x="904" y="139">Native / GPU</text><text class="ss-count" x="904" y="180" data-gpu>Idle</text><text class="ss-svg-muted" x="904" y="209">selected pass</text></g>
+<path class="ss-return" d="M904 244 V304 H62 V207" marker-end="url(#ss-arrow-reader)"/>
+<text class="ss-svg-muted" x="498" y="329">response IPC → API / SSE → TCP → client</text>
+<text class="ss-svg-muted" x="88" y="363">delivered</text><text class="ss-svg-muted" x="285" y="363">429 rejected</text>
+<g data-request-dots></g><g data-output-dots aria-hidden="true"></g>
+</svg></div>
+<div class="ss-controls" data-ss-controls hidden><button class="ss-play" data-ss-action="play" aria-pressed="false">▶ Play</button><button data-ss-action="step">Step</button><button data-ss-action="reset" aria-label="Replay The GPU finishes. The stream remains.">↺ Reset</button><span class="ss-control-gap"></span><label class="ss-option">Client reads<select data-ss-option="reader"><option value="12">Slowly</option><option value="1">Normally</option></select></label><button class="ss-send" data-ss-action="send">Send another request</button></div>
+<div class="ss-meters" data-meters><span>Accepted <b>0</b></span><span>Waiting <b>0</b></span><span>In batch <b>0</b></span><span>Rejected <b>0</b></span></div>
+<ol class="ss-phases" aria-label="Worker loop"><li data-phase="drain"><span>1</span>Pull requests</li><li data-phase="select"><span>2</span>Build batch</li><li data-phase="execute"><span>3</span>Execute</li><li data-phase="advance"><span>4</span>Advance / release</li><li data-phase="publish"><span>5</span>Publish</li></ol>
+<p class="ss-event" data-current-event role="status" aria-live="polite">Ready. Press Play or Step to follow the next event.</p>
+<div class="ss-lanes" data-owner-lanes></div>
+<div class="ss-inspection"><div class="ss-request-strip" data-request-list aria-label="Choose a request"></div><div data-request-detail class="ss-request-detail">Request details appear here as the scene runs.</div></div>
+<details class="ss-transcript"><summary>Event transcript and portable flow</summary><ol data-transcript></ol><pre>GPU completes → release request KV ownership (pool remains allocated)
+       ↓
+response IPC → API output buffer → TCP → slow client
+              tokens can remain after generation finishes</pre></details>
+</div></section>
+<section class="ss-story" id="story-replicas" data-serve-story="replicas">
+<div class="ss-prose"><p class="ss-kicker"><span>03</span> Give new work another destination</p><h2>Another replica, another worker.</h2><p>An external router can send new requests to independent MAX Serve replicas. Each replica has its own API, worker, queues, model allocation and KV pool.</p><p>Add B, wait for readiness, then send more requests. Existing streams keep their original owner. This round-robin router and its warmup duration are teaching choices. Adding HTTP connections alone does not add model compute.</p><p class="ss-try"><strong>Try it</strong> Add replica B. After it becomes ready, send a burst and watch which replica owns each request.</p><details class="ss-evidence"><summary>SOURCE · follow the code</summary><p><a data-ref="ready" href="../sources/max/python/max/serve/pipelines/model_worker.py#L815">await proc.ready(alive, timeout=...) <small>[WORKER:L815]</small></a> · <a data-ref="connected" href="../sources/max/python/max/serve/worker_interface/zmq_interface.py#L87">ZmqModelWorkerProxy.wait_until_connected() <small>[ZMQ:L87]</small></a> · <a data-ref="worker_run" href="../sources/max/python/max/serve/pipelines/model_worker.py#L338">ModelWorker.run() <small>[WORKER:L338]</small></a></p></details></div>
+<div class="ss-experiment"><div class="ss-experiment-top"><span class="ss-signal"><i></i> LIVE EXPLANATION</span><span>Illustrative events · no measured timings</span></div>
+<p class="ss-pan-hint">Scroll the diagram sideways to follow the worker →</p>
+<div class="ss-visual" tabindex="0" aria-label="Another replica, another worker. diagram; scroll horizontally on a narrow screen"><svg class="ss-fleet" viewBox="0 0 980 392" role="group" aria-label="An external router sends new requests to ready, independent replicas A and B">
+<path class="ss-wire" d="M128 190 H282 V123 H395 M282 190 V285 H395"/>
+<circle class="ss-client" cx="92" cy="190" r="36"/><text class="ss-node-label" x="92" y="194">Clients</text>
+<rect class="ss-process" x="190" y="152" width="169" height="77" rx="10"/><text class="ss-node-label" x="274" y="182">External router</text><text class="ss-svg-muted" x="274" y="208">round robin · example</text>
+<g data-fleet-replica="0"><rect class="ss-process" x="395" y="48" width="548" height="133" rx="13"/><text class="ss-node-label" x="478" y="77">Replica A</text><text class="ss-svg-muted" x="760" y="77" data-fleet-state="0">Ready · its own worker and GPU</text></g>
+<g data-fleet-replica="1"><rect class="ss-process" x="395" y="213" width="548" height="133" rx="13"/><text class="ss-node-label" x="478" y="244">Replica B</text><text class="ss-svg-muted" x="760" y="244" data-fleet-state="1">Not added</text></g>
+<g data-fleet-detail="0"></g><g data-fleet-detail="1"></g><g data-request-dots></g>
+<text class="ss-svg-muted" x="663" y="374">Every request keeps one replica owner throughout its stream.</text>
+</svg></div>
+<div class="ss-controls" data-ss-controls hidden><button class="ss-play" data-ss-action="play" aria-pressed="false">▶ Play</button><button data-ss-action="step">Step</button><button data-ss-action="reset" aria-label="Replay Another replica, another worker.">↺ Reset</button><span class="ss-control-gap"></span><button class="ss-send" data-ss-action="send">Send a burst of 4</button><button data-ss-action="replica">＋ Add replica B</button></div>
+<div class="ss-meters" data-meters><span>Accepted <b>0</b></span><span>Waiting <b>0</b></span><span>In batch <b>0</b></span><span>Rejected <b>0</b></span></div>
+
+<p class="ss-event" data-current-event role="status" aria-live="polite">Ready. Press Play or Step to follow the next event.</p>
+
+<div class="ss-inspection"><div class="ss-request-strip" data-request-list aria-label="Choose a request"></div><div data-request-detail class="ss-request-detail">Request details appear here as the scene runs.</div></div>
+<details class="ss-transcript"><summary>Event transcript and portable flow</summary><ol data-transcript></ol><pre>Clients → external round-robin router → ready replica A (API + worker + GPU/KV)
+                                     → ready replica B (API + worker + GPU/KV)
+Initializing replicas receive no new requests. Existing work stays with its owner.</pre></details>
+</div></section>
+<details class="ss-contract" id="animation-contract"><summary>What these animations represent</summary>
+<p><b>SOURCE</b> Admission, the N/M backpressure chain, the worker loop and request cleanup follow this checkout's pinned source. <b>BOUNDARY</b> Device execution and OS lanes describe ownership; they are not GPU or Linux traces.</p>
+<p>The diagrams use exact, small N-slot queues, artificial event durations, tiny token counts, one ordinary non-overlap worker and a simple chunked, decode-first policy. Real ZeroMQ high-water marks are approximate. MAX's batch strategy, token budgets, grammar readiness, adapters, cache availability and overlap settings can change the selected work and when results arrive.</p>
+<p>The toy worker conservatively reserves prompt plus output KV pages at batch entry. MAX allocates through its cache manager and can preempt/recompute or use configured transfer paths. A request waiting for cache space is already admitted; this simulation never converts that wait into an HTTP 429.</p>
+<p>M is checked against <code>all_ce_reqs</code> at the start of the iteration. The drawings keep unfinished prefill visible with waiting prefill. Decoders are separate. Both queue limits default to <code>None</code> (unbounded) in the pinned source; finite values here are teaching settings.</p>
+<p>The replica scene uses an external example router, one independent GPU allocation per replica and illustrative readiness delays. It does not model tensor parallelism or automatic scaling. Output buffering is grouped across response IPC, API and transport.</p>
+</details>
+<div class="ss-bridge"><h2>Inspect the resource behind the wait.</h2><p>The reference below connects these examples to Linux sockets, event loops, IPC, GPU drivers and the larger scaling lab. Each source link opens the complete pinned definition.</p></div>
+<details class="ss-reference" id="reference-atlas" open><summary>Reference atlas · OS boundaries, driver flow and advanced scaling lab</summary><div class="ss-reference-body">
 
 <section id="system-map" class="page-section"><div class="section-heading"><div><p class="eyebrow">Start with ownership</p><h2>One server spans several schedulers.</h2></div><a href="#deep-dives">See the OS details ↓</a></div>
 
@@ -1291,7 +1562,8 @@ GPU KV logical token -> request page table -> retained VRAM page</pre>
 <details id="research-cuda_driver"><summary>NVIDIA CUDA: driver API and context address spaces</summary><p><a href="https://docs.nvidia.com/cuda/cuda-programming-guide/03-advanced/driver-api.html" target="_blank" rel="noopener">NVIDIA CUDA: driver API and context address spaces</a> · retrieved 2026-11-04 · <a href="../evidence/os_systems/cuda_driver.txt" download>Saved extract</a></p><blockquote>Previous sections of this guide have covered the CUDA runtime. As mentioned in CUDA Runtime API and CUDA Driver API, the CUDA runtime is written on top of the lower level CUDA driver API. This section covers some of the differences between the CUDA runtime and the driver APIs, as well has how to intermix them. Most applications can operate at full performance without ever needing to interact with the CUDA driver API. However, new interfaces are sometimes available in the driver API earlier than the runtime API, and some advanced interfaces, such as Virtual Memory Management, are only exposed in the driver API.</blockquote><blockquote>The driver API is implemented in the cuda dynamic library (cuda.dll or cuda.so) which is copied on the system during the installation of the device driver. All its entry points are prefixed with cu.</blockquote><blockquote>The driver API must be initialized with cuInit() before any function from the driver API is called.</blockquote><blockquote>// Initialize cuInit(0); // Get number of devices supporting CUDA int deviceCount = 0; cuDeviceGetCount(&amp;deviceCount); if (deviceCount == 0) { printf(&quot;There is no device supporting</blockquote></details>
 <details id="research-nvidia_kernel"><summary>NVIDIA Linux GPU kernel modules and user-space components</summary><p><a href="https://raw.githubusercontent.com/NVIDIA/open-gpu-kernel-modules/main/README.md" target="_blank" rel="noopener">NVIDIA Linux GPU kernel modules and user-space components</a> · retrieved 2026-11-04 · <a href="../evidence/os_systems/nvidia_kernel.txt" download>Saved extract</a></p><blockquote>This is the source release of the NVIDIA Linux open GPU kernel modules, version 615.78.08.</blockquote><blockquote>Note that the kernel modules built here must be used with GSP firmware and user-space NVIDIA GPU driver components from a corresponding 615.78.08 driver release. This can be achieved by installing the NVIDIA GPU driver from the .run file using the `--no-kernel-modules` option. E.g.,</blockquote></details></details>
 </section>
-<footer><p><a href="../OS_SYSTEMS_GUIDE.md">Portable systems guide ↗</a> · <a href="../os_systems_manifest.json">Source / evidence manifest ↗</a> · <a href="../README.md">Artifact directory ↗</a></p><p>Native HTML, SVG and JavaScript · offline rendering · keyboard and touch controls · reduced-motion support</p></footer>
+</div></details>
+<footer><p><a href="../OS_SYSTEMS_GUIDE.md">Portable systems guide ↗</a> · <a href="../os_systems_manifest.json">Source / evidence manifest ↗</a> · <a href="../max_serve_llama2_7b_startup_call_stack.html">Startup call stack ↗</a></p><p>Interaction approach inspired by <a href="https://samwho.dev/load-balancing/" target="_blank" rel="noopener">Sam Who's Load Balancing</a>. Original MAX-specific diagrams · offline HTML/SVG/JavaScript · keyboard controls · reduced motion.</p></footer>
 </main>
 
 <aside id="reading-card" class="reading-card" tabindex="-1" role="region" aria-labelledby="reading-card-title" hidden><div class="card-toolbar"><button id="card-close" aria-label="Close explanation">Close ×</button><button id="card-hold" aria-pressed="false">Hold card</button><span class="badge" id="card-evidence">EXAMPLE</span></div><h3 id="reading-card-title"></h3><div id="reading-card-content" class="card-content"></div></aside>
@@ -2467,6 +2739,601 @@ GPU KV logical token -> request page table -> retained VRAM page</pre>
   window.addEventListener("afterprint", () => printState.forEach(([node, open]) => {node.open = open;}));
   $("print-page").addEventListener("click", () => print());
   renderLab(); revealHash();
+})();
+</script><script>/* A discrete-event teaching model of one ordinary text-generation worker.
+ * Beats are presentation units, never seconds or throughput predictions.
+ * Queue N is exact here; real ZeroMQ HWM is approximate. Scheduling is a
+ * deliberately small, chunked, decode-first example, not MAX's full policy.
+ */
+(function (root, factory) {
+  "use strict";
+  if (typeof module === "object" && module.exports) module.exports = factory();
+  else root.ServeStory = factory();
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+  const TERMINAL = new Set(["done", "rejected", "cancelled"]);
+  const PHASES = ["drain", "select", "execute", "advance", "publish"];
+  const DEFAULTS = Object.freeze({queue: 2, pending: 2, batch: 2, budget: 8,
+    pages: 24, pageTokens: 8, readEvery: 1, prompt: 8, output: 5});
+  class Worker {
+    constructor(options = {}) {
+      this.config = {...DEFAULTS, ...options};
+      for (const key of Object.keys(DEFAULTS)) {
+        if (!Number.isInteger(this.config[key]) || this.config[key] < 1) throw new RangeError(key);
+      }
+      this.time = 0;
+      this.serial = 0;
+      this.sequence = 0;
+      this.requests = [];
+      this.events = [];
+      this.log = [];
+      this.last = {kind: "idle", text: "Ready. The worker has no batch to execute."};
+      this.phase = "idle";
+      this.pass = 0;
+      this.batch = [];
+      this.history = [];
+      this.idlePolls = 0;
+      this.wakeScheduled = false;
+      this._schedule(1, "worker");
+    }
+    _schedule(delay, kind, id = null) {
+      this.events.push({at: this.time + delay, serial: this.serial++, kind, id});
+      this.events.sort((a, b) => a.at - b.at || a.serial - b.serial);
+      if (kind === "worker") this.wakeScheduled = true;
+    }
+    _note(kind, text, id = null) {
+      this.last = {kind, text, id, at: this.time};
+      this.log.push(this.last);
+      if (this.log.length > 80) this.log.shift();
+    }
+    find(id) { return this.requests.find(r => r.id === id); }
+    at(state) { return this.requests.filter(r => r.state === state); }
+    get active() { return this.requests.filter(r => ["prefill", "decode", "cancel_pending"].includes(r.state)); }
+    get ceCount() { return this.requests.filter(r => ["pending", "prefill"].includes(r.state) || (r.state === "cancel_pending" && r.promptDone < r.prompt)).length; }
+    get usedPages() { return this.requests.reduce((n, r) => n + r.pages, 0); }
+    get live() { return this.requests.filter(r => !TERMINAL.has(r.state)); }
+    get busy() { return this.phase === "execute"; }
+    get writable() { return this.at("ipc").length < this.config.queue; }
+    submit(options = {}) {
+      const number = ++this.sequence;
+      const r = {id: options.id || "R" + number, number, prompt: options.prompt || this.config.prompt,
+        output: options.output || this.config.output, promptDone: 0, generated: 0, delivered: 0,
+        buffered: 0, unpublished: 0, pages: 0, state: "api", arrived: this.time, accepted: null, selected: null,
+        ended: null, responseStarted: false, cancellation: false, reading: false, reason: "Tokenizing the prompt in the API process."};
+      if (this.find(r.id)) throw new Error("Duplicate request " + r.id);
+      this.requests.push(r);
+      this._schedule(options.admissionDelay || 1, "admit", r.id);
+      this._note("arrival", r.id + " reaches the API. Its prompt must be tokenized before worker admission.", r.id);
+      return r;
+    }
+    seedDecoder(options = {}) {
+      const r = this.submit(options);
+      this.events = this.events.filter(e => !(e.kind === "admit" && e.id === r.id));
+      r.state = "decode"; r.promptDone = r.prompt; r.generated = 1; r.delivered = 1;
+      r.responseStarted = true; r.accepted = 0; r.selected = 0;
+      r.pages = Math.ceil((r.prompt + r.output) / this.config.pageTokens);
+      if (r.pages > this.config.pages) throw new RangeError("Opening decoder does not fit");
+      this._note("seed", r.id + " is already decoding in this opening scene.", r.id);
+      return r;
+    }
+    cancel(id) {
+      const r = this.find(id);
+      if (!r || TERMINAL.has(r.state) || r.cancellation) return false;
+      r.cancellation = true;
+      if (this.batch.some(op => op.id === id) && ["select", "execute"].includes(this.phase)) {
+        r.state = "cancel_pending";
+        r.reason = "Cancellation requested; finish the selected pass before releasing ownership.";
+      } else this._cancel(r);
+      this._note("cancel", r.id + ": cancellation travels to the worker; cleanup occurs at a safe boundary.", id);
+      return true;
+    }
+    _cancel(r) {
+      r.state = "cancelled"; r.pages = 0; r.buffered = 0; r.unpublished = 0; r.ended = this.time;
+      r.reason = "Worker released this request at a safe boundary.";
+    }
+    _admit(r) {
+      if (!r || r.state !== "api") return;
+      if (!this.writable) {
+        r.state = "rejected"; r.ended = this.time;
+        r.reason = "Request channel unwritable: HTTP 429 before streaming starts.";
+        this._note("reject", r.id + " → HTTP 429. The connected request channel is full; no output queue or GPU slot is assigned.", r.id);
+      } else {
+        r.state = "ipc"; r.accepted = this.time;
+        r.reason = "Accepted at the worker handoff. Waiting for the worker to pull the context.";
+        this._note("admit", r.id + " accepted. The request channel has room, even if the worker is executing another batch.", r.id);
+      }
+    }
+    _select() {
+      const c = this.config;
+      // Reserve future pages in this lesson so the finite toy pool is safe.
+      // MAX allocates per pass and can preempt; see the page's SOURCE contract.
+      for (const r of this.at("pending")) {
+        if (this.active.length >= c.batch) {
+          r.reason = "Waiting for a batch slot; admission has already succeeded.";
+          continue;
+        }
+        const needed = Math.ceil((r.prompt + r.output) / c.pageTokens);
+        if (this.usedPages + needed > c.pages) {
+          r.reason = "Waiting for reusable KV pages in this teaching reservation model.";
+          continue;
+        }
+        r.pages = needed; r.selected = this.time; r.state = "prefill";
+      }
+      let remaining = c.budget;
+      this.batch = [];
+      for (const r of this.at("decode")) {
+        if (!remaining) break;
+        this.batch.push({id: r.id, kind: "decode", tokens: 1}); remaining--;
+      }
+      for (const r of this.at("prefill")) {
+        if (!remaining) { r.reason = "This pass used its input-token budget; prefill waits for another pass."; continue; }
+        const tokens = Math.min(remaining, r.prompt - r.promptDone);
+        this.batch.push({id: r.id, kind: "prefill", tokens}); remaining -= tokens;
+      }
+      if (this.batch.length) {
+        this.pass++;
+        for (const op of this.batch) this.find(op.id).reason = "Selected for pass " + this.pass + ": " + op.kind + " (" + op.tokens + " input tokens).";
+        this.history.push({pass: this.pass, ops: this.batch.map(op => ({...op})), finished: false});
+        if (this.history.length > 8) this.history.shift();
+      }
+    }
+    _worker() {
+      this.wakeScheduled = false;
+      switch (this.phase) {
+        case "idle":
+        case "publish": {
+          this.phase = "drain";
+          const available = Math.max(0, this.config.pending - this.ceCount);
+          const pulled = this.at("ipc").slice(0, available);
+          for (const r of pulled) { r.state = "pending"; r.reason = "Inside the worker's pending-prefill queue. Batch and KV eligibility come next."; }
+          this._note("drain", pulled.length ? "Worker pulls " + pulled.map(r => r.id).join(", ") + " into pending prefill, within M = " + this.config.pending + "." : (available ? "Worker checks the request channel. No new contexts to pull." : "M is full. The worker stops pulling; excess requests stay in IPC."));
+          this._schedule(1, "worker");
+          break;
+        }
+        case "drain":
+          this.phase = "select";
+          this._select();
+          this._note("select", this.batch.length ? "Pass " + this.pass + " selects " + this.batch.map(op => op.id + " " + op.kind + " ×" + op.tokens).join(" + ") + ". Check batch slots, token budget and KV space." : "No eligible batch. The worker returns NO_PROGRESS and yields with backoff.");
+          this._schedule(1, "worker");
+          break;
+        case "select":
+          if (!this.batch.length) {
+            this.phase = "idle"; this.idlePolls++;
+            this._note("idle", "NO_PROGRESS: yield with backoff, then check again. The API process can still handle requests.");
+            this._schedule(Math.min(4, this.idlePolls + 1), "worker");
+          } else {
+            this.phase = "execute"; this.idlePolls = 0;
+            this._note("execute", "The worker calls pipeline.execute() for pass " + this.pass + ". The native runtime and device execute the selected work; the API remains independent.");
+            this._schedule(2, "worker");
+          }
+          break;
+        case "execute":
+          this.phase = "advance";
+          for (const op of this.batch) {
+            const r = this.find(op.id);
+            if (r.cancellation) { this._cancel(r); continue; }
+            if (op.kind === "prefill") {
+              r.promptDone += op.tokens;
+              r.reason = "Prefill has consumed " + r.promptDone + " / " + r.prompt + " prompt tokens. Unfinished input returns for another pass.";
+            }
+            if (r.promptDone === r.prompt) {
+              r.state = "decode"; r.generated++; r.unpublished++;
+              r.reason = "Generated " + r.generated + " / " + r.output + " output tokens; eligible for another decode pass.";
+              if (r.generated === r.output) { r.state = "streaming"; r.pages = 0; r.reason = "Generation finished. KV ownership is reusable; buffered output is still draining."; }
+            }
+          }
+          this.history[this.history.length - 1].finished = true;
+          this._note("advance", "Pass " + this.pass + " completed. Advance prompt/decode state and release finished requests' KV ownership.");
+          this._schedule(1, "worker");
+          break;
+        case "advance":
+          this.phase = "publish";
+          for (const op of this.batch) {
+            const r = this.find(op.id);
+            r.buffered += r.unpublished; r.unpublished = 0;
+            if (r.buffered && !r.reading && !TERMINAL.has(r.state)) { r.reading = true; this._schedule(this.config.readEvery, "read", r.id); }
+          }
+          this._note("publish", "Send results over response IPC, correlated by request ID. The API streams tokens; the next worker iteration can choose a different batch.");
+          this._schedule(1, "worker");
+          break;
+      }
+    }
+    _read(r) {
+      if (!r || TERMINAL.has(r.state)) return;
+      r.reading = false;
+      if (r.buffered) {
+        r.buffered--; r.delivered++; r.responseStarted = true;
+        this._note("token", r.id + ": token " + r.delivered + " reaches the client through response IPC → API/SSE → TCP.", r.id);
+      }
+      if (r.state === "streaming" && !r.buffered && !r.unpublished) { r.state = "done"; r.ended = this.time; r.reason = "All output delivered; request complete."; }
+      else if (r.buffered) { r.reading = true; this._schedule(this.config.readEvery, "read", r.id); }
+    }
+    next() {
+      const event = this.events.shift();
+      if (!event) return false;
+      this.time = event.at;
+      if (event.kind === "worker") this._worker();
+      else if (event.kind === "admit") this._admit(this.find(event.id));
+      else if (event.kind === "read") this._read(this.find(event.id));
+      return true;
+    }
+    advanceTo(time) {
+      if (time < this.time) throw new RangeError("Cannot run backwards");
+      while (this.events.length && this.events[0].at <= time) this.next();
+      this.time = time;
+      return this;
+    }
+    snapshot() {
+      const count = state => this.at(state).length;
+      return {time: this.time, phase: this.phase, pass: this.pass, writable: this.writable,
+        ipc: count("ipc"), pending: count("pending"), ce: this.ceCount, active: this.active.length,
+        accepted: this.requests.filter(r => r.accepted !== null).length, rejected: count("rejected"),
+        done: count("done"), cancelled: count("cancelled"), live: this.live.length,
+        generated: this.requests.reduce((n, r) => n + r.generated, 0),
+        delivered: this.requests.reduce((n, r) => n + r.delivered, 0),
+        buffered: this.requests.reduce((n, r) => n + r.buffered, 0), pages: this.usedPages,
+        last: {...this.last}, batch: this.batch.map(op => ({...op})), requests: this.requests.map(r => ({...r}))};
+    }
+  }
+  class Fleet {
+    constructor() {
+      this.time = 0; this.sequence = 0; this.cursor = 0;
+      this.replicas = [{name: "A", readyAt: 0, worker: new Worker({batch: 1, pending: 2, queue: 2, output: 5})}];
+      this.last = "One ready replica. Routing here is an external example policy.";
+    }
+    addReplica() {
+      if (this.replicas.length > 1) return false;
+      const worker = new Worker({batch: 1, pending: 2, queue: 2, output: 5});
+      worker.time = this.time;
+      worker.events = [];
+      worker._schedule(5, "worker");
+      this.replicas.push({name: "B", readyAt: this.time + 4, worker});
+      this.last = "Replica B is initializing. New requests continue to A until B is ready.";
+      return true;
+    }
+    submit(options = {}) {
+      const ready = this.replicas.filter(r => r.readyAt <= this.time);
+      const replica = ready[this.cursor++ % ready.length];
+      const request = replica.worker.submit({...options, id: "R" + (++this.sequence)});
+      this.last = request.id + " routed to ready replica " + replica.name + ". Existing requests stay on their original replica.";
+      return request;
+    }
+    next() {
+      const time = Math.min(...this.replicas.flatMap(r => r.worker.events.map(e => e.at)));
+      this.time = time;
+      for (const r of this.replicas) r.worker.advanceTo(time);
+      this.last = this.replicas.length > 1 && this.replicas[1].readyAt <= time ? "A and B are ready. Each worker selects batches and owns its own KV pool." : "A handles requests while the external router waits for another ready replica.";
+    }
+  }
+  return {Worker, Fleet, PHASES, TERMINAL, DEFAULTS};
+});
+</script><script>/* Presentation for the shared, offline request stories. */
+(function () {
+  "use strict";
+  const {Worker, Fleet, TERMINAL} = window.ServeStory;
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+  const escape = value => String(value).replace(/[&<>"']/g, c => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"}[c]));
+  const SVG = "http://www.w3.org/2000/svg";
+  const STATES = {api:"API / tokenize", ipc:"IPC waiting", pending:"Pending prefill", prefill:"Prefill", decode:"Decode", streaming:"Output draining", done:"Completed", rejected:"HTTP 429", cancel_pending:"Cancel pending", cancelled:"Cancelled"};
+  const COLORS = {api:["#edf0e2", "#778662", "#414f33"], ipc:["#f4e8c9", "#a28950", "#674d21"],
+    pending:["#f4e8c9", "#a28950", "#674d21"], prefill:["#dfe9f4", "#6a88a0", "#37556d"],
+    decode:["#dbedd6", "#6b8d5e", "#34572d"], streaming:["#dceee4", "#6b907c", "#31573f"],
+    done:["#e1ecdb", "#829976", "#3b5c30"], rejected:["#f7dfd1", "#bd8267", "#813c22"],
+    cancelled:["#ece5df", "#a08e7c", "#64503e"], cancel_pending:["#f2e4d7", "#ad8968", "#6c4d34"]};
+  const controllers = [];
+  let frame = null;
+
+  function element(tag, attrs = {}, text = null) {
+    const el = document.createElementNS(SVG, tag);
+    for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, value);
+    if (text !== null) el.textContent = text;
+    return el;
+  }
+  function modelFor(key, value) {
+    const config = {};
+    if (key === "busy") config.batch = value || 1;
+    if (key === "pressure") Object.assign(config, {batch:1, queue:value || 2, output:9});
+    if (key === "scheduler") Object.assign(config, {pending:4, budget:value || 8});
+    if (key === "reader") config.readEvery = value || 12;
+    const model = key === "replicas" ? new Fleet() : new Worker(config);
+    if (key === "replicas") model.submit({output:7});
+    else if (["busy", "pressure", "clocks"].includes(key)) {
+      model.seedDecoder({output:key === "pressure" ? 9 : 7});
+      while (!model.busy) model.next();
+    } else if (key === "scheduler") {
+      model.seedDecoder({output:7}); model.submit({prompt:24, output:3});
+    } else model.submit();
+    return model;
+  }
+  function selectedState(r) {
+    if (r.cancellation && r.state !== "cancelled") return "cancel_pending";
+    return r.state;
+  }
+  class Story {
+    constructor(node) {
+      this.node = node;
+      this.key = node.dataset.serveStory;
+      this.playing = false;
+      this.selected = null;
+      this.dots = new Map();
+      this.tokenDots = [];
+      this.delivered = new Map();
+      this.nextAt = 0;
+      this.option = node.querySelector("[data-ss-option]");
+      this.node.querySelector("[data-ss-controls]").hidden = false;
+      this.node.addEventListener("click", e => {
+        const button = e.target.closest("[data-ss-action]");
+        if (button) this.action(button.dataset.ssAction);
+        const request = e.target.closest("[data-ss-request]");
+        if (request) { this.selected = request.dataset.ssRequest; this.render(); }
+      });
+      this.node.addEventListener("keydown", e => {
+        const request = e.target.closest("svg [data-ss-request]");
+        if (request && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault(); this.selected = request.dataset.ssRequest; this.render();
+        }
+      });
+      this.option?.addEventListener("change", () => this.reset());
+      this.reset();
+    }
+    get workers() { return this.key === "replicas" ? this.model.replicas.map(r => r.worker) : [this.model]; }
+    get requests() { return this.workers.flatMap(w => w.requests); }
+    reset() {
+      this.setPlaying(false);
+      this.model = modelFor(this.key, Number(this.option?.value) || undefined);
+      this.selected = this.requests[0]?.id || null;
+      this.dots.clear(); this.tokenDots = []; this.delivered.clear();
+      this.node.querySelector("[data-request-dots]").replaceChildren();
+      this.node.querySelector("[data-output-dots]")?.replaceChildren();
+      this.render(true);
+      this.node.querySelector('[data-ss-action="replica"]')?.removeAttribute("disabled");
+    }
+    setPlaying(value) {
+      this.playing = value;
+      this.node.dataset.playing = String(value);
+      const button = this.node.querySelector('[data-ss-action="play"]');
+      button.textContent = value ? "Ⅱ Pause" : "▶ Play";
+      button.setAttribute("aria-pressed", String(value));
+      this.node.querySelector("[data-current-event]").setAttribute("aria-live", value ? "off" : "polite");
+      this.nextAt = performance.now() + 850;
+      if (value) startFrames();
+    }
+    action(action) {
+      if (action === "reset") { this.reset(); return; }
+      if (action === "play") { this.setPlaying(!this.playing); return; }
+      if (action === "step") { this.setPlaying(false); this.step(); return; }
+      if (action === "replica") {
+        this.model.addReplica();
+        this.node.querySelector('[data-ss-action="replica"]').disabled = true;
+      }
+      if (action === "send") {
+        const count = this.key === "pressure" ? 6 : this.key === "replicas" ? 4 : 1;
+        for (let i = 0; i < count; i++) {
+          const options = this.key === "scheduler" ? {prompt:8, output:3} : {};
+          // Stagger tokenizer completions to expose M filling before N backs up.
+          if (this.key === "pressure") options.admissionDelay = 1 + i*4;
+          const r = this.model.submit(options);
+          this.selected = r.id;
+        }
+      }
+      this.render(); this.setPlaying(true);
+    }
+    step() {
+      this.model.next();
+      if (this.key !== "replicas" && this.model.last.kind === "reject") this.selected = this.model.last.id;
+      this.render();
+      const pendingWarmup = this.key === "replicas" && this.model.replicas.some(r => r.readyAt > this.model.time);
+      if (!this.requests.some(r => !TERMINAL.has(r.state)) && !pendingWarmup && this.workers.every(w => w.phase === "idle")) this.setPlaying(false);
+    }
+    render(snap = false) {
+      const now = performance.now();
+      const snapshots = this.workers.map(w => w.snapshot());
+      const sum = key => snapshots.reduce((n, s) => n + s[key], 0);
+      this.node.dataset.time = String(this.model.time);
+      this.node.dataset.accepted = String(sum("accepted"));
+      this.node.dataset.rejected = String(sum("rejected"));
+      this.node.dataset.done = String(sum("done"));
+      this.node.dataset.phase = snapshots[0].phase;
+      this.node.dataset.ipc = String(sum("ipc"));
+      this.node.dataset.pending = String(sum("pending"));
+      this.node.dataset.pages = String(sum("pages"));
+      this.node.dataset.buffered = String(sum("buffered"));
+      const meter = this.node.querySelector("[data-meters]");
+      const pairs = this.key === "reader" ? [["Generated",sum("generated")], ["Delivered",sum("delivered")], ["Buffered",sum("buffered")], ["KV pages owned",sum("pages")]] : [["Accepted",sum("accepted")], ["Waiting · IPC + pending",sum("ipc") + sum("pending")], ["Active sequences",sum("active")], ["Rejected · 429",sum("rejected")]];
+      meter.innerHTML = pairs.map(([label, count], i) => '<span' + (i === 3 && this.key !== "reader" ? ' class="ss-negative"' : '') + '>' + label + '<b>' + count + '</b></span>').join("");
+      const current = this.node.querySelector("[data-current-event]");
+      const event = this.key === "replicas" ? {text:this.model.last, kind:"fleet"} : this.model.last;
+      if (current.textContent !== event.text) current.textContent = event.text;
+      current.dataset.kind = event.kind;
+      if (this.key === "replicas") this.renderFleet();
+      else {
+        const s = snapshots[0], c = this.model.config;
+        for (const [key, count] of Object.entries({api:this.model.at("api").length, ipc:s.ipc + " / " + c.queue,
+          pending:s.pending + " waiting", batch:s.active + " / " + c.batch})) this.node.querySelector('[data-count="' + key + '"]').textContent = count;
+        this.node.querySelector('[data-cap="pending"]').textContent = "M " + c.pending + " · CE " + s.ce;
+        this.node.querySelector('[data-cap="batch"]').textContent = s.pages + " / " + c.pages + " KV pages";
+        if (this.key === "busy") this.node.querySelector('[data-ss-action="send"]').textContent = "Send R" + (this.model.sequence+1);
+        const gate = this.node.querySelector("[data-gate]");
+        gate.dataset.gate = s.writable ? "open" : "closed";
+        gate.querySelector("text").textContent = s.writable ? "✓" : "×";
+        this.node.querySelector("[data-gpu]").textContent = this.model.busy ? "Pass " + s.pass : "Idle";
+        this.node.querySelector(".ss-gpu").dataset.busy = String(this.model.busy);
+        this.node.querySelectorAll("[data-phase]").forEach(el => el.dataset.current = String(el.dataset.phase === s.phase));
+        this.renderLanes(s);
+        this.renderHistory();
+      }
+      const requestKey = this.requests.slice(-24).map(r => r.id + ":" + r.state).join("|");
+      const strip = this.node.querySelector("[data-request-list]");
+      if (requestKey !== this.requestKey) {
+        strip.innerHTML = this.requests.slice(-24).map(r => '<button data-ss-request="' + r.id + '" data-terminal="' + r.state + '" aria-label="Inspect ' + r.id + ', ' + STATES[r.state] + '">' + r.id + '</button>').join("");
+        this.requestKey = requestKey;
+      }
+      strip.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.ssRequest === this.selected)));
+      this.renderInspector();
+      const events = this.workers.flatMap(w => w.log).sort((a, b) => a.at - b.at).slice(-16);
+      this.node.querySelector("[data-transcript]").innerHTML = events.map(e => '<li>' + escape(e.text) + '</li>').join("");
+      this.updateDots(now, snap || reduced.matches);
+      if (!reduced.matches) startFrames();
+    }
+    renderLanes(s) {
+      const box = this.node.querySelector("[data-owner-lanes]");
+      if (!box) return;
+      const r = this.requests.find(r => r.id === this.selected) || this.requests[0];
+      const lanes = this.key === "reader" ? [
+        ["Generation", s.generated + " tokens produced; " + s.pages + " KV pages still owned by requests"],
+        ["Output path", s.buffered + " tokens buffered across response IPC, API and transport (grouped)"],
+        ["Client", s.delivered + " tokens consumed; " + (this.model.config.readEvery > 1 ? "slow reader" : "normal reader")],
+      ] : [
+        ["API process", this.model.at("api").length ? "Tokenization work can proceed while the worker's pass runs." : (s.buffered ? "Output available: resume streaming tasks." : "Awaiting socket readiness, tokenizer work or response IPC.")],
+        ["MAX worker", this.model.busy ? "Inside pipeline.execute(); the current batch is already selected." : (s.phase === "idle" ? "No eligible work: yield with backoff, then check again." : "Running scheduler phase: " + s.phase + ".")],
+        ["GPU / runtime", this.model.busy ? "Executing the selected pass; completion is managed by the native runtime." : "Between model passes in this ordinary-pipeline illustration."],
+        ["OS threads", "Linux gives CPU time to runnable threads. " + r.id + "'s request state (" + STATES[r.state] + ") is a separate lifecycle."],
+      ];
+      box.innerHTML = lanes.map(([owner, meaning]) => '<div><b>' + owner + '</b><span>' + meaning + '</span></div>').join("");
+    }
+    renderHistory() {
+      const box = this.node.querySelector("[data-batch-history]");
+      if (!box) return;
+      box.innerHTML = this.model.history.slice(-5).map(h => '<div><strong>Pass ' + h.pass + (h.finished ? ' ✓' : '') + '</strong>' + h.ops.map(op => escape(op.id) + ' ' + (op.kind === "decode" ? "D" : "P") + ' ×' + op.tokens).join('<br>') + '</div>').join("");
+    }
+    renderInspector() {
+      const r = this.requests.find(r => r.id === this.selected) || this.requests[0];
+      if (!r) return;
+      const replica = this.key === "replicas" ? ' · replica ' + this.model.replicas.find(rep => rep.worker.find(r.id)).name : '';
+      const state = selectedState(r);
+      const trail = ["api", "ipc", "pending", "prefill", "decode", "streaming", "done"];
+      if (["rejected", "cancelled", "cancel_pending"].includes(state)) trail.push(state);
+      const link = document.getElementById("machine-request") ? '<a href="#machine-request">Explore the request state machine ↓</a>' : '';
+      this.node.querySelector("[data-request-detail]").innerHTML = '<strong>' + escape(r.id) + replica + ' · ' + STATES[state] + '</strong><div class="ss-state-trail">' + trail.map(s => '<span data-current="' + (s === state) + '">' + STATES[s] + '</span>').join("") + '</div><p>' + escape(r.reason) + '</p><p>Prompt ' + r.promptDone + '/' + r.prompt + ' · Output ' + r.generated + '/' + r.output + ' · Delivered ' + r.delivered + ' · KV pages ' + r.pages + '</p>' + link;
+    }
+    renderFleet() {
+      for (let i = 0; i < 2; i++) {
+        const rep = this.model.replicas[i];
+        const status = this.node.querySelector('[data-fleet-state="' + i + '"]');
+        const detail = this.node.querySelector('[data-fleet-detail="' + i + '"]');
+        if (!rep) { status.textContent = "Not added · use the button below"; detail.replaceChildren(); continue; }
+        const ready = rep.readyAt <= this.model.time;
+        status.textContent = ready ? "Ready · its own worker and GPU" : "Initializing · excluded from routing";
+        const s = rep.worker.snapshot();
+        const y = i ? 263 : 98;
+        const labels = [[474,"API / IPC",rep.worker.at("api").length + s.ipc], [644,"Pending",s.pending], [816,"Batch / GPU",s.active]];
+        detail.innerHTML = labels.map(([x, label, count]) => '<rect class="ss-client" x="' + (x-64) + '" y="' + y + '" width="128" height="58" rx="6"/><text class="ss-svg-muted" x="' + x + '" y="' + (y+16) + '">' + label + ' · ' + (ready ? count : '—') + '</text>').join("");
+      }
+    }
+    positions() {
+      const positions = new Map();
+      if (this.key === "replicas") {
+        for (let i = 0; i < this.model.replicas.length; i++) {
+          const w = this.model.replicas[i].worker;
+          for (const [col, states] of [[0,["api","ipc"]], [1,["pending"]], [2,["prefill","decode","streaming","cancel_pending"]]]) {
+            const requests = w.requests.filter(r => states.includes(r.state)).slice(-4);
+            requests.forEach((r, j) => positions.set(r.id, {x:450 + col*172 + (j%2)*48, y:136 + i*165 + Math.floor(j/2)*28}));
+          }
+          w.requests.filter(r => TERMINAL.has(r.state)).slice(-3).forEach((r, j) => positions.set(r.id, {x:166 + j*47, y:100 + i*165}));
+        }
+        return positions;
+      }
+      const groups = [
+        [["api"],200], [["ipc"],420], [["pending"],586], [["prefill","decode","cancel_pending"],736],
+      ];
+      for (const [states, x] of groups) {
+        this.requests.filter(r => states.includes(r.state)).slice(-6).forEach((r, i) => positions.set(r.id, {x:x-25 + (i%2)*50, y:155 + Math.floor(i/2)*28}));
+      }
+      this.requests.filter(r => r.state === "streaming").slice(-5).forEach((r, i) => positions.set(r.id, {x:840-i*50, y:347}));
+      this.requests.filter(r => ["done","cancelled"].includes(r.state)).slice(-3).forEach((r, i) => positions.set(r.id, {x:175+i*50, y:359}));
+      this.requests.filter(r => r.state === "rejected").slice(-5).forEach((r, i) => positions.set(r.id, {x:382+i*50, y:359}));
+      return positions;
+    }
+    updateDots(now, snap) {
+      const positions = this.positions();
+      const layer = this.node.querySelector("[data-request-dots]");
+      for (const [id, point] of positions) {
+        const r = this.requests.find(r => r.id === id);
+        let dot = this.dots.get(id);
+        if (!dot) {
+          const g = element("g", {class:"ss-request-dot", "data-dot-id":id, "data-ss-request":id, role:"button", tabindex:"0"});
+          g.append(element("rect", {x:-21, y:-12, width:42, height:24, rx:12}), element("text", {y:4}, id));
+          layer.append(g);
+          dot = {g, x:snap ? point.x : 62, y:snap ? point.y : 176, tx:point.x, ty:point.y, at:now};
+          this.dots.set(id, dot);
+        }
+        if (dot.tx !== point.x || dot.ty !== point.y) { const current = this.interpolate(dot, now); dot.x = current.x; dot.y = current.y; dot.tx = point.x; dot.ty = point.y; dot.at = now; }
+        if (snap) { dot.x = point.x; dot.y = point.y; dot.at = now-1000; }
+        const colors = COLORS[r.state];
+        const rect = dot.g.querySelector("rect");
+        rect.setAttribute("fill",colors[0]); rect.setAttribute("stroke",colors[1]);
+        dot.g.querySelector("text").setAttribute("fill",colors[2]);
+        dot.g.dataset.selected = String(id === this.selected);
+        dot.g.setAttribute("aria-label", "Inspect " + id + ": " + STATES[r.state]);
+        dot.g.setAttribute("aria-pressed", String(id === this.selected));
+        dot.g.setAttribute("transform", 'translate(' + dot.x + ',' + dot.y + ')');
+        const previous = this.delivered.get(id) || 0;
+        if (r.delivered > previous && !snap && this.key !== "replicas") {
+          const g = element("rect", {width:8,height:8,rx:2,fill:"#426f49"});
+          this.node.querySelector("[data-output-dots]").append(g);
+          this.tokenDots.push({g, at:now});
+        }
+        this.delivered.set(id, r.delivered);
+      }
+      for (const [id, dot] of this.dots) if (!positions.has(id)) { dot.g.remove(); this.dots.delete(id); }
+      if (snap) this.animate(now+1000);
+    }
+    interpolate(dot, now) {
+      const p = reduced.matches ? 1 : Math.min(1, Math.max(0, (now-dot.at)/650));
+      const t = p*p*(3-2*p);
+      return {x:dot.x + (dot.tx-dot.x)*t, y:dot.y + (dot.ty-dot.y)*t, done:p === 1};
+    }
+    animate(now) {
+      let moving = false;
+      for (const dot of this.dots.values()) {
+        const p = this.interpolate(dot, now);
+        dot.g.setAttribute("transform", 'translate(' + p.x.toFixed(1) + ',' + p.y.toFixed(1) + ')');
+        moving ||= !p.done;
+      }
+      for (const token of this.tokenDots) {
+        const p = Math.min(1,(now-token.at)/800);
+        token.g.setAttribute("x",String(900-838*p)); token.g.setAttribute("y","300");
+        if (p >= 1 || reduced.matches) token.g.remove(); else moving = true;
+      }
+      this.tokenDots = this.tokenDots.filter(token => token.g.isConnected);
+      return moving;
+    }
+  }
+  function startFrames() { if (frame === null) frame = requestAnimationFrame(tick); }
+  function tick(now) {
+    frame = null;
+    let work = false;
+    for (const c of controllers) {
+      if (c.playing && now >= c.nextAt) { c.step(); c.nextAt = now+850; }
+      work = c.animate(now) || c.playing || work;
+    }
+    if (work) startFrames();
+  }
+  document.querySelectorAll(".ss-reference").forEach(node => node.open = false);
+  document.querySelectorAll("[data-serve-story]").forEach(node => controllers.push(new Story(node)));
+  const observer = new IntersectionObserver(entries => {
+    for (const entry of entries) if (!entry.isIntersecting) controllers.find(c => c.node === entry.target)?.setPlaying(false);
+  });
+  controllers.forEach(c => observer.observe(c.node));
+  document.addEventListener("visibilitychange", () => { if (document.hidden) controllers.forEach(c => c.setPlaying(false)); });
+  window.addEventListener("beforeprint", () => controllers.forEach(c => c.setPlaying(false)));
+  reduced.addEventListener("change", () => controllers.forEach(c => c.render(true)));
+  // Open enclosing reference disclosures for deep links from the existing course.
+  function revealHash() {
+    let id;
+    try { id = decodeURIComponent(location.hash.slice(1)); } catch { return; }
+    const target = document.getElementById(id);
+    if (!target) return;
+    for (let el = target; el; el = el.parentElement) if (el instanceof HTMLDetailsElement) el.open = true;
+    requestAnimationFrame(() => target.scrollIntoView({block:"start"}));
+  }
+  window.addEventListener("hashchange", revealHash);
+  if (location.hash) revealHash();
+  // Small, read-only bridge for browser validation of the actual rendered models.
+  window.serveStorySnapshot = key => {
+    const c = controllers.find(c => c.key === key);
+    return c ? c.workers.map(w => w.snapshot()) : null;
+  };
 })();
 </script>
 </body>

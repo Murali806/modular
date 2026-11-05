@@ -10,6 +10,7 @@ import subprocess
 
 from call_stack_refs import FILES as STACK_FILES, REFS as STACK_REFS
 from memory_planning import FILES as MEMORY_FILES, REFS as MEMORY_REFS, definition
+from serve_story import render_stories, story_contract, story_markdown
 
 PAGE_NAME = "max_serve_os_driver_and_scaling.html"
 BASE = "max/python/max/"
@@ -189,6 +190,8 @@ def build_os_systems(data, task, src, span_finder):
     example["pageBytes"] = example["tokenBytes"] * example["pageSize"]
 
     template = (src / "os_systems.html").read_text()
+    template = template.replace('{{serve-stories}}', render_stories('systems'))
+    template = template.replace('{{story-contract}}', story_contract())
     template = template.replace('{{systems-map}}', systems_map())
     template = template.replace('{{scenes}}', render_scenes(SCENES))
     template = template.replace('{{objects}}', render_objects(OBJECTS))
@@ -232,8 +235,9 @@ def build_os_systems(data, task, src, span_finder):
                   research=research, scope="Linux + NVIDIA; one independent GPU per lab replica")
     payload = json.dumps(viewer, ensure_ascii=False).replace('<', '\\u003c')
     template = template.replace('<!-- OS_DATA -->', '<script id="os-data" type="application/json">' + payload + '</script>')
-    template = template.replace('<!-- OS_CSS -->', '<style>' + (src / "os_systems.css").read_text() + '</style>')
-    template = template.replace('<!-- OS_JS -->', '<script>' + (src / "os_systems_lab.js").read_text() + '</script><script>' + (src / "os_systems.js").read_text() + '</script>')
+    template = template.replace('<!-- OS_CSS -->', '<style>' + (src / "os_systems.css").read_text() + '\n' + (src / "serve_story.css").read_text() + '</style>')
+    scripts = ('os_systems_lab.js', 'os_systems.js', 'serve_story_model.js', 'serve_story.js')
+    template = template.replace('<!-- OS_JS -->', ''.join('<script>' + (src / name).read_text() + '</script>' for name in scripts))
     (task / "link_htmls" / PAGE_NAME).write_text(template)
     manifest = dict(revision=data["revision"], page='link_htmls/' + PAGE_NAME,
                     references={key: {k: v for k, v in ref.items() if k != "code"} for key, ref in refs.items()},
@@ -246,7 +250,8 @@ def build_os_systems(data, task, src, span_finder):
     (task / "os_systems_manifest.json").write_text(json.dumps(manifest, indent=2) + '\n')
     companion = ["# MAX Serve: Linux, GPU drivers and serving at scale\n",
                  f"[Interactive systems lab](link_htmls/{PAGE_NAME}). SOURCE revision: `{data['revision']}`.\n",
-                 "Linux + NVIDIA. Source calls and public-reference mechanisms accompany an explicitly illustrative, deterministic lab.\n"]
+                 "Linux + NVIDIA. Source calls and public-reference mechanisms accompany an explicitly illustrative, deterministic lab.\n",
+                 *story_markdown('systems')]
     for scene in SCENES:
         companion += ['\n## ' + scene["title"] + '\n', scene["intro"] + '\n', '```text\n' + scene["ascii"] + '\n```\n']
         for index, step in enumerate(scene["steps"], 1):

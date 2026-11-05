@@ -12,9 +12,9 @@ architecture registration timing. The
 | [Interactive guide](index.html) | Concept → diagram → exact code → line-linked explanation → full-file context |
 | [MAX Serve startup call stack](max_serve_llama2_7b_startup_call_stack.html) | One continuous tree combining QnA 1.1.1–1.1.6, from CLI parsing to HTTP readiness |
 | [Memory planning and MemoryPlan](link_htmls/llama2_7b_memory_planning_and_memory_plan.html) | Nested QnA cells with input origins, initialization calls and example objects, a budget waterfall, KV pages, parent/worker handoff and complete pinned source |
-| [OS components, roles and flow](link_htmls/max_serve_os_components_and_flow.html) | Focused user-space/kernel/hardware map, three animated flows and server/request/OS-thread state machines for one serving instance |
-| [Focused OS companion](OS_COMPONENTS_GUIDE.md) / [validation](validation/OS_COMPONENTS_VALIDATION.md) | Portable ownership/sequence/state diagrams, 32 source targets and browser results |
-| [MAX Serve OS / GPU systems lab](link_htmls/max_serve_os_driver_and_scaling.html) | Six animated Linux/NVIDIA scenes, 48 detailed step cards, 22 object cards and a deterministic client/queue/KV/fleet simulator |
+| [Requests, admission and scheduling](link_htmls/max_serve_os_components_and_flow.html) | Four interactive request stories: accepted work, busy workers, M/N backpressure and 429, and per-pass scheduling; three preserved state machines |
+| [Request-story companion](OS_COMPONENTS_GUIDE.md) / [validation](validation/OS_COMPONENTS_VALIDATION.md) | Portable flows, OS reference atlas, 37 source targets and browser results |
+| [Workers, drivers and scaling](link_htmls/max_serve_os_driver_and_scaling.html) | Three small experiments for concurrent owners, slow readers and independent replicas; detailed OS scenes and the advanced lab in the reference atlas |
 | [Portable systems guide](OS_SYSTEMS_GUIDE.md) / [systems manifest](os_systems_manifest.json) | Actor-complete ASCII sequences, example objects, exact source targets and research hashes |
 | [Memory explanation design](MEMORY_PLANNING_DESIGN.md) / [validation](validation/MEMORY_PLANNING_VALIDATION.md) | Disclosure structure, diagram controls, source checks and browser results |
 | [Text export](MAX_SERVE_LLAMA2_7B_STARTUP_CALL_STACK.txt) / [Markdown export](MAX_SERVE_LLAMA2_7B_STARTUP_CALL_STACK.md) | The combined Llama 2 7B startup call tree, commands and source-file aliases |
@@ -90,7 +90,12 @@ all twelve references and explains where each method is applied.
   The separate six-panel list and its helper paragraph are removed from the
   screen view. Complete examples remain readable without JavaScript and
   when printing.
-- The separate **OS / GPU systems lab** follows startup/readiness, NIC DMA and
+- Both OS pages start with short, numbered interactive stories inspired by
+  Sam Who's load-balancing article. Requests move between distinct queues;
+  counters, batch history, event explanations and selectable request states
+  describe each decision. Play/Pause, Step, Reset and one focused setting per
+  experiment keep the explanation local. Timing and capacities are illustrative.
+- The **OS / GPU reference atlas** follows startup/readiness, NIC DMA and
   Linux TCP/epoll, tokenizer/executor and local Unix IPC, native GPU execution,
   SSE pressure/cancellation, and an external fleet deployment layer. Green
   step labels open persistent cards with inputs, ordered logic, results and
@@ -102,7 +107,10 @@ all twelve references and explains where each method is applied.
   reader speed and routing. Add/Crash/Replace demonstrate readiness and
   failure boundaries for independent one-GPU replicas. All rates are explicit
   teaching inputs; charts are simulation results.
-- The focused **OS components & flow** page explains the roles and interaction
+- The **Requests, admission and scheduling** page starts with one request,
+  a late arrival during a busy pass, bounded M/N pressure and the five-phase
+  worker loop. The original state machines remain visible below the stories.
+  Its collapsible reference atlas explains the roles and interaction
   of 15 components in one serving instance. Three animations contain 26
   handoffs: startup/readiness, one request/response, and the GPU driver/buffer
   boundary. Server, request and OS-thread diagrams contain 19 teaching states
@@ -143,14 +151,14 @@ finalization and device-graph finalization have their own explanations.
 7. Select a function or a **call site** link to inspect exact source. Expand
    **Source map** for file aliases. Long text lines scroll inside the tree,
    preserving indentation on small screens.
-8. Open **OS components & flow ↗** in the call-stack reader header. Inspect
-   component roles, Step/Play through a high-level flow, or select a server,
-   request or OS-thread state-machine path. Hover/focus/tap labels and use
-   Hold/Close/Escape to control the explanation card.
-9. Open **OS / GPU systems lab ↗** in the call-stack reader header. Follow
-   the six scenes with Step/Play; hover, focus or tap green labels and object
-   headers. Hold/Close/Escape control the persistent explanation card.
-10. In the lab, choose a preset, Step or Play, and select a request to inspect
+8. Open **OS components & flow ↗** in the call-stack reader header. Play the
+   four small request experiments. Send R2 while R1 runs, compare one/two batch
+   slots, then fill M and N. Select a moving request or its ID below the diagram
+   to inspect state. The three state machines follow the stories.
+9. Open **OS / GPU systems lab ↗** in the call-stack reader header. Compare
+   API/worker/device ownership, slow down client output, and add a ready replica.
+   Expand **Reference atlas** for the detailed OS scenes, source and advanced lab.
+10. In the advanced lab, choose a preset, Step or Play, and select a request to inspect
     its state and KV/output ownership. Input changes take effect with
     **Apply & restart**. Adding a replica introduces a two-second illustrative
     warmup and affects future routing; existing requests retain their owners.
@@ -198,6 +206,13 @@ CSS and browser controller. It reuses existing pinned snapshots and the
 reviewed OS/device references. Its [manifest](os_components_manifest.json)
 and [validation record](validation/OS_COMPONENTS_VALIDATION.md) record the
 component, source and state-path checks.
+
+Both builders share `src/serve_story.py` (lesson text and diagrams),
+`src/serve_story.css` (article layout), `src/serve_story_model.js` (small
+discrete-event model) and `src/serve_story.js` (controls and SVG motion).
+The shared files are inlined into each HTML file so the pages open offline.
+The [request-story validation record](validation/SERVE_STORIES_VALIDATION.md)
+documents behavioral and browser checks, scope and simulation assumptions.
 
 This version starts from the restored baseline checkpoint. The rejected
 radio-button prototype is not part of the guide.

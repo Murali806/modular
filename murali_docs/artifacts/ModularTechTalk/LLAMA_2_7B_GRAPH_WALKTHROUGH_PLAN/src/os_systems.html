@@ -3,18 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark light">
-<title>MAX Serve · Linux, GPU drivers and serving at scale</title>
+<meta name="color-scheme" content="light dark">
+<title>MAX Serve · Busy workers, slow readers and another replica</title>
 <!-- OS_CSS -->
 </head>
-<body id="top">
-<a class="skip-link" href="#main">Skip to the systems lab</a>
-<header class="topbar"><a class="brand" href="#top"><span class="brand-mark">M</span><span>MAX / SYSTEMS LAB</span></a><div class="top-actions"><a href="../max_serve_llama2_7b_startup_call_stack.html">Call stack ↗</a><a href="llama2_7b_memory_planning_and_memory_plan.html">Memory planning ↗</a><button id="print-page" data-interactive hidden>Print</button></div></header>
-<nav class="section-nav" aria-label="Page sections"><a href="#system-map">System map</a><a href="#guided-scenes">Six animations</a><a href="#scale-lab">Scaling lab</a><a href="#worked-examples">Examples</a><a href="#deep-dives">OS details</a><a href="#source-evidence">Source &amp; research</a></nav>
+<body id="top" class="story-page">
+<a class="skip-link" href="#main">Skip to the worker stories</a>
+<header class="topbar"><a class="brand" href="#top"><span class="brand-mark">M</span><span>MAX SERVE / EXPLAINED</span></a><div class="top-actions"><a href="max_serve_os_components_and_flow.html">← Requests &amp; scheduling</a><button id="print-page" data-interactive hidden>Print</button></div></header>
+<nav class="section-nav" aria-label="Page sections"><a href="#story-clocks">Who is busy?</a><a href="#story-reader">Slow readers</a><a href="#story-replicas">Another replica</a><a href="#scale-lab">Advanced lab</a><a href="#reference-atlas">OS &amp; driver reference</a></nav>
 <main id="main">
-<section class="hero" aria-labelledby="page-title"><div><p class="eyebrow">Linux + NVIDIA · Llama 2 7B · Option B</p><h1 id="page-title">From a socket<br>to a token.</h1><p class="hero-lead">Follow MAX Serve through Linux processes, network queues and GPU drivers. Then change the load and see where thousands of clients wait.</p><div class="hero-actions"><a class="primary-link" href="#guided-scenes">Walk through the system ↓</a><a href="#scale-lab">Open the scaling lab ↓</a></div></div><div class="hero-panel"><div class="hero-numbers"><div><strong>1,000</strong><span>client connections</span></div><span>→</span><div><strong>4</strong><span>GPU batch members</span></div></div><p>Connections, queued requests and model sequences have different owners and limits.</p><div class="mini-flow"><span>SOCKETS</span><i>→</i><span>CPU / IPC</span><i>→</i><span>KV / GPU</span><i>→</i><span>SSE</span></div><span class="badge example-badge">EXAMPLE · explore the arithmetic</span></div></section>
-<div class="evidence-strip"><span><b class="badge">SOURCE</b> MAX calls at <code>{{revision-short}}</code></span><span><b class="badge">BOUNDARY</b> Linux / NVIDIA mechanisms</span><span><b class="badge example-badge">EXAMPLE</b> Illustrative animation and rates</span></div>
-<noscript><p class="notice">JavaScript is disabled. All sequences, object explanations, worked examples and complete source remain readable in the disclosures below. Animation and the interactive simulation require JavaScript.</p></noscript>
+<section class="ss-hero" aria-labelledby="page-title"><p class="ss-kicker">An interactive explanation · 02 / drivers &amp; scaling</p><h1 id="page-title">One busy GPU.<br>A whole system<br><em>still moving.</em></h1><p>Watch the API and model worker act independently. Slow down a client. Add another ready replica. See which part of the system changes—and which requests keep waiting.</p><div class="ss-hero-links"><a href="#story-clocks">See the owners in motion ↓</a><a href="max_serve_os_components_and_flow.html">Start with admission &amp; scheduling</a></div></section>
+<div class="ss-reading-key"><span><i class="ss-dot-key">R1</i> Follow one request owner</span><span><i class="ss-token-key"></i> Separate tokens from requests</span><span>SOURCE {{revision-short}} · Linux / NVIDIA BOUNDARY</span><span>Illustrative events, rates and routing</span></div>
+<noscript><p class="ss-nojs">The lesson text, portable flows and source evidence are readable below. Enable JavaScript for the moving requests and controls.</p></noscript>
+{{serve-stories}}
+{{story-contract}}
+<div class="ss-bridge"><h2>Inspect the resource behind the wait.</h2><p>The reference below connects these examples to Linux sockets, event loops, IPC, GPU drivers and the larger scaling lab. Each source link opens the complete pinned definition.</p></div>
+<details class="ss-reference" id="reference-atlas" open><summary>Reference atlas · OS boundaries, driver flow and advanced scaling lab</summary><div class="ss-reference-body">
 
 <section id="system-map" class="page-section"><div class="section-heading"><div><p class="eyebrow">Start with ownership</p><h2>One server spans several schedulers.</h2></div><a href="#deep-dives">See the OS details ↓</a></div>
 {{systems-map}}
@@ -105,7 +109,8 @@ four 512+64 token requests: reserve 20 pages; initially assign 16 prompt pages</
 <div id="complete-source">{{source-cells}}</div>
 <details id="research-library" class="research-library"><summary>System-design articles, tutorials and official references</summary><p>Reviewed sources shaped the event/queue animations and the fleet lab. Small saved extracts support offline review; open the original references for complete explanations. Driver versions and documentation examples belong to their source pages, not this host.</p>{{research}}</details>
 </section>
-<footer><p><a href="../OS_SYSTEMS_GUIDE.md">Portable systems guide ↗</a> · <a href="../os_systems_manifest.json">Source / evidence manifest ↗</a> · <a href="../README.md">Artifact directory ↗</a></p><p>Native HTML, SVG and JavaScript · offline rendering · keyboard and touch controls · reduced-motion support</p></footer>
+</div></details>
+<footer><p><a href="../OS_SYSTEMS_GUIDE.md">Portable systems guide ↗</a> · <a href="../os_systems_manifest.json">Source / evidence manifest ↗</a> · <a href="../max_serve_llama2_7b_startup_call_stack.html">Startup call stack ↗</a></p><p>Interaction approach inspired by <a href="https://samwho.dev/load-balancing/" target="_blank" rel="noopener">Sam Who's Load Balancing</a>. Original MAX-specific diagrams · offline HTML/SVG/JavaScript · keyboard controls · reduced motion.</p></footer>
 </main>
 
 <aside id="reading-card" class="reading-card" tabindex="-1" role="region" aria-labelledby="reading-card-title" hidden><div class="card-toolbar"><button id="card-close" aria-label="Close explanation">Close ×</button><button id="card-hold" aria-pressed="false">Hold card</button><span class="badge" id="card-evidence">EXAMPLE</span></div><h3 id="reading-card-title"></h3><div id="reading-card-content" class="card-content"></div></aside>

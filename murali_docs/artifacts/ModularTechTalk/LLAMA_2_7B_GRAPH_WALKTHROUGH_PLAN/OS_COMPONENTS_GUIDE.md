@@ -10,6 +10,69 @@ KERNEL:     processes/threads | sockets/epoll | memory/files | GPU kernel driver
 HARDWARE:   NIC | host RAM/storage | GPU/VRAM
 ```
 
+## Interactive request stories
+
+SOURCE-backed control flow; illustrative event durations, exact toy queues and conservative KV reservations. No GPU measurements.
+
+### Accepted. Then scheduled.
+
+A valid request R1 arrives at a ready MAX Serve instance. Follow it through tokenization, the admission gate, prefill and repeated decode passes.
+
+Admission gives R1 a place on the request channel. The worker later chooses when it can execute. Output tokens return to the client while generation continues.
+
+Try it: Press Play. Click a request to follow its state; Step advances one event.
+
+```text
+Client → API/tokenize → admission → request IPC → worker pending
+                                                  ↓
+Client ← TCP/SSE ← API ← response IPC ← GPU/native ← selected batch
+                                      ↑ prefill, then repeated decode
+```
+
+### There is room to wait.
+
+R1 is already generating. Send R2 while the worker is inside a model pass. Watch where R2 waits and when it joins a batch.
+
+With one batch slot, R2 waits for R1 to finish. With two slots and enough KV space, R2 can join a later pass while R1 is still decoding. A running pass keeps its selected members.
+
+Try it: Send R2, then replay with two batch slots. Compare the waiting location.
+
+```text
+API accepts R2 ──→ IPC  | R1's selected pass is running
+next worker iteration ─→ pending → batch eligibility
+B=1: R2 waits for a slot   B=2: R2 may join a subsequent pass
+```
+
+### Watch backpressure reach the gate.
+
+Keep R1 decoding, then send a burst. The worker's pending-prefill queue M fills. It stops pulling from IPC. The request channel N then fills too.
+
+When the API proxy finds that connected channel unwritable, it raises RequestQueueFull. The HTTP handler returns 429 with Retry-After: 1 before streaming begins. Already admitted requests stay in the system.
+
+Try it: Send a burst of six. Increase N and replay the same burst to see more waiting room.
+
+```text
+Long decode holds batch slot
+       ↓
+M full → stop pulling → N fills → API probe fails → HTTP 429
+Work completes → pending drains → IPC drains → admission has room again
+```
+
+### A batch is one pass of work.
+
+R1 is decoding a response. R2 has a longer prompt. The scheduler builds each pass from eligible work, within batch, token and KV limits.
+
+This example gives decode one input token per request and uses the remaining budget for chunked prefill. A partial prompt returns for another pass. Completing prefill yields the first output token; ordinary decode then adds one token per selected request per pass.
+
+Try it: Step through the five highlighted phases. Compare the pass history below the diagram.
+
+```text
+repeat: pull within M → construct batch → pipeline.execute()
+             ↑                                  ↓
+       publish by request ID ← advance state / release finished requests
+no eligible work → NO_PROGRESS → yield/backoff → check again
+```
+
 ## Component roles
 
 ### API process · User space

@@ -81,6 +81,17 @@
       "line": 87,
       "sha256": "066e69c76ff837350b5dbedd0fd46e4e60f306f3be206be0442730265077a502"
     },
+    "construct_batch": {
+      "alias": "BATCH",
+      "symbol": "TextBatchConstructor.construct_batch",
+      "label": "TextBatchConstructor.construct_batch()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py",
+      "start": 2254,
+      "end": 2349,
+      "line": 2254,
+      "sha256": "929263239623c953515356771461c5945cfe3b7ee31a4d81a18040a64d8b33f6"
+    },
     "eventloop": {
       "alias": "SERVE",
       "symbol": "serve_api_server_and_model_worker",
@@ -103,6 +114,17 @@
       "end": 64,
       "line": 56,
       "sha256": "cfbb9ef3fea67e00a84ac544e98392b71bea8233d502b05d4d15b63c733e4fb1"
+    },
+    "first_chunk": {
+      "alias": "OPENAI",
+      "symbol": "_start_stream",
+      "label": "_start_stream()",
+      "kind": "definition",
+      "file": "max/python/max/serve/router/openai_routes.py",
+      "start": 189,
+      "end": 220,
+      "line": 189,
+      "sha256": "8fa8b2bf57250a44c9e590f42d9591b86136654a90207cb72201cc89bc4d9f16"
     },
     "http": {
       "alias": "SERVE",
@@ -194,6 +216,17 @@
       "line": 208,
       "sha256": "3759fd837cd9a09185f93a58b1c1bf35a405c8a527bc9b16158360ea00567581"
     },
+    "preempt_request": {
+      "alias": "BATCH",
+      "symbol": "TextBatchConstructor._preempt_request",
+      "label": "TextBatchConstructor._preempt_request()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py",
+      "start": 1292,
+      "end": 1310,
+      "line": 1292,
+      "sha256": "e5f337ffea39fe7b980f82e1d3a55422c375fc69f55d04b1fe21f4870370fecd"
+    },
     "process_ready": {
       "alias": "PROC",
       "symbol": "ProcessManager.ready",
@@ -237,6 +270,18 @@
       "end": 165,
       "line": 105,
       "sha256": "5670f7ee041e551615eec838e430564aa7dbf7bc216542822cb7db5e302cf076"
+    },
+    "queue_settings": {
+      "alias": "SETTINGS",
+      "symbol": "Settings",
+      "label": "Settings.max_queue_size and max_pending_requests",
+      "kind": "definition",
+      "needle": "    max_queue_size: int | None = Field(",
+      "file": "max/python/max/serve/config.py",
+      "start": 93,
+      "end": 617,
+      "line": 158,
+      "sha256": "8631b0a7b171dc898c75a752def252e514d4cdc5ed002f7c6d80d009c7d6f16e"
     },
     "ready": {
       "alias": "WORKER",
@@ -294,6 +339,17 @@
       "end": 405,
       "line": 304,
       "sha256": "d33f958c66937c9235a067577956ea21ca5b0d151855f3d0ff61852f9fe05322"
+    },
+    "scheduler_pending": {
+      "alias": "TG_SCHED",
+      "symbol": "TokenGenerationScheduler._retrieve_pending_requests",
+      "label": "TokenGenerationScheduler._retrieve_pending_requests()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/text_generation_scheduler.py",
+      "start": 244,
+      "end": 291,
+      "line": 244,
+      "sha256": "ce79a9f989e92004f2430cb8c7632ba8c583f2184e50ac5e6bb950b310993529"
     },
     "serve": {
       "alias": "SERVE",
@@ -385,9 +441,17 @@
       "sha256": "77cec3e86d80b5ab02f05ef0cc5daaf296d739d022449f13db53e5ea284a9a2b",
       "snapshot": "sources/max/python/max/serve/worker_interface/zmq_interface.py"
     },
+    "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py": {
+      "sha256": "5042371189adc416a07f1b8c9ecf9ca465f1ca6a3bc2082e3089cf4e1c38836c",
+      "snapshot": "sources/max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py"
+    },
     "max/python/max/serve/process_control.py": {
       "sha256": "de7b25fc676a2c04eb1b541cf9eadde712c12c161080121d2bc6bdb918a1a0ec",
       "snapshot": "sources/max/python/max/serve/process_control.py"
+    },
+    "max/python/max/serve/router/openai_routes.py": {
+      "sha256": "2cf362bed1bf72284fbd6246b880cd50b5f94246986fac5f90e36733f8980030",
+      "snapshot": "sources/max/python/max/serve/router/openai_routes.py"
     },
     "max/python/max/serve/worker_interface/_zmq_queue.py": {
       "sha256": "96c38bfe03e49697bea71196e8ccfd0eb3bd668f3430aebd00a8283bc7bd579b",
@@ -405,9 +469,9 @@
       "sha256": "8a2256eb53f5f8bd29c862a3cfa14d827de163caf80c068681f0cee25ffc6d89",
       "snapshot": "sources/max/python/max/pipelines/lib/pipeline_variants/text_generation.py"
     },
-    "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py": {
-      "sha256": "5042371189adc416a07f1b8c9ecf9ca465f1ca6a3bc2082e3089cf4e1c38836c",
-      "snapshot": "sources/max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py"
+    "max/python/max/serve/config.py": {
+      "sha256": "7aec55e9d29a96d2c29770b280538aff8cf3253f24ec887061679dbea7aae04c",
+      "snapshot": "sources/max/python/max/serve/config.py"
     },
     "max/python/max/serve/scheduler/__init__.py": {
       "sha256": "5ee97a08b9d5f32f033ab8216e0976c041bd2a1b9476fc1e7e25445bb119f635",

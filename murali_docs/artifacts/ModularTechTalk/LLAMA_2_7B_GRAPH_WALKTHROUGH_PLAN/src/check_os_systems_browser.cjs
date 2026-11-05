@@ -46,6 +46,7 @@ const openAncestors = async locator => locator.evaluate(node => {
     await page.goto(url);
     const payload = await page.locator("#os-data").evaluate(node => JSON.parse(node.textContent));
     const card = page.locator("#reading-card");
+    await page.locator("#reference-atlas>summary").click();
     assert.equal(await page.locator(".scene").count(), 6);
     assert.equal(await page.locator("#lab").getAttribute("data-time"), "0");
     await page.waitForTimeout(150);

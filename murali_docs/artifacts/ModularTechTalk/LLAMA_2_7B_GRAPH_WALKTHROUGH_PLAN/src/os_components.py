@@ -1,4 +1,4 @@
-"""Build the focused, offline OS-component reader without a capacity simulator."""
+"""Build the offline request stories, state machines and OS reference atlas."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import textwrap
 
 from call_stack_refs import FILES as STACK_FILES, REFS as STACK_REFS
 from os_components_content import CLIENTS_ASCII, CLIENTS_NOTE, COMPONENTS, FLOWS, MACHINES
+from serve_story import render_stories, story_contract, story_markdown, story_refs
 
 PAGE_NAME = "max_serve_os_components_and_flow.html"
 
@@ -158,7 +159,7 @@ def build_os_components(data, task, src, span_finder):
     specs = dict(systems['references'])
     for key in ('load_graphs', 'scheduler'):
         specs[key] = {**STACK_REFS[key], 'file': STACK_FILES[STACK_REFS[key]['alias']]}
-    used_refs = set()
+    used_refs = story_refs('components')
     used_docs = set()
     def collect(record):
         used_refs.update(record.get('refs', [])); used_docs.update(record.get('docs', []))
@@ -197,6 +198,7 @@ def build_os_components(data, task, src, span_finder):
     clients = ''.join(f'<tr><td>{safe(name)}</td><td>{safe(owner)}</td><td>{safe(role)}</td></tr>' for name,owner,role in CLIENTS_NOTE)
     template = (src/'os_components.html').read_text()
     for marker, value in {
+        'serve-stories':render_stories('components'), 'story-contract':story_contract(),
         'component-map':component_map(), 'role-rows':role_rows, 'component-readings':readings,
         'flows':render_flows(), 'machines':render_machines(), 'client-rows':clients,
         'clients-ascii':safe(CLIENTS_ASCII), 'revision':data['revision'],
@@ -210,11 +212,12 @@ def build_os_components(data, task, src, span_finder):
     template=re.sub(r'\{\{doc:([a-z_0-9]+)\}\}',lambda m:f'<a href="{safe(docs[m[1]]["url"])}" target="_blank" rel="noopener">{safe(docs[m[1]]["title"])}</a>',template)
     template=template.replace('{{research}}',''.join(f'<li><a href="{safe(r["url"])}" target="_blank" rel="noopener">{safe(r["title"])}</a> · <a href="../{r["snapshot"]}">saved extract</a></li>' for r in research))
     assert '{{' not in template, 'Unfilled component template'
-    payload=dict(revision=data['revision'], scope='One MAX Serve instance: OS roles, interactions, high-level flows and teaching states',
+    payload=dict(revision=data['revision'], scope='One MAX Serve instance: admission and scheduling stories, OS roles and teaching states',
                  components=COMPONENTS, flows=FLOWS, machines=MACHINES, files=files, references=refs, research=research)
     template=template.replace('<!-- COMPONENT_DATA -->','<script id="component-data" type="application/json">'+json.dumps(payload,ensure_ascii=False).replace('<','\\u003c')+'</script>')
-    template=template.replace('<!-- COMPONENT_CSS -->','<style>'+(src/'os_components.css').read_text()+'</style>')
-    template=template.replace('<!-- COMPONENT_JS -->','<script>'+(src/'os_components.js').read_text()+'</script>')
+    template=template.replace('<!-- COMPONENT_CSS -->','<style>'+(src/'os_components.css').read_text()+'\n'+(src/'serve_story.css').read_text()+'</style>')
+    scripts = ('os_components.js', 'serve_story_model.js', 'serve_story.js')
+    template=template.replace('<!-- COMPONENT_JS -->',''.join('<script>'+(src/name).read_text()+'</script>' for name in scripts))
     (task/'link_htmls'/PAGE_NAME).write_text(template)
     manifest=dict(revision=data['revision'], page='link_htmls/'+PAGE_NAME,
                   references={k:{a:v for a,v in r.items() if a!='code'} for k,r in refs.items()},
@@ -227,7 +230,7 @@ def build_os_components(data, task, src, span_finder):
         f'[Interactive focused page](link_htmls/{PAGE_NAME}) · SOURCE revision `{data["revision"]}`.',
         'Linux + NVIDIA. Source calls and external OS/device mechanisms are distinguished. Animation expresses event order.',
         '```text\nUSER SPACE: API + uvloop <-- Unix IPC --> worker + MAX scheduler + native backend\nKERNEL:     processes/threads | sockets/epoll | memory/files | GPU kernel driver\nHARDWARE:   NIC | host RAM/storage | GPU/VRAM\n```',
-        '## Component roles']
+        *story_markdown('components'), '## Component roles']
     for c in COMPONENTS.values():
         md += [f'### {c["name"]} · {c["layer"]}', c['role'], 'Interacts with: '+c['interacts'], 'Call stack: `'+c['entry']+'`.']
     for f in FLOWS:

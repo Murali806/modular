@@ -3,8 +3,8 @@
 Date: 2026-11-05, Asia/Colombo. Machine-readable reports record UTC timestamps.
 
 Artifact: [focused OS-component page](../link_htmls/max_serve_os_components_and_flow.html).
-Scope: one Linux + NVIDIA serving instance, component roles, interactions,
-high-level startup/request/device flows and teaching state machines.
+Scope: four request/admission/scheduler stories, three teaching state machines,
+and a reference atlas for one Linux + NVIDIA serving instance.
 
 Source revision: `610f7111836d9a950d45ba52ec9b3e0ed589fe3f`.
 Model context: `meta-llama/Llama-2-7b-hf`, single-device Graph API.
@@ -29,7 +29,7 @@ disk. Builds reuse saved reference extracts and source snapshots.
 
 ## Source and scope checks — PASS
 
-- 32 source targets across 15 files match the pinned source byte for byte.
+- 37 source targets across 17 files match the pinned source byte for byte.
   Complete definition bounds, invocation lines, source hashes and original
   copying data are checked.
 - 15 component roles identify ownership, layer, interactions and the matching
@@ -43,8 +43,9 @@ disk. Builds reuse saved reference extracts and source snapshots.
   enables HTTP handling.
 - The page reuses 13 reviewed OS/device references with checked extract hashes.
   Local links, IDs, Python source syntax and offline assets pass.
-- The focused UI contains roles, flows, states and references. It has no
-  numerical capacity inputs, request-rate controls or fleet simulator.
+- Four small request stories precede the state machines and reference atlas.
+  Their small capacities and event durations are illustrative. The separate
+  systems page contains the replica story and advanced lab.
 
 Results: [source_checks.json](source_checks.json) and
 [os_components_manifest.json](../os_components_manifest.json).
@@ -52,7 +53,7 @@ Results: [source_checks.json](source_checks.json) and
 ## Browser checks — PASS
 
 11 grouped checks passed, including all 15 component cards, 26 flow-step
-cards, 19 state cards, eight paths and 32 source targets. Seventeen rendered
+cards, 19 state cards, eight paths and 37 source targets. Seventeen rendered
 contrast states passed; zero browser errors or external runtime requests
 were observed.
 
@@ -77,6 +78,9 @@ control outlines, focus indicators and diagram lines 3:1. These rendered-color
 checks are part of UI verification, not a complete accessibility audit.
 
 Result: [os_components_browser.json](os_components_browser.json).
+
+The seven new request/system stories have additional behavioral and browser
+coverage in [SERVE_STORIES_VALIDATION.md](SERVE_STORIES_VALIDATION.md).
 
 Visual review:
 

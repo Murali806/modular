@@ -162,7 +162,7 @@ async function shot(page,name) {
       await page.waitForFunction(key=>document.activeElement.dataset.ref===key,key);
       refs++;
     }
-    assert.equal(refs,32);checks.push("all 32 exact source targets, full-file fidelity, complete copying and search");
+    assert.equal(refs,Object.keys(data.references).length);checks.push("all exact source targets, full-file fidelity, complete copying and search");
 
     await page.waitForFunction(()=>document.querySelector("#copy-status").hidden);
     await page.locator('#flow-device [data-story-step="1"]').click();await audit(page,"Driver role card");

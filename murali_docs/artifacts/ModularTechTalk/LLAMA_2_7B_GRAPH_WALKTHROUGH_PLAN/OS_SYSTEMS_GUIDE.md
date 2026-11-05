@@ -4,6 +4,38 @@
 
 Linux + NVIDIA. Source calls and public-reference mechanisms accompany an explicitly illustrative, deterministic lab.
 
+## Interactive request stories
+SOURCE-backed control flow; illustrative event durations, exact toy queues and conservative KV reservations. No GPU measurements.
+### Busy belongs to an owner.
+While the model worker executes a pass, the API can tokenize and admit another request. The OS schedules runnable CPU threads; MAX chooses model work; the GPU executes submitted operations.
+An HTTP task waiting for output is suspended until data is available. It does not require a dedicated CPU thread. GPU completion and socket readiness are different events. The lanes below show logical ownership, not a measured thread trace.
+Try it: Send another request during Execute. Compare the API lane with the worker and device lanes.
+```text
+OS:     gives CPU time to runnable threads in both processes
+API:    tokenize → admit → await output → SSE
+Worker: drain → select → execute → advance → publish → repeat
+GPU:                     submitted compute → result
+Linux socket readiness wakes I/O; native runtime manages device dependencies.
+```
+### The GPU finishes. The stream remains.
+Make the client read slowly. Output tokens collect after generation, while the worker can release that request's KV ownership and start other work.
+Response IPC, API output queues and TCP transport each have buffering. This animation groups them into one output buffer. A slow client can raise egress memory and latency; an admitted stream does not turn into a new HTTP 429 response.
+Try it: Play until R1 has generated all five tokens. Compare KV ownership with buffered output.
+```text
+GPU completes → release request KV ownership (pool remains allocated)
+       ↓
+response IPC → API output buffer → TCP → slow client
+              tokens can remain after generation finishes
+```
+### Another replica, another worker.
+An external router can send new requests to independent MAX Serve replicas. Each replica has its own API, worker, queues, model allocation and KV pool.
+Add B, wait for readiness, then send more requests. Existing streams keep their original owner. This round-robin router and its warmup duration are teaching choices. Adding HTTP connections alone does not add model compute.
+Try it: Add replica B. After it becomes ready, send a burst and watch which replica owns each request.
+```text
+Clients → external round-robin router → ready replica A (API + worker + GPU/KV)
+                                     → ready replica B (API + worker + GPU/KV)
+Initializing replicas receive no new requests. Existing work stays with its owner.
+```
 
 ## Start two processes, then become ready
 
