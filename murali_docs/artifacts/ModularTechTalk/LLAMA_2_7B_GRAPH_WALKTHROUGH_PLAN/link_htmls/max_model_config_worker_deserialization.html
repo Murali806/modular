@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Worker Deserialization and Config Rebuilding · MAX Serve / Llama 2 7B</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #171a20;
+      --panel: #20252d;
+      --panel-soft: #252c35;
+      --code-bg: #15191f;
+      --line: #3b4654;
+      --ink: #e8edf4;
+      --muted: #b1bdcc;
+      --cyan: #7dd3df;
+      --blue: #8db7ff;
+      --green: #a8dba8;
+      --amber: #f2c879;
+      --violet: #c3a5e8;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--page); }
+    body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.72 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    a { color: var(--cyan); text-underline-offset: 3px; overflow-wrap: anywhere; }
+    a:hover { text-decoration-thickness: 2px; }
+    :focus-visible { outline: 2px solid var(--cyan); outline-offset: 4px; }
+    .skip-link { position: absolute; left: 12px; top: -100px; padding: 8px 14px; background: var(--panel); z-index: 1; }
+    .skip-link:focus { top: 12px; }
+    .page { width: min(100% - 36px, 1040px); margin: 0 auto; padding: 28px 0 64px; }
+    .topline { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 25px; }
+    .badge { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; color: var(--green); background: var(--panel); font-size: 12px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { margin: 0 0 12px; font-size: clamp(28px, 4vw, 42px); line-height: 1.2; letter-spacing: -.025em; }
+    .subtitle { margin: 0 0 24px; color: var(--muted); }
+    .answer { padding: clamp(18px, 4vw, 34px); border: 1px solid var(--line); border-radius: 13px; background: var(--panel); }
+    p { margin: 0 0 19px; }
+    strong { color: var(--cyan); }
+    code { color: var(--amber); font: .92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+    pre { overflow: auto; margin: 17px 0 22px; padding: 18px; border: 1px solid var(--line); border-radius: 9px; background: var(--code-bg); color: var(--ink); font: 13px/1.75 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 4; }
+    pre code { color: inherit; font: inherit; overflow-wrap: normal; }
+    .parent { color: var(--blue); }
+    .worker, .keyword { color: var(--green); }
+    .transfer, .field { color: var(--amber); }
+    .method { color: var(--violet); }
+    figure { margin: 22px 0; }
+    figure pre { margin-bottom: 10px; }
+    figcaption { color: var(--muted); font-size: .9rem; }
+    .lead { border-left: 4px solid var(--cyan); padding-left: 16px; }
+    .callout { border: 1px solid var(--line); border-left: 4px solid var(--amber); border-radius: 7px; margin: 20px 0 0; padding: 15px 17px; background: var(--panel-soft); }
+    .callout p:last-child { margin-bottom: 0; }
+    .clarification { margin: 23px 0; border: 1px solid var(--line); border-left: 4px solid var(--violet); border-radius: 9px; }
+    .clarification > summary { padding: 15px 17px; cursor: pointer; color: var(--violet); background: var(--panel-soft); font-weight: 700; }
+    .clarification-body { padding: 19px 17px 3px; }
+    .table-scroll { overflow: auto; margin: 18px 0 22px; }
+    table { width: 100%; min-width: 550px; border-collapse: collapse; border: 1px solid var(--line); }
+    th, td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    td:first-child { white-space: nowrap; }
+    th { color: var(--cyan); background: var(--panel-soft); }
+    tr:last-child td { border-bottom: 0; }
+    li { margin: 0 0 13px; }
+    ul { padding-left: 23px; }
+    .source { display: inline-block; margin: 4px 5px 4px 0; border: 1px solid var(--line); border-radius: 8px; padding: 2px 8px; color: var(--violet); font-size: .84rem; text-decoration: none; }
+    .source:hover { text-decoration: underline; }
+    .provenance { margin-top: 22px; color: var(--muted); font-size: .88rem; }
+    @media (max-width: 640px) {
+      .page { width: min(100% - 22px, 1040px); padding-top: 18px; }
+      .answer { padding: 20px 15px; }
+      body { font-size: 15px; }
+      pre { padding: 14px 11px; font-size: 12px; }
+      th, td { padding: 9px 11px; }
+    }
+    @media print {
+      :root { color-scheme: light; --page: #fff; --panel: #fff; --panel-soft: #eee; --code-bg: #f4f5f7; --line: #aaa; --ink: #151515; --muted: #444; --cyan: #075e73; --blue: #174f91; --green: #246526; --amber: #755000; --violet: #5b3282; }
+      .page { width: 100%; padding: 0; }
+      .answer { padding: 18px 0; border: 0; }
+      .topline a, .skip-link { display: none; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 10px; }
+      .table-scroll { overflow: visible; }
+      table { min-width: 0; }
+      tr { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#explanation">Skip to the explanation</a>
+  <main class="page">
+    <div class="topline">
+      <span class="badge">MAX Serve · SOURCE</span>
+      <a href="../max_serve_llama2_7b_startup_call_stack.html">← Back to the startup call stack</a>
+    </div>
+    <h1>Worker deserialization and configuration rebuilding</h1>
+    <p class="subtitle"><code>MAXModelConfig.__getstate__()</code> → serialized state → <code>MAXModelConfig.__setstate__()</code></p>
+
+    <article class="answer" id="explanation" aria-label="Full explanation of worker deserialization">
+      <p class="lead">Your understanding is correct: <strong>the parent process has already populated the configuration. However, MAX deliberately excludes four derived objects when transferring it to the worker.</strong> The worker recreates those objects. This is explicit in the guide’s saved <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1000"><code>__getstate__()</code> implementation</a>.</p>
+
+      <p><strong>Deserialization</strong> means reconstructing Python objects from serialized bytes. Serialization performs the reverse conversion: Python objects → bytes. Python’s <code>pickle</code> system calls these operations <em>pickling</em> and <em>unpickling</em>.
+        <a class="source" href="https://docs.python.org/3/library/pickle.html">Python: pickle</a>
+      </p>
+
+      <p>It is needed here because MAX starts the worker using <strong><code>spawn</code></strong>, which creates a fresh Python interpreter. The worker needs its own reconstructed configuration objects. MAX passes <code>pipeline_config</code> among the worker’s arguments in <a href="../sources/max/python/max/serve/pipelines/model_worker.py#L797"><code>start_model_worker()</code></a>.
+        <a class="source" href="https://docs.python.org/3/library/multiprocessing.html#contexts-and-start-methods">Python: spawn</a>
+      </p>
+
+      <p>The handoff looks like this (<strong>SOURCE</strong>, simplified):</p>
+      <figure aria-labelledby="handoff-caption">
+        <pre tabindex="0" aria-label="Parent-to-worker serialization sequence"><code><span class="parent">PARENT / API PROCESS</span>                       <span class="worker">WORKER PROCESS
+                                            fresh interpreter</span>
+<span class="parent">PipelineConfig
+  └─ MAXModelConfig: already populated</span>
+          |
+          v
+    <span class="method">__getstate__()</span>
+      <span class="parent">Keep saved settings</span>
+      <span class="transfer">Clear four derived objects</span>
+          |
+          v
+    <span class="transfer">Serialize to bytes -----------------&gt; Deserialize</span>
+                                              |
+                                              v
+                                        <span class="method">__setstate__()</span>
+                                          <span class="worker">Restore saved settings
+                                          Rebuild derived objects</span>
+                                              |
+                                              v
+                                        <span class="method">ModelWorker.__call__()</span></code></pre>
+        <figcaption id="handoff-caption"><span class="parent">Blue: parent process</span> · <span class="worker">Green: worker process</span> · <span class="transfer">Amber: transferred state</span> · <span class="method">Violet: methods</span></figcaption>
+      </figure>
+
+      <p>The missing step in your quoted tree is <strong>the parent’s <code>__getstate__()</code></strong>. It makes a copy of the state and explicitly sets these entries to <code>None</code>:</p>
+
+      <pre tabindex="0" aria-label="Four fields cleared in the serialized copy"><code>private_state[<span class="field">"_huggingface_config"</span>] = <span class="keyword">None</span>
+private_state[<span class="field">"_cached_weight_repo"</span>] = <span class="keyword">None</span>
+private_state[<span class="field">"_cached_model_repo"</span>] = <span class="keyword">None</span>
+private_state[<span class="field">"_generation_config"</span>] = <span class="keyword">None</span></code></pre>
+
+      <p>These changes affect the serialized copy; the parent retains its populated objects. Ordinary saved fields, including the model path and revision, remain available for reconstruction. See the implementation linked above.</p>
+
+      <p>MAX’s comments explain the reason: repository objects can contain cached HF API responses that may not be pickleable, and HF configuration objects can involve dynamically loaded classes from <code>trust_remote_code</code>. Rebuilding them lets the worker resolve those classes in its own interpreter. MAX also treats the generation configuration as derived state and clears it. <strong>This is a choice in MAX’s serialization design; Python does not inherently require every populated configuration to be reloaded.</strong> See <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1024"><code>__setstate__()</code> and its reconstruction comments</a>.</p>
+
+      <details class="clarification" id="derived-generation-state" open>
+        <summary>In depth · What “derived state” and “clears it” mean</summary>
+        <div class="clarification-body">
+          <p><strong>MAX keeps the information needed to reload the generation configuration, while omitting the already-loaded Python object from the serialized copy.</strong> “Derived state” describes that rebuildable object. This is the behavior of <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1000"><code>__getstate__()</code></a> and <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1087"><code>_populate_generation_config()</code></a>.</p>
+
+          <p>There are three pieces to distinguish:</p>
+          <ol>
+            <li><strong>Saved source identity:</strong> <code>model_path</code>, <code>huggingface_model_revision</code>, <code>subfolder</code>, and related loader settings. These tell the worker where and how to load configuration.</li>
+            <li><strong>Repository data:</strong> the model repository’s <code>generation_config.json</code>, normally loaded by <code>GenerationConfig.from_pretrained()</code>. A cached copy on disk can supply the file.</li>
+            <li><strong>Derived Python object:</strong> <code>MAXModelConfig._generation_config</code>, holding a loaded <code>GenerationConfig</code> instance with generation settings such as <code>temperature</code> and <code>top_p</code>.</li>
+          </ol>
+          <p><a class="source" href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1114">Repository identity</a> <a class="source" href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1378">MAX generation loader</a> <a class="source" href="https://huggingface.co/docs/transformers/v4.45.2/en/main_classes/text_generation#transformers.GenerationConfig.from_pretrained">Transformers: generation_config.json</a></p>
+
+          <p>Here “derived” means <strong>loaded and constructed from those inputs</strong>. MAX calls the generation loader separately from the HF model-config loader. Its fallback is <code>GenerationConfig()</code> when loading fails.</p>
+
+          <p><strong>“Clears it” applies to the copied serialization state.</strong> The relevant lines inside <code>__getstate__()</code> are:</p>
+          <pre tabindex="0" aria-label="Copy the private dictionary before clearing generation state"><code>private_state = <span class="keyword">dict</span>(private)
+private_state[<span class="field">"_generation_config"</span>] = <span class="keyword">None</span>
+state[<span class="field">"__pydantic_private__"</span>] = private_state</code></pre>
+          <p>The parent still holds its original <code>GenerationConfig</code> object. The repository file and any Hub-cache file remain available. <code>None</code> marks the field as needing initialization in the reconstructed config.</p>
+
+          <p>During worker deserialization, <code>__setstate__()</code> calls <code>_populate_generation_config()</code>. The condition below triggers the reload for a normal config with a model path:</p>
+          <pre tabindex="0" aria-label="Restore generation configuration in the worker"><code><span class="keyword">if</span> self._generation_config <span class="keyword">is None and</span> self.model_path:
+    self._generation_config = self.<span class="method">_make_generation_config()</span></code></pre>
+
+          <figure aria-labelledby="generation-state-caption">
+            <pre tabindex="0" aria-label="Generation configuration across serialization"><code><span class="parent">PARENT PROCESS</span>           <span class="transfer">SERIALIZED COPY</span>          <span class="worker">WORKER PROCESS</span>
+GenerationConfig A       _generation_config       initially None
+  temperature = 0.7  -&gt;     = None            -&gt; <span class="method">reload from repo</span>
+                                                 GenerationConfig B
+                                                   temperature = 0.7
+
+<span class="parent">A stays in parent RAM</span>    <span class="transfer">model identity retained</span>  <span class="worker">B lives in worker RAM</span></code></pre>
+            <figcaption id="generation-state-caption">SOURCE · Illustrative temperature, not a measured Llama checkpoint value. The same setting is reconstructed when the file and loader behavior are unchanged.</figcaption>
+          </figure>
+
+          <p><strong>The source does not give a separate <code>GenerationConfig</code> pickling failure.</strong> The comments identify possible problems with HF config classes and cached repository responses, while the implementation also clears the generation object. The supported conclusion is that MAX deliberately rebuilds this field; the code does not establish that every <code>GenerationConfig</code> is inherently unpickleable.</p>
+
+          <p>A consequence of this policy: suppose the repository file says <code>temperature = 0.7</code>, and code directly changes only the parent’s <code>_generation_config.temperature</code> to <code>0.2</code>. That object’s edit is omitted from the serialized state. With the same repository file, the worker reloads <code>0.7</code>. This example concerns a direct edit to that private object; the result follows from the reset-and-reload code.</p>
+
+          <p>Being derived does not automatically make a field disposable. The same class explicitly preserves <code>_resolved_dtype_cast</code>, because recomputing it against the resolved weight path can produce a different answer. MAX chooses which state to carry and which state to rebuild. <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L970">Source: preserved dtype-cast state</a>.</p>
+        </div>
+      </details>
+
+      <p>That explains each repeated operation:</p>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Configuration objects reconstructed in the worker">
+        <table>
+          <thead><tr><th scope="col">Worker operation</th><th scope="col">What it reconstructs</th></tr></thead>
+          <tbody>
+            <tr><td><code>_populate_repo_handles()</code></td><td>Repository objects from the restored model/weights identifiers, revisions, and related settings.</td></tr>
+            <tr><td><code>_populate_hf_config()</code></td><td>The HF configuration object, using <code>load_huggingface_config(repo)</code>.</td></tr>
+            <tr><td><code>_populate_generation_config()</code></td><td>The generation configuration; its loader returns a default <code>GenerationConfig()</code> if loading fails.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The first two are defined <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1055">here</a>; the generation loader and fallback are <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1378">here</a>.</p>
+
+      <p>The cache statement refers to two different kinds of reuse:</p>
+      <ul>
+        <li><strong>Python object cache:</strong> <code>_hf_config.py</code> maintains an in-memory <code>_config_cache</code>. The spawned worker starts with its own empty cache; subsequent loads within that worker can reuse its entries. <a href="../sources/max/python/max/pipelines/lib/_hf_config.py#L23">Source</a>.</li>
+        <li><strong>Downloaded-file cache:</strong> Parent and worker can read the same files on disk when they use the same Hub cache location. Recreating Python objects therefore does <strong>not necessarily download the files again</strong>, although online metadata checks can still occur.
+          <a class="source" href="https://huggingface.co/docs/huggingface_hub/guides/manage-cache">Hugging Face: caching</a>
+          <a class="source" href="https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables#hfhuboffline">Hugging Face: metadata checks</a>
+        </li>
+      </ul>
+
+      <aside class="callout" aria-label="Reading the call-tree arrow">
+        <p>One detail in the tree: the arrow between <code>_populate_repo_handles()</code> and <code>_populate_hf_config()</code> represents execution order. In the actual <a href="../sources/max/python/max/pipelines/lib/config/model_config.py#L1051"><code>__setstate__()</code> body</a>, all three population methods are called directly and sequentially.</p>
+      </aside>
+    </article>
+
+    <footer class="provenance">SOURCE · The same saved source as the startup guide, revision <code>610f7111836d9a950d45ba52ec9b3e0ed589fe3f</code>. The diagram illustrates the implementation; it is not a captured execution trace.</footer>
+  </main>
+</body>
+</html>

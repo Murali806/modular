@@ -221,6 +221,7 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
             |   |   |   |   Expand the WORKER's work here, then follow MAIN's continuation below.
             |   |   |   +-- => WORKER PROCESS [separate Python stack; QnA 1.1.5 and 1.1.6]
             |   |   |       +-- during deserialization: MAXModelConfig.__setstate__() [MODEL_CFG:L1024]
+            |   |   |       |   -> Worker deserialization: why MAX rebuilds the config ↗ (link_htmls/max_model_config_worker_deserialization.html)
             |   |   |       |   +-- MAXModelConfig._populate_repo_handles() [MODEL_CFG:L1055] -> MAXModelConfig._populate_hf_config() [MODEL_CFG:L1067]
             |   |   |       |   |   -> load_huggingface_config(repo) [HF_CFG:L90]; this new process has its own HF-config cache.
             |   |   |       |   +-- MAXModelConfig._populate_generation_config() [MODEL_CFG:L1087] -> same optional generation loader / fallback.

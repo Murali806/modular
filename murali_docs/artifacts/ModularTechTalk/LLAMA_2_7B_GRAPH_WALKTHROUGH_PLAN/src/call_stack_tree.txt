@@ -205,6 +205,7 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
             |   |   |   |   Expand the WORKER's work here, then follow MAIN's continuation below.
             |   |   |   +-- => WORKER PROCESS [separate Python stack; QnA 1.1.5 and 1.1.6]
             |   |   |       +-- during deserialization: {{unpickle}}
+            |   |   |       |   -> [[doc:worker_deserialization]]
             |   |   |       |   +-- {{repo}} -> {{populate_hf}}
             |   |   |       |   |   -> {{hf_load}}; this new process has its own HF-config cache.
             |   |   |       |   +-- {{gen_populate}} -> same optional generation loader / fallback.

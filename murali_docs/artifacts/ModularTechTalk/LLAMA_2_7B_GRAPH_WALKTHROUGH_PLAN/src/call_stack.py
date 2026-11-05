@@ -72,6 +72,15 @@ LOCAL_LINKS = {
         ),
         "title": "Open the memory-planning diagrams, complete source and input origins",
     },
+    "worker_deserialization": {
+        "href": "link_htmls/max_model_config_worker_deserialization.html",
+        "label": "Worker deserialization: why MAX rebuilds the config ↗",
+        "text": (
+            "Worker deserialization: why MAX rebuilds the config ↗ "
+            "(link_htmls/max_model_config_worker_deserialization.html)"
+        ),
+        "title": "Open the explanation of serialization, restored fields and the worker's caches",
+    },
 }
 
 
