@@ -13,7 +13,7 @@ architecture registration timing. The
 | [MAX Serve startup call stack](max_serve_llama2_7b_startup_call_stack.html) | One continuous tree combining QnA 1.1.1–1.1.6, from CLI parsing to HTTP readiness |
 | [Memory planning and MemoryPlan](link_htmls/llama2_7b_memory_planning_and_memory_plan.html) | Nested QnA cells with input origins, initialization calls and example objects, a budget waterfall, KV pages, parent/worker handoff and complete pinned source |
 | [Requests, admission and scheduling](link_htmls/max_serve_os_components_and_flow.html) | Four interactive request stories: accepted work, busy workers, M/N backpressure and 429, and per-pass scheduling; three preserved state machines |
-| [Request-story companion](OS_COMPONENTS_GUIDE.md) / [validation](validation/OS_COMPONENTS_VALIDATION.md) | Portable flows, OS reference atlas, 37 source targets and browser results |
+| [Request-story companion](OS_COMPONENTS_GUIDE.md) / [validation](validation/OS_COMPONENTS_VALIDATION.md) | Portable flows, OS reference atlas, 41 source targets and browser results |
 | [Workers, drivers and scaling](link_htmls/max_serve_os_driver_and_scaling.html) | Three small experiments for concurrent owners, slow readers and independent replicas; detailed OS scenes and the advanced lab in the reference atlas |
 | [Portable systems guide](OS_SYSTEMS_GUIDE.md) / [systems manifest](os_systems_manifest.json) | Actor-complete ASCII sequences, example objects, exact source targets and research hashes |
 | [Memory explanation design](MEMORY_PLANNING_DESIGN.md) / [validation](validation/MEMORY_PLANNING_VALIDATION.md) | Disclosure structure, diagram controls, source checks and browser results |
@@ -95,6 +95,15 @@ all twelve references and explains where each method is applied.
   counters, batch history, event explanations and selectable request states
   describe each decision. Play/Pause, Step, Reset and one focused setting per
   experiment keep the explanation local. Timing and capacities are illustrative.
+- Animations occupy the full story width. Hover or focus the numbered badge
+  inside an animation to reveal its lesson; moving away dismisses the card.
+  Touch taps toggle it. The circled **L** at the right edge of the sticky menu
+  opens a color legend with component ownership, IPC and synchronization types.
+  FastAPI and Uvicorn's Server object share the API process; the worker is a
+  separate process. Native runtime, OS driver and GPU have distinct colors.
+  Visible message slots track N, occupancy, draining and resets. Escape,
+  outside clicks and close buttons dismiss cards; print/no-JavaScript reading
+  retains the explanations.
 - The **OS / GPU reference atlas** follows startup/readiness, NIC DMA and
   Linux TCP/epoll, tokenizer/executor and local Unix IPC, native GPU execution,
   SSE pressure/cancellation, and an external fleet deployment layer. Green

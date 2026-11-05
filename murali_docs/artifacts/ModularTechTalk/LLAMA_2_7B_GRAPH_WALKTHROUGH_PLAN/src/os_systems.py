@@ -10,7 +10,7 @@ import subprocess
 
 from call_stack_refs import FILES as STACK_FILES, REFS as STACK_REFS
 from memory_planning import FILES as MEMORY_FILES, REFS as MEMORY_REFS, definition
-from serve_story import render_stories, story_contract, story_markdown
+from serve_story import render_legend, render_stories, story_contract, story_markdown
 
 PAGE_NAME = "max_serve_os_driver_and_scaling.html"
 BASE = "max/python/max/"
@@ -39,6 +39,7 @@ REFS.update({
     "ipc_address": definition("IPC", "generate_zmq_ipc_path"),
     "ipc_config": definition("IPC", "ZmqConfig.__init__"),
     "proxy_submit": definition("ZMQ", "ZmqModelWorkerProxy.stream"),
+    "proxy_init": definition("ZMQ", "ZmqModelWorkerProxy.__init__"),
     "proxy_drain": definition("ZMQ", "ZmqModelWorkerProxy._drain_responses"),
     "proxy_responses": definition("ZMQ", "ZmqModelWorkerProxy.response_worker"),
     "proxy_cancel": definition("ZMQ", "ZmqModelWorkerProxy.cancel"),
@@ -47,6 +48,7 @@ REFS.update({
     "first_chunk": definition("OPENAI", "_start_stream"),
     "sse_response": definition("OPENAI", "openai_create_chat_completion", "Return the SSE response after admission and first chunk", '            return EventSourceResponse(token_stream, ping=100000, sep="\\n")'),
     "tokenizer_cpu": definition("TOKENIZER", "TextTokenizer._encode_text"),
+    "tokenizer_executor": definition("TOKENIZER", "run_with_default_executor"),
     "token_context": definition("TOKENIZER", "TextTokenizer.new_context"),
     "token_chunks": definition("API_LLM", "TokenGeneratorPipeline.next_token_chunk", "Tokenize, submit and drain token chunks", "                context = await self.tokenizer.new_context(request)"),
     "scheduler_pending": definition("TG_SCHED", "TokenGenerationScheduler._retrieve_pending_requests"),
@@ -191,6 +193,7 @@ def build_os_systems(data, task, src, span_finder):
 
     template = (src / "os_systems.html").read_text()
     template = template.replace('{{serve-stories}}', render_stories('systems'))
+    template = template.replace('{{serve-legend}}', render_legend())
     template = template.replace('{{story-contract}}', story_contract())
     template = template.replace('{{systems-map}}', systems_map())
     template = template.replace('{{scenes}}', render_scenes(SCENES))
@@ -251,7 +254,7 @@ def build_os_systems(data, task, src, span_finder):
     companion = ["# MAX Serve: Linux, GPU drivers and serving at scale\n",
                  f"[Interactive systems lab](link_htmls/{PAGE_NAME}). SOURCE revision: `{data['revision']}`.\n",
                  "Linux + NVIDIA. Source calls and public-reference mechanisms accompany an explicitly illustrative, deterministic lab.\n",
-                 *story_markdown('systems')]
+                 '\n\n'.join(story_markdown('systems'))]
     for scene in SCENES:
         companion += ['\n## ' + scene["title"] + '\n', scene["intro"] + '\n', '```text\n' + scene["ascii"] + '\n```\n']
         for index, step in enumerate(scene["steps"], 1):

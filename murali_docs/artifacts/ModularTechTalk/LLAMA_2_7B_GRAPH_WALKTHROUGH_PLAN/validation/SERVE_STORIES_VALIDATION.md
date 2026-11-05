@@ -15,8 +15,15 @@ the stories use small synthetic requests, not model weights or real inference.
 Seven numbered experiments replace the maps and large lab as the first reading
 experience. Requests visibly move through API tokenization, the admission gate,
 IPC, pending prefill and active batches. Output tokens use a separate return
-path. Each experiment keeps its explanation, controls and request inspector
-together. Moving requests and their ID buttons support pointer and keyboard
+path. Each experiment uses the full story width. Its numbered badge reveals a
+lesson card on hover or focus; leaving the badge/card dismisses it. Touch taps
+toggle it. The circled L at the right edge of the sticky menu opens a separate
+color legend. It identifies process ownership, shared event-loop threads,
+tokenizer executor threads, ZeroMQ Unix IPC, the admission coroutine lock,
+the startup process Event, native code, the OS driver and GPU hardware.
+N slots visibly fill, drain and resize with the queue setting. Colors match
+across the legend, pipeline diagrams and independent-replica diagram.
+Moving requests and their ID buttons support pointer and keyboard
 selection. Playback pauses when the story leaves the viewport or the tab hides.
 
 The three server/request/OS-thread state machines remain intact. Detailed maps,
@@ -69,14 +76,20 @@ release. Cancellation waits for safe ownership release. KV pressure delays
 admitted work without becoming HTTP 429. Routing excludes initializing replicas
 and preserves existing request ownership.
 
-Browser checks: **PASS**, seven groups and eight rendered-contrast audits.
+Browser checks: **PASS**, ten groups and twenty rendered-contrast audits.
+They cover the seven stories, hover/click disclosures and rendered contrast.
 Coverage includes controls, moving dots, request selection, 429 inspection,
 queue-setting changes, lifecycle/source links, slow readers, replica readiness,
 320/390-pixel layouts, touch, keyboard, no JavaScript, reduced motion, pause and
-offscreen pause. Zero page errors and zero external runtime requests.
+offscreen pause. Additional checks cover full-width layout, dismissing hover
+cards, keyboard focus after scrolling, click-only legend opening without
+changing the scroll position, source-modal focus return, matching component
+colors, N-slot occupancy and position, queue drain/reset, mobile card bounds,
+and print expansion/restoration. The machine-readable report records the
+completed group and contrast-audit counts, errors and runtime requests.
 
 Existing reference regressions: **PASS**. Component coverage includes all 15
-components, 26 handoffs, 19 states, eight paths and 37 source targets. Systems
+components, 26 handoffs, 19 states, eight paths and 41 source targets. Systems
 coverage includes 48 step cards, 22 object cards and 11 complete source cells.
 
 Machine-readable evidence: [new browser checks](serve_stories_browser.json),

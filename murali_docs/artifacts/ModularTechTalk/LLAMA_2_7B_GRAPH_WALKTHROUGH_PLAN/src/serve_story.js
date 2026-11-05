@@ -12,7 +12,114 @@
     done:["#e1ecdb", "#829976", "#3b5c30"], rejected:["#f7dfd1", "#bd8267", "#813c22"],
     cancelled:["#ece5df", "#a08e7c", "#64503e"], cancel_pending:["#f2e4d7", "#ad8968", "#6c4d34"]};
   const controllers = [];
+  const cards = [];
   let frame = null;
+
+  class FloatingCard {
+    constructor(details, hover) {
+      this.details = details;
+      this.hover = hover;
+      this.trigger = details.querySelector(":scope > summary");
+      this.card = details.querySelector(":scope > aside");
+      this.mode = null;
+      this.timer = null;
+      this.restoring = false;
+      details.open = false;
+      this.trigger.setAttribute("aria-expanded", "false");
+      this.trigger.addEventListener("pointerdown", e => this.pointer = e.pointerType);
+      this.trigger.addEventListener("pointerenter", e => {
+        if (hover && e.pointerType === "mouse") this.open("pointer");
+      });
+      details.addEventListener("pointerenter", () => clearTimeout(this.timer));
+      details.addEventListener("pointerleave", e => {
+        if (!hover || e.pointerType === "touch") return;
+        this.timer = setTimeout(() => {
+          if (this.mode === "keyboard" && details.contains(document.activeElement)) return;
+          if (!document.querySelector("#source-dialog[open]")) this.close();
+        }, 140);
+      });
+      this.card.addEventListener("pointerenter", () => clearTimeout(this.timer));
+      this.trigger.addEventListener("click", e => {
+        e.preventDefault();
+        if (!hover || (e.detail !== 0 && this.pointer === "touch")) {
+          if (details.open) this.close(true);
+          else this.open(e.detail === 0 ? "keyboard" : "touch");
+        } else this.open(e.detail === 0 ? "keyboard" : "pointer");
+        if (e.detail === 0 && details.open) this.card.focus({preventScroll:true});
+      });
+      details.addEventListener("focusin", e => {
+        if (hover && !this.restoring && e.target === this.trigger && (this.pointer !== "touch" || this.trigger.matches(":focus-visible"))) this.open("keyboard");
+      });
+      details.addEventListener("focusout", () => setTimeout(() => {
+        if (!details.contains(document.activeElement) && !document.querySelector("#source-dialog[open]") && (this.mode === "keyboard" || !details.matches(":hover"))) this.close();
+      }, 0));
+      details.querySelector("[data-card-dismiss]").addEventListener("click", () => this.close(true));
+      details.addEventListener("toggle", () => {
+        this.trigger.setAttribute("aria-expanded", String(details.open));
+        if (details.open) this.position();
+      }, true);
+    }
+    open(mode) {
+      clearTimeout(this.timer);
+      cards.forEach(c => { if (c !== this) c.close(); });
+      this.mode = mode;
+      this.details.open = true;
+      this.trigger.setAttribute("aria-expanded", "true");
+      this.position();
+    }
+    close(restore = false) {
+      clearTimeout(this.timer);
+      if (!this.details.open) return;
+      restore ||= this.card.contains(document.activeElement);
+      this.details.open = false;
+      this.trigger.setAttribute("aria-expanded", "false");
+      this.mode = null;
+      if (restore) {
+        this.restoring = true;
+        this.trigger.focus({preventScroll:true});
+        this.restoring = false;
+      }
+    }
+    position() {
+      if (!this.details.open) return;
+      const r = this.trigger.getBoundingClientRect();
+      const below = innerHeight - r.bottom - 20;
+      const above = r.top - 20;
+      const down = !this.hover || below >= 260 || below >= above;
+      this.card.style.maxHeight = Math.max(100, Math.min(innerHeight - 24, down ? below : above)) + "px";
+      const box = this.card.getBoundingClientRect();
+      const left = this.hover ? r.left : r.right - box.width;
+      const top = down ? r.bottom + 8 : r.top - box.height - 8;
+      this.card.style.left = Math.max(12, Math.min(innerWidth - box.width - 12, left)) + "px";
+      this.card.style.top = Math.max(12, Math.min(innerHeight - box.height - 12, top)) + "px";
+      this.card.style.right = "auto";
+    }
+  }
+
+  function slotPoint(index, capacity, fleet = false) {
+    return fleet ? {x:638 + index*52, y:195} : {
+      x:486 + (index%2)*52,
+      y:196 + (3-Math.ceil(capacity/2))*15.5 + Math.floor(index/2)*31,
+    };
+  }
+  function renderSlots(layer, worker, fleet = false) {
+    const waiting = worker.at("ipc");
+    if (layer.children.length !== worker.config.queue) {
+      layer.replaceChildren();
+      for (let i = 0; i < worker.config.queue; i++) {
+        const p = slotPoint(i, worker.config.queue, fleet);
+        const slot = element("g", {class:"ss-message-slot", "data-ipc-slot":i, transform:"translate(" + p.x + " " + p.y + ")"});
+        slot.append(element("rect", {x:-23,y:-15,width:46,height:30,rx:5}), element("text", {y:4}, i+1));
+        layer.append(slot);
+      }
+    }
+    for (const [i, slot] of Array.from(layer.children).entries()) {
+      slot.dataset.occupied = String(Boolean(waiting[i]));
+      slot.dataset.request = waiting[i]?.id || "";
+      slot.setAttribute("aria-label", "Slot " + (i+1) + ": " + (waiting[i]?.id || "empty"));
+    }
+    layer.setAttribute("aria-label", waiting.length + " of " + worker.config.queue + " request message slots occupied");
+  }
 
   function element(tag, attrs = {}, text = null) {
     const el = document.createElementNS(SVG, tag);
@@ -149,6 +256,7 @@
         gate.querySelector("text").textContent = s.writable ? "✓" : "×";
         this.node.querySelector("[data-gpu]").textContent = this.model.busy ? "Pass " + s.pass : "Idle";
         this.node.querySelector(".ss-gpu").dataset.busy = String(this.model.busy);
+        renderSlots(this.node.querySelector("[data-ipc-slots]"), this.model);
         this.node.querySelectorAll("[data-phase]").forEach(el => el.dataset.current = String(el.dataset.phase === s.phase));
         this.renderLanes(s);
         this.renderHistory();
@@ -202,13 +310,23 @@
         const rep = this.model.replicas[i];
         const status = this.node.querySelector('[data-fleet-state="' + i + '"]');
         const detail = this.node.querySelector('[data-fleet-detail="' + i + '"]');
-        if (!rep) { status.textContent = "Not added · use the button below"; detail.replaceChildren(); continue; }
+        detail.dataset.fleetPresent = String(Boolean(rep));
+        if (!rep) {
+          status.textContent = "Not added · use the button below";
+          for (const field of ["api", "ipc", "pending", "batch", "gpu"]) detail.querySelector('[data-fleet-' + field + ']').textContent = "—";
+          detail.querySelector("[data-ipc-slots]").setAttribute("aria-label", "Replica not added: no request message queue");
+          detail.querySelectorAll("[data-ipc-slot]").forEach(slot => { slot.dataset.occupied = "false"; slot.dataset.request = ""; slot.setAttribute("aria-label", "Replica not added"); });
+          detail.querySelector(".ss-gpu").dataset.busy = "false";
+          continue;
+        }
         const ready = rep.readyAt <= this.model.time;
         status.textContent = ready ? "Ready · its own worker and GPU" : "Initializing · excluded from routing";
         const s = rep.worker.snapshot();
-        const y = i ? 263 : 98;
-        const labels = [[474,"API / IPC",rep.worker.at("api").length + s.ipc], [644,"Pending",s.pending], [816,"Batch / GPU",s.active]];
-        detail.innerHTML = labels.map(([x, label, count]) => '<rect class="ss-client" x="' + (x-64) + '" y="' + y + '" width="128" height="58" rx="6"/><text class="ss-svg-muted" x="' + x + '" y="' + (y+16) + '">' + label + ' · ' + (ready ? count : '—') + '</text>').join("");
+        const values = {api:rep.worker.at("api").length + " requests", ipc:s.ipc + " / " + rep.worker.config.queue,
+          pending:"Pending · " + s.pending, batch:"Batch · " + s.active, gpu:rep.worker.busy ? "Pass " + s.pass : "Idle"};
+        for (const [key, value] of Object.entries(values)) detail.querySelector('[data-fleet-' + key + ']').textContent = ready ? value : "Warming";
+        detail.querySelector(".ss-gpu").dataset.busy = String(rep.worker.busy);
+        renderSlots(detail.querySelector("[data-ipc-slots]"), rep.worker, true);
       }
     }
     positions() {
@@ -216,23 +334,25 @@
       if (this.key === "replicas") {
         for (let i = 0; i < this.model.replicas.length; i++) {
           const w = this.model.replicas[i].worker;
-          for (const [col, states] of [[0,["api","ipc"]], [1,["pending"]], [2,["prefill","decode","streaming","cancel_pending"]]]) {
-            const requests = w.requests.filter(r => states.includes(r.state)).slice(-4);
-            requests.forEach((r, j) => positions.set(r.id, {x:450 + col*172 + (j%2)*48, y:136 + i*165 + Math.floor(j/2)*28}));
+          w.at("api").slice(-4).forEach((r, j) => positions.set(r.id, {x:428+j*47,y:208+i*252}));
+          w.at("ipc").forEach((r,j) => { const p=slotPoint(j,w.config.queue,true); positions.set(r.id,{x:p.x,y:p.y+i*252}); });
+          for (const [x, states] of [[790,["pending"]], [893,["prefill","decode","streaming","cancel_pending"]]]) {
+            w.requests.filter(r => states.includes(r.state)).slice(-4).forEach((r, j) => positions.set(r.id, {x:x-23 + (j%2)*46, y:193 + i*252 + Math.floor(j/2)*28}));
           }
-          w.requests.filter(r => TERMINAL.has(r.state)).slice(-3).forEach((r, j) => positions.set(r.id, {x:166 + j*47, y:100 + i*165}));
+          w.requests.filter(r => TERMINAL.has(r.state)).slice(-3).forEach((r, j) => positions.set(r.id, {x:166 + j*47, y:105 + i*252}));
         }
         return positions;
       }
       const groups = [
-        [["api"],200], [["ipc"],420], [["pending"],586], [["prefill","decode","cancel_pending"],736],
+        [["api"],195], [["pending"],686], [["prefill","decode","cancel_pending"],836],
       ];
       for (const [states, x] of groups) {
-        this.requests.filter(r => states.includes(r.state)).slice(-6).forEach((r, i) => positions.set(r.id, {x:x-25 + (i%2)*50, y:155 + Math.floor(i/2)*28}));
+        this.requests.filter(r => states.includes(r.state)).slice(-6).forEach((r, i) => positions.set(r.id, {x:x-25 + (i%2)*50, y:195 + Math.floor(i/2)*31}));
       }
-      this.requests.filter(r => r.state === "streaming").slice(-5).forEach((r, i) => positions.set(r.id, {x:840-i*50, y:347}));
-      this.requests.filter(r => ["done","cancelled"].includes(r.state)).slice(-3).forEach((r, i) => positions.set(r.id, {x:175+i*50, y:359}));
-      this.requests.filter(r => r.state === "rejected").slice(-5).forEach((r, i) => positions.set(r.id, {x:382+i*50, y:359}));
+      this.model.at("ipc").forEach((r,i) => positions.set(r.id, slotPoint(i,this.model.config.queue)));
+      this.requests.filter(r => r.state === "streaming").slice(-5).forEach((r, i) => positions.set(r.id, {x:940-i*50, y:418}));
+      this.requests.filter(r => ["done","cancelled"].includes(r.state)).slice(-3).forEach((r, i) => positions.set(r.id, {x:175+i*50, y:418}));
+      this.requests.filter(r => r.state === "rejected").slice(-5).forEach((r, i) => positions.set(r.id, {x:429+i*50, y:418}));
       return positions;
     }
     updateDots(now, snap) {
@@ -245,7 +365,7 @@
           const g = element("g", {class:"ss-request-dot", "data-dot-id":id, "data-ss-request":id, role:"button", tabindex:"0"});
           g.append(element("rect", {x:-21, y:-12, width:42, height:24, rx:12}), element("text", {y:4}, id));
           layer.append(g);
-          dot = {g, x:snap ? point.x : 62, y:snap ? point.y : 176, tx:point.x, ty:point.y, at:now};
+          dot = {g, x:snap ? point.x : 44, y:snap ? point.y : (this.key === "replicas" ? 266 : 223), tx:point.x, ty:point.y, at:now};
           this.dots.set(id, dot);
         }
         if (dot.tx !== point.x || dot.ty !== point.y) { const current = this.interpolate(dot, now); dot.x = current.x; dot.y = current.y; dot.tx = point.x; dot.ty = point.y; dot.at = now; }
@@ -283,7 +403,7 @@
       }
       for (const token of this.tokenDots) {
         const p = Math.min(1,(now-token.at)/800);
-        token.g.setAttribute("x",String(900-838*p)); token.g.setAttribute("y","300");
+        token.g.setAttribute("x",String(980-936*p)); token.g.setAttribute("y","346");
         if (p >= 1 || reduced.matches) token.g.remove(); else moving = true;
       }
       this.tokenDots = this.tokenDots.filter(token => token.g.isConnected);
@@ -300,6 +420,25 @@
     }
     if (work) startFrames();
   }
+  document.documentElement.classList.add("ss-enhanced");
+  document.querySelectorAll("[data-ss-legend], [data-ss-lesson]").forEach(node => cards.push(new FloatingCard(node, node.hasAttribute("data-ss-lesson"))));
+  document.addEventListener("pointerdown", e => {
+    if (e.target.closest("#source-dialog[open]")) return;
+    cards.forEach(c => { if (!c.details.contains(e.target)) c.close(); });
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape" || document.querySelector("#source-dialog[open]")) return;
+    const card = cards.find(c => c.details.open);
+    if (card) { e.preventDefault(); card.close(true); }
+  });
+  window.addEventListener("resize", () => cards.forEach(c => c.position()));
+  document.addEventListener("scroll", e => {
+    if (document.querySelector("#source-dialog[open]") || cards.some(c => c.card.contains(e.target))) return;
+    cards.forEach(c => {
+      if (c.hover && c.details.open && c.mode === "pointer" && !c.details.matches(":hover")) c.close();
+      else c.position();
+    });
+  }, {capture:true, passive:true});
   document.querySelectorAll(".ss-reference").forEach(node => node.open = false);
   document.querySelectorAll("[data-serve-story]").forEach(node => controllers.push(new Story(node)));
   const observer = new IntersectionObserver(entries => {

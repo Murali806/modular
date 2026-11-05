@@ -350,6 +350,17 @@
       "line": 105,
       "sha256": "5670f7ee041e551615eec838e430564aa7dbf7bc216542822cb7db5e302cf076"
     },
+    "proxy_init": {
+      "alias": "ZMQ",
+      "symbol": "ZmqModelWorkerProxy.__init__",
+      "label": "ZmqModelWorkerProxy.__init__()",
+      "kind": "definition",
+      "file": "max/python/max/serve/worker_interface/zmq_interface.py",
+      "start": 56,
+      "end": 81,
+      "line": 56,
+      "sha256": "7be5ea69312d4a014a88cd4d125102f6811824d90112ed5e68dbe5a0b8950bf8"
+    },
     "proxy_drain": {
       "alias": "ZMQ",
       "symbol": "ZmqModelWorkerProxy._drain_responses",
@@ -439,6 +450,17 @@
       "end": 785,
       "line": 769,
       "sha256": "5c91b77a4595dce4a77400cf600cc64755632973ba8451721903f0bc1ce9866b"
+    },
+    "tokenizer_executor": {
+      "alias": "TOKENIZER",
+      "symbol": "run_with_default_executor",
+      "label": "run_with_default_executor()",
+      "kind": "definition",
+      "file": "max/python/max/pipelines/lib/tokenizer.py",
+      "start": 363,
+      "end": 377,
+      "line": 363,
+      "sha256": "a800cba5bf20ae2d9fc2ce28c8f31fa4520253f10e8e4dac414cf4eb4dc97a78"
     },
     "token_context": {
       "alias": "TOKENIZER",

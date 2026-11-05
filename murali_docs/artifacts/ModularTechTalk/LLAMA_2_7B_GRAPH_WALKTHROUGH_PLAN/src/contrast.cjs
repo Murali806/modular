@@ -52,6 +52,14 @@ module.exports = function auditRenderedContrast() {
     if (e.classList.contains("step-number-text")) backing = rgba(style(e.parentElement.querySelector(".step-number-box")).fill);
     if (e.matches(".sequence-packet text")) backing = rgba(style(e.parentElement.querySelector("circle")).fill);
     if (e.matches(".state-label, .state-owner")) backing = rgba(style(e.closest(".state-node").querySelector(".state-box")).fill);
+    if (e.matches(".ss-visual text")) {
+      const owner = e.closest(".ss-request-dot, .ss-message-slot, .ss-gate, [data-component]");
+      const shape = owner?.querySelector(":scope > rect, :scope > path");
+      if (shape) {
+        const r = shape.getBoundingClientRect(), t = e.getBoundingClientRect();
+        if (t.x + t.width/2 >= r.x && t.x + t.width/2 <= r.right && t.y + t.height/2 >= r.y && t.y + t.height/2 <= r.bottom) backing = rgba(style(shape).fill);
+      }
+    }
     if (text && !["SCRIPT", "STYLE", "OPTION"].includes(e.tagName)) {
       check(e, e instanceof SVGElement ? s.fill : s.color, backing, text, large ? 3 : 4.5);
     }

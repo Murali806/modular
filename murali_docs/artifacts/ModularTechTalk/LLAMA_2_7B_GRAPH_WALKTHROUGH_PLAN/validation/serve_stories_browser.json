@@ -1,63 +1,138 @@
 {
   "result": "PASS",
-  "checked_at": "2026-11-05T01:42:54.174Z",
+  "checked_at": "2026-11-05T03:56:06.911Z",
   "browser": "156.0.8078.4",
   "checks": [
+    "Full-width one animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
     "Four request lessons, three preserved machines, no autoplay and keyboard stepping to completion",
-    "Burst fills M then N; 429 selects the rejected request; larger N accepts the same burst",
+    "Burst fills M then visible N slots; 429 selects the rejected request; N=6 redraws six slots; occupancy follows admission, drain and reset",
     "Later batch admission, selected-request lifecycle link and exact-source explorer",
+    "Full-width clocks animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
     "Slow-reader output outlives KV ownership; warming replicas excluded; advanced deep links preserved",
     "320/390 px touch controls, readable contrast and contained diagram scrolling",
     "No-JavaScript lesson text, portable flows and expanded reference atlas",
-    "Moving request markers, stable pause and automatic pause when the lesson leaves view"
+    "Moving request markers, stable pause and automatic pause when the lesson leaves view",
+    "Printing expands lesson and legend content and restores the collapsed screen layout afterward"
   ],
   "audits": [
     {
       "label": "Request stories: initial page",
-      "samples": 480,
-      "minimum_text_ratio": 5.311,
+      "samples": 526,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "Lesson hover card one",
+      "samples": 535,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "Component legend one",
+      "samples": 586,
+      "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Visible saturation and rejection",
-      "samples": 499,
-      "minimum_text_ratio": 5.311,
+      "samples": 543,
+      "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Systems stories: initial page",
-      "samples": 251,
-      "minimum_text_ratio": 5.311,
+      "samples": 304,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "Lesson hover card clocks",
+      "samples": 313,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "Component legend clocks",
+      "samples": 364,
+      "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Independent replica routing",
-      "samples": 264,
-      "minimum_text_ratio": 5.311,
+      "samples": 310,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "Touch lesson card 390 components_and_flow",
+      "samples": 539,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "Touch legend 390 components_and_flow",
+      "samples": 590,
+      "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch story 390 components_and_flow",
-      "samples": 484,
-      "minimum_text_ratio": 5.311,
+      "samples": 530,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "Touch lesson card 390 driver_and_scaling",
+      "samples": 316,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "Touch legend 390 driver_and_scaling",
+      "samples": 367,
+      "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch story 390 driver_and_scaling",
-      "samples": 254,
-      "minimum_text_ratio": 5.311,
+      "samples": 307,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "Touch lesson card 320 components_and_flow",
+      "samples": 539,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "Touch legend 320 components_and_flow",
+      "samples": 590,
+      "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch story 320 components_and_flow",
-      "samples": 484,
-      "minimum_text_ratio": 5.311,
+      "samples": 530,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "Touch lesson card 320 driver_and_scaling",
+      "samples": 316,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "Touch legend 320 driver_and_scaling",
+      "samples": 367,
+      "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch story 320 driver_and_scaling",
-      "samples": 254,
-      "minimum_text_ratio": 5.311,
+      "samples": 307,
+      "minimum_text_ratio": 5.267,
       "failures": []
     }
   ],

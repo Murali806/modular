@@ -172,6 +172,17 @@
       "line": 63,
       "sha256": "acbcdee231b059b4c8e536214ca3e2c58271f0899e9349ed9af20c7e16f73900"
     },
+    "ipc_config": {
+      "alias": "IPC",
+      "symbol": "ZmqConfig.__init__",
+      "label": "ZmqConfig.__init__()",
+      "kind": "definition",
+      "file": "max/python/max/serve/worker_interface/_zmq_queue.py",
+      "start": 250,
+      "end": 258,
+      "line": 250,
+      "sha256": "7b8738d585fe1f1bb95ef17e071a36f171eb00ce26a0b410ea1158cd6004646b"
+    },
     "lifespan": {
       "alias": "API",
       "symbol": "lifespan",
@@ -259,6 +270,17 @@
       "end": 234,
       "line": 167,
       "sha256": "72c6452ee03982cacc4948f45a5000b41c81098e283f21d02564d8d87302bf6c"
+    },
+    "proxy_init": {
+      "alias": "ZMQ",
+      "symbol": "ZmqModelWorkerProxy.__init__",
+      "label": "ZmqModelWorkerProxy.__init__()",
+      "kind": "definition",
+      "file": "max/python/max/serve/worker_interface/zmq_interface.py",
+      "start": 56,
+      "end": 81,
+      "line": 56,
+      "sha256": "7be5ea69312d4a014a88cd4d125102f6811824d90112ed5e68dbe5a0b8950bf8"
     },
     "proxy_submit": {
       "alias": "ZMQ",
@@ -386,6 +408,17 @@
       "line": 801,
       "sha256": "30d60924fb6db18146cf10458f034da0538ce1d15607c3e47507a2695cb167f5"
     },
+    "start_worker": {
+      "alias": "WORKER",
+      "symbol": "start_model_worker",
+      "label": "start_model_worker()",
+      "kind": "definition",
+      "file": "max/python/max/serve/pipelines/model_worker.py",
+      "start": 759,
+      "end": 829,
+      "line": 759,
+      "sha256": "30d60924fb6db18146cf10458f034da0538ce1d15607c3e47507a2695cb167f5"
+    },
     "tokenizer_cpu": {
       "alias": "TOKENIZER",
       "symbol": "TextTokenizer._encode_text",
@@ -396,6 +429,17 @@
       "end": 785,
       "line": 769,
       "sha256": "5c91b77a4595dce4a77400cf600cc64755632973ba8451721903f0bc1ce9866b"
+    },
+    "tokenizer_executor": {
+      "alias": "TOKENIZER",
+      "symbol": "run_with_default_executor",
+      "label": "run_with_default_executor()",
+      "kind": "definition",
+      "file": "max/python/max/pipelines/lib/tokenizer.py",
+      "start": 363,
+      "end": 377,
+      "line": 363,
+      "sha256": "a800cba5bf20ae2d9fc2ce28c8f31fa4520253f10e8e4dac414cf4eb4dc97a78"
     },
     "uvicorn_cfg": {
       "alias": "API",

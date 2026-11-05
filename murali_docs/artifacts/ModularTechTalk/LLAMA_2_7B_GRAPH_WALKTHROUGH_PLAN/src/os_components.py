@@ -10,7 +10,7 @@ import textwrap
 
 from call_stack_refs import FILES as STACK_FILES, REFS as STACK_REFS
 from os_components_content import CLIENTS_ASCII, CLIENTS_NOTE, COMPONENTS, FLOWS, MACHINES
-from serve_story import render_stories, story_contract, story_markdown, story_refs
+from serve_story import render_legend, render_stories, story_contract, story_markdown, story_refs
 
 PAGE_NAME = "max_serve_os_components_and_flow.html"
 
@@ -198,7 +198,7 @@ def build_os_components(data, task, src, span_finder):
     clients = ''.join(f'<tr><td>{safe(name)}</td><td>{safe(owner)}</td><td>{safe(role)}</td></tr>' for name,owner,role in CLIENTS_NOTE)
     template = (src/'os_components.html').read_text()
     for marker, value in {
-        'serve-stories':render_stories('components'), 'story-contract':story_contract(),
+        'serve-stories':render_stories('components'), 'story-contract':story_contract(), 'serve-legend':render_legend(),
         'component-map':component_map(), 'role-rows':role_rows, 'component-readings':readings,
         'flows':render_flows(), 'machines':render_machines(), 'client-rows':clients,
         'clients-ascii':safe(CLIENTS_ASCII), 'revision':data['revision'],

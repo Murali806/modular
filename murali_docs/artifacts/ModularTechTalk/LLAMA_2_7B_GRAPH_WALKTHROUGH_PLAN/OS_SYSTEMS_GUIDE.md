@@ -5,11 +5,40 @@
 Linux + NVIDIA. Source calls and public-reference mechanisms accompany an explicitly illustrative, deterministic lab.
 
 ## Interactive request stories
+
 SOURCE-backed control flow; illustrative event durations, exact toy queues and conservative KV reservations. No GPU measurements.
+
+Each animation uses the full story width. Hover or focus its numbered badge for the lesson card; leaving the badge/card dismisses it. Touch taps toggle the card. Escape or the close button dismisses it.
+
+Click the circled **L** at the right edge of the sticky section menu for component colors and ownership. Outside click, Escape or Close dismisses this legend. Lesson and legend content remain available without JavaScript and when printing.
+
+### Component legend
+
+| Component | Kind / owner | Meaning |
+| --- | --- | --- |
+| API process | OS process | Owns the HTTP server, app, event loop and tokenizer executor. |
+| Uvicorn / Server | Python object | Uvicorn's Server object handles HTTP and invokes the FastAPI ASGI app in the API process. |
+| FastAPI app | ASGI application | Routes and validates requests. Async request tasks share the API loop thread. |
+| uvloop event loop | Event-loop thread | Runs ready callbacks and coroutines. The API and model worker each own a loop in their own process. |
+| Tokenizer executor | CPU thread pool | CPU tokenization runs via run_in_executor(None, …) on executor threads in the API process. |
+| ZeroMQ channels | IPC · Unix sockets | Local ipc:// PUSH/PULL channels carry requests, responses and cancellation. Each drawn slot holds one request context; N is exact only in this teaching model. |
+| Model worker / scheduler | Spawned OS process | Owns pending work, batch selection and model execution. The scheduler runs on the worker's loop thread; it selects the next pass. |
+| MAX runtime / user driver | Native code · worker | Submits compiled model work and manages device completion. Internal native threads sit behind this boundary. |
+| OS GPU driver | Kernel boundary | The operating system's device driver connects the user-space runtime to the GPU. |
+| GPU device | Hardware | Executes the selected model pass and holds device data, including model weights and KV cache. |
+
+Admission uses an `asyncio.Lock` around probe/send in the API process. Worker startup uses a `multiprocessing.Event` readiness signal and awaits channel connection.
+
+Dashed boxes show process ownership. Request IPC has visible empty/occupied message slots, redrawn when N changes. Native runtime, kernel driver and hardware are distinct boundaries. Request-pill colors describe lifecycle state separately from component colors.
+
 ### Busy belongs to an owner.
+
 While the model worker executes a pass, the API can tokenize and admit another request. The OS schedules runnable CPU threads; MAX chooses model work; the GPU executes submitted operations.
+
 An HTTP task waiting for output is suspended until data is available. It does not require a dedicated CPU thread. GPU completion and socket readiness are different events. The lanes below show logical ownership, not a measured thread trace.
+
 Try it: Send another request during Execute. Compare the API lane with the worker and device lanes.
+
 ```text
 OS:     gives CPU time to runnable threads in both processes
 API:    tokenize → admit → await output → SSE
@@ -17,20 +46,30 @@ Worker: drain → select → execute → advance → publish → repeat
 GPU:                     submitted compute → result
 Linux socket readiness wakes I/O; native runtime manages device dependencies.
 ```
+
 ### The GPU finishes. The stream remains.
+
 Make the client read slowly. Output tokens collect after generation, while the worker can release that request's KV ownership and start other work.
+
 Response IPC, API output queues and TCP transport each have buffering. This animation groups them into one output buffer. A slow client can raise egress memory and latency; an admitted stream does not turn into a new HTTP 429 response.
+
 Try it: Play until R1 has generated all five tokens. Compare KV ownership with buffered output.
+
 ```text
 GPU completes → release request KV ownership (pool remains allocated)
        ↓
 response IPC → API output buffer → TCP → slow client
               tokens can remain after generation finishes
 ```
+
 ### Another replica, another worker.
+
 An external router can send new requests to independent MAX Serve replicas. Each replica has its own API, worker, queues, model allocation and KV pool.
+
 Add B, wait for readiness, then send more requests. Existing streams keep their original owner. This round-robin router and its warmup duration are teaching choices. Adding HTTP connections alone does not add model compute.
+
 Try it: Add replica B. After it becomes ready, send a burst and watch which replica owns each request.
+
 ```text
 Clients → external round-robin router → ready replica A (API + worker + GPU/KV)
                                      → ready replica B (API + worker + GPU/KV)

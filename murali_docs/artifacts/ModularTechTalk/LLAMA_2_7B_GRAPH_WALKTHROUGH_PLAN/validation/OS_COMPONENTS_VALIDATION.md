@@ -29,7 +29,7 @@ disk. Builds reuse saved reference extracts and source snapshots.
 
 ## Source and scope checks — PASS
 
-- 37 source targets across 17 files match the pinned source byte for byte.
+- 41 source targets across 17 files match the pinned source byte for byte.
   Complete definition bounds, invocation lines, source hashes and original
   copying data are checked.
 - 15 component roles identify ownership, layer, interactions and the matching
@@ -53,7 +53,7 @@ Results: [source_checks.json](source_checks.json) and
 ## Browser checks — PASS
 
 11 grouped checks passed, including all 15 component cards, 26 flow-step
-cards, 19 state cards, eight paths and 37 source targets. Seventeen rendered
+cards, 19 state cards, eight paths and 41 source targets. Seventeen rendered
 contrast states passed; zero browser errors or external runtime requests
 were observed.
 
