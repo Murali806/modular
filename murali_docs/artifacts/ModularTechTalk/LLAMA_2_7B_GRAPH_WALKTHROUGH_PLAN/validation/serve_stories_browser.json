@@ -1,12 +1,15 @@
 {
   "result": "PASS",
-  "checked_at": "2026-11-05T03:56:06.911Z",
+  "checked_at": "2026-11-05T04:55:09.752Z",
   "browser": "156.0.8078.4",
   "checks": [
+    "API introduction on components: keyboard controls, normal stream/429, three absent-role stops, no-lock backpressure, replacement loop, reset and pinned-source links",
+    "Full-width api animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
     "Full-width one animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
-    "Four request lessons, three preserved machines, no autoplay and keyboard stepping to completion",
+    "API opening lesson plus four request lessons, three preserved machines, no autoplay and keyboard stepping to completion",
     "Burst fills M then visible N slots; 429 selects the rejected request; N=6 redraws six slots; occupancy follows admission, drain and reset",
     "Later batch admission, selected-request lifecycle link and exact-source explorer",
+    "API introduction on systems: keyboard controls, normal stream/429, three absent-role stops, no-lock backpressure, replacement loop, reset and pinned-source links",
     "Full-width clocks animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
     "Slow-reader output outlives KV ownership; warming replicas excluded; advanced deep links preserved",
     "320/390 px touch controls, readable contrast and contained diagram scrolling",
@@ -17,121 +20,193 @@
   "audits": [
     {
       "label": "Request stories: initial page",
-      "samples": 526,
+      "samples": 595,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "API shared loop and lock components",
+      "samples": 596,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "API absent role uvicorn components",
+      "samples": 593,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "API absent role fastapi components",
+      "samples": 593,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "API absent role loop components",
+      "samples": 593,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "API possible no-lock interleaving components",
+      "samples": 592,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "Lesson hover card api",
+      "samples": 609,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "Component legend api",
+      "samples": 655,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Lesson hover card one",
-      "samples": 535,
+      "samples": 604,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Component legend one",
-      "samples": 586,
+      "samples": 659,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Visible saturation and rejection",
-      "samples": 543,
+      "samples": 612,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Systems stories: initial page",
-      "samples": 304,
+      "samples": 373,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "API shared loop and lock systems",
+      "samples": 374,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "API absent role uvicorn systems",
+      "samples": 371,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "API absent role fastapi systems",
+      "samples": 371,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "API absent role loop systems",
+      "samples": 371,
+      "minimum_text_ratio": 5.267,
+      "failures": []
+    },
+    {
+      "label": "API possible no-lock interleaving systems",
+      "samples": 370,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Lesson hover card clocks",
-      "samples": 313,
+      "samples": 382,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Component legend clocks",
-      "samples": 364,
+      "samples": 433,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Independent replica routing",
-      "samples": 310,
+      "samples": 379,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch lesson card 390 components_and_flow",
-      "samples": 539,
+      "samples": 614,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch legend 390 components_and_flow",
-      "samples": 590,
+      "samples": 660,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch story 390 components_and_flow",
-      "samples": 530,
+      "samples": 600,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch lesson card 390 driver_and_scaling",
-      "samples": 316,
+      "samples": 391,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch legend 390 driver_and_scaling",
-      "samples": 367,
+      "samples": 437,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch story 390 driver_and_scaling",
-      "samples": 307,
+      "samples": 377,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch lesson card 320 components_and_flow",
-      "samples": 539,
+      "samples": 614,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch legend 320 components_and_flow",
-      "samples": 590,
+      "samples": 660,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch story 320 components_and_flow",
-      "samples": 530,
+      "samples": 600,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch lesson card 320 driver_and_scaling",
-      "samples": 316,
+      "samples": 391,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch legend 320 driver_and_scaling",
-      "samples": 367,
+      "samples": 437,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "label": "Touch story 320 driver_and_scaling",
-      "samples": 307,
+      "samples": 377,
       "minimum_text_ratio": 5.267,
       "failures": []
     }

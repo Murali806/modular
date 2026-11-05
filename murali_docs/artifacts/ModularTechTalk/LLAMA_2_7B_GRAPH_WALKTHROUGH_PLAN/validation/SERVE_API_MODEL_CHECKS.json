@@ -1,0 +1,11 @@
+{
+  "result": "PASS",
+  "checks": [
+    "Shared-loop tasks await CPU work; admission lock serializes requests and ends before output; R2 gets 429 while R1 later streams",
+    "Removing server, app or event loop prevents request progress before tokenization/admission without inventing HTTP errors",
+    "Without the lock, two earlier probes can pass; R2's later send faces backpressure without overflow or a fabricated guaranteed 429",
+    "A compatible replacement loop preserves the teaching outcomes and explicitly requires startup/configuration changes",
+    "Snapshots, completed scenes and fresh replays remain isolated and deterministic"
+  ],
+  "evidence": "CPU-RUN deterministic teaching trace; SOURCE control flow and BOUNDARY counterfactuals, no real HTTP/ZMQ race or GPU measurement"
+}

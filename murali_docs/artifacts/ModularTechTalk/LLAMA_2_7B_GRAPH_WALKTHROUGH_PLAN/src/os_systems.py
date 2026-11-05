@@ -25,7 +25,7 @@ FILES = {**STACK_FILES, **MEMORY_FILES, **{key: BASE + path for key, path in {
     "HOST_MEMORY": "support/host_memory.py",
 }.items()}}
 REFS = {key: STACK_REFS[key] for key in (
-    "cli", "serve", "config_call", "bundle", "app", "uvicorn_cfg", "eventloop",
+    "cli", "serve", "config_call", "bundle", "app", "server", "uvicorn_cfg", "eventloop",
     "lifespan", "start_worker", "spawn", "ready", "connected", "invoke",
     "pipeline_init", "worker_run", "alive", "http", "load_weights",
 )}
@@ -38,6 +38,8 @@ REFS.update({
     "process_ready": definition("PROC", "ProcessManager.ready"),
     "ipc_address": definition("IPC", "generate_zmq_ipc_path"),
     "ipc_config": definition("IPC", "ZmqConfig.__init__"),
+    "queue_writable": definition("IPC", "ZmqAsyncPushSocket.writable"),
+    "queue_put": definition("IPC", "ZmqAsyncPushSocket.put"),
     "proxy_submit": definition("ZMQ", "ZmqModelWorkerProxy.stream"),
     "proxy_init": definition("ZMQ", "ZmqModelWorkerProxy.__init__"),
     "proxy_drain": definition("ZMQ", "ZmqModelWorkerProxy._drain_responses"),
@@ -239,7 +241,7 @@ def build_os_systems(data, task, src, span_finder):
     payload = json.dumps(viewer, ensure_ascii=False).replace('<', '\\u003c')
     template = template.replace('<!-- OS_DATA -->', '<script id="os-data" type="application/json">' + payload + '</script>')
     template = template.replace('<!-- OS_CSS -->', '<style>' + (src / "os_systems.css").read_text() + '\n' + (src / "serve_story.css").read_text() + '</style>')
-    scripts = ('os_systems_lab.js', 'os_systems.js', 'serve_story_model.js', 'serve_story.js')
+    scripts = ('os_systems_lab.js', 'os_systems.js', 'serve_story_model.js', 'serve_api_model.js', 'serve_story.js')
     template = template.replace('<!-- OS_JS -->', ''.join('<script>' + (src / name).read_text() + '</script>' for name in scripts))
     (task / "link_htmls" / PAGE_NAME).write_text(template)
     manifest = dict(revision=data["revision"], page='link_htmls/' + PAGE_NAME,

@@ -1,6 +1,6 @@
 {
   "result": "PASS",
-  "checked_at": "2026-11-05T03:51:57.988Z",
+  "checked_at": "2026-11-05T04:51:42.133Z",
   "browser": "156.0.8078.4",
   "command": "NODE_PATH=/tmp/max-os-playwright/node_modules node src/check_os_components_browser.cjs",
   "checks": [
@@ -20,107 +20,107 @@
   "flow_steps": 26,
   "state_paths": 8,
   "state_cards": 19,
-  "source_targets": 41,
+  "source_targets": 45,
   "contrast": [
     {
       "state": "Initial focused page",
-      "samples": 526,
+      "samples": 595,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "state": "startup selected step and roles",
-      "samples": 751,
+      "samples": 820,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "state": "request selected step and roles",
-      "samples": 829,
+      "samples": 898,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "state": "device selected step and roles",
-      "samples": 896,
+      "samples": 965,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "state": "server state machine and card",
-      "samples": 889,
+      "samples": 958,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "state": "request state machine and card",
-      "samples": 889,
+      "samples": 958,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "state": "thread state machine and card",
-      "samples": 892,
+      "samples": 961,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "state": "Exact source, selection and search",
-      "samples": 3823,
+      "samples": 3900,
       "minimum_text_ratio": 5.237,
       "failures": []
     },
     {
       "state": "Driver role card",
-      "samples": 977,
+      "samples": 1054,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "state": "Printed roles, sequences and state meanings",
-      "samples": 2082,
+      "samples": 2220,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "state": "Touch driver card 390",
-      "samples": 816,
+      "samples": 886,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "state": "Touch source explorer 390",
-      "samples": 3661,
+      "samples": 3731,
       "minimum_text_ratio": 5.237,
       "failures": []
     },
     {
       "state": "Touch state machine 390",
-      "samples": 801,
+      "samples": 871,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "state": "Touch driver card 320",
-      "samples": 816,
+      "samples": 886,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "state": "Touch source explorer 320",
-      "samples": 3661,
+      "samples": 3731,
       "minimum_text_ratio": 5.237,
       "failures": []
     },
     {
       "state": "Touch state machine 320",
-      "samples": 801,
+      "samples": 871,
       "minimum_text_ratio": 5.267,
       "failures": []
     },
     {
       "state": "Animated event marker",
-      "samples": 731,
+      "samples": 800,
       "minimum_text_ratio": 5.267,
       "failures": []
     }

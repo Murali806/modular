@@ -66,7 +66,7 @@ async function cardsAndLegend(page,key,audit) {
   await audit(page,"Component legend "+key);
   await page.screenshot({path:"/tmp/max-serve-legend-"+key+".png"});
   const ipc=legend.locator('[data-component="ipc"]');
-  await ipc.locator("summary").click();
+  if (!await ipc.locator(".ss-legend-source").evaluate(n=>n.open)) await ipc.locator("summary").click();
   await ipc.locator('a[data-ref="ipc_address"]').click();
   assert.equal(await page.locator("#source-dialog").evaluate(n=>n.open),true);
   assert.match(await page.locator("#source-file").innerText(),/ipc:\/\//);
@@ -91,6 +91,79 @@ async function stepUntil(page,key,predicate,limit=200) {
   }, {key,body:String(predicate),limit});
   assert.ok(result.success,"Expected browser scenario: "+key);
 }
+async function stepApiUntil(page, predicate) {
+  const success = await page.evaluate(body => {
+    const test = new Function("s", "return ("+body+")(s)");
+    for (let i=0; i<25; i++) {
+      if (test(window.serveStorySnapshot("api"))) return true;
+      document.querySelector('#story-api [data-api-action="step"]').click();
+    }
+    return false;
+  }, String(predicate));
+  assert.ok(success, "API scene reaches the expected visible outcome");
+}
+async function apiIntro(page, audit, name) {
+  const api=page.locator("#story-api");
+  assert.equal(await page.locator(".ss-story").first().getAttribute("id"),"story-api");
+  assert.equal(await api.getAttribute("data-api-step"),"0");
+  assert.equal(await api.getAttribute("data-playing"),"false");
+  assert.equal(await api.locator("[data-api-mode]").count(),6);
+  assert.equal(await api.locator('.ss-lesson-button').innerText(),"01");
+  await api.locator('[data-api-action="step"]').focus();
+  await page.keyboard.press("Enter");
+  assert.equal(await api.getAttribute("data-api-step"),"1");
+  await stepApiUntil(page,s=>s.lockOwner==="R1"&&s.requests[1].state==="awaiting admission lock");
+  assert.match(await api.locator('[data-api-state="R2"]').innerText(),/awaiting admission lock/);
+  await audit(page,"API shared loop and lock "+name);
+  await api.screenshot({path:"/tmp/max-serve-api-locked-"+name+".png"});
+  await stepApiUntil(page,s=>s.requests[1].state==="HTTP 429 returned");
+  assert.equal(await api.locator('[data-api-slot]').getAttribute("data-occupied"),"true");
+  assert.equal(await api.locator('[data-api-lock]').textContent(),"lock free");
+  await stepApiUntil(page,s=>s.finished);
+  assert.match(await api.locator('[data-api-state="R1"]').innerText(),/first chunk delivered/);
+  assert.equal(await api.locator('[data-api-slot]').getAttribute("data-occupied"),"false");
+  assert.equal(await api.locator('[data-api-action="step"]').isDisabled(),true);
+  assert.match(await api.locator('[data-api-action="play"]').innerText(),/Replay/);
+
+  for (const [mode,role] of [["no-server","uvicorn"],["no-app","fastapi"],["no-loop","loop"]]) {
+    await api.locator('[data-api-mode="'+mode+'"]').click();
+    await api.locator('[data-api-action="step"]').click();
+    const snap=await page.evaluate(()=>window.serveStorySnapshot("api"));
+    assert.equal(snap.event.kind,"blocked");
+    assert.deepEqual(snap.queue,[]);
+    assert.equal(await api.locator('[data-api-component="'+role+'"]').getAttribute("data-missing"),"true");
+    assert.equal(await api.locator('[data-api-mode][aria-pressed="true"]').getAttribute("data-api-mode"),mode);
+    await audit(page,"API absent role "+role+" "+name);
+  }
+  await api.locator('[data-api-mode="no-lock"]').click();
+  assert.match(await api.locator('[data-api-admission-summary]').textContent(),/tasks can interleave/);
+  await stepApiUntil(page,s=>s.probes.R1&&s.probes.R2&&s.queue.length===0);
+  assert.match(await api.locator('[data-api-probes]').textContent(),/R1 probe ✓ · R2 probe ✓/);
+  await stepApiUntil(page,s=>s.finished);
+  assert.match(await api.locator('[data-api-state="R2"]').innerText(),/send can wait/);
+  assert.match(await api.locator('[data-api-purpose]').textContent(),/Possible interleaving/);
+  assert.equal(await api.locator('[data-api-slot]').getAttribute("data-occupied"),"true");
+  await audit(page,"API possible no-lock interleaving "+name);
+  await api.screenshot({path:"/tmp/max-serve-api-unlocked-"+name+".png"});
+
+  await api.locator('[data-api-mode="asyncio"]').click();
+  await stepApiUntil(page,s=>s.finished);
+  assert.match(await api.locator('[data-api-loop-name]').textContent(),/^asyncio/);
+  assert.match(await api.locator('[data-api-purpose]').textContent(),/configuration changes/);
+  assert.match(await api.locator('[data-api-state="R1"]').innerText(),/first chunk delivered/);
+  await api.locator('[data-api-mode="normal"]').click();
+  assert.equal(await api.getAttribute("data-api-step"),"0");
+  assert.equal(await api.locator('[data-api-component][data-missing="true"]').count(),0);
+  assert.equal(await api.locator('[data-api-slot]').getAttribute("data-occupied"),"false");
+  await api.locator('.ss-api-transcript>summary').click();
+  assert.equal(await api.locator('.ss-api-role-table tbody tr').count(),4);
+  await api.locator('.ss-api-role-table a[data-ref="proxy_submit"]').click();
+  assert.equal(await page.locator('#source-dialog').evaluate(n=>n.open),true);
+  assert.match(await page.locator('#source-file').innerText(),/async with self\._admission_lock/);
+  await page.keyboard.press("Escape");
+  await api.locator('.ss-api-transcript>summary').click();
+  checks.push("API introduction on "+name+": keyboard controls, normal stream/429, three absent-role stops, no-lock backpressure, replacement loop, reset and pinned-source links");
+}
 (async()=>{
   const browser=await chromium.launch({headless:true,args:["--no-sandbox","--disable-dev-shm-usage"]});
   const setup=async options=>{
@@ -108,19 +181,23 @@ async function stepUntil(page,key,predicate,limit=200) {
     const {context,page}=await setup({viewport:{width:1440,height:1100},reducedMotion:"reduce"});
     await page.goto(url("components_and_flow"));
     assert.equal(await page.locator("[data-serve-story]").count(),4);
+    assert.equal(await page.locator("[data-api-story]").count(),1);
+    assert.deepEqual(await page.locator('.ss-lesson-button').allTextContents(),["01","02","03","04","05"]);
     assert.equal(await page.locator("[data-machine]").count(),3);
     assert.equal(await page.locator("#reference-atlas").evaluate(n=>n.open),false);
     await page.waitForTimeout(250);
     assert.equal(await page.locator("#story-one").getAttribute("data-time"),"0");
     await audit(page,"Request stories: initial page");
     await page.screenshot({path:"/tmp/max-serve-request-stories.png"});
+    await apiIntro(page,audit,"components");
+    await cardsAndLegend(page,"api",audit);
     await cardsAndLegend(page,"one",audit);
     await page.locator('#story-one [data-ss-action="step"]').focus();
     await page.keyboard.press("Enter");
     assert.notEqual(await page.locator("#story-one").getAttribute("data-time"),"0");
     await stepUntil(page,"one",s=>s[0].done===1);
     assert.match(await page.locator('#story-one [data-request-detail]').innerText(),/Completed/);
-    checks.push("Four request lessons, three preserved machines, no autoplay and keyboard stepping to completion");
+    checks.push("API opening lesson plus four request lessons, three preserved machines, no autoplay and keyboard stepping to completion");
 
     const pressure=page.locator("#story-pressure");
     await pressure.locator('[data-ss-action="send"]').click();
@@ -181,7 +258,10 @@ async function stepUntil(page,key,predicate,limit=200) {
 
     await page.goto(url("driver_and_scaling"));
     assert.equal(await page.locator("[data-serve-story]").count(),3);
+    assert.equal(await page.locator("[data-api-story]").count(),1);
+    assert.deepEqual(await page.locator('.ss-lesson-button').allTextContents(),["01","02","03","04"]);
     await audit(page,"Systems stories: initial page");
+    await apiIntro(page,audit,"systems");
     await cardsAndLegend(page,"clocks",audit);
     await stepUntil(page,"reader",s=>s[0].requests[0].state==="streaming"&&s[0].buffered>0);
     assert.equal(await page.locator("#story-reader").getAttribute("data-pages"),"0");
@@ -214,8 +294,10 @@ async function stepUntil(page,key,predicate,limit=200) {
       for(const name of ["components_and_flow","driver_and_scaling"]) {
         await mobile.page.goto(url(name));
         assert.ok(await mobile.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),"No document overflow: "+width);
-        const story=mobile.page.locator('[data-serve-story]').first();
-        await story.locator('[data-ss-action="step"]').tap();
+        const story=mobile.page.locator('[data-api-story]').first();
+        await story.locator('[data-api-mode="no-lock"]').tap();
+        await story.locator('[data-api-action="step"]').tap();
+        assert.equal(await story.getAttribute("data-api-step"),"1");
         await story.locator('.ss-lesson-button').tap();
         assert.equal(await story.locator('[data-ss-lesson]').evaluate(n=>n.open),true);
         await inViewport(mobile.page,story.locator('.ss-lesson-card'));
@@ -236,6 +318,11 @@ async function stepUntil(page,key,predicate,limit=200) {
 
     const nojs=await setup({viewport:{width:390,height:844},javaScriptEnabled:false});
     await nojs.page.goto(url("components_and_flow"));
+    assert.equal(await nojs.page.locator('#story-api .ss-lesson-card h2').isVisible(),true);
+    assert.equal(await nojs.page.locator('#story-api [data-api-controls]').first().isVisible(),false);
+    await nojs.page.locator('#story-api .ss-api-transcript>summary').click();
+    assert.equal(await nojs.page.locator('#story-api .ss-api-role-table').isVisible(),true);
+    assert.match(await nojs.page.locator('#story-api .ss-transcript pre').innerText(),/Without lock \(possible interleaving\)/);
     assert.equal(await nojs.page.locator('#story-one .ss-lesson-card h2').isVisible(),true);
     await nojs.page.locator('.ss-legend-button').click();
     assert.equal(await nojs.page.locator('[data-ss-legend]').evaluate(n=>n.open),true);
@@ -249,6 +336,21 @@ async function stepUntil(page,key,predicate,limit=200) {
 
     const motion=await setup({viewport:{width:1440,height:1100},reducedMotion:"no-preference"});
     await motion.page.goto(url("components_and_flow"));
+    const apiMotion=motion.page.locator('#story-api');
+    await apiMotion.locator('[data-api-action="play"]').click();
+    const apiDot=apiMotion.locator('[data-api-request="R1"]');
+    const apiBefore=await apiDot.getAttribute("transform");
+    await motion.page.waitForFunction(()=>window.serveStorySnapshot("api").index===1);
+    await motion.page.waitForTimeout(250);
+    assert.notEqual(await apiDot.getAttribute("transform"),apiBefore,"API request markers animate during playback");
+    await apiMotion.locator('[data-api-action="play"]').click();
+    const apiPaused=await apiMotion.getAttribute('data-api-step');
+    await motion.page.waitForTimeout(1450);
+    assert.equal(await apiMotion.getAttribute('data-api-step'),apiPaused);
+    await apiMotion.locator('[data-api-action="play"]').click();
+    await motion.page.locator('#state-machines').scrollIntoViewIfNeeded();
+    await motion.page.waitForTimeout(150);
+    assert.equal(await apiMotion.getAttribute('data-playing'),'false');
     await motion.page.locator('#story-one [data-ss-action="send"]').click();
     const dot=motion.page.locator('#story-one [data-dot-id="R2"]');
     const before=await dot.getAttribute("transform");await motion.page.waitForTimeout(200);
@@ -271,6 +373,7 @@ async function stepUntil(page,key,predicate,limit=200) {
       assert.equal(await print.page.locator('.ss-lesson-card h2').first().isVisible(),true);
       assert.equal(await print.page.locator('#ss-legend-card').isVisible(),true);
       assert.equal(await print.page.locator('#ss-legend-card').evaluate(n=>getComputedStyle(n).position),"static");
+      assert.equal(await print.page.locator('#story-api .ss-api-role-table').isVisible(),true);
       await print.page.emulateMedia({media:"screen"});
       await print.page.evaluate(()=>window.dispatchEvent(new Event("afterprint")));
       assert.equal(await print.page.locator('[data-ss-lesson]').first().evaluate(n=>n.open),false);

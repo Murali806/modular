@@ -410,12 +410,129 @@
       return moving;
     }
   }
+  class ApiStory {
+    constructor(node) {
+      this.node = node;
+      this.key = "api";
+      this.mode = "normal";
+      this.playing = false;
+      this.nextAt = 0;
+      this.dots = new Map();
+      node.querySelectorAll("[data-api-controls]").forEach(el => el.hidden = false);
+      node.addEventListener("click", e => {
+        const mode = e.target.closest("[data-api-mode]");
+        if (mode) { this.mode = mode.dataset.apiMode; this.reset(); return; }
+        const action = e.target.closest("[data-api-action]")?.dataset.apiAction;
+        if (action === "reset") this.reset();
+        if (action === "step") { this.setPlaying(false); this.step(true); }
+        if (action === "play") {
+          if (this.model.finished) this.reset();
+          this.setPlaying(!this.playing);
+        }
+      });
+      this.reset();
+    }
+    reset() {
+      this.model = new window.ServeApi.ApiProcess(this.mode);
+      this.setPlaying(false);
+      this.render(true);
+    }
+    setPlaying(value) {
+      this.playing = value;
+      this.node.dataset.playing = String(value);
+      const button = this.node.querySelector('[data-api-action="play"]');
+      button.textContent = value ? "Ⅱ Pause" : this.model.finished ? "▶ Replay" : "▶ Play";
+      button.setAttribute("aria-pressed", String(value));
+      this.node.querySelector("[data-current-event]").setAttribute("aria-live", value ? "off" : "polite");
+      this.nextAt = performance.now() + 1300;
+      if (value) startFrames();
+    }
+    step(snap = false) {
+      this.model.next();
+      this.render(snap || reduced.matches);
+      if (this.model.finished) this.setPlaying(false);
+    }
+    render(snap = false) {
+      const m = this.model, node = this.node;
+      node.dataset.apiScenario = m.mode;
+      node.dataset.apiStep = String(m.index);
+      node.querySelector("[data-api-purpose]").textContent = m.purpose;
+      node.querySelectorAll("[data-api-mode]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.apiMode === m.mode)));
+      node.querySelector("[data-api-loop-name]").textContent = m.mode === "no-loop" ? "event loop absent" : m.mode === "asyncio" ? "asyncio event loop" : "uvloop event loop";
+      node.querySelector("[data-api-loop-task]").textContent = m.loopTask;
+      node.querySelectorAll("[data-api-component]").forEach(el => {
+        el.dataset.active = String(el.dataset.apiComponent === m.active);
+        el.dataset.missing = String(el.dataset.apiComponent === m.missing);
+      });
+      node.querySelector('[data-api-component-state="uvicorn"]').textContent = m.missing === "uvicorn" ? "ABSENT · no HTTP service" : "receives / writes HTTP";
+      node.querySelector('[data-api-component-state="fastapi"]').textContent = m.missing === "fastapi" ? "ABSENT · no MAX ASGI app" : "ASGI application";
+      node.querySelector("[data-api-lock]").textContent = m.missing === "admission" ? "ABSENT · no mutual exclusion" : m.lockOwner ? m.lockOwner + " owns lock" : "lock free";
+      node.querySelector("[data-api-admission-summary]").textContent = m.missing === "admission" ? "probe / send · tasks can interleave" : "probe → send · one task at a time";
+      const probe = id => m.probes[id] === null ? "—" : m.probes[id] ? "✓" : "full";
+      node.querySelector("[data-api-probes]").textContent = "R1 probe " + probe("R1") + " · R2 probe " + probe("R2");
+      node.querySelector("[data-api-occupancy]").textContent = m.queue.length + " / 1 used";
+      const slot = node.querySelector("[data-api-slot]");
+      slot.dataset.occupied = String(m.queue.length > 0);
+      slot.setAttribute("aria-label", "Request IPC slot: " + (m.queue[0] || "empty"));
+      node.querySelector("[data-api-worker]").textContent = m.worker;
+      for (const r of m.requests) node.querySelector('[data-api-state="' + r.id + '"]').textContent = r.state;
+      const event = node.querySelector("[data-current-event]");
+      event.textContent = m.event.text;
+      event.dataset.kind = m.event.kind;
+      node.querySelector("[data-api-progress]").textContent = (m.finished ? "Scene complete" : m.index ? "Step through the API" : "Ready") + " · event " + m.index;
+      node.querySelector('[data-api-action="step"]').disabled = m.finished;
+      node.querySelector("[data-api-transcript]").innerHTML = m.log.map(item => '<li>' + escape(item.text) + '</li>').join("");
+      this.updateDots(snap);
+    }
+    point(request, index) {
+      const y = index ? 261 : 234;
+      return {
+        client:{x:53, y:index ? 261 : 219}, server:{x:271, y}, app:{x:523, y},
+        executor:{x:index ? 555 : 491, y:459}, probe:{x:737, y}, send:{x:865, y},
+        ipc:{x:1128, y:235}, response:{x:1128, y:370},
+        "client-error":{x:53, y:442}, "client-output":{x:53, y:370},
+      }[request.location];
+    }
+    updateDots(snap) {
+      const now = performance.now();
+      this.model.requests.forEach((r, i) => {
+        const target = this.point(r, i);
+        let dot = this.dots.get(r.id);
+        if (!dot) {
+          dot = {g:this.node.querySelector('[data-api-request="' + r.id + '"]'), x:target.x, y:target.y, tx:target.x, ty:target.y, at:now};
+          this.dots.set(r.id, dot);
+        }
+        const current = this.interpolate(dot, now);
+        Object.assign(dot, {x:current.x, y:current.y, tx:target.x, ty:target.y, at:snap ? now-1000 : now});
+        const colors = /429|RequestQueueFull/.test(r.state) ? COLORS.rejected : r.location === "ipc" ? COLORS.ipc : r.location === "client-output" ? COLORS.streaming : COLORS.api;
+        dot.g.querySelector("rect").setAttribute("fill", colors[0]);
+        dot.g.querySelector("rect").setAttribute("stroke", colors[1]);
+        dot.g.querySelector("text").setAttribute("fill", colors[2]);
+      });
+      this.animate(now);
+      if (!snap) startFrames();
+    }
+    interpolate(dot, now) {
+      const p = reduced.matches ? 1 : Math.min(1, Math.max(0, (now-dot.at)/650));
+      const t = p*p*(3-2*p);
+      return {x:dot.x + (dot.tx-dot.x)*t, y:dot.y + (dot.ty-dot.y)*t, done:p === 1};
+    }
+    animate(now) {
+      let moving = false;
+      for (const dot of this.dots.values()) {
+        const p = this.interpolate(dot, now);
+        dot.g.setAttribute("transform", 'translate(' + p.x.toFixed(1) + ',' + p.y.toFixed(1) + ')');
+        moving ||= !p.done;
+      }
+      return moving;
+    }
+  }
   function startFrames() { if (frame === null) frame = requestAnimationFrame(tick); }
   function tick(now) {
     frame = null;
     let work = false;
     for (const c of controllers) {
-      if (c.playing && now >= c.nextAt) { c.step(); c.nextAt = now+850; }
+      if (c.playing && now >= c.nextAt) { c.step(); c.nextAt = now + (c.key === "api" ? 1300 : 850); }
       work = c.animate(now) || c.playing || work;
     }
     if (work) startFrames();
@@ -440,6 +557,7 @@
     });
   }, {capture:true, passive:true});
   document.querySelectorAll(".ss-reference").forEach(node => node.open = false);
+  document.querySelectorAll("[data-api-story]").forEach(node => controllers.push(new ApiStory(node)));
   document.querySelectorAll("[data-serve-story]").forEach(node => controllers.push(new Story(node)));
   const observer = new IntersectionObserver(entries => {
     for (const entry of entries) if (!entry.isIntersecting) controllers.find(c => c.node === entry.target)?.setPlaying(false);
@@ -462,6 +580,6 @@
   // Small, read-only bridge for browser validation of the actual rendered models.
   window.serveStorySnapshot = key => {
     const c = controllers.find(c => c.key === key);
-    return c ? c.workers.map(w => w.snapshot()) : null;
+    return c ? c.key === "api" ? c.model.snapshot() : c.workers.map(w => w.snapshot()) : null;
   };
 })();

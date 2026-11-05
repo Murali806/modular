@@ -216,7 +216,7 @@ def build_os_components(data, task, src, span_finder):
                  components=COMPONENTS, flows=FLOWS, machines=MACHINES, files=files, references=refs, research=research)
     template=template.replace('<!-- COMPONENT_DATA -->','<script id="component-data" type="application/json">'+json.dumps(payload,ensure_ascii=False).replace('<','\\u003c')+'</script>')
     template=template.replace('<!-- COMPONENT_CSS -->','<style>'+(src/'os_components.css').read_text()+'\n'+(src/'serve_story.css').read_text()+'</style>')
-    scripts = ('os_components.js', 'serve_story_model.js', 'serve_story.js')
+    scripts = ('os_components.js', 'serve_story_model.js', 'serve_api_model.js', 'serve_story.js')
     template=template.replace('<!-- COMPONENT_JS -->',''.join('<script>'+(src/name).read_text()+'</script>' for name in scripts))
     (task/'link_htmls'/PAGE_NAME).write_text(template)
     manifest=dict(revision=data['revision'], page='link_htmls/'+PAGE_NAME,

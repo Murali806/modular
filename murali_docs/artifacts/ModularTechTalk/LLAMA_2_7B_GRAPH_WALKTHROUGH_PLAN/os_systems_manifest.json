@@ -58,6 +58,18 @@
       "line": 346,
       "sha256": "bea64a90d8fd2575d954ef93d6db95659aec1732133e2c7f72d55e5285c17571"
     },
+    "server": {
+      "alias": "SERVE",
+      "symbol": "serve_api_server_and_model_worker",
+      "needle": "server = Server(config)",
+      "label": "Server(config)",
+      "kind": "call site",
+      "file": "max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py",
+      "start": 60,
+      "end": 176,
+      "line": 134,
+      "sha256": "2506c8386f03b542628aef586144f40718ce7d33e19df09e8188c409be903332"
+    },
     "uvicorn_cfg": {
       "alias": "API",
       "symbol": "fastapi_config",
@@ -338,6 +350,28 @@
       "end": 258,
       "line": 250,
       "sha256": "7b8738d585fe1f1bb95ef17e071a36f171eb00ce26a0b410ea1158cd6004646b"
+    },
+    "queue_writable": {
+      "alias": "IPC",
+      "symbol": "ZmqAsyncPushSocket.writable",
+      "label": "ZmqAsyncPushSocket.writable()",
+      "kind": "definition",
+      "file": "max/python/max/serve/worker_interface/_zmq_queue.py",
+      "start": 496,
+      "end": 516,
+      "line": 496,
+      "sha256": "e4767278515810c8339bd20fa6600a3b5ac8e99f88a45dc0fe0f87a34b37da97"
+    },
+    "queue_put": {
+      "alias": "IPC",
+      "symbol": "ZmqAsyncPushSocket.put",
+      "label": "ZmqAsyncPushSocket.put()",
+      "kind": "definition",
+      "file": "max/python/max/serve/worker_interface/_zmq_queue.py",
+      "start": 488,
+      "end": 494,
+      "line": 488,
+      "sha256": "3612349599a651981a63f8901dc4d692f3c04a341c4f1031a1752fc73abfc7c6"
     },
     "proxy_submit": {
       "alias": "ZMQ",

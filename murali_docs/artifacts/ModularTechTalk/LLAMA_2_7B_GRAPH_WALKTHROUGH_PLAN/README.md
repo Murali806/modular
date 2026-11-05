@@ -12,9 +12,9 @@ architecture registration timing. The
 | [Interactive guide](index.html) | Concept → diagram → exact code → line-linked explanation → full-file context |
 | [MAX Serve startup call stack](max_serve_llama2_7b_startup_call_stack.html) | One continuous tree combining QnA 1.1.1–1.1.6, from CLI parsing to HTTP readiness |
 | [Memory planning and MemoryPlan](link_htmls/llama2_7b_memory_planning_and_memory_plan.html) | Nested QnA cells with input origins, initialization calls and example objects, a budget waterfall, KV pages, parent/worker handoff and complete pinned source |
-| [Requests, admission and scheduling](link_htmls/max_serve_os_components_and_flow.html) | Four interactive request stories: accepted work, busy workers, M/N backpressure and 429, and per-pass scheduling; three preserved state machines |
-| [Request-story companion](OS_COMPONENTS_GUIDE.md) / [validation](validation/OS_COMPONENTS_VALIDATION.md) | Portable flows, OS reference atlas, 41 source targets and browser results |
-| [Workers, drivers and scaling](link_htmls/max_serve_os_driver_and_scaling.html) | Three small experiments for concurrent owners, slow readers and independent replicas; detailed OS scenes and the advanced lab in the reference atlas |
+| [Requests, admission and scheduling](link_htmls/max_serve_os_components_and_flow.html) | API-process introduction plus four request stories: accepted work, busy workers, M/N backpressure and 429, and per-pass scheduling; three preserved state machines |
+| [Request-story companion](OS_COMPONENTS_GUIDE.md) / [validation](validation/OS_COMPONENTS_VALIDATION.md) | Portable flows, OS reference atlas, 45 source targets and browser results |
+| [Workers, drivers and scaling](link_htmls/max_serve_os_driver_and_scaling.html) | API-process introduction plus three experiments for concurrent owners, slow readers and independent replicas; detailed OS scenes and the advanced lab in the reference atlas |
 | [Portable systems guide](OS_SYSTEMS_GUIDE.md) / [systems manifest](os_systems_manifest.json) | Actor-complete ASCII sequences, example objects, exact source targets and research hashes |
 | [Memory explanation design](MEMORY_PLANNING_DESIGN.md) / [validation](validation/MEMORY_PLANNING_VALIDATION.md) | Disclosure structure, diagram controls, source checks and browser results |
 | [Text export](MAX_SERVE_LLAMA2_7B_STARTUP_CALL_STACK.txt) / [Markdown export](MAX_SERVE_LLAMA2_7B_STARTUP_CALL_STACK.md) | The combined Llama 2 7B startup call tree, commands and source-file aliases |
@@ -95,6 +95,14 @@ all twelve references and explains where each method is applied.
   counters, batch history, event explanations and selectable request states
   describe each decision. Play/Pause, Step, Reset and one focused setting per
   experiment keep the explanation local. Timing and capacities are illustrative.
+- Lesson **01** zooms into the API process: Uvicorn's Server, the FastAPI app,
+  the shared uvloop thread, CPU tokenizer threads and the admission
+  `asyncio.Lock`. Remove one role to see its consequence. Two requests compete
+  for one connected IPC slot: the lock protects probe/send; the no-lock mode
+  shows a possible stale-probe interleaving and a later send waiting for room.
+  **Use asyncio loop** demonstrates a compatible replacement with required
+  startup/configuration changes. Missing roles and replacement are thought
+  experiments, not MAX switches. The worker stays outside this first view.
 - Animations occupy the full story width. Hover or focus the numbered badge
   inside an animation to reveal its lesson; moving away dismisses the card.
   Touch taps toggle it. The circled **L** at the right edge of the sticky menu
@@ -116,9 +124,10 @@ all twelve references and explains where each method is applied.
   reader speed and routing. Add/Crash/Replace demonstrate readiness and
   failure boundaries for independent one-GPU replicas. All rates are explicit
   teaching inputs; charts are simulation results.
-- The **Requests, admission and scheduling** page starts with one request,
-  a late arrival during a busy pass, bounded M/N pressure and the five-phase
-  worker loop. The original state machines remain visible below the stories.
+- After the API introduction, the **Requests, admission and scheduling** page
+  follows one request, a late arrival during a busy pass, bounded M/N pressure
+  and the five-phase worker loop. The original state machines remain visible
+  below the stories.
   Its collapsible reference atlas explains the roles and interaction
   of 15 components in one serving instance. Three animations contain 26
   handoffs: startup/readiness, one request/response, and the GPU driver/buffer

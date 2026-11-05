@@ -282,6 +282,17 @@
       "line": 56,
       "sha256": "7be5ea69312d4a014a88cd4d125102f6811824d90112ed5e68dbe5a0b8950bf8"
     },
+    "proxy_responses": {
+      "alias": "ZMQ",
+      "symbol": "ZmqModelWorkerProxy.response_worker",
+      "label": "ZmqModelWorkerProxy.response_worker()",
+      "kind": "definition",
+      "file": "max/python/max/serve/worker_interface/zmq_interface.py",
+      "start": 247,
+      "end": 255,
+      "line": 247,
+      "sha256": "0735e9fa9a17d0577288c3378a442c903428b5095721937b3c1a8ac4f83dc6dc"
+    },
     "proxy_submit": {
       "alias": "ZMQ",
       "symbol": "ZmqModelWorkerProxy.stream",
@@ -292,6 +303,17 @@
       "end": 165,
       "line": 105,
       "sha256": "5670f7ee041e551615eec838e430564aa7dbf7bc216542822cb7db5e302cf076"
+    },
+    "queue_put": {
+      "alias": "IPC",
+      "symbol": "ZmqAsyncPushSocket.put",
+      "label": "ZmqAsyncPushSocket.put()",
+      "kind": "definition",
+      "file": "max/python/max/serve/worker_interface/_zmq_queue.py",
+      "start": 488,
+      "end": 494,
+      "line": 488,
+      "sha256": "3612349599a651981a63f8901dc4d692f3c04a341c4f1031a1752fc73abfc7c6"
     },
     "queue_settings": {
       "alias": "SETTINGS",
@@ -304,6 +326,17 @@
       "end": 617,
       "line": 158,
       "sha256": "8631b0a7b171dc898c75a752def252e514d4cdc5ed002f7c6d80d009c7d6f16e"
+    },
+    "queue_writable": {
+      "alias": "IPC",
+      "symbol": "ZmqAsyncPushSocket.writable",
+      "label": "ZmqAsyncPushSocket.writable()",
+      "kind": "definition",
+      "file": "max/python/max/serve/worker_interface/_zmq_queue.py",
+      "start": 496,
+      "end": 516,
+      "line": 496,
+      "sha256": "e4767278515810c8339bd20fa6600a3b5ac8e99f88a45dc0fe0f87a34b37da97"
     },
     "ready": {
       "alias": "WORKER",
@@ -382,6 +415,18 @@
       "start": 60,
       "end": 176,
       "line": 60,
+      "sha256": "2506c8386f03b542628aef586144f40718ce7d33e19df09e8188c409be903332"
+    },
+    "server": {
+      "alias": "SERVE",
+      "symbol": "serve_api_server_and_model_worker",
+      "needle": "server = Server(config)",
+      "label": "Server(config)",
+      "kind": "call site",
+      "file": "max/python/max/_entrypoints/cli/serve/serve_api_and_model_worker.py",
+      "start": 60,
+      "end": 176,
+      "line": 134,
       "sha256": "2506c8386f03b542628aef586144f40718ce7d33e19df09e8188c409be903332"
     },
     "session_native": {

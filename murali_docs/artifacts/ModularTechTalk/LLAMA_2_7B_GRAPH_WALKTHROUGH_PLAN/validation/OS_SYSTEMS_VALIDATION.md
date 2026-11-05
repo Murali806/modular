@@ -30,7 +30,7 @@ Normal builds use the saved evidence and do not fetch research pages.
 
 ## Source and evidence checks
 
-- 55 source targets across 24 complete files, pinned and checked byte for byte.
+- 58 source targets across 24 complete files, pinned and checked byte for byte.
 - 11 complete displayed definitions containing 404 original source lines,
   with definition/caller locations, exact copying and full-file context.
 - Six actor-complete sequences, 48 detailed steps and 22 object explanations.

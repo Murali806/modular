@@ -37,6 +37,47 @@ Admission uses an `asyncio.Lock` around probe/send in the API process. Worker st
 
 Dashed boxes show process ownership. Request IPC has visible empty/occupied message slots, redrawn when N changes. Native runtime, kernel driver and hardware are distinct boundaries. Request-pill colors describe lifecycle state separately from component colors.
 
+### 01 · Inside the API process
+
+The first animation isolates the API process. Play, Step or Reset two requests sharing one event-loop thread and one illustrative IPC slot. Choose All present, No Uvicorn, No FastAPI, No event loop, No admission lock, or Use asyncio loop. Hover/focus/tap 01 for its lesson; the existing L legend explains ownership.
+
+| Role | Why it exists | If absent, with no replacement |
+| --- | --- | --- |
+| Uvicorn / Server | Turns HTTP traffic into ASGI calls and writes the response to the connection. | Without an HTTP/ASGI server, this configuration has no HTTP service to accept requests. |
+| FastAPI app | Provides MAX routes, request validation and the handlers that call the pipeline. | Without an ASGI app, the configured MAX service cannot be assembled; its routes and handlers are unavailable. |
+| uvloop event loop | Runs ready callbacks and request coroutines on the API loop thread; resumes them when awaited work is ready. | Without a running event loop, async startup, request handling and response delivery cannot progress. |
+| Admission asyncio.Lock | Lets one coroutine at a time check channel writability and send its request context. | Without this guard, two probes can observe the same space. A later send can face backpressure, losing the immediate-rejection guarantee. |
+
+SOURCE: The API loop runs ready coroutines; CPU tokenization uses executor threads in the same process. Admission uses `asyncio.Lock` around the writability probe and send, then releases it before awaiting output. The model worker is offstage and connected before HTTP serving.
+
+BOUNDARY: Role removals and replacement are thought experiments, not supported MAX flags. The no-lock trace is one possible interleaving, not a measured failure or queue overflow. With the lock, the second request observes a full channel and gets HTTP 429. Without it, two earlier positive probes can leave the later send waiting for room. The exact one-slot capacity is illustrative.
+
+A compatible asyncio loop can replace uvloop with startup/configuration changes. This pinned checkout calls `uvloop.run(serve())` and selects `loop="uvloop"`; simply removing the uvloop package does not provide a fallback. HTTP-server and ASGI-app implementations can also be replaced if their roles are supplied.
+
+The normal animation stops after R1 delivers its first output chunk; subsequent chunks repeat the response wake/resume/send cycle. It does not simulate the offstage worker or GPU in this lesson.
+
+```text
+Client HTTP
+    |
++---v---------------- API OS PROCESS ---------------------------+
+| uvloop: one loop thread runs ready callbacks / async tasks     |
+|                                                              |
+| Uvicorn / Server -> FastAPI route -> admission asyncio.Lock    |
+|   HTTP <-> ASGI       |              [probe -> send] ----------+--> request IPC
+|                      | await                 | release        |    [one slot]
+|                      v                       v                |    worker offstage
+|              tokenizer executor       await response          |
+|              CPU threads in this process                      |
+|                                                              |
+| client <- HTTP/SSE <- resume request task <--------------------+--- response IPC
++--------------------------------------------------------------+
+With lock: R1 checks + sends; R2 then sees full -> HTTP 429.
+Without lock (possible interleaving): R1 checks; R2 checks;
+R1 sends; R2's later send can wait for room.
+An await can let another coroutine run on the SAME loop thread.
+The admission lock is released before waiting for model output.
+```
+
 ### Accepted. Then scheduled.
 
 A valid request R1 arrives at a ready MAX Serve instance. Follow it through tokenization, the admission gate, prefill and repeated decode passes.
