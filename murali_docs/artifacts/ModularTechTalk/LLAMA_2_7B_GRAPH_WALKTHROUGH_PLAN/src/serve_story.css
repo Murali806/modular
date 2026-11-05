@@ -130,24 +130,21 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
 .ss-api-story [data-api-tokenizer-trigger] { cursor: help; }
 .ss-api-story [data-api-tokenizer-trigger]:hover > .ss-component-box,
 .ss-api-story [data-api-tokenizer-trigger]:focus-visible > .ss-component-box { stroke-width: 3; }
-.ss-api-tokenizer-card { position: fixed; z-index: 75; box-sizing: border-box; width: min(510px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 15px 17px; overflow: auto; overscroll-behavior: contain; border: 1.5px solid #a04415; border-radius: 10px; background: #fffefa; color: #35483a; box-shadow: 0 12px 38px #17251d35; font: 12.5px/1.55 ui-sans-serif, system-ui, sans-serif; text-align: left; }
-.ss-api-tokenizer-card-title { margin: 0 0 9px; color: #873a12; font-size: 13px; font-weight: 750; letter-spacing: .015em; }
-.ss-api-tokenizer-tip { margin: 6px 0; padding: 6px 9px; border-left: 3px solid; border-radius: 0 5px 5px 0; }
-.ss-api-tokenizer-tip b { display: block; margin-bottom: 1px; font: 700 9px/1.45 ui-monospace, monospace; letter-spacing: .035em; }
-.ss-api-tokenizer-tip span { display: block; }
-.ss-api-tokenizer-tip code { color: inherit; background: transparent; font-size: .92em; }
-.ss-api-tip-lanes { border-color: #865117; background: #fff5e5; color: #68400f; }
-.ss-api-tip-lanes b { color: #74440d; }
-.ss-api-tip-submit { border-color: #315f91; background: #edf4fc; color: #354e68; }
-.ss-api-tip-submit b { color: #244d77; }
-.ss-api-tip-wait { border-color: #704e92; background: #f5f0fb; color: #4f435f; }
-.ss-api-tip-wait b { color: #563778; }
-.ss-api-tip-return { border-color: #3f744e; background: #edf6ee; color: #3e5944; }
-.ss-api-tip-return b { color: #356342; }
-.ss-api-tip-pool { border-color: #52686a; background: #eff3f1; color: #405456; }
-.ss-api-tip-pool b { color: #405456; }
-.ss-api-tip-throughput { border-color: #754d3e; background: #f8f0eb; color: #5c463c; }
-.ss-api-tip-throughput b { color: #70412e; }
+.ss-api-tokenizer-card { position: fixed; z-index: 75; box-sizing: border-box; width: min(760px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 17px 20px; overflow: auto; overscroll-behavior: contain; border: 1.5px solid #a04415; border-radius: 10px; background: #fffefa; color: #35483a; box-shadow: 0 12px 38px #17251d35; font: 13px/1.58 ui-sans-serif, system-ui, sans-serif; text-align: left; }
+.ss-api-explanation > p { margin: .65em 0; }
+.ss-api-explanation > ol { margin: .5em 0 .65em; padding-left: 24px; }
+.ss-api-explanation > ol li { margin: .4em 0; padding-left: 3px; }
+.ss-api-explanation strong { color: #304b37; font-weight: 700; }
+.ss-api-explanation a { color: #285f94; text-decoration: underline; text-underline-offset: 2px; }
+.ss-api-tokenizer-card code { color: #304739; background: transparent; }
+.ss-api-tokenizer-card .ss-api-thread-t1 { color: #54317f; }
+.ss-api-tokenizer-card .ss-api-thread-t2 { color: #875015; }
+.ss-api-tokenizer-card .ss-api-thread-t3 { color: #8a365f; }
+.ss-api-tokenizer-card .ss-api-request-id { color: #414f33; font-weight: 700; }
+.ss-api-tokenizer-card .ss-api-tip-code,
+.ss-api-tokenizer-card .ss-api-tip-flow { box-sizing: border-box; max-width: 100%; margin: .55em 0; padding: 9px 11px; overflow-x: auto; border: 1px solid #d6ddd2; border-radius: 6px; background: #f4f5ef; color: #304739; font: 11px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre; }
+.ss-api-tokenizer-card .ss-api-tip-flow code { display: block; min-width: max-content; color: inherit; background: transparent; }
+.ss-api-tokenizer-fallback code { background: transparent; color: inherit; }
 .ss-api-tokenizer-fallback { margin: 12px 0; padding: 9px 12px; border-left: 3px solid #a04415; background: #fff7ee; }
 .ss-api-tokenizer-fallback > summary { color: #793e19; font-weight: 650; }
 .ss-api-progress { font: 11px/1.5 ui-monospace, monospace; color: #506456; }
@@ -287,7 +284,7 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
   .ss-api-modes button { min-height: 39px; padding: 7px 10px; }
   .ss-api-purpose { padding: 8px 12px 12px; }
   .ss-api-tokenizer-card { padding: 12px 13px; font-size: 12px; }
-  .ss-api-tokenizer-tip { padding: 5px 7px; }
+  .ss-api-tokenizer-card .ss-api-tip-code, .ss-api-tokenizer-card .ss-api-tip-flow { font-size: 10px; }
   .ss-api-requests { padding: 12px; gap: 7px; flex-direction: column; }
   .ss-api-progress { flex: 0 0 100%; }
   .ss-control-gap { display: none; }

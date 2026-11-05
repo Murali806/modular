@@ -1,6 +1,6 @@
 {
   "result": "PASS",
-  "checked_at": "2026-11-05T12:37:45.570Z",
+  "checked_at": "2026-11-05T17:23:06.208Z",
   "browser": "156.0.8078.4",
   "checks": [
     "Tokenizer executor color card opens on hover/focus, remains readable while hovered and hides after leaving; API loop status is larger and bold",
@@ -31,7 +31,7 @@
     },
     {
       "label": "Tokenizer executor hover card components",
-      "samples": 705,
+      "samples": 733,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
@@ -139,7 +139,7 @@
     },
     {
       "label": "Tokenizer executor hover card systems",
-      "samples": 483,
+      "samples": 511,
       "minimum_text_ratio": 5.095,
       "failures": []
     },

@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-11-05T12:38:18.325996+00:00",
+  "checked_at": "2026-11-05T17:23:17.388610+00:00",
   "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
   "command": "PYTHONDONTWRITEBYTECODE=1 python3 src/validate.py",
   "result": "PASS",
@@ -28,7 +28,7 @@
   "os_components_state_machines": 3,
   "os_components_states": 19,
   "os_components_paths": 8,
-  "local_links_checked": 1982,
+  "local_links_checked": 1990,
   "external_runtime_dependencies": 0,
   "evidence": "Document/source validation only; no MAX model execution."
 }

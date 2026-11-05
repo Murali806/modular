@@ -43,12 +43,41 @@ Only the CPU tokenization jobs go to T2/T3; request tasks resume on T1.
 Thread IDs and executor assignments are illustrative; pool sizing/reuse vary.
 The admission lock is released before waiting for model output."""
 
-TOKENIZER_TOOLTIP = '''<p class="ss-api-tokenizer-tip ss-api-tip-lanes"><b>T2 / T3 · EXAMPLE LANES</b><span>These are teaching lanes: two jobs such as R1 and R2 can tokenize at once. MAX does not set the tokenizer pool to exactly two threads here.</span></p>
-<p class="ss-api-tokenizer-tip ss-api-tip-submit"><b>SUBMIT · FROM T1</b><span>T1 submits synchronous tokenization with <code>run_in_executor(None, ...)</code> and awaits it. <code>None</code> selects the event loop's default thread pool.</span></p>
-<p class="ss-api-tokenizer-tip ss-api-tip-wait"><b>AWAIT · THE LOOP STAYS AVAILABLE</b><span>The request task pauses. A pool worker tokenizes while T1 runs other ready async tasks and handles I/O.</span></p>
-<p class="ss-api-tokenizer-tip ss-api-tip-return"><b>RETURN · RESUME ON T1</b><span>When tokenization ends, its result resumes the waiting coroutine on T1. Requests can use any available worker.</span></p>
-<p class="ss-api-tokenizer-tip ss-api-tip-pool"><b>POOL · REUSE AND REAL SIZING</b><span>Workers are created as needed and reused; the maximum depends on Python and CPU count. Python 3.13: <code>min(32, (process_cpu_count() or 1) + 4)</code>. With 8 CPUs, that is at most 12 workers.</span></p>
-<p class="ss-api-tokenizer-tip ss-api-tip-throughput"><b>THROUGHPUT · NOT A 2× PROMISE</b><span>Two workers let separate jobs overlap, but do not guarantee twice the CPU throughput.</span></p>'''
+TOKENIZER_TOOLTIP = '''<div class="ss-api-explanation">
+<p>In 01, <strong class="ss-api-thread-t2">T2</strong> and <strong class="ss-api-thread-t3">T3</strong> are two example threads drawn to explain concurrent requests. <strong>MAX</strong> does not configure this tokenizer executor to have exactly two threads. The <a href="../src/serve_api.py#L49">diagram source</a> explicitly says their number and assignment are illustrative.</p>
+
+<p>An <strong>executor</strong> is a pool of worker threads to which the API thread can submit synchronous work. MAX’s <a href="../sources/max/python/max/pipelines/lib/tokenizer.py#L363">tokenizer helper</a> uses:</p>
+
+<pre class="ss-api-tip-code"><code>loop = asyncio.get_running_loop()
+return await loop.run_in_executor(None, partial(fn, *args, **kwargs))</code></pre>
+
+<p>Here, <strong><code>None</code></strong> means “use the event loop’s default executor.” No thread count is specified in this call. <a href="https://docs.python.org/3/library/asyncio-eventloop.html" target="_blank" rel="noopener">docs.python.org</a></p>
+
+<p>The animation illustrates this possible flow:</p>
+
+<pre class="ss-api-tip-flow"><code>                 ONE API PROCESS
+
+<span class="ss-api-thread-t1">T1</span>: API loop     submit <span class="ss-api-request-id">R1</span> ── submit <span class="ss-api-request-id">R2</span> ── handle other ready work
+                     │            │
+<span class="ss-api-thread-t2">T2</span>: pool worker      └─ tokenize <span class="ss-api-request-id">R1</span> ── result → resume <span class="ss-api-request-id">R1</span> on <span class="ss-api-thread-t1">T1</span>
+<span class="ss-api-thread-t3">T3</span>: pool worker                   └─ tokenize <span class="ss-api-request-id">R2</span> ── result → resume <span class="ss-api-request-id">R2</span> on <span class="ss-api-thread-t1">T1</span></code></pre>
+
+<p>The two lanes make three steps visible:</p>
+
+<ol>
+<li><strong class="ss-api-thread-t1">T1</strong> submits a tokenizer job. The request coroutine awaits its result.</li>
+<li>An executor thread performs the job. <strong class="ss-api-thread-t1">T1</strong> can run other ready request tasks and handle I/O while this work is pending.</li>
+<li>The result becomes available. The request coroutine resumes on <strong class="ss-api-thread-t1">T1</strong> and continues processing. The whole request does not move into the executor thread. <a href="https://docs.python.org/3/library/asyncio-dev.html" target="_blank" rel="noopener">docs.python.org</a></li>
+</ol>
+
+<p><strong>Why use multiple workers?</strong> They allow separate submitted jobs to be in progress together. Workers are reusable: <strong class="ss-api-thread-t2">T2</strong> could tokenize <strong class="ss-api-request-id">R1</strong> now and a different request later. Requests have no permanent thread assignment. <a href="https://docs.python.org/3/library/concurrent.futures.html" target="_blank" rel="noopener">docs.python.org</a></p>
+
+<p><strong>How many threads can actually exist?</strong> The default pool limit depends on Python’s version and CPU count. For example, Python 3.13 uses:</p>
+
+<pre class="ss-api-tip-code"><code>max_workers = min(32, (os.process_cpu_count() or 1) + 4)</code></pre>
+
+<p>Eight available CPUs therefore give a <strong>maximum of 12 workers</strong>. Threads are created as needed and idle workers are reused; the maximum does not mean all 12 are always running. <a href="https://docs.python.org/3/library/concurrent.futures.html" target="_blank" rel="noopener">docs.python.org</a></p>
+</div>'''
 
 
 def thread_badge(thread, x, y):
@@ -103,7 +132,7 @@ def render_api_intro():
 <p class="ss-api-purpose" data-api-purpose>All roles present. Follow two requests sharing one event-loop thread.</p>
 <p class="ss-pan-hint">Scroll sideways to follow HTTP → app → admission → IPC</p>
 <div class="ss-visual" tabindex="0" aria-label="API-process diagram; scroll horizontally on a narrow screen">''' + api_svg() + '''</div>
-<aside class="ss-api-tokenizer-card" id="ss-api-tokenizer-card" role="tooltip" aria-label="Tokenizer executor explanation" hidden><p class="ss-api-tokenizer-card-title">Tokenizer executor · API process</p>''' + TOKENIZER_TOOLTIP + '''</aside>
+<aside class="ss-api-tokenizer-card" id="ss-api-tokenizer-card" role="tooltip" aria-label="Tokenizer executor explanation" hidden>''' + TOKENIZER_TOOLTIP + '''</aside>
 <div class="ss-controls" data-api-controls hidden><button class="ss-play" data-api-action="play" aria-pressed="false">▶ Play</button><button data-api-action="step">Step</button><button data-api-action="reset">↺ Reset</button><span class="ss-control-gap"></span><span class="ss-api-progress" data-api-progress>Ready · event 0</span></div>
 <div class="ss-api-requests" aria-label="Request states"><span><b>R1</b> <span data-api-state="R1">at client</span></span><span><b>R2</b> <span data-api-state="R2">at client</span></span></div>
 <p class="ss-event" data-current-event role="status" aria-live="polite">Ready. Press Play or Step. The worker is connected, but is not pulling requests yet.</p>
