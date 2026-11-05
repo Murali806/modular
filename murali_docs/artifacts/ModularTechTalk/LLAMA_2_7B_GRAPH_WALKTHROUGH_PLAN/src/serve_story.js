@@ -488,7 +488,7 @@
       const y = index ? 261 : 234;
       return {
         client:{x:53, y:index ? 261 : 219}, server:{x:271, y}, app:{x:523, y},
-        executor:{x:index ? 555 : 491, y:459}, probe:{x:737, y}, send:{x:865, y},
+        executor:{x:index ? 598 : 486, y:459}, probe:{x:737, y}, send:{x:865, y},
         ipc:{x:1128, y:235}, response:{x:1128, y:370},
         "client-error":{x:53, y:442}, "client-output":{x:53, y:370},
       }[request.location];

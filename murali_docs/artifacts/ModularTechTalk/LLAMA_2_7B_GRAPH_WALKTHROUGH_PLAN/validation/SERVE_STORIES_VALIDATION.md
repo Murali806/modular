@@ -33,6 +33,11 @@ modes compare all roles present, missing HTTP server, missing ASGI app, no
 running event loop, a possible no-lock interleaving, and a compatible asyncio
 loop replacement. The worker is offstage. Source links include the startup
 calls, writable probe, asynchronous send and lock-protected admission.
+Only this first animation has thread badges: T1 repeats on the loop, Uvicorn,
+FastAPI and admission; T2/T3 label two example tokenizer executor lanes. Request
+markers enter those lanes during CPU tokenization and return to the API path.
+The lesson card, SVG description and portable flow distinguish thread IDs from
+R1/R2 request IDs and state that executor assignments and pool sizing vary.
 
 The three server/request/OS-thread state machines remain intact. Detailed maps,
 source cells, cards and the advanced simulator are available in the reference

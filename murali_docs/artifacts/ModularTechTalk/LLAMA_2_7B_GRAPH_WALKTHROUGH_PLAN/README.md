@@ -103,6 +103,9 @@ all twelve references and explains where each method is applied.
   **Use asyncio loop** demonstrates a compatible replacement with required
   startup/configuration changes. Missing roles and replacement are thought
   experiments, not MAX switches. The worker stays outside this first view.
+  Compact **T1** badges show the shared API loop thread; **T2/T3** label example
+  tokenizer executor lanes. These thread labels appear only in lesson 01.
+  **R1/R2** still identify requests; thread IDs and pool assignments are illustrative.
 - Animations occupy the full story width. Hover or focus the numbered badge
   inside an animation to reveal its lesson; moving away dismisses the card.
   Touch taps toggle it. The circled **L** at the right edge of the sticky menu

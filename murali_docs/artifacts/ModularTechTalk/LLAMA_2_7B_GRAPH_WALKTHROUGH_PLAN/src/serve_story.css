@@ -106,6 +106,12 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
 .ss-api-diagram [data-api-component][data-missing="true"] > text { fill: #833f2b; }
 .ss-api-diagram [data-api-component][data-missing="true"] > .ss-api-pulse { fill: #fcfcf8; stroke: #833f2b; stroke-width: 2; }
 .ss-api-request { cursor: default; }
+.ss-api-story .ss-api-thread-badge { --thread-ink: #54317f; --thread-fill: #f8f2ff; }
+.ss-api-story .ss-api-thread-badge[data-api-thread="T2"] { --thread-ink: #875015; --thread-fill: #fff6df; }
+.ss-api-story .ss-api-thread-badge[data-api-thread="T3"] { --thread-ink: #8a365f; --thread-fill: #fff0f6; }
+.ss-api-story .ss-api-thread-badge > rect { fill: var(--thread-fill); stroke: var(--thread-ink); stroke-width: 1.2; }
+.ss-api-story .ss-api-thread-badge > text { fill: var(--thread-ink); font: 600 11px ui-monospace, monospace; }
+.ss-api-story .ss-api-thread-lane { fill: #fffaf2; stroke: #ae754c; stroke-width: 1; stroke-dasharray: 3 2; }
 .ss-api-progress { font: 11px/1.5 ui-monospace, monospace; color: #506456; }
 .ss-api-requests { display: flex; gap: 12px 30px; flex-wrap: wrap; padding: 14px 18px; color: #405b45; font-size: 12px; line-height: 1.6; }
 .ss-api-requests > span { display: flex; gap: 9px; align-items: baseline; }

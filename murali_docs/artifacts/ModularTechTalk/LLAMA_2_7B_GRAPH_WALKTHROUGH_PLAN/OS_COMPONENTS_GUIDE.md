@@ -41,6 +41,8 @@ Dashed boxes show process ownership. Request IPC has visible empty/occupied mess
 
 The first animation isolates the API process. Play, Step or Reset two requests sharing one event-loop thread and one illustrative IPC slot. Choose All present, No Uvicorn, No FastAPI, No event loop, No admission lock, or Use asyncio loop. Hover/focus/tap 01 for its lesson; the existing L legend explains ownership.
 
+Thread badges appear only in this opening animation: T1 is repeated on uvloop, Uvicorn, FastAPI and admission to show their shared API loop thread. T2/T3 identify example executor threads running CPU tokenization jobs; the async request tasks resume on T1. R1/R2 continue to identify requests. Thread IDs and executor assignments are illustrative; real pool sizing and reuse vary.
+
 | Role | Why it exists | If absent, with no replacement |
 | --- | --- | --- |
 | Uvicorn / Server | Turns HTTP traffic into ASGI calls and writes the response to the connection. | Without an HTTP/ASGI server, this configuration has no HTTP service to accept requests. |
@@ -60,21 +62,24 @@ The normal animation stops after R1 delivers its first output chunk; subsequent 
 Client HTTP
     |
 +---v---------------- API OS PROCESS ---------------------------+
-| uvloop: one loop thread runs ready callbacks / async tasks     |
+| T1: uvloop runs ready callbacks / async request tasks          |
 |                                                              |
 | Uvicorn / Server -> FastAPI route -> admission asyncio.Lock    |
+|      T1                 T1                    T1              |
 |   HTTP <-> ASGI       |              [probe -> send] ----------+--> request IPC
 |                      | await                 | release        |    [one slot]
 |                      v                       v                |    worker offstage
 |              tokenizer executor       await response          |
-|              CPU threads in this process                      |
+|              T2 / T3: example CPU workers in this process      |
 |                                                              |
 | client <- HTTP/SSE <- resume request task <--------------------+--- response IPC
 +--------------------------------------------------------------+
 With lock: R1 checks + sends; R2 then sees full -> HTTP 429.
 Without lock (possible interleaving): R1 checks; R2 checks;
 R1 sends; R2's later send can wait for room.
-An await can let another coroutine run on the SAME loop thread.
+An await can let another coroutine run on the SAME loop thread T1.
+Only the CPU tokenization jobs go to T2/T3; request tasks resume on T1.
+Thread IDs and executor assignments are illustrative; pool sizing/reuse vary.
 The admission lock is released before waiting for model output.
 ```
 
