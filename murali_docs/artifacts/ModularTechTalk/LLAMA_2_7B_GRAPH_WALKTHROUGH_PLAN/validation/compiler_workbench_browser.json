@@ -16,362 +16,362 @@
   "audits": [
     {
       "label": "initial",
-      "samples": 380,
-      "minimum": 4.553
-    },
-    {
-      "label": "graph frame 0",
-      "samples": 380,
-      "minimum": 4.553
-    },
-    {
-      "label": "graph frame 1",
-      "samples": 384,
-      "minimum": 4.553
-    },
-    {
-      "label": "graph frame 2",
-      "samples": 388,
-      "minimum": 4.553
-    },
-    {
-      "label": "graph frame 3",
-      "samples": 386,
-      "minimum": 4.553
-    },
-    {
-      "label": "graph frame 4",
-      "samples": 386,
-      "minimum": 4.553
-    },
-    {
-      "label": "graph frame 5",
-      "samples": 386,
-      "minimum": 4.553
-    },
-    {
-      "label": "graph frame 6",
-      "samples": 385,
-      "minimum": 4.553
-    },
-    {
-      "label": "lower frame 0",
-      "samples": 385,
-      "minimum": 4.553
-    },
-    {
-      "label": "lower frame 1",
-      "samples": 392,
-      "minimum": 4.553
-    },
-    {
-      "label": "lower frame 2",
-      "samples": 397,
-      "minimum": 4.553
-    },
-    {
-      "label": "lower frame 3",
-      "samples": 398,
-      "minimum": 4.553
-    },
-    {
-      "label": "lower frame 4",
       "samples": 400,
       "minimum": 4.553
     },
     {
-      "label": "lower frame 5",
-      "samples": 405,
+      "label": "graph frame 0",
+      "samples": 400,
       "minimum": 4.553
     },
     {
-      "label": "lower frame 6",
-      "samples": 403,
+      "label": "graph frame 1",
+      "samples": 404,
       "minimum": 4.553
     },
     {
-      "label": "lower frame 7",
-      "samples": 403,
-      "minimum": 4.553
-    },
-    {
-      "label": "lower frame 8",
-      "samples": 406,
-      "minimum": 4.553
-    },
-    {
-      "label": "lower frame 9",
-      "samples": 402,
-      "minimum": 4.553
-    },
-    {
-      "label": "mojo frame 0",
-      "samples": 402,
-      "minimum": 4.553
-    },
-    {
-      "label": "mojo frame 1",
-      "samples": 405,
-      "minimum": 4.553
-    },
-    {
-      "label": "mojo frame 2",
-      "samples": 406,
-      "minimum": 4.553
-    },
-    {
-      "label": "mojo frame 3",
-      "samples": 406,
-      "minimum": 4.553
-    },
-    {
-      "label": "mojo frame 4",
-      "samples": 409,
-      "minimum": 4.553
-    },
-    {
-      "label": "mojo frame 5",
-      "samples": 409,
-      "minimum": 4.553
-    },
-    {
-      "label": "mojo frame 6",
-      "samples": 406,
-      "minimum": 4.553
-    },
-    {
-      "label": "mojo frame 7",
-      "samples": 405,
-      "minimum": 4.553
-    },
-    {
-      "label": "target frame 0",
-      "samples": 405,
-      "minimum": 4.553
-    },
-    {
-      "label": "target frame 1",
-      "samples": 412,
-      "minimum": 4.553
-    },
-    {
-      "label": "target frame 2",
-      "samples": 410,
-      "minimum": 4.553
-    },
-    {
-      "label": "target frame 3",
-      "samples": 414,
-      "minimum": 4.553
-    },
-    {
-      "label": "target frame 4",
-      "samples": 414,
-      "minimum": 4.553
-    },
-    {
-      "label": "target frame 5",
-      "samples": 418,
-      "minimum": 4.553
-    },
-    {
-      "label": "package frame 0",
-      "samples": 418,
-      "minimum": 4.553
-    },
-    {
-      "label": "package frame 1",
-      "samples": 416,
-      "minimum": 4.553
-    },
-    {
-      "label": "package frame 2",
-      "samples": 414,
-      "minimum": 4.553
-    },
-    {
-      "label": "package frame 3",
-      "samples": 418,
-      "minimum": 4.553
-    },
-    {
-      "label": "package frame 4",
-      "samples": 415,
-      "minimum": 4.553
-    },
-    {
-      "label": "package frame 5",
-      "samples": 415,
-      "minimum": 4.553
-    },
-    {
-      "label": "package frame 6",
-      "samples": 423,
-      "minimum": 4.553
-    },
-    {
-      "label": "package frame 7",
-      "samples": 420,
-      "minimum": 4.553
-    },
-    {
-      "label": "runtime frame 0",
-      "samples": 420,
-      "minimum": 4.553
-    },
-    {
-      "label": "runtime frame 1",
-      "samples": 418,
-      "minimum": 4.553
-    },
-    {
-      "label": "runtime frame 2",
-      "samples": 418,
-      "minimum": 4.553
-    },
-    {
-      "label": "runtime frame 3",
-      "samples": 421,
-      "minimum": 4.553
-    },
-    {
-      "label": "runtime frame 4",
-      "samples": 419,
-      "minimum": 4.553
-    },
-    {
-      "label": "runtime frame 5",
-      "samples": 421,
-      "minimum": 4.553
-    },
-    {
-      "label": "runtime frame 6",
-      "samples": 419,
-      "minimum": 4.553
-    },
-    {
-      "label": "runtime frame 7",
-      "samples": 422,
-      "minimum": 4.553
-    },
-    {
-      "label": "unfused",
-      "samples": 422,
-      "minimum": 4.553
-    },
-    {
-      "label": "borrow blocked",
-      "samples": 399,
-      "minimum": 4.553
-    },
-    {
-      "label": "borrow repaired",
-      "samples": 395,
-      "minimum": 4.553
-    },
-    {
-      "label": "SIMD 1",
-      "samples": 422,
-      "minimum": 4.553
-    },
-    {
-      "label": "SIMD 8",
-      "samples": 422,
-      "minimum": 4.553
-    },
-    {
-      "label": "binary / disassembly cpu",
-      "samples": 418,
-      "minimum": 4.553
-    },
-    {
-      "label": "assembly cpu",
-      "samples": 410,
-      "minimum": 4.553
-    },
-    {
-      "label": "binary / disassembly rocm",
-      "samples": 419,
-      "minimum": 4.553
-    },
-    {
-      "label": "assembly rocm",
-      "samples": 411,
-      "minimum": 4.553
-    },
-    {
-      "label": "binary / disassembly cuda",
-      "samples": 421,
-      "minimum": 4.553
-    },
-    {
-      "label": "assembly cuda",
-      "samples": 413,
-      "minimum": 4.553
-    },
-    {
-      "label": "target failure arch",
-      "samples": 414,
-      "minimum": 4.553
-    },
-    {
-      "label": "target failure toolkit",
-      "samples": 417,
-      "minimum": 4.553
-    },
-    {
-      "label": "missing weight",
-      "samples": 403,
-      "minimum": 4.553
-    },
-    {
-      "label": "binding repaired / exported",
+      "label": "graph frame 2",
       "samples": 408,
       "minimum": 4.553
     },
     {
-      "label": "reuse cpu true",
-      "samples": 404,
-      "minimum": 4.553
-    },
-    {
-      "label": "reuse cpu false",
-      "samples": 404,
-      "minimum": 4.553
-    },
-    {
-      "label": "reuse cuda true",
+      "label": "graph frame 3",
       "samples": 406,
       "minimum": 4.553
     },
     {
+      "label": "graph frame 4",
+      "samples": 406,
+      "minimum": 4.553
+    },
+    {
+      "label": "graph frame 5",
+      "samples": 406,
+      "minimum": 4.553
+    },
+    {
+      "label": "graph frame 6",
+      "samples": 405,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 0",
+      "samples": 405,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 1",
+      "samples": 412,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 2",
+      "samples": 417,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 3",
+      "samples": 418,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 4",
+      "samples": 420,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 5",
+      "samples": 425,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 6",
+      "samples": 423,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 7",
+      "samples": 423,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 8",
+      "samples": 426,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 9",
+      "samples": 422,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 0",
+      "samples": 422,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 1",
+      "samples": 425,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 2",
+      "samples": 426,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 3",
+      "samples": 426,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 4",
+      "samples": 429,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 5",
+      "samples": 429,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 6",
+      "samples": 426,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 7",
+      "samples": 425,
+      "minimum": 4.553
+    },
+    {
+      "label": "target frame 0",
+      "samples": 425,
+      "minimum": 4.553
+    },
+    {
+      "label": "target frame 1",
+      "samples": 432,
+      "minimum": 4.553
+    },
+    {
+      "label": "target frame 2",
+      "samples": 430,
+      "minimum": 4.553
+    },
+    {
+      "label": "target frame 3",
+      "samples": 434,
+      "minimum": 4.553
+    },
+    {
+      "label": "target frame 4",
+      "samples": 434,
+      "minimum": 4.553
+    },
+    {
+      "label": "target frame 5",
+      "samples": 438,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 0",
+      "samples": 438,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 1",
+      "samples": 436,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 2",
+      "samples": 434,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 3",
+      "samples": 438,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 4",
+      "samples": 435,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 5",
+      "samples": 435,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 6",
+      "samples": 443,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 7",
+      "samples": 440,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 0",
+      "samples": 440,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 1",
+      "samples": 438,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 2",
+      "samples": 438,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 3",
+      "samples": 441,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 4",
+      "samples": 439,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 5",
+      "samples": 441,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 6",
+      "samples": 439,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 7",
+      "samples": 442,
+      "minimum": 4.553
+    },
+    {
+      "label": "unfused",
+      "samples": 442,
+      "minimum": 4.553
+    },
+    {
+      "label": "borrow blocked",
+      "samples": 419,
+      "minimum": 4.553
+    },
+    {
+      "label": "borrow repaired",
+      "samples": 415,
+      "minimum": 4.553
+    },
+    {
+      "label": "SIMD 1",
+      "samples": 442,
+      "minimum": 4.553
+    },
+    {
+      "label": "SIMD 8",
+      "samples": 442,
+      "minimum": 4.553
+    },
+    {
+      "label": "binary / disassembly cpu",
+      "samples": 438,
+      "minimum": 4.553
+    },
+    {
+      "label": "assembly cpu",
+      "samples": 430,
+      "minimum": 4.553
+    },
+    {
+      "label": "binary / disassembly rocm",
+      "samples": 439,
+      "minimum": 4.553
+    },
+    {
+      "label": "assembly rocm",
+      "samples": 431,
+      "minimum": 4.553
+    },
+    {
+      "label": "binary / disassembly cuda",
+      "samples": 441,
+      "minimum": 4.553
+    },
+    {
+      "label": "assembly cuda",
+      "samples": 433,
+      "minimum": 4.553
+    },
+    {
+      "label": "target failure arch",
+      "samples": 434,
+      "minimum": 4.553
+    },
+    {
+      "label": "target failure toolkit",
+      "samples": 437,
+      "minimum": 4.553
+    },
+    {
+      "label": "missing weight",
+      "samples": 423,
+      "minimum": 4.553
+    },
+    {
+      "label": "binding repaired / exported",
+      "samples": 428,
+      "minimum": 4.553
+    },
+    {
+      "label": "reuse cpu true",
+      "samples": 424,
+      "minimum": 4.553
+    },
+    {
+      "label": "reuse cpu false",
+      "samples": 424,
+      "minimum": 4.553
+    },
+    {
+      "label": "reuse cuda true",
+      "samples": 426,
+      "minimum": 4.553
+    },
+    {
       "label": "reuse cuda false",
-      "samples": 407,
+      "samples": 427,
       "minimum": 4.553
     },
     {
       "label": "legend open",
-      "samples": 505,
+      "samples": 525,
       "minimum": 4.553
     },
     {
       "label": "narrow 320",
-      "samples": 383,
+      "samples": 403,
       "minimum": 4.553
     },
     {
       "label": "touch legend 320",
-      "samples": 481,
+      "samples": 501,
       "minimum": 4.553
     },
     {
       "label": "narrow 390",
-      "samples": 383,
+      "samples": 403,
       "minimum": 4.553
     },
     {
       "label": "touch legend 390",
-      "samples": 481,
+      "samples": 501,
       "minimum": 4.553
     }
   ],

@@ -1,0 +1,172 @@
+"""Build four offline, source-pinned MAX custom-op animation readers."""
+from __future__ import annotations
+
+import hashlib
+import html
+import json
+from pathlib import Path
+import re
+import subprocess
+
+from build import python_span
+from compiler_workbench import COLORS, COMPONENTS, SRC, TASK, REPO, owner, slots, wire
+from cells import REVISION
+
+EXAMPLES = [
+    dict(id="addition", number="01", level="Simple", title="Add one. Follow every boundary.",
+         short="Add one to a tensor", filename="addition.py", kernel="add_one.mojo",
+         page="max_example_01_add_one_compilation_and_execution.html", expression="Y = X + 1",
+         subtitle="One custom op connects Python, a registered Mojo body and native execution.",
+         tiny="Tiny view: X [2,2]; original: X [5,10] float32",
+         notes="The script prints result and expected values; it does not assert numerical equality. Explicit output types bypass its unimplemented optional shape function.",
+         registration="AddOne", math="AddOne", dispatch="AddOne", extra=[("shape_function", "add_one_shape", "Optional shape function")]),
+    dict(id="epilogue", number="02", level="Medium", title="Keep the epilogue beside the matmul.",
+         short="Matmul + fusible epilogue", filename="elementwise_addition.py", kernel="add_one.mojo",
+         page="max_example_02_matmul_fusible_epilogue.html", expression="Y = (A @ B + 1) × 2",
+         subtitle="Three mathematical operations expose an eligible fusion opportunity.",
+         tiny="Tiny view: A/B [2,2]; original: A [5,8], B [8,10]",
+         notes="The source documents epilogue fusion eligibility. Fused/separate routes here are numerical teaching comparisons, not captured compiler dumps or real configuration flags. The original script asserts allclose.",
+         registration="AddOneElementwise", math="AddOneElementwise", dispatch="AddOneElementwise", extra=[]),
+    dict(id="matmul", number="03", level="Medium-hard", title="Choose a kernel. Coordinate its tiles.",
+         short="Custom tiled matrix multiplication", filename="matrix_multiplication.py", kernel="matrix_multiplication.mojo",
+         page="max_example_03_tiled_matmul_compiler_and_memory.html", expression="C = A @ B; algorithm is a compile-time parameter",
+         subtitle="Follow target specialization, global/shared storage and two different readiness gates.",
+         tiny="Tiny view: A [2,4], B [4,2], BK=2; original: M=K=N=256",
+         notes="Original tiled BM=BN=BK is 32 on non-AMD GPUs and 16 on AMD. Main tests several GPU algorithms and a later 128×256×384 case; CPU main uses naive. Each helper call compiles and initializes its own model while reusing the session. The final expected assignment is a@b, overwriting the earlier fp64 reference.",
+         registration="MatrixMultiplication", math="tiled_matrix_multiplication", dispatch="MatrixMultiplication",
+         extra=[("math_naive_cpu", "naive_matrix_multiplication_cpu", "Naive CPU matmul"), ("math_naive_gpu", "naive_matrix_multiplication", "Naive GPU matmul")]),
+    dict(id="attention", number="04", level="Hard", title="Attention, one key tile at a time.",
+         short="Fused attention / online softmax", filename="fused_attention.py", kernel="fused_attention.mojo",
+         page="max_example_04_fused_attention_online_softmax.html", expression="O = softmax(Q Kᵀ) V · unscaled, rank 2",
+         subtitle="See why a larger running maximum requires rescaling the previous output.",
+         tiny="Tiny view: one query, four keys, two features; original CPU N=D=8 / GPU N=D=32",
+         notes="This example is unscaled rank-2 attention without mask/dropout/heads. GPU BN=16, BD=8 but its key tile BN_1=8. CPU BN=4, BD=4. The original script prints output Buffers and has no explicit CPU copy or parity assertion. The tiny online-softmax comparison is independently checked in JavaScript.",
+         registration="FusedAttention", math="fused_attention_kernel", dispatch="fused_attention_gpu",
+         extra=[("math_cpu", "fused_attention_cpu", "CPU online softmax")]),
+]
+
+BASE_REFS = "graph_init graph_output frontend mo_pipeline map_pipeline mogg_pipeline mgp_pipeline gc_pipeline compile_async artifact serialize init_all execute native_execute driver_execute driver_results ready_counts mojo_semantics mojo_elaboration mojo_llvm llvm_translation backend_select host_object nvptx_object amdgpu_backend".split()
+
+
+def mojo_span(text, symbol):
+    """Top-level definition, including its decorators and entire indented body."""
+    lines = text.splitlines(keepends=True)
+    matches = [i for i, line in enumerate(lines) if re.match(r"(?:struct|def) " + re.escape(symbol) + r"(?:\b|\[)", line)]
+    if len(matches) != 1:
+        raise ValueError(f"Expected one top-level Mojo symbol: {symbol}")
+    start = matches[0]
+    while start and lines[start-1].startswith("@"):
+        start -= 1
+    # A top-level comment immediately preceding the next definition belongs to
+    # neither body. Trailing blank/comment lines are harmless unchanged source.
+    end = next((i for i in range(matches[0]+1, len(lines)) if re.match(r"(?:@|struct |def |comptime |from |import )", lines[i])), len(lines))
+    while end > start and (not lines[end-1].strip() or lines[end-1].startswith("#")):
+        end -= 1
+    return start+1, end
+
+
+def load_example(example):
+    base = json.loads((TASK/"compiler_workbench_manifest.json").read_text())
+    if base["revision"] != REVISION:
+        raise ValueError("Example and compiler source revisions differ")
+    refs = {key:dict(base["references"][key]) for key in BASE_REFS}
+    py = "max/examples/custom_ops/" + example["filename"]
+    mojo = "max/examples/custom_ops/kernels/" + example["kernel"]
+    text = (REPO/mojo).read_text()
+    def ref(key,file,start,end,label,language="mojo",symbol=""):
+        refs[key]=dict(id=key,file=file,start=start,end=end,line=start,label=label,symbol=symbol,language=language,alias="PY" if language=="python" else "MOJO")
+    ref("entry",py,1,len((REPO/py).read_text().splitlines()),"Complete Python example","python",example["filename"])
+    ref("kernel_file",mojo,1,len(text.splitlines()),"Complete Mojo kernel file",symbol=example["kernel"])
+    for key,symbol,label in [("registration",example["registration"],"Registered Mojo implementation"),("math",example["math"],"Kernel arithmetic"),("dispatch",example["dispatch"],"Target dispatch / launch")]+example["extra"]:
+        start,end=mojo_span(text,symbol)
+        ref(key,mojo,start,end,label,symbol=symbol)
+    custom="max/python/max/graph/ops/custom.py"
+    start,end=python_span((REPO/custom).read_text(),"custom")
+    ref("custom_api",custom,start,end,"ops.custom graph construction","python","custom")
+    files={}
+    for file in sorted({r["file"] for r in refs.values()}):
+        raw=(REPO/file).read_bytes()
+        if raw!=subprocess.check_output(["git","show",f"{REVISION}:{file}"],cwd=REPO):
+            raise ValueError(f"Example source differs from pinned revision: {file}")
+        target=TASK/"sources"/file
+        target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(raw)
+        files[file]=dict(path=file,text=raw.decode(),sha256=hashlib.sha256(raw).hexdigest())
+    for r in refs.values():
+        code="".join(files[r["file"]]["text"].splitlines(keepends=True)[r["start"]-1:r["end"]])
+        r["sha256"]=hashlib.sha256(code.encode()).hexdigest()
+    return refs,files
+
+
+def scene(kind,example):
+    if kind=="build":
+        body=owner("python",24,64,280,405,"PYTHON BUILDER","one host application process")+owner("mlir",330,64,496,405,"G1 · SYMBOLIC GRAPH","shape / dtype / device · no arithmetic execution")+owner("mojo",856,64,320,405,"REGISTERED MOJO","custom_extensions = kernels/")
+        body+=wire("M304 255 H330","record",304,240)+wire("M856 257 H827","resolve",828,241)
+    elif kind=="compile":
+        body=owner("python",24,64,250,405,"CALLER GRAPH","G1 stays with its owner")+owner("mlir",304,64,420,405,"COMPILER WORKBENCH","in-memory representations / native passes")+owner("backend",750,64,230,405,"TARGET TOOLS","host compilation / target code")+owner("engine",1006,64,170,405,"MODEL DOCK","compiled bytes → init")
+        body+=wire("M274 251 H304","clone",276,237)+wire("M724 249 H750","lower",725,234)+wire("M980 250 H1006","prepare",981,235)
+    else:
+        body=owner("python",24,64,292,490,"HOST CALLER","NumPy arrays / Buffer references")+owner("runtime",344,64,276,490,"NATIVE MAX RUNTIME","M1 / S1 / compiled code stay resident")+owner("hardware",648,64,528,490,"EXECUTION TARGET","CPU or accelerator · motion is schematic")
+        body+='<rect class="memory-rack" x="667" y="132" width="166" height="324" rx="8"/><text class="static-label" x="679" y="150">INPUT STORAGE</text><rect class="kernel-bench" x="845" y="132" width="312" height="310" rx="8"/><text class="static-label" x="858" y="155" data-kernel-label>Kernel arithmetic</text><text class="static-label" x="49" y="426">Host result / explicit read</text><text class="static-label" x="856" y="476">Output storage</text>'
+        body+=slots("host-output",49,444,4,54,8)+slots("target-output",852,491,4,64,10)
+        body+=wire("M316 205 H330 V574 H653 V254 H667","explicit .to(device)",398,592,"upload","data")+wire("M620 290 H648","execute / native boundary",523,275,"submit")+wire("M1160 555 V612 H294 V499","readiness / explicit host copy where present",489,605,"result","data")
+    height=630 if kind=="run" else 520
+    return f'<svg viewBox="0 0 1200 {height}" role="img" aria-label="{html.escape(example["short"])} · {kind}" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid-{kind}" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#dfe7ed" stroke-width=".7"/></pattern><marker id="arrow-{kind}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#596e79"/></marker></defs><rect class="canvas-backing" width="1200" height="{height}"/><rect width="1200" height="{height}" fill="url(#grid-{kind})"/><text class="scene-label" x="25" y="31">{dict(build="READ SOURCE / RECORD CONTRACT",compile="TRANSFORM REPRESENTATIONS / INITIALIZE",run="FOLLOW VALUES / COORDINATE WORK")[kind]}</text>{body.replace("url(#arrow)",f"url(#arrow-{kind})")}<g data-actors></g></svg>'
+
+
+def progression_cards(current=None):
+    return '<div class="example-grid">'+"".join(f'<a class="example-link" href="{e["page"]}"'+(' aria-current="page"' if e["id"]==current else '')+f'><span>{e["number"]} · {e["level"]}</span><strong>{e["short"]}</strong><code>{html.escape(e["expression"])}</code><small>{e["filename"]}</small></a>' for e in EXAMPLES)+'</div>'
+
+
+def build_compiler_examples():
+    manifests=[]
+    for example in EXAMPLES:
+        refs,files=load_example(example)
+        def link(key):
+            r=refs[key]
+            return f'<a data-ref="{key}" href="../sources/{r["file"]}#L{r["line"]}">{html.escape(r["label"])} <small>[{r["alias"]}:L{r["line"]}]</small></a>'
+        lessons=[dict(id="build",number="01",title="Record this example's graph",detail="Follow the unchanged Python source, typed graph inputs and its Mojo registration.",ascii="Python example → TensorType + Graph → ops.custom(name, out_types)\ncustom_extensions / registered Mojo name\nGraph.output → verified G1; numerical execution has not happened",refs=["entry","registration"],evidence="SOURCE · exact example / graph API"),dict(id="compile",number="02",title="Compile it into an executable model",detail="Preserve G1 while a compiler-owned representation lowers; then prepare the artifact and initialize M1.",ascii="S1.compile(G1) → clone C1 → MO / MAP / MOGG / MGP\ndevice-graph finalization → emitted/custom Mojo → LIT / KGEN / POP\nLLVM dialect → LLVM IR → target code → prepared MEF byte buffer\nS1.init(compiled) → M1; these examples need no weight registry",refs=["entry","gc_pipeline","registration"],evidence="SOURCE pipeline · schematic IR / backend outputs"),dict(id="run",number="03",title="Watch the kernel's values and decisions",detail=example["tiny"]+". Arithmetic is a small deterministic illustration of the original operation.",ascii="M1 + Buffer inputs → native execution → kernel arithmetic\nRuntime readiness → result Buffer\n"+("print(output); no explicit host copy in this source" if example["id"]=="attention" else "explicit result.to(CPU()) → to_numpy() → print/check")+"\nSame resident code/session, separate per-call data",refs=["entry","math"],evidence="SOURCE kernel logic · browser math illustration · BOUNDARY device timing")]
+        sections=[]
+        for l in lessons:
+            sections.append(f'''<section class="lesson" id="{l['id']}" data-lesson="{l['id']}" aria-labelledby="heading-{l['id']}"><div class="experiment"><div class="experiment-top"><button class="lesson-badge" data-card="{l['id']}" aria-label="Explain {l['number']}: {html.escape(l['title'])}">{l['number']}</button><h2 id="heading-{l['id']}">{html.escape(l['title'])}</h2><span>{html.escape(l['evidence'])}</span></div><p class="intro">{html.escape(l['detail'])}</p><div class="visual" tabindex="0" aria-label="{html.escape(l['title'])}; scroll inside on narrow screens">{scene(l['id'],example)}</div><div class="playback" data-interactive hidden><button class="play" data-action="play" aria-pressed="false">▶ Play</button><button data-action="back">Back</button><button data-action="step">Step</button><button data-action="reset">↺ Reset</button><label>Speed <select data-speed><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label><input data-seek type="range" min="0" max="1" value="0" aria-label="{html.escape(l['title'])} step"><output data-progress>Ready</output></div><div class="state-strip" data-state-strip></div><div class="event" role="status" aria-live="polite"><strong data-event-title>Ready to explore</strong><span data-event-detail>{html.escape(l['detail'])}</span></div><div class="ir-diff"><div><span>Original source · selected current definition</span><pre data-code-preview></pre></div><div><span>Schematic state / numerical work · not a generated dump</span><pre data-state-preview></pre></div></div><div class="event-sources" data-event-sources>{' · '.join(link(r) for r in l['refs'])}</div><details class="transcript"><summary>Portable flow · step-by-step transcript · evidence</summary><pre>{html.escape(l['ascii'])}</pre><ol data-transcript></ol></details></div></section>''')
+        legend=[]
+        for key,title,kind,detail,sources in COMPONENTS:
+            if key=="mojo":detail="The original example's registered struct supplies typed native arithmetic; target/algorithm/tile parameters specialize it. This is not automatic translation of arbitrary Python to Mojo.";sources=["registration","math"]
+            if key=="engine":detail="S1 owns compilation/runtime context. Compiled artifact and initialized M1 are separate objects. These four input-tensor examples call init(compiled) without a weight registry.";sources=["entry","init_all"]
+            if key=="sync":
+                detail="Runtime result readiness coordinates obtaining output Buffers. It does not establish a universal device-wide barrier or automatically copy results to CPU."
+                sources=["driver_results","ready_counts"]
+                if example["id"]=="matmul":
+                    detail="The GPU tiled kernel waits for asynchronous copies and uses block barriers before consuming/reusing shared storage. These kernel gates have a different scope from native runtime result readiness."
+                    sources=["math","driver_results"]
+                elif example["id"]=="attention":
+                    detail="The kernel's m/l/O are arithmetic state. Native result readiness coordinates obtaining output Buffers; no mutex or semaphore is part of the shown online-softmax recurrence."
+                    sources=["math","driver_results"]
+            if key=="hardware":detail="The original example selects a CPU or accelerator. Compiled target code is separate from execution on that physical device. Chip, storage and tile movement here are schematic.";sources=["entry"]
+            sources=[s for s in sources if s in refs]
+            legend.append(f'<div class="legend-row" data-legend-component="{key}"><span class="swatch" style="background:{COLORS[key][0]}"></span><div><strong>{title}</strong><span class="legend-kind">{kind}</span><p>{detail}</p><div>{" · ".join(link(s) for s in sources)}</div></div></div>')
+        cells=[]
+        for key in ["entry","kernel_file","registration","math","gc_pipeline"]:
+            r=refs[key];lines=files[r["file"]]["text"].splitlines()
+            code="\n".join(f'<span class="source-line"><span>{n}</span>{html.escape(lines[n-1])}</span>' for n in range(r["start"],r["end"]+1))
+            cells.append(f'<details class="source-cell"><summary>{html.escape(r["label"])} · complete unchanged source</summary><p>{link(key)}</p><pre><code>{code}</code></pre></details>')
+        controls='<label>Target illustration <select id="target-select"><option value="cuda">NVIDIA GPU</option><option value="rocm">AMD GPU</option><option value="cpu">CPU fallback</option></select></label>'
+        if example["id"]=="epilogue":controls+='<label>Compare <select id="fusion-select"><option value="fused">Eligible fused epilogue</option><option value="separate">Separate intermediates</option></select></label><small>Teaching comparison; not a compiler flag.</small>'
+        if example["id"]=="matmul":controls+='<label>GPU algorithm <select id="algorithm-select"><option value="tiled">tiled</option><option value="naive">naive</option></select></label><small>CPU source uses naive. Original GPU main covers more variants.</small>'
+        payload=dict(revision=REVISION,example=example,references=refs,files=files,lessons=lessons)
+        shell=(SRC/"compiler_workbench.html").read_text()
+        # Shared source/card markup keeps keyboard/touch/offline behavior equal.
+        shared=shell[shell.index('<aside id="explanation-card"'):shell.index('<script id="compiler-workbench-data"')]
+        colors="\n".join(f'[data-component="{k}"], [data-color="{k}"]{{--ink:{ink};--tint:{tint}}}' for k,(ink,tint) in COLORS.items())
+        replacements=dict(css=(SRC/"compiler_workbench.css").read_text()+"\n"+(SRC/"compiler_example_links.css").read_text()+"\n"+(SRC/"compiler_examples.css").read_text()+"\n"+colors,js="\n".join((SRC/name).read_text() for name in ("compiler_examples_model.js","compiler_workbench_visuals.js","compiler_examples_visuals.js","compiler_reader_ui.js","compiler_examples.js")),title=html.escape(example["short"]),number=example["number"],level=example["level"],heading=html.escape(example["title"]),subtitle=html.escape(example["subtitle"]),expression=html.escape(example["expression"]),tiny=html.escape(example["tiny"]),notes=html.escape(example["notes"]),controls=controls,sections="\n".join(sections),cards=progression_cards(example["id"]),sources="\n".join(cells),shared=shared.replace('{{legend}}',"\n".join(legend)),payload=json.dumps(payload,ensure_ascii=False).replace('<','\\u003c'),revision=REVISION,filename=example["filename"])
+        template=(SRC/"compiler_examples.html").read_text()
+        tokens=set(re.findall(r"\{\{([a-z-]+)\}\}",template))
+        if tokens!=replacements.keys():raise ValueError(f"Example template tokens differ: {tokens^replacements.keys()}")
+        page=re.sub(r"\{\{([a-z-]+)\}\}",lambda m:replacements[m[1]],template)
+        (TASK/"link_htmls"/example["page"]).write_text(page)
+        manifests.append(dict(page="link_htmls/"+example["page"],example=example,references=refs,lessons=lessons,files=[{k:v for k,v in f.items() if k!='text'} for f in files.values()]))
+        print(f"Built {example['page']}: 3 focused animations / {len(refs)} source targets")
+    (TASK/"compiler_examples_manifest.json").write_text(json.dumps(dict(revision=REVISION,examples=manifests),indent=2)+"\n")
+
+
+if __name__=="__main__":
+    build_compiler_examples()

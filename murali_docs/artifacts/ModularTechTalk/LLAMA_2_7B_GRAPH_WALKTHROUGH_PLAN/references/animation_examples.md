@@ -134,6 +134,51 @@ Its isolated builder is `src/compiler_workbench.py`; checks are
 Use the scoped builder for this family when rebuilding every page would disturb
 independent changes. The session reader has a visible link to the workbench.
 
+### Concrete repository examples: arithmetic and compiler path
+
+The workbench's `#examples` section links four standalone readers:
+
+| Difficulty / reference | Actual Python / Mojo example | Observable mechanism |
+| --- | --- | --- |
+| [Simple: add one](../link_htmls/max_example_01_add_one_compilation_and_execution.html) | `custom_ops/addition.py`, `kernels/add_one.mojo` | Explicit output contract, registration-string linkage, typed `foreach` loads/results |
+| [Medium: matmul epilogue](../link_htmls/max_example_02_matmul_fusible_epilogue.html) | `custom_ops/elementwise_addition.py`, `kernels/add_one.mojo` | Matmul accumulator with +1/×2 before store; compare separate temporary matrices |
+| [Medium-hard: tiled matmul](../link_htmls/max_example_03_tiled_matmul_compiler_and_memory.html) | `custom_ops/matrix_multiplication.py`, `kernels/matrix_multiplication.mojo` | Compile-time algorithm, global/shared tile copies, copy readiness, block barriers and register accumulation |
+| [Hard: online attention](../link_htmls/max_example_04_fused_attention_online_softmax.html) | `custom_ops/fused_attention.py`, `kernels/fused_attention.mojo` | Local scores, running maximum/denominator, rescaled normalized output and next-key-tile reuse |
+
+Each reader has independent graph, compile/init and arithmetic entry points.
+Reuse [compiler_examples.py](../src/compiler_examples.py),
+[compiler_examples_model.js](../src/compiler_examples_model.js),
+[compiler_examples_visuals.js](../src/compiler_examples_visuals.js),
+[compiler_examples.js](../src/compiler_examples.js) and
+[compiler_examples.html](../src/compiler_examples.html).
+The visual subclass retains the workbench's actor map and interpolation;
+[compiler_reader_ui.js](../src/compiler_reader_ui.js) shares transient cards
+and the offline original-source explorer with the parent workbench.
+
+For a new concrete example, preserve its real filename, shapes, parameters,
+registration and call ordering. Label smaller numerical inputs separately.
+Do not copy a generic lifecycle and merely rename it: add a scene showing the
+example's arithmetic, resource changes or dependency guards. Keep running
+kernel state inside its scope; input/device storage does not own attention's
+local m/l/O accumulators.
+
+At this revision, epilogue fusion is documented eligibility, not a captured
+optimized dump. Tiled matmul uses full K tiles, zeros GPU output before `+=`,
+and chooses BM/BN/BK=16 on AMD or 32 otherwise. Its helper compiles a new
+model per invocation while main retains the session. Attention is unscaled
+rank 2; GPU key tiles use BN_1=8 although query BN=16. Addition prints values
+without asserting parity; attention prints Buffers without an explicit CPU
+copy. All four call `init(compiled)` without a model-weight registry.
+
+Build just these readers with `python3 src/compiler_examples.py`. Rebuild
+`src/compiler_workbench.py` when changing the parent's progression cards.
+Use [check_compiler_examples.cjs](../src/check_compiler_examples.cjs) for
+independent tiny arithmetic and lifecycle invariants,
+[check_compiler_examples_browser.cjs](../src/check_compiler_examples_browser.cjs)
+for visible resource/motion/card behavior, and
+[check_compiler_examples.py](../src/check_compiler_examples.py) for pinned
+source bytes/spans and links. These checks do not execute MAX or Mojo.
+
 ### Legacy engine source family
 
 The earlier engine HTML was retired on November 6, 2026. Its authoring/model

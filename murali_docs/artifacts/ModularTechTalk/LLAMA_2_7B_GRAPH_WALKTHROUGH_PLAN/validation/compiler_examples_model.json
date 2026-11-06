@@ -1,0 +1,295 @@
+{
+  "evidence": "CPU-RUN · JavaScript math/model checks only; no MAX/GPU execution",
+  "checks": [
+    "Independent tiny arithmetic: add-one, composed matmul, full-K tiled matmul and full-softmax attention",
+    "Graph, compiled artifact and initialized executable are distinct; readiness/host copying follows each source",
+    "CPU routes omit GPU transfers/coordination; NVIDIA/AMD tile parameters follow source",
+    "Async copy completion precedes block consumption; shared reuse closes the gate",
+    "Online-softmax second-tile rescaling preserves agreement with independent full softmax",
+    "Deterministic seek/back/reset and immutable snapshots; all source references resolve"
+  ],
+  "results": [
+    {
+      "example": "addition",
+      "target": "cuda",
+      "variant": "default",
+      "frames": [
+        6,
+        12,
+        11
+      ],
+      "result": [
+        1,
+        1.25,
+        1.5,
+        1.75
+      ]
+    },
+    {
+      "example": "addition",
+      "target": "rocm",
+      "variant": "default",
+      "frames": [
+        6,
+        12,
+        11
+      ],
+      "result": [
+        1,
+        1.25,
+        1.5,
+        1.75
+      ]
+    },
+    {
+      "example": "addition",
+      "target": "cpu",
+      "variant": "default",
+      "frames": [
+        6,
+        12,
+        11
+      ],
+      "result": [
+        1,
+        1.25,
+        1.5,
+        1.75
+      ]
+    },
+    {
+      "example": "epilogue",
+      "target": "cuda",
+      "variant": "fused",
+      "frames": [
+        7,
+        13,
+        15
+      ],
+      "result": [
+        10,
+        10,
+        22,
+        18
+      ]
+    },
+    {
+      "example": "epilogue",
+      "target": "cuda",
+      "variant": "separate",
+      "frames": [
+        7,
+        13,
+        10
+      ],
+      "result": [
+        10,
+        10,
+        22,
+        18
+      ]
+    },
+    {
+      "example": "epilogue",
+      "target": "rocm",
+      "variant": "fused",
+      "frames": [
+        7,
+        13,
+        15
+      ],
+      "result": [
+        10,
+        10,
+        22,
+        18
+      ]
+    },
+    {
+      "example": "epilogue",
+      "target": "rocm",
+      "variant": "separate",
+      "frames": [
+        7,
+        13,
+        10
+      ],
+      "result": [
+        10,
+        10,
+        22,
+        18
+      ]
+    },
+    {
+      "example": "epilogue",
+      "target": "cpu",
+      "variant": "fused",
+      "frames": [
+        7,
+        13,
+        15
+      ],
+      "result": [
+        10,
+        10,
+        22,
+        18
+      ]
+    },
+    {
+      "example": "epilogue",
+      "target": "cpu",
+      "variant": "separate",
+      "frames": [
+        7,
+        13,
+        10
+      ],
+      "result": [
+        10,
+        10,
+        22,
+        18
+      ]
+    },
+    {
+      "example": "matmul",
+      "target": "cuda",
+      "variant": "tiled",
+      "frames": [
+        7,
+        12,
+        24
+      ],
+      "result": [
+        11,
+        8,
+        3,
+        6
+      ]
+    },
+    {
+      "example": "matmul",
+      "target": "cuda",
+      "variant": "naive",
+      "frames": [
+        7,
+        12,
+        28
+      ],
+      "result": [
+        11,
+        8,
+        3,
+        6
+      ]
+    },
+    {
+      "example": "matmul",
+      "target": "rocm",
+      "variant": "tiled",
+      "frames": [
+        7,
+        12,
+        24
+      ],
+      "result": [
+        11,
+        8,
+        3,
+        6
+      ]
+    },
+    {
+      "example": "matmul",
+      "target": "rocm",
+      "variant": "naive",
+      "frames": [
+        7,
+        12,
+        28
+      ],
+      "result": [
+        11,
+        8,
+        3,
+        6
+      ]
+    },
+    {
+      "example": "matmul",
+      "target": "cpu",
+      "variant": "tiled",
+      "frames": [
+        7,
+        12,
+        27
+      ],
+      "result": [
+        11,
+        8,
+        3,
+        6
+      ]
+    },
+    {
+      "example": "matmul",
+      "target": "cpu",
+      "variant": "naive",
+      "frames": [
+        7,
+        12,
+        27
+      ],
+      "result": [
+        11,
+        8,
+        3,
+        6
+      ]
+    },
+    {
+      "example": "attention",
+      "target": "cuda",
+      "variant": "default",
+      "frames": [
+        6,
+        12,
+        20
+      ],
+      "result": [
+        1.6118556566078874,
+        1.4186799207178729
+      ]
+    },
+    {
+      "example": "attention",
+      "target": "rocm",
+      "variant": "default",
+      "frames": [
+        6,
+        12,
+        20
+      ],
+      "result": [
+        1.6118556566078874,
+        1.4186799207178729
+      ]
+    },
+    {
+      "example": "attention",
+      "target": "cpu",
+      "variant": "default",
+      "frames": [
+        6,
+        12,
+        20
+      ],
+      "result": [
+        1.6118556566078874,
+        1.4186799207178729
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+/* Example-specific scene and reader refinements. */
+.example-hero { padding:55px 0 25px; }
+.example-hero h1 { font-size:clamp(43px,5.4vw,77px); max-width:1120px; }
+.expression { font:600 17px/1.7 ui-monospace,monospace; color:#33576b; }
+.example-options { gap:14px 22px; }
+.example-options label { margin:0; }.example-options small { color:#4e6473; font-size:10px; }
+.kernel-bench { fill:#f9f3eb; stroke:#a7957b; stroke-width:1.3; }
+.ir-diff pre { font-size:11px; line-height:1.7; max-height:235px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; }
+.lesson .intro { line-height:1.7; }.scope-note[data-actual] { color:#304f61; font-weight:600; }
+.example-hero .kicker { overflow-wrap:anywhere; }
+@media(max-width:1050px) { .example-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { .example-grid { grid-template-columns:1fr; }.example-link { padding:18px; }.expression { font-size:13px; }.example-options { align-items:flex-start; }.example-options label { flex-wrap:wrap; }.example-options select { max-width:240px; } }
+@media print { .example-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.ir-diff pre { max-height:none; }.example-options { display:none!important; } }

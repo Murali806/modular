@@ -359,6 +359,8 @@ def main(report_path=None):
             assert all(s in machine["states"] for s in scenario["path"])
             assert all(pair in pairs for pair in zip(scenario["path"],scenario["path"][1:]))
 
+    from check_compiler_examples import check_examples
+    example_checks = check_examples()
     compiler_manifest = json.loads((TASK / "compiler_workbench_manifest.json").read_text())
     compiler_page = TASK / compiler_manifest["page"]
     compiler_parser = GuideParser()
@@ -431,6 +433,7 @@ def main(report_path=None):
         compiler_source_targets=len(compiler_manifest["references"]),
         compiler_source_files=len(compiler_manifest["files"]),
         compiler_lessons=len(compiler_manifest["lessons"]),
+        compiler_examples=example_checks,
         memory_planning_source_targets=len(memory_manifest["references"]),
         memory_planning_complete_code_cells=len(memory_manifest["complete_code_cells"]),
         memory_planning_displayed_source_lines=memory_line_count,

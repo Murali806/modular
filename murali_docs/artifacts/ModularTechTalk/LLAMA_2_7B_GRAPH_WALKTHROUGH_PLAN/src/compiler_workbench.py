@@ -170,6 +170,7 @@ def load_sources():
 
 
 def build_compiler_workbench():
+    from compiler_examples import progression_cards
     refs, files = load_sources()
     def link(key):
         r=refs[key]
@@ -195,7 +196,7 @@ def build_compiler_workbench():
         source_cells.append(f'<details class="source-cell"><summary>{html.escape(r["label"])} · complete source</summary><p>{link(key)}</p><pre><code>{code}</code></pre></details>')
     payload=dict(revision=REVISION,references=refs,files=files,lessons=[dict(id=v[0],number=v[1],title=v[2],detail=v[4],evidence=v[5],ascii=v[6],refs=v[7]) for v in LESSONS],readings=READINGS)
     colors="\n".join(f'[data-component="{key}"], [data-color="{key}"]{{--ink:{ink};--tint:{tint}}}' for key,(ink,tint) in COLORS.items())
-    replacements={"css":(SRC/"compiler_workbench.css").read_text()+"\n"+colors,"js":"\n".join((SRC/name).read_text() for name in ("compiler_workbench_model.js","compiler_workbench_visuals.js","compiler_workbench.js")),"lessons":"\n".join(lessons),"legend":"\n".join(legend),"source-cells":"\n".join(source_cells),"readings":"".join(f'<li><a href="{url}" target="_blank" rel="noreferrer">{title}</a><p>{note}</p></li>' for title,url,note in READINGS),"revision":REVISION,"payload":json.dumps(payload,ensure_ascii=False).replace("<","\\u003c")}
+    replacements={"css":(SRC/"compiler_workbench.css").read_text()+"\n"+(SRC/"compiler_example_links.css").read_text()+"\n"+colors,"js":"\n".join((SRC/name).read_text() for name in ("compiler_workbench_model.js","compiler_workbench_visuals.js","compiler_reader_ui.js","compiler_workbench.js")),"lessons":"\n".join(lessons),"examples":progression_cards(),"legend":"\n".join(legend),"source-cells":"\n".join(source_cells),"readings":"".join(f'<li><a href="{url}" target="_blank" rel="noreferrer">{title}</a><p>{note}</p></li>' for title,url,note in READINGS),"revision":REVISION,"payload":json.dumps(payload,ensure_ascii=False).replace("<","\\u003c")}
     template=(SRC/"compiler_workbench.html").read_text()
     # Substitute only the shell's tokens. Original embedded source may contain
     # similar brace sequences and must remain byte-for-byte unchanged.

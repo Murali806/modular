@@ -18,11 +18,18 @@ Inspect these current authoring files before inventing a simpler replacement:
 | Frames, prerequisites, interventions, target routes | [compiler_workbench_model.js](../src/compiler_workbench_model.js) |
 | Persistent file/IR/code/handle/cell actors and motion | [compiler_workbench_visuals.js](../src/compiler_workbench_visuals.js) |
 | Playback, seek, cards, target controls, original-source explorer | [compiler_workbench.js](../src/compiler_workbench.js) |
+| Shared transient cards / offline full-source explorer | [compiler_reader_ui.js](../src/compiler_reader_ui.js) |
 | Behavioral/source and rendered checks | [check_compiler_workbench.cjs](../src/check_compiler_workbench.cjs), [check_compiler_workbench_browser.cjs](../src/check_compiler_workbench_browser.cjs) |
 
 The [research decisions](../COMPILER_WORKBENCH_RESEARCH.md) and
 [source manifest](../compiler_workbench_manifest.json) identify the authority
 for this implementation. Recheck routes against the requested revision.
+
+For an example-driven walkthrough, use the four concrete readers and their
+arithmetic/model family in [the example catalog](animation_examples.md#concrete-repository-examples-arithmetic-and-compiler-path).
+They extend the workbench with the actual custom-op registration, parameters,
+tile coordination and numerical transformations. Preserve their distinction
+between source-proven APIs and illustrative optimized IR/hardware motion.
 
 ## Research changes the animation, not just the prose
 

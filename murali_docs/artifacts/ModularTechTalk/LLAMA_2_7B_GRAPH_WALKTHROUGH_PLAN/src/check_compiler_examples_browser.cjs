@@ -1,0 +1,63 @@
+'use strict';
+const assert=require('assert/strict'),fs=require('fs'),path=require('path');
+const {pathToFileURL}=require('url'),{chromium}=require('playwright');
+const renderedAudit=require('./compiler_browser_audit.cjs');
+const task=path.resolve(__dirname,'..'),manifest=JSON.parse(fs.readFileSync(path.join(task,'compiler_examples_manifest.json'),'utf8'));
+const home=pathToFileURL(path.join(task,'link_htmls/max_mlir_mojo_compiler_and_runtime.html')).href;
+const checks=[],audits=[],errors=[],network=[],screenshots=[];
+async function align(p,k){await p.locator('#'+k).evaluate(el=>scrollTo({top:scrollY+el.getBoundingClientRect().top-68,behavior:'instant'}));}
+async function seek(p,k,index){await p.locator('#'+k+' [data-seek]').evaluate((e,i)=>{e.value=i;e.dispatchEvent(new Event('input',{bubbles:true}));},index);}
+async function state(p,k){return p.evaluate(k=>compilerExampleSnapshot(k),k);}
+async function finish(p,k){await align(p,k);await seek(p,k,Number(await p.locator('#'+k).getAttribute('data-frames'))-1);return state(p,k);}
+async function audit(p,label){const a=await p.evaluate(renderedAudit);assert.deepEqual(a.fails,[],'Contrast: '+label);assert.deepEqual(a.overflow,[],'Actor text bounds: '+label);assert.deepEqual(a.occlusion,[],'Unobscured labels: '+label);assert.equal(a.documentOverflow,false,label);audits.push({label,samples:a.samples,minimum:a.minimum});}
+async function shot(p,k,name){const filename='compiler_example_'+name+'.png';await p.locator('#'+k).screenshot({path:path.join(task,'validation',filename)});screenshots.push(filename);}
+(async()=>{
+ const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
+ const setup=async (file,options={})=>{const context=await browser.newContext({viewport:{width:1600,height:1180},reducedMotion:'reduce',...options});await context.route(/^https?:/,r=>{network.push(r.request().url());return r.abort();});await context.addInitScript(()=>{Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async value=>window.__copied=value}});});const p=await context.newPage();p.setDefaultTimeout(8000);p.on('pageerror',e=>errors.push(e.message));await p.goto(file||home);return {p,context};};
+ try {
+  const desktop=await setup();const p=desktop.p;
+  assert.equal(await p.locator('#examples .example-link').count(),4);
+  for(const e of manifest.examples){
+   await p.goto(home);await p.locator('#examples a[href="'+path.basename(e.page)+'"]').click();assert.ok(p.url().endsWith(path.basename(e.page)));await p.waitForTimeout(60);
+   assert.equal(await p.locator('[data-lesson]').count(),3);for(const k of ['build','compile','run'])assert.equal((await state(p,k)).index,0);
+   await audit(p,e.example.id+' initial');
+   for(const k of ['build','compile','run']){await align(p,k);const total=Number(await p.locator('#'+k).getAttribute('data-frames'));for(let i=0;i<total;i++){await seek(p,k,i);await audit(p,e.example.id+' '+k+' '+i);}await shot(p,k,e.example.id+'_'+k);}
+   const original=await state(p,'run');assert.equal(original.hostRead,e.example.id!=='attention');
+   const middle=e.example.id==='attention'?15:e.example.id==='matmul'?8:e.example.id==='epilogue'?5:null;
+   if(middle!==null){await seek(p,'run',middle);await shot(p,'run',e.example.id+'_mechanism');await finish(p,'run');}
+   const values=await p.locator('#run [data-actor^="O1-"]:not([hidden]) .cell-label').allTextContents();assert.deepEqual(values,original.computed.map(n=>Number.isInteger(n)?String(n):Number(n.toFixed(4)).toString()));
+   for(const target of ['cpu','rocm']){await p.locator('#target-select').selectOption(target);for(const k of ['compile','run']){await align(p,k);const total=Number(await p.locator('#'+k).getAttribute('data-frames'));for(let i=0;i<total;i++){await seek(p,k,i);await audit(p,e.example.id+' '+target+' '+k+' '+i);}}if(target==='cpu'){assert.equal(await p.locator('#run [data-wire="upload"]').isVisible(),false);assert.equal(await p.locator('#run [data-actor^="A-shared"]:not([hidden])').count(),0);}}
+   await p.locator('#target-select').selectOption('cuda');
+   if(e.example.id==='epilogue'){await p.locator('#fusion-select').selectOption('separate');await finish(p,'compile');await audit(p,'epilogue separate compilation');for(let i=0;i<Number(await p.locator('#run').getAttribute('data-frames'));i++){await seek(p,'run',i);await audit(p,'epilogue separate '+i);}assert.equal(await p.locator('#run [data-actor="TMP"]:not([hidden])').count(),1);await p.locator('#fusion-select').selectOption('fused');await finish(p,'run');assert.equal(await p.locator('#run [data-actor="TMP"]:not([hidden])').count(),0);assert.deepEqual((await state(p,'run')).computed,original.computed);}
+   if(e.example.id==='matmul'){await p.locator('#algorithm-select').selectOption('naive');await finish(p,'compile');await finish(p,'run');assert.deepEqual((await state(p,'run')).computed,[11,8,3,6]);await audit(p,'matmul naive GPU');await p.locator('#algorithm-select').selectOption('tiled');}
+   await align(p,'build');const badge=p.locator('#build [data-card]');await badge.hover();assert.equal(await p.locator('#explanation-card').isVisible(),true);await p.locator('#explanation-card').hover();await p.waitForTimeout(160);assert.equal(await p.locator('#explanation-card').isVisible(),true);await p.mouse.move(1580,1120);await p.waitForTimeout(170);assert.equal(await p.locator('#explanation-card').isVisible(),false);await badge.focus();await p.keyboard.press('Escape');assert.equal(await p.locator('#explanation-card').isVisible(),false);
+   await p.locator('#legend-button').hover();assert.equal(await p.locator('#legend-card').isVisible(),false);await p.locator('#legend-button').click();assert.equal(await p.locator('#legend-card').isVisible(),true);await audit(p,e.example.id+' legend');
+   assert.equal(new Set(await p.locator('.legend-row .swatch').evaluateAll(es=>es.map(e=>getComputedStyle(e).backgroundColor))).size,11);
+   const matching=await p.evaluate(()=>[...document.querySelectorAll('.legend-row')].every(row=>{const key=row.dataset.legendComponent,swatch=row.querySelector('.swatch'),actor=document.querySelector('.visual [data-color="'+key+'"] .actor-label, .visual [data-component="'+key+'"] .owner-title');return !actor||getComputedStyle(actor).fill===getComputedStyle(swatch).backgroundColor;}));assert.ok(matching);
+   await p.locator('#legend-card a[data-ref="registration"]').first().click();const payload=await p.locator('#compiler-examples-data').evaluate(e=>JSON.parse(e.textContent)),ref=payload.references.registration;
+   assert.equal(await p.locator('#source-dialog').isVisible(),true);const actual=await p.locator('#source-file .source-line').evaluateAll(es=>es.map(e=>[...e.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('')).join('\n'));assert.equal(actual,payload.files[ref.file].text);
+   await p.locator('#source-copy').click();assert.equal(await p.evaluate(()=>window.__copied),payload.files[ref.file].text.split('\n').slice(ref.start-1,ref.end).join('\n'));
+   await p.locator('#source-search').fill(ref.symbol);await p.locator('#source-next').click();assert.ok(await p.locator('.search-hit').count());
+   const download=await Promise.all([p.waitForEvent('download'),p.locator('#source-download').click()]);assert.equal(fs.readFileSync(await download[0].path(),'utf8'),payload.files[ref.file].text);
+   await p.keyboard.press('Escape');assert.equal(await p.locator('#legend-card').isVisible(),true);await p.keyboard.press('Escape');assert.equal(await p.locator('#legend-card').isVisible(),false);
+  }
+  checks.push('Four actual workbench links; each standalone reader starts three scenes paused');
+  checks.push('Every default, CPU and AMD intermediate frame: contrast, actor bounds, label occlusion and document fit');
+  checks.push('Fused/separate epilogue changes intermediate allocations; tiled/naive matmul changes visible execution');
+  checks.push('Result cells agree with the model; source-specific host-copy behavior and CPU placement remain visible');
+  checks.push('Hover/focus cards dismiss, L opens only on click, eleven colors match, original source/search/copy/download work');
+  await desktop.context.close();
+  const matmul=manifest.examples.find(e=>e.example.id==='matmul');
+  const motion=await setup(pathToFileURL(path.join(task,matmul.page)).href,{reducedMotion:'no-preference'});await align(motion.p,'run');await seek(motion.p,'run',5);await motion.p.locator('#run [data-action="play"]').click();await motion.p.waitForTimeout(470);
+  const actor=motion.p.locator('#run [data-actor="A-shared-0-0"]');assert.equal(await actor.count(),1);await actor.evaluate(e=>e.dataset.identityCheck='same');const start=await actor.getAttribute('transform');await motion.p.waitForTimeout(140);assert.notEqual(await actor.getAttribute('transform'),start);
+  await motion.p.locator('#run [data-action="play"]').click();const frozen=await actor.getAttribute('transform'),index=(await state(motion.p,'run')).index;await motion.p.waitForTimeout(240);assert.equal(await actor.getAttribute('transform'),frozen);assert.equal((await state(motion.p,'run')).index,index);
+  await motion.p.locator('#run [data-action="play"]').click();await motion.p.waitForTimeout(130);assert.notEqual(await actor.getAttribute('transform'),frozen);assert.equal(await actor.getAttribute('data-identity-check'),'same');await motion.p.locator('#build').scrollIntoViewIfNeeded();await motion.p.waitForTimeout(170);assert.equal(await motion.p.locator('#run').getAttribute('data-playing'),'false');
+  await motion.p.locator('#run [data-action="reset"]').click();assert.equal((await state(motion.p,'run')).index,0);assert.equal(await motion.p.locator('#run [data-actor^="A-shared"]:not([hidden])').count(),0);await motion.context.close();checks.push('Persistent shared-tile actors move; Pause freezes pose and steps; Resume/offscreen/reset behave correctly');
+  for(const width of [320,390])for(const e of manifest.examples){const mobile=await setup(pathToFileURL(path.join(task,e.page)).href,{viewport:{width,height:850},isMobile:true,hasTouch:true});await finish(mobile.p,'run');await audit(mobile.p,e.example.id+' narrow '+width);await mobile.p.locator('#run [data-card]').tap();assert.equal(await mobile.p.locator('#explanation-card').isVisible(),true);await audit(mobile.p,e.example.id+' touch card '+width);await mobile.p.locator('#run [data-card]').tap();assert.equal(await mobile.p.locator('#explanation-card').isVisible(),false);await mobile.p.locator('#legend-button').tap();await audit(mobile.p,e.example.id+' touch legend '+width);await mobile.context.close();}
+  checks.push('All four readers at 320/390px contain diagram scrolling and fit touch cards/legends');
+  for(const e of manifest.examples){const nojs=await setup(pathToFileURL(path.join(task,e.page)).href,{javaScriptEnabled:false,viewport:{width:1000,height:900}});assert.ok(await nojs.p.locator('noscript').innerText());assert.equal(await nojs.p.locator('.source-cell').count(),5);await nojs.p.locator('.source-cell').first().locator('summary').click();assert.ok((await nojs.p.locator('.source-cell').first().locator('code').innerText()).includes('InferenceSession'));await nojs.p.emulateMedia({media:'print'});assert.equal(await nojs.p.locator('.menu').isVisible(),false);await nojs.context.close();}
+  checks.push('Offline network-free readers retain complete original sources and portable flows with JavaScript disabled and in print');
+  assert.deepEqual(errors,[]);assert.deepEqual(network,[]);
+  fs.writeFileSync(path.join(task,'validation/compiler_examples_browser.json'),JSON.stringify({evidence:'CPU-RUN · Chromium teaching animation only; no MAX/GPU execution',checks,audits,screenshots,errors,network},null,2)+'\n');console.log('Example browser checks passed:',checks.length,'groups /',audits.length,'render audits');
+ } finally {await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});
