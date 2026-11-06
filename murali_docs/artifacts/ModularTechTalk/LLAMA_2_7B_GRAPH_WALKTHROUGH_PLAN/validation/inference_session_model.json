@@ -1,0 +1,18 @@
+{
+  "checked_at": "2026-11-06T12:09:20.330Z",
+  "result": "PASS",
+  "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "command": "node src/check_inference_session.cjs",
+  "evidence": "CPU-RUN JavaScript/document checks; no MAX or GPU execution",
+  "constructor_cases": 160,
+  "checked_frames": 1549,
+  "source_targets": 30,
+  "checks": [
+    "10 complete embedded source files and 30 exact definition/call-site hashes",
+    "160 constructor combinations: CPU inclusion, deduplication, input order, thread mapping, extension and MEF conflict",
+    "Cold compile and MEF reuse both initialize; missing weights stop before native model initialization",
+    "Packed prefill/decode buffers obey row offsets; batch execution reuses the decoder and session",
+    "Both release orders preserve the native context until the final pictured owner is gone",
+    "Every teaching state has source/legend coverage; generated call-tree link and offline dependencies checked"
+  ]
+}

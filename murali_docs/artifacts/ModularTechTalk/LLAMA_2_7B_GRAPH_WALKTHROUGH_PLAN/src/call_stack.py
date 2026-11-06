@@ -18,6 +18,12 @@ max serve --model meta-llama/Llama-2-7b-hf --task text_generation
 max serve --model meta-llama/Llama-2-7b-hf"""
 
 LOCAL_LINKS = {
+    "inference_session": {
+        "href": "link_htmls/max_inference_session_devices_runtime_and_compilation.html",
+        "label": "Animate InferenceSession: devices, runtime, model reuse and lifetime ↗",
+        "text": "Animate InferenceSession: devices, runtime, model reuse and lifetime ↗ (link_htmls/max_inference_session_devices_runtime_and_compilation.html)",
+        "title": "Explore the constructor, native ownership, compilation, initialization and repeated execution",
+    },
     "engine_lifecycle": {
         "href": "link_htmls/max_engine_graph_compilation_mef_and_inference.html",
         "label": "Animate InferenceSession, graph compilation, MEF and inference ↗",

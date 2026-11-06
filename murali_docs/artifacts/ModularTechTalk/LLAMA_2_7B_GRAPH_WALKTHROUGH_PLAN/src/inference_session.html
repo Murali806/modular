@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="description" content="An animated source walkthrough of MAX InferenceSession: devices, native runtime ownership, graph compilation, initialization, execution and lifetime.">
+<title>MAX · Inside InferenceSession</title>
+<style>{{css}}</style>
+</head>
+<body id="top">
+<a class="skip-link" href="#main">Skip to the InferenceSession walkthrough</a>
+<header class="topbar"><a class="brand" href="#top"><span class="brand-mark">M</span> MAX / SOURCE STUDY</a><div class="top-actions"><a href="../max_serve_llama2_7b_startup_call_stack.html">← Startup call stack</a><button data-print data-interactive hidden>Print</button></div></header>
+<div class="menu"><nav aria-label="Page sections"><a href="#constructor">Constructor</a><a href="#compilation">Compile &amp; initialize</a><a href="#execution">Reuse &amp; buffers</a><a href="#lifetime">Lifetime</a><a href="#source-evidence">Source evidence</a></nav><button class="legend-button" id="legend-button" aria-label="Open component legend" aria-controls="legend-card" aria-expanded="false" data-interactive hidden>L</button></div>
+<main id="main">
+<section class="hero" aria-labelledby="page-title"><p class="kicker">An interactive explanation · ENGINE:L664</p><h1 id="page-title">One session.<br>The runtime behind<br><em>your model.</em></h1><p class="lead">Follow <code>InferenceSession(devices=…, …)</code> from a Python call to its native runtime context. Then watch the same session compile a graph, initialize a model, and support its next batch.</p><div class="hero-links"><a class="primary-link" href="#constructor">Inside the constructor ↓</a>{{session-link}}</div></section>
+<div class="reading-key"><span><i class="key-session">S1</i> One reusable session</span><span><i class="key-model">M1</i> Initialized decoder</span><span><i class="key-buffer"></i> Buffers &amp; artifacts in motion</span><span>SOURCE {{revision-short}} · illustrative event timing</span></div>
+<noscript><p class="nojs-note">The four portable flows and complete source definitions below work without JavaScript. Enable JavaScript for the device examples, animated steps and source explorer.</p></noscript>
+{{lessons}}
+<section id="source-evidence" class="evidence-section"><p class="kicker">Check the explanation against the implementation</p><h2>Every boundary has a source.</h2><p>Python and native C++ definitions are pinned at <code>{{revision}}</code>. Click a source link to inspect its complete definition in the full-file explorer.</p>
+<details class="contract"><summary>Scope and illustration rules</summary><ul>
+<li><b>SOURCE:</b> the standard MAX model-worker route for <code>meta-llama/Llama-2-7b-hf</code>, using the built-in Graph API and an ordinary real-device session.</li>
+<li><b>EXAMPLE:</b> S1/M1 IDs, selected device combinations, thread settings, two weight-name tiles, token values and reference counts. Default CPU and multiple-device settings demonstrate the constructor; they do not certify that a given Llama configuration can execute on those targets.</li>
+<li><b>BOUNDARY:</b> animated driver/GPU submission and completion. No model inference, compilation, benchmark or GPU trace was run to produce these illustrations.</li>
+<li>A native <code>Engine::Context</code> is owned by the session; the underlying MAX context, CPU runtime and device contexts can be shared. The diagrams do not assign private thread pools or physical GPUs to individual sessions.</li>
+<li>Lesson 02 shows one ungrouped GraphSpec. Its stored-MEF example assumes a compatible matching entry. Graph tracing precedes this store lookup. Cold compile assumes no lower-level compiled-artifact cache hit.</li>
+<li>Lesson 03 counts the illustrated decoder's setup once. It does not count all auxiliary graphs/models in MAX Serve. Output Buffer placement remains whatever the model returns.</li>
+<li>Lesson 04 counts only pictured strong native-session references. Other references, outstanding work and shared resources can extend lifetimes.</li>
+</ul></details>
+<details class="source-directory"><summary>All exact source targets</summary>{{source-links}}</details>
+{{source-cells}}
+</section>
+<footer><p><a href="../INFERENCE_SESSION_WALKTHROUGH.md">Portable walkthrough</a> · <a href="../inference_session_manifest.json">Source manifest</a> · <a href="max_serve_os_driver_and_scaling.html">OS, drivers &amp; scaling animation</a></p><p>Four source-derived lessons · offline HTML / SVG / JavaScript · keyboard &amp; touch · reduced motion</p></footer>
+</main>
+<aside class="floating-card" id="explanation-card" tabindex="-1" role="region" aria-labelledby="explanation-title" hidden><div class="card-toolbar"><span class="kicker" id="explanation-kicker"></span><button data-close-card aria-label="Close explanation">Close ×</button></div><h2 id="explanation-title"></h2><div id="explanation-body"></div></aside>
+<aside class="floating-card legend-card" id="legend-card" tabindex="-1" role="region" aria-labelledby="legend-title" hidden><div class="card-toolbar"><h2 id="legend-title">Read the moving parts.</h2><button data-close-legend aria-label="Close component legend">Close ×</button></div><p>Colors identify components. Packets carry a session reference, graph, artifact, weights or batch along a highlighted call.</p><div id="legend-content"></div><p class="legend-key"><span>━ function / data flow</span><span>┄ retained reference</span><span>┈ process boundary</span></p></aside>
+<dialog id="source-dialog" aria-labelledby="source-title"><div class="source-toolbar"><div><p class="kicker">Complete original source · SOURCE</p><h2 id="source-title"></h2></div><button id="source-close">Close ×</button></div><p id="source-location"></p><div class="source-tools"><label>Find in file <input type="search" id="source-search" placeholder="Symbol or field"></label><button id="source-previous" aria-label="Previous source match">↑</button><button id="source-next" aria-label="Next source match">↓</button><output id="source-count"></output><button id="source-copy">Copy definition</button><a id="source-download" download>Download original</a></div><pre id="source-file" tabindex="0" aria-label="Complete original file with the selected definition highlighted"><code></code></pre><p class="source-hint">Green lines: complete selected definition. Darker line: exact call site. Esc closes the explorer.</p></dialog>
+<div id="toast" role="status" hidden></div>
+<script id="inference-session-data" type="application/json">{{payload}}</script>
+<script>{{js}}</script>
+</body>
+</html>

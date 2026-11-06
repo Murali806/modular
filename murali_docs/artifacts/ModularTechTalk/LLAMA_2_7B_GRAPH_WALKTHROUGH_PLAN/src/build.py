@@ -208,6 +208,7 @@ def build_guide(data: dict) -> None:
     from os_systems import build_os_systems
     from os_components import build_os_components
     from engine_lifecycle import build_engine_lifecycle
+    from inference_session import build_inference_session
     from widgets import WIDGETS, stage_data
 
     reference_count = build_call_stack(data, TASK, SRC, python_span)
@@ -215,6 +216,7 @@ def build_guide(data: dict) -> None:
     systems_references, systems_cells = build_os_systems(data, TASK, SRC, python_span)
     components_references, components_count, components_steps = build_os_components(data, TASK, SRC, python_span)
     engine_references, engine_objects = build_engine_lifecycle(data, TASK, SRC, python_span, cpp_span)
+    session_references, session_lessons = build_inference_session(data, TASK, SRC, python_span, cpp_span)
 
     cells = {c["id"]: c for c in data["cells"]}
     template = (SRC / "content.md").read_text()
@@ -383,6 +385,7 @@ def build_guide(data: dict) -> None:
 <dialog id="source-dialog" aria-labelledby="source-dialog-title"><div class="dialog-head"><div><span class="eyebrow">COMPLETE ORIGINAL FILE</span><h2 id="source-dialog-title">Source explorer</h2></div><button id="close-explorer" aria-label="Close source explorer">Close ✕</button></div><label class="file-select-label">Source file<select id="file-select">{options}</select></label><div class="file-tools"><label>Find in file <input id="file-search" type="search" placeholder="Symbol or text" autocomplete="off"></label><button id="find-next">Next match</button><span id="find-count" aria-live="polite"></span><a id="download-full" download>Download original file</a></div><div id="file-provenance"></div><pre id="full-file" class="source-code" tabindex="0"><code></code></pre></dialog>
 <div id="toast" role="status" aria-live="polite"></div><script id="guide-data" type="application/json">{payload}</script><script>{js}</script></body></html>'''
     (TASK / "index.html").write_text(output)
+    print(f"Built InferenceSession walkthrough: {session_references} source targets, {session_lessons} animated lessons.")
     print(f"Built six chapters, {len(cells)} complete cells, and {len(files)} full-file snapshots.")
     print(f"Built one combined MAX Serve startup call tree: {reference_count} verified source targets.")
     print(f"Built memory-planning QnA: {memory_references} source targets, {memory_cells} complete code cells.")

@@ -234,6 +234,8 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
             |   |   |               |       +-- InferenceSession(devices=..., ...) [ENGINE:L664] [MAX engine session]
             |   |   |               |       |   owns runtime/compilation context on the selected devices.
             |   |   |               |       |
+            |   |   |               |       |   +-- Animate InferenceSession: devices, runtime, model reuse and lifetime ↗ (link_htmls/max_inference_session_devices_runtime_and_compilation.html)
+            |   |   |               |       |
             |   |   |               |       |   +-- Animate InferenceSession, graph compilation, MEF and inference ↗ (link_htmls/max_engine_graph_compilation_mef_and_inference.html)
             |   |   |               |       |
             |   |   |               |       +-- MAXModelConfig.resolved_weight_paths() [MODEL_CFG:L1563] [QnA 1.1.5]  call site [TEXT:L293]

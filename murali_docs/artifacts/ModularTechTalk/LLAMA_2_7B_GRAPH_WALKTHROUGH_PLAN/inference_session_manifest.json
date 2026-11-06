@@ -1,0 +1,426 @@
+{
+  "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "page": "max_inference_session_devices_runtime_and_compilation.html",
+  "model": "meta-llama/Llama-2-7b-hf",
+  "evidence": "SOURCE; GPU/driver animation is illustrative BOUNDARY",
+  "references": {
+    "session": {
+      "alias": "ENGINE",
+      "symbol": "InferenceSession.__init__",
+      "label": "InferenceSession.__init__",
+      "language": "python",
+      "needle": null,
+      "file": "max/python/max/engine/api.py",
+      "start": 664,
+      "end": 774,
+      "line": 664,
+      "sha256": "e0cc659854409acb6ccb0b1c4096d3ad853092e6e074c201bbfaa74c1f965c3b"
+    },
+    "session_native": {
+      "alias": "ENGINE",
+      "symbol": "InferenceSession.__init__",
+      "label": "self._impl = _InferenceSession",
+      "language": "python",
+      "needle": "self._impl = _InferenceSession(",
+      "file": "max/python/max/engine/api.py",
+      "start": 664,
+      "end": 774,
+      "line": 707,
+      "sha256": "e0cc659854409acb6ccb0b1c4096d3ad853092e6e074c201bbfaa74c1f965c3b"
+    },
+    "pipeline_session": {
+      "alias": "TEXT",
+      "symbol": "TextGenerationPipeline.__init__",
+      "label": "Pipeline constructs and retains session",
+      "language": "python",
+      "needle": "session = InferenceSession(",
+      "file": "max/python/max/pipelines/lib/pipeline_variants/text_generation.py",
+      "start": 208,
+      "end": 387,
+      "line": 275,
+      "sha256": "3759fd837cd9a09185f93a58b1c1bf35a405c8a527bc9b16158360ea00567581"
+    },
+    "pipeline_devices": {
+      "alias": "TEXT",
+      "symbol": "TextGenerationPipeline.__init__",
+      "label": "Load MemoryPlan's devices",
+      "language": "python",
+      "needle": "self._devices = load_devices(",
+      "file": "max/python/max/pipelines/lib/pipeline_variants/text_generation.py",
+      "start": 208,
+      "end": 387,
+      "line": 250,
+      "sha256": "3759fd837cd9a09185f93a58b1c1bf35a405c8a527bc9b16158360ea00567581"
+    },
+    "configure_session": {
+      "alias": "CONFIG",
+      "symbol": "PipelineConfig.configure_session",
+      "label": "Configure the session",
+      "language": "python",
+      "needle": null,
+      "file": "max/python/max/pipelines/lib/config/config.py",
+      "start": 1220,
+      "end": 1237,
+      "line": 1220,
+      "sha256": "9330a841963247ad0690e2c3d7f81a8737a92d2e16e8750eb621839831f11079"
+    },
+    "compile_config": {
+      "alias": "CORE",
+      "symbol": "CompilationRequest M::Core::InferenceSession::populateCompileConfig(",
+      "label": "populateCompileConfig",
+      "language": "cpp",
+      "prefix": 0,
+      "file": "max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp",
+      "start": 615,
+      "end": 624,
+      "line": 615,
+      "sha256": "666e2e1ad330833e3b64bdb05e1b878cbac5c9d93aaa191d531a89058572e7f5"
+    },
+    "native_ctor": {
+      "alias": "CORE",
+      "symbol": "M::Core::InferenceSession::InferenceSession(",
+      "label": "Native InferenceSession constructor",
+      "language": "cpp",
+      "prefix": 0,
+      "file": "max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp",
+      "start": 541,
+      "end": 598,
+      "line": 541,
+      "sha256": "374c658bb4af106fa63d872f97fd6e1cb8b65f24b39cd08935df92dfeea9e749"
+    },
+    "native_class": {
+      "alias": "HEADER",
+      "symbol": "class InferenceSession final",
+      "label": "Native session fields",
+      "language": "cpp",
+      "prefix": 0,
+      "file": "max/python/max/_core/max_license/include/_core/Engine/InferenceSession.h",
+      "start": 50,
+      "end": 99,
+      "line": 50,
+      "sha256": "1314979e091592ba23e61cb26d73099a7919e46a7d0b6561be0097004e2830a4"
+    },
+    "model_handle": {
+      "alias": "HEADER",
+      "symbol": "class ModelHandle {",
+      "label": "ModelHandle ownership and lifetime",
+      "language": "cpp",
+      "prefix": 0,
+      "file": "max/python/max/_core/max_license/include/_core/Engine/InferenceSession.h",
+      "start": 112,
+      "end": 253,
+      "line": 112,
+      "sha256": "e795e0262f722097301bb34fa73a43406b555afc050a376e711c696ba5897798"
+    },
+    "context_create": {
+      "alias": "CONTEXT",
+      "symbol": "Engine::Context::create(const M::Engine::Config &config)",
+      "label": "Engine::Context::create",
+      "language": "cpp",
+      "prefix": 1,
+      "file": "max/lib/max_license/API/c/EngineContext.cpp",
+      "start": 169,
+      "end": 208,
+      "line": 169,
+      "sha256": "c723842f54438616d62eb02246de15ec736b0b5bcaef0d06f026babdb26a86a4"
+    },
+    "context_ctor": {
+      "alias": "CONTEXT",
+      "symbol": "Engine::Context::Context(const M::Engine::Config &runtimeConfig,",
+      "label": "Engine context and CPUDevice",
+      "language": "cpp",
+      "prefix": 0,
+      "file": "max/lib/max_license/API/c/EngineContext.cpp",
+      "start": 214,
+      "end": 219,
+      "line": 214,
+      "sha256": "11d7812c80a9a7ebbabcba97928068aecab52290cd81a3ee59ff438e5cc21dde"
+    },
+    "cpu_options": {
+      "alias": "CONTEXT",
+      "symbol": "getOrCreateCPUDeviceOptions(const Engine::Config &config,",
+      "label": "CPU runtime thread options",
+      "language": "cpp",
+      "prefix": 1,
+      "file": "max/lib/max_license/API/c/EngineContext.cpp",
+      "start": 50,
+      "end": 72,
+      "line": 50,
+      "sha256": "a99c48162d8e287a3e900c1d472a407243ecf8b4182359652a5029a653e85a2d"
+    },
+    "load_graphs": {
+      "alias": "MODEL",
+      "symbol": "LlamaModelBase.load_graphs",
+      "label": "Llama load_graphs",
+      "language": "python",
+      "needle": null,
+      "file": "max/python/max/pipelines/architectures/llama3/model.py",
+      "start": 254,
+      "end": 281,
+      "line": 254,
+      "sha256": "200c27b6acef1071d7556ef5a7cc388a3e73e7238a293e8523683f944d4fe984"
+    },
+    "graph_trace": {
+      "alias": "SPECS",
+      "symbol": "GraphSpec.trace",
+      "label": "GraphSpec.trace",
+      "language": "python",
+      "needle": null,
+      "file": "max/python/max/pipelines/lib/graph_specs.py",
+      "start": 114,
+      "end": 133,
+      "line": 114,
+      "sha256": "5c8cdd48c07e13bc784194ae01d0bbebe7a96bfab95d28691dfbfe97d111e081"
+    },
+    "weights_registry": {
+      "alias": "SPECS",
+      "symbol": "GraphSpec.weights_registry",
+      "label": "GraphSpec.weights_registry",
+      "language": "python",
+      "needle": null,
+      "file": "max/python/max/pipelines/lib/graph_specs.py",
+      "start": 135,
+      "end": 141,
+      "line": 135,
+      "sha256": "7a4605a1903a93f7737737c1bcbfc05e1df5db463301be9745e7750558cbda92"
+    },
+    "compile_graphs": {
+      "alias": "SPECS",
+      "symbol": "compile_and_init_graphs",
+      "label": "Trace, compile and initialize graphs",
+      "language": "python",
+      "needle": null,
+      "file": "max/python/max/pipelines/lib/graph_specs.py",
+      "start": 183,
+      "end": 287,
+      "line": 183,
+      "sha256": "bff6c162f76e04bded8d3a4281134f845ae24e6857a86100d3d870d4b85ea0aa"
+    },
+    "compile_reuse": {
+      "alias": "ENGINE",
+      "symbol": "InferenceSession.compile_reusing_mefs",
+      "label": "Compile or reuse a MEF",
+      "language": "python",
+      "needle": null,
+      "file": "max/python/max/engine/api.py",
+      "start": 897,
+      "end": 967,
+      "line": 897,
+      "sha256": "2f664a0a26afe87bfdeca021989c6568293582270e44de8cba9041fd80be5e41"
+    },
+    "compile": {
+      "alias": "ENGINE",
+      "symbol": "InferenceSession.compile",
+      "label": "Compile an artifact",
+      "language": "python",
+      "needle": null,
+      "file": "max/python/max/engine/api.py",
+      "start": 1062,
+      "end": 1124,
+      "line": 1062,
+      "sha256": "a5f5a99a963e96a410b2b3d58ec55528b336ea555f1e1d13da7a062796fa6ec5"
+    },
+    "init_all": {
+      "alias": "ENGINE",
+      "symbol": "InferenceSession.init_all",
+      "label": "Validate weights and initialize",
+      "language": "python",
+      "needle": null,
+      "file": "max/python/max/engine/api.py",
+      "start": 1160,
+      "end": 1253,
+      "line": 1160,
+      "sha256": "aceef753886e980230ce4dad555e0ef4faefdce0f81b6c2039fcf45b0881400c"
+    },
+    "native_load_all": {
+      "alias": "CORE",
+      "symbol": "M::Core::InferenceSession::loadAll(",
+      "label": "Native loadAll creates ModelHandles",
+      "language": "cpp",
+      "prefix": 1,
+      "file": "max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp",
+      "start": 289,
+      "end": 321,
+      "line": 289,
+      "sha256": "088e529f7cca0cdf647c431510b7ecb98c4457dd2a4c43fc8ef6251be29d0b3b"
+    },
+    "native_load": {
+      "alias": "CORE",
+      "symbol": "M::Core::InferenceSession::load(const M::Model *model,",
+      "label": "Native load initializes one model",
+      "language": "cpp",
+      "prefix": 1,
+      "file": "max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp",
+      "start": 275,
+      "end": 285,
+      "line": 275,
+      "sha256": "dd8d7098bd5b7c8bf240be7397219715fe244fc89af74dba3aa5f709e33dcce0"
+    },
+    "context_compile": {
+      "alias": "CONTEXT",
+      "symbol": "Engine::Context::compileModel(CompilationRequest config) const",
+      "label": "Compile work on the CPU runtime",
+      "language": "cpp",
+      "prefix": 1,
+      "file": "max/lib/max_license/API/c/EngineContext.cpp",
+      "start": 225,
+      "end": 251,
+      "line": 225,
+      "sha256": "0135674f8b1fb679210dd2886eeb1a9b0a6a518ba61c5caed805f449a15790db"
+    },
+    "context_init": {
+      "alias": "CONTEXT",
+      "symbol": "Engine::Context::initModel(const M::Model *model,",
+      "label": "Initialize executable model on CPU runtime",
+      "language": "cpp",
+      "prefix": 1,
+      "file": "max/lib/max_license/API/c/EngineContext.cpp",
+      "start": 288,
+      "end": 308,
+      "line": 288,
+      "sha256": "01da15a3f23a7eecf8fb66e701dd8fc42ee21c159f4b59ecc13e5fcc2c6440f1"
+    },
+    "compiled_create": {
+      "alias": "COMPILED",
+      "symbol": "CompiledModels::create(M::ContextRef context,",
+      "label": "Read MEF or compile model source",
+      "language": "cpp",
+      "prefix": 1,
+      "file": "max/lib/max_license/API/c/CompiledModels.cpp",
+      "start": 100,
+      "end": 161,
+      "line": 100,
+      "sha256": "88c3c3a59cae93fb3b49d0c6c6272d320301bf7b6e1086651f35eb5fa04bad26"
+    },
+    "frontend": {
+      "alias": "FRONTEND",
+      "symbol": "MOFContext::compileToBinary(void *source,",
+      "label": "Native graph compiler and cache",
+      "language": "cpp",
+      "prefix": 0,
+      "file": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
+      "start": 377,
+      "end": 459,
+      "line": 377,
+      "sha256": "e150c9d6abbde87a5b788918085d14bfaaf18b0dbfc5046a3bca4c745dc9c9de"
+    },
+    "model_execute": {
+      "alias": "MODEL",
+      "symbol": "LlamaModelBase.execute",
+      "label": "Llama executes its engine Model",
+      "language": "python",
+      "needle": null,
+      "file": "max/python/max/pipelines/architectures/llama3/model.py",
+      "start": 201,
+      "end": 207,
+      "line": 201,
+      "sha256": "7bcdb302425bcd95b11cf713f4adffd73efa70b3a2b8dd9bbc7493066a3e3d52"
+    },
+    "pipeline_execute": {
+      "alias": "TEXT",
+      "symbol": "TextGenerationPipeline._execute",
+      "label": "Prepare, execute and sample",
+      "language": "python",
+      "needle": null,
+      "file": "max/python/max/pipelines/lib/pipeline_variants/text_generation.py",
+      "start": 594,
+      "end": 731,
+      "line": 594,
+      "sha256": "c73dde411f303cd737cfb60f3557bcaecc590a08690b6dfcf5f74a38b3c279ac"
+    },
+    "prepare_batch": {
+      "alias": "TEXT",
+      "symbol": "TextGenerationPipeline.prepare_batch",
+      "label": "Prepare model inputs and KV references",
+      "language": "python",
+      "needle": null,
+      "file": "max/python/max/pipelines/lib/pipeline_variants/text_generation.py",
+      "start": 465,
+      "end": 532,
+      "line": 465,
+      "sha256": "de4ee57d4e53f6c65eb93e9c96f65420806309d13984f5b789693ed498c0a7e1"
+    },
+    "native_execute": {
+      "alias": "CORE",
+      "symbol": "std::vector<Driver::Python::Buffer> ModelHandle::executePreparedDeviceTensors(",
+      "label": "Native execution using the session context",
+      "language": "cpp",
+      "prefix": 0,
+      "file": "max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp",
+      "start": 521,
+      "end": 539,
+      "line": 521,
+      "sha256": "026d17ec2661890c2c74b6398950fbb85f87ac3fd3f73f1ec88cd1b7a987c388"
+    },
+    "extract_results": {
+      "alias": "CORE",
+      "symbol": "extractPyBufferResults(",
+      "label": "Wrap native results as Python Buffers",
+      "language": "cpp",
+      "prefix": 1,
+      "file": "max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp",
+      "start": 55,
+      "end": 79,
+      "line": 55,
+      "sha256": "cc2cbb966bffda5da915b047b98fc8ec5d347c93a2c41827400928182e6a9660"
+    }
+  },
+  "files": [
+    {
+      "path": "max/python/max/engine/api.py",
+      "snapshot": "sources/max/python/max/engine/api.py",
+      "sha256": "97f0592962c1853c884c8d8145a0faf4aa9ca622262271de4b080990b47da017"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/pipeline_variants/text_generation.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/pipeline_variants/text_generation.py",
+      "sha256": "8a2256eb53f5f8bd29c862a3cfa14d827de163caf80c068681f0cee25ffc6d89"
+    },
+    {
+      "path": "max/python/max/pipelines/architectures/llama3/model.py",
+      "snapshot": "sources/max/python/max/pipelines/architectures/llama3/model.py",
+      "sha256": "0714e4a71b348c2239ee31885ecd85c7df48af15705627f41e8a20402346f867"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/graph_specs.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/graph_specs.py",
+      "sha256": "74a83b6c2b97cf7432d7315dffbfd12646078970364905b5c9fc89497aa314fe"
+    },
+    {
+      "path": "max/python/max/pipelines/lib/config/config.py",
+      "snapshot": "sources/max/python/max/pipelines/lib/config/config.py",
+      "sha256": "a77335e969ca1fe7971eb8a9ee4c5a0f5a4c8fb3d7fcd92ce3a321416845ea20"
+    },
+    {
+      "path": "max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp",
+      "snapshot": "sources/max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp",
+      "sha256": "c293d6dfa872e623f80ad8b6587b669b621b05a7a8dc5d5688e3558b32360001"
+    },
+    {
+      "path": "max/python/max/_core/max_license/include/_core/Engine/InferenceSession.h",
+      "snapshot": "sources/max/python/max/_core/max_license/include/_core/Engine/InferenceSession.h",
+      "sha256": "c84667f0a0639128cb7f17e58eb537a8f2c1d516a0204abea3db0fd6bcb01ca4"
+    },
+    {
+      "path": "max/lib/max_license/API/c/EngineContext.cpp",
+      "snapshot": "sources/max/lib/max_license/API/c/EngineContext.cpp",
+      "sha256": "b55fd5eed0bc9c04022abdfb1df7c5062d7d312809600d6bb1d505f6c3de2564"
+    },
+    {
+      "path": "max/lib/max_license/API/c/CompiledModels.cpp",
+      "snapshot": "sources/max/lib/max_license/API/c/CompiledModels.cpp",
+      "sha256": "1a087e1de3d55307857e5c145d1305574e3d8f482a332a7922eb930e4baf8351"
+    },
+    {
+      "path": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
+      "snapshot": "sources/GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
+      "sha256": "b868f959d3b486102face53b85cd3f31ab68ff139fb3345d3222194b066facc2"
+    }
+  ],
+  "lessons": [
+    "constructor",
+    "compilation",
+    "execution",
+    "lifetime"
+  ]
+}
