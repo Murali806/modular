@@ -4,6 +4,10 @@ These notes capture the user's requirements for this walkthrough. They apply
 under this folder and supplement the repository-wide guidance in
 `murali_docs/AGENTS.md` and the repository's `AGENTS.md`.
 
+The local skill entry point is [SKILL.md](SKILL.md). For the two MAX Serve OS
+readers, also read the consolidated
+[animation requirements and accepted decisions](references/max_serve_os_animations.md).
+
 ## Goal and technical scope
 
 - Build a source-grounded explanation anchored on
@@ -92,6 +96,28 @@ under this folder and supplement the repository-wide guidance in
   boundaries, or data flow. Keep labels compact and include a portable text
   equivalent beside important diagrams.
 
+## MAX Serve OS animation readers
+
+- Apply the [OS animation requirements](references/max_serve_os_animations.md)
+  to `link_htmls/max_serve_os_driver_and_scaling.html` and its companion,
+  `link_htmls/max_serve_os_components_and_flow.html`. They retain the accepted
+  light article theme; the main guide's dark-grey requirement above applies
+  to the main guide.
+- Keep the shared opening lessons in order: 01 API process, 02 model worker,
+  03 batch constructor. Preserve the useful server/request/OS-thread state
+  machines and existing deep links when inserting or renumbering lessons.
+- Give animations the available width. Put lesson explanations behind their
+  numbered hover/focus cards and component descriptions behind the circled
+  click-to-open L legend at the right edge of the top bar.
+- Preserve the user's distinction between thread badges in 01 only, actual
+  process boundaries, Python-object ownership, IPC and synchronization.
+  Follow the detailed source invariants and illustration limits in the
+  linked reference when changing behavior.
+- Treat reference scenario names and tiny budgets as the accepted current
+  teaching design, not permanent limits on future lessons. A past request
+  for an explanation without edits applied to that turn; a later explicit
+  animation request authorized the corresponding implementation.
+
 ## Authoring and validation workflow
 
 - Keep files created for this walkthrough under this task folder. Treat
@@ -107,6 +133,9 @@ under this folder and supplement the repository-wide guidance in
   GPU measurements, or benchmarks for documentation-only work; use only the
   checks needed to build and inspect the artifact unless the user asks for
   additional tests or runtime verification.
+- For instruction-only updates, validate the skill metadata and changed
+  reference links without rebuilding HTML. For animation changes, use the
+  scoped model, browser and source-link checks in the OS animation reference.
 - Preserve existing Git checkpoints, tags, unrelated modifications, and
   untracked artifacts. Never use a hard reset to roll back. Stage only this
   task's files; follow the repository's signed-off commit and push procedure
