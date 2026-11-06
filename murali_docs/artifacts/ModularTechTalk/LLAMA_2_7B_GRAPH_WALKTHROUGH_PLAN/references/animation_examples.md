@@ -127,12 +127,42 @@ its research, design rules, source distinctions and exact builder/model/visual
 files. Reuse the sheets, operation lineage, backend cabinet, cutaway crate,
 owner/borrow handles and resident-code/per-call-buffer movement. Target choices,
 text/binary/disassembly branches and prerequisite repairs change visible state.
-The six lessons are the reference implementation, not a universal lesson order.
+The parent starts with a connected 01 operation journey, followed by six focused
+zooms (02–07). This is a reference implementation, not a universal lesson order.
 
 Its isolated builder is `src/compiler_workbench.py`; checks are
 `src/check_compiler_workbench.cjs` and `src/check_compiler_workbench_browser.cjs`.
 Use the scoped builder for this family when rebuilding every page would disturb
 independent changes. The session reader has a visible link to the workbench.
+
+### Connected operation journey
+
+The parent and all four examples share [compiler_journey.py](../src/compiler_journey.py),
+[compiler_journey_model.js](../src/compiler_journey_model.js),
+[compiler_journey_visuals.js](../src/compiler_journey_visuals.js),
+[compiler_journey.js](../src/compiler_journey.js) and
+[compiler_journey.css](../src/compiler_journey.css).
+Start here for a complete compiler example rather than making three disconnected
+copies of a generic lifecycle. Select an operation, load/store ancestry or
+graph/readiness plan; Next change skips steps irrelevant to that selection.
+
+Visible identities are P1 package, retained G1, compiler plan C1, implementation
+KIR1, translated LLVM1, HOST1/GPU1 code, prepared CM1, resolved H1 and initialized
+M1. Cache selectors distinguish graph-artifact reuse from compiled-kernel reuse.
+The execution clock introduces fresh buffers for two illustrative calls.
+
+Shared edits require both scoped builders:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 src/compiler_workbench.py
+PYTHONDONTWRITEBYTECODE=1 python3 src/compiler_examples.py
+node src/check_compiler_journey.cjs
+NODE_PATH=<playwright-node_modules> node src/check_compiler_journey_browser.cjs
+```
+
+The checks cover five pages, CPU/NVIDIA/AMD and three cache paths, source
+ancestry selection, meaningful-change seeking, live persistent motion and
+offline/card/mobile behavior. Their result is browser teaching-model evidence.
 
 ### Concrete repository examples: arithmetic and compiler path
 
@@ -141,11 +171,13 @@ The workbench's `#examples` section links four standalone readers:
 | Difficulty / reference | Actual Python / Mojo example | Observable mechanism |
 | --- | --- | --- |
 | [Simple: add one](../link_htmls/max_example_01_add_one_compilation_and_execution.html) | `custom_ops/addition.py`, `kernels/add_one.mojo` | Explicit output contract, registration-string linkage, typed `foreach` loads/results |
-| [Medium: matmul epilogue](../link_htmls/max_example_02_matmul_fusible_epilogue.html) | `custom_ops/elementwise_addition.py`, `kernels/add_one.mojo` | Matmul accumulator with +1/×2 before store; compare separate temporary matrices |
+| [Medium: matmul epilogue](../link_htmls/max_example_02_matmul_fusible_epilogue.html) | `custom_ops/elementwise_addition.py`, `kernels/add_one.mojo` | Matmul accumulator with +1/×2 before store; compare temporary lifetimes and logical intermediate reads/writes |
 | [Medium-hard: tiled matmul](../link_htmls/max_example_03_tiled_matmul_compiler_and_memory.html) | `custom_ops/matrix_multiplication.py`, `kernels/matrix_multiplication.mojo` | Compile-time algorithm, global/shared tile copies, copy readiness, block barriers and register accumulation |
-| [Hard: online attention](../link_htmls/max_example_04_fused_attention_online_softmax.html) | `custom_ops/fused_attention.py`, `kernels/fused_attention.mojo` | Local scores, running maximum/denominator, rescaled normalized output and next-key-tile reuse |
+| [Hard: online attention](../link_htmls/max_example_04_fused_attention_online_softmax.html) | `custom_ops/fused_attention.py`, `kernels/fused_attention.mojo` | Running maximum/denominator, rescaled output, reusable score slots and full-score versus local-tile storage |
 
-Each reader has independent graph, compile/init and arithmetic entry points.
+Each reader begins with the connected journey and has independent graph,
+cold compile/init and arithmetic zooms. The cold zoom also shows final
+runtime-call lowering and module/callable initialization.
 Reuse [compiler_examples.py](../src/compiler_examples.py),
 [compiler_examples_model.js](../src/compiler_examples_model.js),
 [compiler_examples_visuals.js](../src/compiler_examples_visuals.js),
@@ -169,6 +201,14 @@ model per invocation while main retains the session. Attention is unscaled
 rank 2; GPU key tiles use BN_1=8 although query BN=16. Addition prints values
 without asserting parity; attention prints Buffers without an explicit CPU
 copy. All four call `init(compiled)` without a model-weight registry.
+The journey's second retained-model call is illustrative; it does not change
+the matmul helper's actual fresh compile/init behavior.
+
+Intermediate traffic counters describe the tiny epilogue's scalar accesses;
+they exclude A/B loads and measured cache/bus traffic. Attention score counts
+exclude Q/K/V/O and E/scratch. The full-score route is a comparison, not a
+claim about the provided kernel. Reusable storage keeps slot IDs across tiles;
+do not encode tile generation as a new allocation identity.
 
 Build just these readers with `python3 src/compiler_examples.py`. Rebuild
 `src/compiler_workbench.py` when changing the parent's progression cards.

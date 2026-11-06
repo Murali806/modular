@@ -717,20 +717,130 @@
           "start": 69,
           "end": 129,
           "line": 69,
-          "label": "ops.custom graph construction",
           "symbol": "custom",
+          "label": "Create and immediately verify a custom graph operation",
           "language": "python",
           "alias": "PY",
           "sha256": "773e68d0ecb02a0df9655ec04c98e0424a106a2a96871edb616e9ed855f5ca36"
+        },
+        "package_load": {
+          "id": "package_load",
+          "file": "max/python/max/graph/graph.py",
+          "start": 269,
+          "end": 294,
+          "line": 269,
+          "symbol": "KernelLibrary.load_paths",
+          "label": "Import source or precompiled Mojo packages",
+          "language": "python",
+          "alias": "PY",
+          "sha256": "860ee0f4db64c332c1eea39d6444ff6462f4f6936c2058e4b28d1560bbab1d85"
+        },
+        "mojo_package": {
+          "id": "mojo_package",
+          "file": "Mojo/docs/compiler/MojoCompilerWalkthrough.md",
+          "start": 569,
+          "end": 814,
+          "line": 569,
+          "symbol": "## Mojo Packages and Precompiled Files",
+          "label": "Mojo package bytecode and deferred specialization",
+          "language": "section",
+          "alias": "DOC",
+          "sha256": "f0c98f23ca8c715e610cb649824dade223e9974f99a1694d1ae171533be798e5"
+        },
+        "artifact_cache": {
+          "id": "artifact_cache",
+          "file": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
+          "start": 377,
+          "end": 459,
+          "line": 377,
+          "symbol": "MOFContext::compileToBinary(void *source,",
+          "label": "Native graph-artifact cache hit and miss",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "e150c9d6abbde87a5b788918085d14bfaaf18b0dbfc5046a3bca4c745dc9c9de"
+        },
+        "kernel_cache": {
+          "id": "kernel_cache",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 213,
+          "end": 326,
+          "line": 213,
+          "symbol": "checkCache(const CompilationState &state,",
+          "label": "Per-generator compiled-kernel cache lookup",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "918585c27283c06bc7b183f576922f7f1ad5269ecd29d6adff1bd24ccd319002"
+        },
+        "kernel_misses": {
+          "id": "kernel_misses",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 435,
+          "end": 504,
+          "line": 435,
+          "symbol": "handleCacheMisses(CompilationState &state,",
+          "label": "Elaborate and compile cache-miss routines",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "e13bce02ba836d5ed569f0b1629f9d4e195da80463110ef6c62d8bcbbc725b50"
+        },
+        "kernel_hits": {
+          "id": "kernel_hits",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 507,
+          "end": 527,
+          "line": 507,
+          "symbol": "void handleCacheHits(CompilationState &state,",
+          "label": "Load compatible compiled-kernel archives",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "c26cf921c59d13ece46940b36656d2d146c842447d06a32a08c14b1b43adc952"
+        },
+        "runtime_calls": {
+          "id": "runtime_calls",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
+          "start": 102,
+          "end": 282,
+          "line": 102,
+          "symbol": "void LowerCompiledRoutinesPass::runOnOperation()",
+          "label": "Lower compiled loads/calls to runtime operations",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "c01b007dcc3e6ea6d813b72767a51a76d37eaa0747fdf8012f15c9df5396ca00"
+        },
+        "jit_pipeline": {
+          "id": "jit_pipeline",
+          "file": "GraphCompiler/lib/GraphCompiler.cpp",
+          "start": 75,
+          "end": 84,
+          "line": 75,
+          "symbol": "void M::MO::buildJitPipeline(",
+          "label": "Finalize runtime chains and outline callables",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "673d90f54ff1b88d968a1ceaeeda87de72fc36dc419db7cf35f224b677547866"
         }
       },
       "lessons": [
         {
-          "id": "build",
+          "id": "journey",
           "number": "01",
+          "title": "Follow one operation all the way through",
+          "detail": "Select an operation or its loads/stores. Follow its source ancestry, changing representations, cache route, compiled code and two calls to the retained model.",
+          "evidence": "SOURCE lifecycle \u00b7 schematic transformations / calls",
+          "refs": [
+            "package_load",
+            "artifact_cache",
+            "kernel_cache",
+            "runtime_calls"
+          ],
+          "ascii": "Python builder + Mojo package \u2192 verified G1\nG1 retained \u2192 compiler clone C1 \u2192 artifact lookup\nmiss: MO \u2192 MAP \u2192 MOGG \u2192 MGP \u2192 kernel lookup\nkernel miss: specialize Mojo \u2192 LLVM \u2192 target code\ncompiled routines \u2192 runtime callables \u2192 CM1 / MEF bytes\nartifact hit: reuse CM1; kernel hit: reuse code, prepare graph\nS1.init(CM1) \u2192 M1 \u2192 execute(B1) \u2192 O1 ready\nSame S1 / M1 / code \u2192 execute(B2) \u2192 O2 ready"
+        },
+        {
+          "id": "build",
+          "number": "02",
           "title": "Record this example's graph",
           "detail": "Follow the unchanged Python source, typed graph inputs and its Mojo registration.",
-          "ascii": "Python example \u2192 TensorType + Graph \u2192 ops.custom(name, out_types)\ncustom_extensions / registered Mojo name\nGraph.output \u2192 verified G1; numerical execution has not happened",
+          "ascii": "Python example + Mojo package \u2192 registered implementation\nGraph imports custom_extensions before invoking builder\nTensorType + ops.custom(name, out_types) \u2192 Graph.output\nVerified G1; numerical execution has not happened",
           "refs": [
             "entry",
             "registration"
@@ -739,10 +849,10 @@
         },
         {
           "id": "compile",
-          "number": "02",
+          "number": "03",
           "title": "Compile it into an executable model",
-          "detail": "Preserve G1 while a compiler-owned representation lowers; then prepare the artifact and initialize M1.",
-          "ascii": "S1.compile(G1) \u2192 clone C1 \u2192 MO / MAP / MOGG / MGP\ndevice-graph finalization \u2192 emitted/custom Mojo \u2192 LIT / KGEN / POP\nLLVM dialect \u2192 LLVM IR \u2192 target code \u2192 prepared MEF byte buffer\nS1.init(compiled) \u2192 M1; these examples need no weight registry",
+          "detail": "This focused view expands the cold route. Use 01 for graph-artifact and compiled-kernel cache comparisons.",
+          "ascii": "S1.compile(G1) \u2192 clone C1 \u2192 MO / MAP / MOGG / MGP\ndevice-graph finalization \u2192 emitted/custom Mojo \u2192 kernel JIT\nMojo specialization \u2192 LLVM dialect \u2192 LLVM IR \u2192 target code\nfinal runtime-call lowering \u2192 prepared MEF byte buffer\nload modules / resolve callables \u2192 initialized M1\nThese examples need no weight registry",
           "refs": [
             "entry",
             "gc_pipeline",
@@ -752,7 +862,7 @@
         },
         {
           "id": "run",
-          "number": "03",
+          "number": "04",
           "title": "Watch the kernel's values and decisions",
           "detail": "Tiny view: X [2,2]; original: X [5,10] float32. Arithmetic is a small deterministic illustration of the original operation.",
           "ascii": "M1 + Buffer inputs \u2192 native execution \u2192 kernel arithmetic\nRuntime readiness \u2192 result Buffer\nexplicit result.to(CPU()) \u2192 to_numpy() \u2192 print/check\nSame resident code/session, separate per-call data",
@@ -823,6 +933,14 @@
         {
           "path": "max/python/max/graph/ops/custom.py",
           "sha256": "fe92b0f35a5b839fe6807be4e9982cc191a59b667af6700cca795c2817f0ca7c"
+        },
+        {
+          "path": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "sha256": "75e1657342c97f93c9f385d907bed0dbf316afa6a0a35ab09cb94c63b7b6b7eb"
+        },
+        {
+          "path": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
+          "sha256": "4c743a6615b991738892556c42b90d26bba83bfd85a33b3130d02bfab321527b"
         }
       ]
     },
@@ -1524,20 +1642,130 @@
           "start": 69,
           "end": 129,
           "line": 69,
-          "label": "ops.custom graph construction",
           "symbol": "custom",
+          "label": "Create and immediately verify a custom graph operation",
           "language": "python",
           "alias": "PY",
           "sha256": "773e68d0ecb02a0df9655ec04c98e0424a106a2a96871edb616e9ed855f5ca36"
+        },
+        "package_load": {
+          "id": "package_load",
+          "file": "max/python/max/graph/graph.py",
+          "start": 269,
+          "end": 294,
+          "line": 269,
+          "symbol": "KernelLibrary.load_paths",
+          "label": "Import source or precompiled Mojo packages",
+          "language": "python",
+          "alias": "PY",
+          "sha256": "860ee0f4db64c332c1eea39d6444ff6462f4f6936c2058e4b28d1560bbab1d85"
+        },
+        "mojo_package": {
+          "id": "mojo_package",
+          "file": "Mojo/docs/compiler/MojoCompilerWalkthrough.md",
+          "start": 569,
+          "end": 814,
+          "line": 569,
+          "symbol": "## Mojo Packages and Precompiled Files",
+          "label": "Mojo package bytecode and deferred specialization",
+          "language": "section",
+          "alias": "DOC",
+          "sha256": "f0c98f23ca8c715e610cb649824dade223e9974f99a1694d1ae171533be798e5"
+        },
+        "artifact_cache": {
+          "id": "artifact_cache",
+          "file": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
+          "start": 377,
+          "end": 459,
+          "line": 377,
+          "symbol": "MOFContext::compileToBinary(void *source,",
+          "label": "Native graph-artifact cache hit and miss",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "e150c9d6abbde87a5b788918085d14bfaaf18b0dbfc5046a3bca4c745dc9c9de"
+        },
+        "kernel_cache": {
+          "id": "kernel_cache",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 213,
+          "end": 326,
+          "line": 213,
+          "symbol": "checkCache(const CompilationState &state,",
+          "label": "Per-generator compiled-kernel cache lookup",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "918585c27283c06bc7b183f576922f7f1ad5269ecd29d6adff1bd24ccd319002"
+        },
+        "kernel_misses": {
+          "id": "kernel_misses",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 435,
+          "end": 504,
+          "line": 435,
+          "symbol": "handleCacheMisses(CompilationState &state,",
+          "label": "Elaborate and compile cache-miss routines",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "e13bce02ba836d5ed569f0b1629f9d4e195da80463110ef6c62d8bcbbc725b50"
+        },
+        "kernel_hits": {
+          "id": "kernel_hits",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 507,
+          "end": 527,
+          "line": 507,
+          "symbol": "void handleCacheHits(CompilationState &state,",
+          "label": "Load compatible compiled-kernel archives",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "c26cf921c59d13ece46940b36656d2d146c842447d06a32a08c14b1b43adc952"
+        },
+        "runtime_calls": {
+          "id": "runtime_calls",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
+          "start": 102,
+          "end": 282,
+          "line": 102,
+          "symbol": "void LowerCompiledRoutinesPass::runOnOperation()",
+          "label": "Lower compiled loads/calls to runtime operations",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "c01b007dcc3e6ea6d813b72767a51a76d37eaa0747fdf8012f15c9df5396ca00"
+        },
+        "jit_pipeline": {
+          "id": "jit_pipeline",
+          "file": "GraphCompiler/lib/GraphCompiler.cpp",
+          "start": 75,
+          "end": 84,
+          "line": 75,
+          "symbol": "void M::MO::buildJitPipeline(",
+          "label": "Finalize runtime chains and outline callables",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "673d90f54ff1b88d968a1ceaeeda87de72fc36dc419db7cf35f224b677547866"
         }
       },
       "lessons": [
         {
-          "id": "build",
+          "id": "journey",
           "number": "01",
+          "title": "Follow one operation all the way through",
+          "detail": "Select an operation or its loads/stores. Follow its source ancestry, changing representations, cache route, compiled code and two calls to the retained model.",
+          "evidence": "SOURCE lifecycle \u00b7 schematic transformations / calls",
+          "refs": [
+            "package_load",
+            "artifact_cache",
+            "kernel_cache",
+            "runtime_calls"
+          ],
+          "ascii": "Python builder + Mojo package \u2192 verified G1\nG1 retained \u2192 compiler clone C1 \u2192 artifact lookup\nmiss: MO \u2192 MAP \u2192 MOGG \u2192 MGP \u2192 kernel lookup\nkernel miss: specialize Mojo \u2192 LLVM \u2192 target code\ncompiled routines \u2192 runtime callables \u2192 CM1 / MEF bytes\nartifact hit: reuse CM1; kernel hit: reuse code, prepare graph\nS1.init(CM1) \u2192 M1 \u2192 execute(B1) \u2192 O1 ready\nSame S1 / M1 / code \u2192 execute(B2) \u2192 O2 ready"
+        },
+        {
+          "id": "build",
+          "number": "02",
           "title": "Record this example's graph",
           "detail": "Follow the unchanged Python source, typed graph inputs and its Mojo registration.",
-          "ascii": "Python example \u2192 TensorType + Graph \u2192 ops.custom(name, out_types)\ncustom_extensions / registered Mojo name\nGraph.output \u2192 verified G1; numerical execution has not happened",
+          "ascii": "Python example + Mojo package \u2192 registered implementation\nGraph imports custom_extensions before invoking builder\nTensorType + ops.custom(name, out_types) \u2192 Graph.output\nVerified G1; numerical execution has not happened",
           "refs": [
             "entry",
             "registration"
@@ -1546,10 +1774,10 @@
         },
         {
           "id": "compile",
-          "number": "02",
+          "number": "03",
           "title": "Compile it into an executable model",
-          "detail": "Preserve G1 while a compiler-owned representation lowers; then prepare the artifact and initialize M1.",
-          "ascii": "S1.compile(G1) \u2192 clone C1 \u2192 MO / MAP / MOGG / MGP\ndevice-graph finalization \u2192 emitted/custom Mojo \u2192 LIT / KGEN / POP\nLLVM dialect \u2192 LLVM IR \u2192 target code \u2192 prepared MEF byte buffer\nS1.init(compiled) \u2192 M1; these examples need no weight registry",
+          "detail": "This focused view expands the cold route. Use 01 for graph-artifact and compiled-kernel cache comparisons.",
+          "ascii": "S1.compile(G1) \u2192 clone C1 \u2192 MO / MAP / MOGG / MGP\ndevice-graph finalization \u2192 emitted/custom Mojo \u2192 kernel JIT\nMojo specialization \u2192 LLVM dialect \u2192 LLVM IR \u2192 target code\nfinal runtime-call lowering \u2192 prepared MEF byte buffer\nload modules / resolve callables \u2192 initialized M1\nThese examples need no weight registry",
           "refs": [
             "entry",
             "gc_pipeline",
@@ -1559,10 +1787,10 @@
         },
         {
           "id": "run",
-          "number": "03",
+          "number": "04",
           "title": "Watch the kernel's values and decisions",
           "detail": "Tiny view: A/B [2,2]; original: A [5,8], B [8,10]. Arithmetic is a small deterministic illustration of the original operation.",
-          "ascii": "M1 + Buffer inputs \u2192 native execution \u2192 kernel arithmetic\nRuntime readiness \u2192 result Buffer\nexplicit result.to(CPU()) \u2192 to_numpy() \u2192 print/check\nSame resident code/session, separate per-call data",
+          "ascii": "M1 + Buffer inputs \u2192 native execution \u2192 kernel arithmetic\nRuntime readiness \u2192 result Buffer\nexplicit result.to(CPU()) \u2192 to_numpy() \u2192 print/check\nSame resident code/session, separate per-call data\nFused illustration: intermediate reads / writes 0 / 0; final writes 4\nSeparate: TMP1 \u2192 TMP2 \u2192 Y; intermediate reads / writes 8 / 8\nBoth produce [10, 10; 22, 18]; intermediate lifetimes then end",
           "refs": [
             "entry",
             "math"
@@ -1630,6 +1858,14 @@
         {
           "path": "max/python/max/graph/ops/custom.py",
           "sha256": "fe92b0f35a5b839fe6807be4e9982cc191a59b667af6700cca795c2817f0ca7c"
+        },
+        {
+          "path": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "sha256": "75e1657342c97f93c9f385d907bed0dbf316afa6a0a35ab09cb94c63b7b6b7eb"
+        },
+        {
+          "path": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
+          "sha256": "4c743a6615b991738892556c42b90d26bba83bfd85a33b3130d02bfab321527b"
         }
       ]
     },
@@ -2366,20 +2602,130 @@
           "start": 69,
           "end": 129,
           "line": 69,
-          "label": "ops.custom graph construction",
           "symbol": "custom",
+          "label": "Create and immediately verify a custom graph operation",
           "language": "python",
           "alias": "PY",
           "sha256": "773e68d0ecb02a0df9655ec04c98e0424a106a2a96871edb616e9ed855f5ca36"
+        },
+        "package_load": {
+          "id": "package_load",
+          "file": "max/python/max/graph/graph.py",
+          "start": 269,
+          "end": 294,
+          "line": 269,
+          "symbol": "KernelLibrary.load_paths",
+          "label": "Import source or precompiled Mojo packages",
+          "language": "python",
+          "alias": "PY",
+          "sha256": "860ee0f4db64c332c1eea39d6444ff6462f4f6936c2058e4b28d1560bbab1d85"
+        },
+        "mojo_package": {
+          "id": "mojo_package",
+          "file": "Mojo/docs/compiler/MojoCompilerWalkthrough.md",
+          "start": 569,
+          "end": 814,
+          "line": 569,
+          "symbol": "## Mojo Packages and Precompiled Files",
+          "label": "Mojo package bytecode and deferred specialization",
+          "language": "section",
+          "alias": "DOC",
+          "sha256": "f0c98f23ca8c715e610cb649824dade223e9974f99a1694d1ae171533be798e5"
+        },
+        "artifact_cache": {
+          "id": "artifact_cache",
+          "file": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
+          "start": 377,
+          "end": 459,
+          "line": 377,
+          "symbol": "MOFContext::compileToBinary(void *source,",
+          "label": "Native graph-artifact cache hit and miss",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "e150c9d6abbde87a5b788918085d14bfaaf18b0dbfc5046a3bca4c745dc9c9de"
+        },
+        "kernel_cache": {
+          "id": "kernel_cache",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 213,
+          "end": 326,
+          "line": 213,
+          "symbol": "checkCache(const CompilationState &state,",
+          "label": "Per-generator compiled-kernel cache lookup",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "918585c27283c06bc7b183f576922f7f1ad5269ecd29d6adff1bd24ccd319002"
+        },
+        "kernel_misses": {
+          "id": "kernel_misses",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 435,
+          "end": 504,
+          "line": 435,
+          "symbol": "handleCacheMisses(CompilationState &state,",
+          "label": "Elaborate and compile cache-miss routines",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "e13bce02ba836d5ed569f0b1629f9d4e195da80463110ef6c62d8bcbbc725b50"
+        },
+        "kernel_hits": {
+          "id": "kernel_hits",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 507,
+          "end": 527,
+          "line": 507,
+          "symbol": "void handleCacheHits(CompilationState &state,",
+          "label": "Load compatible compiled-kernel archives",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "c26cf921c59d13ece46940b36656d2d146c842447d06a32a08c14b1b43adc952"
+        },
+        "runtime_calls": {
+          "id": "runtime_calls",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
+          "start": 102,
+          "end": 282,
+          "line": 102,
+          "symbol": "void LowerCompiledRoutinesPass::runOnOperation()",
+          "label": "Lower compiled loads/calls to runtime operations",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "c01b007dcc3e6ea6d813b72767a51a76d37eaa0747fdf8012f15c9df5396ca00"
+        },
+        "jit_pipeline": {
+          "id": "jit_pipeline",
+          "file": "GraphCompiler/lib/GraphCompiler.cpp",
+          "start": 75,
+          "end": 84,
+          "line": 75,
+          "symbol": "void M::MO::buildJitPipeline(",
+          "label": "Finalize runtime chains and outline callables",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "673d90f54ff1b88d968a1ceaeeda87de72fc36dc419db7cf35f224b677547866"
         }
       },
       "lessons": [
         {
-          "id": "build",
+          "id": "journey",
           "number": "01",
+          "title": "Follow one operation all the way through",
+          "detail": "Select an operation or its loads/stores. Follow its source ancestry, changing representations, cache route, compiled code and two calls to the retained model.",
+          "evidence": "SOURCE lifecycle \u00b7 schematic transformations / calls",
+          "refs": [
+            "package_load",
+            "artifact_cache",
+            "kernel_cache",
+            "runtime_calls"
+          ],
+          "ascii": "Python builder + Mojo package \u2192 verified G1\nG1 retained \u2192 compiler clone C1 \u2192 artifact lookup\nmiss: MO \u2192 MAP \u2192 MOGG \u2192 MGP \u2192 kernel lookup\nkernel miss: specialize Mojo \u2192 LLVM \u2192 target code\ncompiled routines \u2192 runtime callables \u2192 CM1 / MEF bytes\nartifact hit: reuse CM1; kernel hit: reuse code, prepare graph\nS1.init(CM1) \u2192 M1 \u2192 execute(B1) \u2192 O1 ready\nSame S1 / M1 / code \u2192 execute(B2) \u2192 O2 ready"
+        },
+        {
+          "id": "build",
+          "number": "02",
           "title": "Record this example's graph",
           "detail": "Follow the unchanged Python source, typed graph inputs and its Mojo registration.",
-          "ascii": "Python example \u2192 TensorType + Graph \u2192 ops.custom(name, out_types)\ncustom_extensions / registered Mojo name\nGraph.output \u2192 verified G1; numerical execution has not happened",
+          "ascii": "Python example + Mojo package \u2192 registered implementation\nGraph imports custom_extensions before invoking builder\nTensorType + ops.custom(name, out_types) \u2192 Graph.output\nVerified G1; numerical execution has not happened",
           "refs": [
             "entry",
             "registration"
@@ -2388,10 +2734,10 @@
         },
         {
           "id": "compile",
-          "number": "02",
+          "number": "03",
           "title": "Compile it into an executable model",
-          "detail": "Preserve G1 while a compiler-owned representation lowers; then prepare the artifact and initialize M1.",
-          "ascii": "S1.compile(G1) \u2192 clone C1 \u2192 MO / MAP / MOGG / MGP\ndevice-graph finalization \u2192 emitted/custom Mojo \u2192 LIT / KGEN / POP\nLLVM dialect \u2192 LLVM IR \u2192 target code \u2192 prepared MEF byte buffer\nS1.init(compiled) \u2192 M1; these examples need no weight registry",
+          "detail": "This focused view expands the cold route. Use 01 for graph-artifact and compiled-kernel cache comparisons.",
+          "ascii": "S1.compile(G1) \u2192 clone C1 \u2192 MO / MAP / MOGG / MGP\ndevice-graph finalization \u2192 emitted/custom Mojo \u2192 kernel JIT\nMojo specialization \u2192 LLVM dialect \u2192 LLVM IR \u2192 target code\nfinal runtime-call lowering \u2192 prepared MEF byte buffer\nload modules / resolve callables \u2192 initialized M1\nThese examples need no weight registry",
           "refs": [
             "entry",
             "gc_pipeline",
@@ -2401,7 +2747,7 @@
         },
         {
           "id": "run",
-          "number": "03",
+          "number": "04",
           "title": "Watch the kernel's values and decisions",
           "detail": "Tiny view: A [2,4], B [4,2], BK=2; original: M=K=N=256. Arithmetic is a small deterministic illustration of the original operation.",
           "ascii": "M1 + Buffer inputs \u2192 native execution \u2192 kernel arithmetic\nRuntime readiness \u2192 result Buffer\nexplicit result.to(CPU()) \u2192 to_numpy() \u2192 print/check\nSame resident code/session, separate per-call data",
@@ -2472,6 +2818,14 @@
         {
           "path": "max/python/max/graph/ops/custom.py",
           "sha256": "fe92b0f35a5b839fe6807be4e9982cc191a59b667af6700cca795c2817f0ca7c"
+        },
+        {
+          "path": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "sha256": "75e1657342c97f93c9f385d907bed0dbf316afa6a0a35ab09cb94c63b7b6b7eb"
+        },
+        {
+          "path": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
+          "sha256": "4c743a6615b991738892556c42b90d26bba83bfd85a33b3130d02bfab321527b"
         }
       ]
     },
@@ -3191,20 +3545,130 @@
           "start": 69,
           "end": 129,
           "line": 69,
-          "label": "ops.custom graph construction",
           "symbol": "custom",
+          "label": "Create and immediately verify a custom graph operation",
           "language": "python",
           "alias": "PY",
           "sha256": "773e68d0ecb02a0df9655ec04c98e0424a106a2a96871edb616e9ed855f5ca36"
+        },
+        "package_load": {
+          "id": "package_load",
+          "file": "max/python/max/graph/graph.py",
+          "start": 269,
+          "end": 294,
+          "line": 269,
+          "symbol": "KernelLibrary.load_paths",
+          "label": "Import source or precompiled Mojo packages",
+          "language": "python",
+          "alias": "PY",
+          "sha256": "860ee0f4db64c332c1eea39d6444ff6462f4f6936c2058e4b28d1560bbab1d85"
+        },
+        "mojo_package": {
+          "id": "mojo_package",
+          "file": "Mojo/docs/compiler/MojoCompilerWalkthrough.md",
+          "start": 569,
+          "end": 814,
+          "line": 569,
+          "symbol": "## Mojo Packages and Precompiled Files",
+          "label": "Mojo package bytecode and deferred specialization",
+          "language": "section",
+          "alias": "DOC",
+          "sha256": "f0c98f23ca8c715e610cb649824dade223e9974f99a1694d1ae171533be798e5"
+        },
+        "artifact_cache": {
+          "id": "artifact_cache",
+          "file": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
+          "start": 377,
+          "end": 459,
+          "line": 377,
+          "symbol": "MOFContext::compileToBinary(void *source,",
+          "label": "Native graph-artifact cache hit and miss",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "e150c9d6abbde87a5b788918085d14bfaaf18b0dbfc5046a3bca4c745dc9c9de"
+        },
+        "kernel_cache": {
+          "id": "kernel_cache",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 213,
+          "end": 326,
+          "line": 213,
+          "symbol": "checkCache(const CompilationState &state,",
+          "label": "Per-generator compiled-kernel cache lookup",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "918585c27283c06bc7b183f576922f7f1ad5269ecd29d6adff1bd24ccd319002"
+        },
+        "kernel_misses": {
+          "id": "kernel_misses",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 435,
+          "end": 504,
+          "line": 435,
+          "symbol": "handleCacheMisses(CompilationState &state,",
+          "label": "Elaborate and compile cache-miss routines",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "e13bce02ba836d5ed569f0b1629f9d4e195da80463110ef6c62d8bcbbc725b50"
+        },
+        "kernel_hits": {
+          "id": "kernel_hits",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 507,
+          "end": 527,
+          "line": 507,
+          "symbol": "void handleCacheHits(CompilationState &state,",
+          "label": "Load compatible compiled-kernel archives",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "c26cf921c59d13ece46940b36656d2d146c842447d06a32a08c14b1b43adc952"
+        },
+        "runtime_calls": {
+          "id": "runtime_calls",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
+          "start": 102,
+          "end": 282,
+          "line": 102,
+          "symbol": "void LowerCompiledRoutinesPass::runOnOperation()",
+          "label": "Lower compiled loads/calls to runtime operations",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "c01b007dcc3e6ea6d813b72767a51a76d37eaa0747fdf8012f15c9df5396ca00"
+        },
+        "jit_pipeline": {
+          "id": "jit_pipeline",
+          "file": "GraphCompiler/lib/GraphCompiler.cpp",
+          "start": 75,
+          "end": 84,
+          "line": 75,
+          "symbol": "void M::MO::buildJitPipeline(",
+          "label": "Finalize runtime chains and outline callables",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "673d90f54ff1b88d968a1ceaeeda87de72fc36dc419db7cf35f224b677547866"
         }
       },
       "lessons": [
         {
-          "id": "build",
+          "id": "journey",
           "number": "01",
+          "title": "Follow one operation all the way through",
+          "detail": "Select an operation or its loads/stores. Follow its source ancestry, changing representations, cache route, compiled code and two calls to the retained model.",
+          "evidence": "SOURCE lifecycle \u00b7 schematic transformations / calls",
+          "refs": [
+            "package_load",
+            "artifact_cache",
+            "kernel_cache",
+            "runtime_calls"
+          ],
+          "ascii": "Python builder + Mojo package \u2192 verified G1\nG1 retained \u2192 compiler clone C1 \u2192 artifact lookup\nmiss: MO \u2192 MAP \u2192 MOGG \u2192 MGP \u2192 kernel lookup\nkernel miss: specialize Mojo \u2192 LLVM \u2192 target code\ncompiled routines \u2192 runtime callables \u2192 CM1 / MEF bytes\nartifact hit: reuse CM1; kernel hit: reuse code, prepare graph\nS1.init(CM1) \u2192 M1 \u2192 execute(B1) \u2192 O1 ready\nSame S1 / M1 / code \u2192 execute(B2) \u2192 O2 ready"
+        },
+        {
+          "id": "build",
+          "number": "02",
           "title": "Record this example's graph",
           "detail": "Follow the unchanged Python source, typed graph inputs and its Mojo registration.",
-          "ascii": "Python example \u2192 TensorType + Graph \u2192 ops.custom(name, out_types)\ncustom_extensions / registered Mojo name\nGraph.output \u2192 verified G1; numerical execution has not happened",
+          "ascii": "Python example + Mojo package \u2192 registered implementation\nGraph imports custom_extensions before invoking builder\nTensorType + ops.custom(name, out_types) \u2192 Graph.output\nVerified G1; numerical execution has not happened",
           "refs": [
             "entry",
             "registration"
@@ -3213,10 +3677,10 @@
         },
         {
           "id": "compile",
-          "number": "02",
+          "number": "03",
           "title": "Compile it into an executable model",
-          "detail": "Preserve G1 while a compiler-owned representation lowers; then prepare the artifact and initialize M1.",
-          "ascii": "S1.compile(G1) \u2192 clone C1 \u2192 MO / MAP / MOGG / MGP\ndevice-graph finalization \u2192 emitted/custom Mojo \u2192 LIT / KGEN / POP\nLLVM dialect \u2192 LLVM IR \u2192 target code \u2192 prepared MEF byte buffer\nS1.init(compiled) \u2192 M1; these examples need no weight registry",
+          "detail": "This focused view expands the cold route. Use 01 for graph-artifact and compiled-kernel cache comparisons.",
+          "ascii": "S1.compile(G1) \u2192 clone C1 \u2192 MO / MAP / MOGG / MGP\ndevice-graph finalization \u2192 emitted/custom Mojo \u2192 kernel JIT\nMojo specialization \u2192 LLVM dialect \u2192 LLVM IR \u2192 target code\nfinal runtime-call lowering \u2192 prepared MEF byte buffer\nload modules / resolve callables \u2192 initialized M1\nThese examples need no weight registry",
           "refs": [
             "entry",
             "gc_pipeline",
@@ -3226,10 +3690,10 @@
         },
         {
           "id": "run",
-          "number": "03",
+          "number": "04",
           "title": "Watch the kernel's values and decisions",
           "detail": "Tiny view: one query, four keys, two features; original CPU N=D=8 / GPU N=D=32. Arithmetic is a small deterministic illustration of the original operation.",
-          "ascii": "M1 + Buffer inputs \u2192 native execution \u2192 kernel arithmetic\nRuntime readiness \u2192 result Buffer\nprint(output); no explicit host copy in this source\nSame resident code/session, separate per-call data",
+          "ascii": "M1 + Buffer inputs \u2192 native execution \u2192 kernel arithmetic\nRuntime readiness \u2192 result Buffer\nprint(output); no explicit host copy in this source\nSame resident code/session, separate per-call data\nFull-score comparison: N\u00d7N score elements\nProvided tiled route: queryTile\u00d7keyTile local score elements\nTiny row: 4 retained scores versus 2 reused slots\nRetain m / l / normalized O; release local score and exponent tiles",
           "refs": [
             "entry",
             "math"
@@ -3297,6 +3761,14 @@
         {
           "path": "max/python/max/graph/ops/custom.py",
           "sha256": "fe92b0f35a5b839fe6807be4e9982cc191a59b667af6700cca795c2817f0ca7c"
+        },
+        {
+          "path": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "sha256": "75e1657342c97f93c9f385d907bed0dbf316afa6a0a35ab09cb94c63b7b6b7eb"
+        },
+        {
+          "path": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
+          "sha256": "4c743a6615b991738892556c42b90d26bba83bfd85a33b3130d02bfab321527b"
         }
       ]
     }

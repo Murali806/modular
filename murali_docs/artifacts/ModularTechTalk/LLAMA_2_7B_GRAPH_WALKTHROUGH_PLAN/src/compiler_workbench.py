@@ -11,6 +11,7 @@ import subprocess
 
 from build import cpp_span, python_span
 from cells import REVISION
+from compiler_journey import add_sources, lesson as journey_lesson, panel as journey_panel
 
 TASK = Path(__file__).resolve().parent.parent
 SRC = TASK / "src"
@@ -57,7 +58,7 @@ COMPONENTS = [
 READINGS = [
     ("Modular · Mojo at LLVM 2023", "https://www.modular.com/blog/mojo-llvm-2023", "The author describes an animated, clickable presentation. Inspiration for staged semantic views; its hosted player is not a runtime dependency."),
     ("MLIR interactive pipeline editor", "https://github.com/mortbopet/mlir-interactive", "Primary project: inspect intermediate IR and compose compiler passes interactively."),
-    ("VizMLIR", "https://github.com/joepotibutr/vizmlir", "Primary browser visualizer: keep pass order and IR changes visible."),
+    ("VizMLIR", "https://github.com/joepothiboot/vizmlir", "Primary browser visualizer: follow operation ancestry across creation, fusion, lowering and removal."),
     ("MLIR Toy · partial lowering", "https://mlir.llvm.org/docs/Tutorials/Toy/Ch-5/", "Mixing dialects lets a compiler preserve useful high-level semantics while lowering selected operations."),
     ("MLIR Toy · LLVM lowering", "https://mlir.llvm.org/docs/Tutorials/Toy/Ch-6/", "LLVM-dialect lowering, translation and JIT are distinct activities."),
     ("MLIR · LLVM IR target", "https://mlir.llvm.org/docs/TargetLLVMIR/", "LLVM dialect is MLIR; an LLVM IR module is produced through translation."),
@@ -66,6 +67,17 @@ READINGS = [
     ("LLVM · CUDA compilation", "https://llvm.org/docs/CompileCudaWithLLVM.html", "PTX assembly and machine-code binaries have different roles. Generic toolchain examples do not override the pinned MAX/Mojo path."),
     ("LLVM · objdump", "https://llvm.org/docs/CommandGuide/llvm-objdump.html", "Disassembly is a read-only view of existing object/binary code."),
     ("NVIDIA · CUDA binary utilities", "https://docs.nvidia.com/cuda/cuda-binary-utilities/index.html", "nvdisasm and cuobjdump inspect CUDA cubin/SASS. The workbench keeps that listing separate from PTX text emission."),
+    ("LLVM blog · Life of an instruction", "https://blog.llvm.org/2012/11/life-of-instruction-in-llvm.html", "Historical instruction walkthrough: follow values through backend selection and encoding. Current backend documentation establishes today's general mechanisms; this is not the exact MAX pass order."),
+    ("Nikita Popov · LLVM middle-end pipeline", "https://www.npopov.com/2023/04/07/LLVM-middle-end-pipeline.html", "The LLVM contributor explains grouped and repeated optimization pipelines. A lowering diagram is not a promise that each pass runs exactly once."),
+    ("Jeremy Kun · MLIR lowering through LLVM", "https://www.jeremykun.com/2023/11/01/mlir-lowering-through-llvm/", "Original worked example tracks conversions into LLVM and native output. Before/after fragments here are labeled schematic, not copied compiler dumps."),
+    ("Eli Bendersky · Adventures in JIT compilation", "https://eli.thegreenplace.net/2017/adventures-in-jit-compilation-part-3-llvm/", "Original LLVM JIT tutorial separates generated code from calling it. Its older API example does not establish MAX's runtime implementation."),
+    ("MLIR · Bufferization", "https://mlir.llvm.org/docs/Bufferization/", "Tensor values and memory buffers have different semantics; aliasing and reads/writes matter. The epilogue counters illustrate intermediate traffic without claiming MAX uses One-Shot Bufferize."),
+    ("MLIR · Transform tutorial", "https://mlir.llvm.org/docs/Tutorials/transform/Ch0/", "Payload operations and transformation handles are separate. Inspiration for selecting operation ancestry; not a claim that MAX uses the Transform dialect."),
+    ("LLVM · Code generator", "https://llvm.org/docs/CodeGenerator.html", "Instruction selection, virtual/physical registers, scheduling and MC emission. PTX registers are a virtual-ISA boundary; physical GPU allocation happens later."),
+    ("LLVM · ORC JIT v2", "https://llvm.org/docs/ORCv2.html", "Symbol lookup/materialization and optional lazy compilation are distinct. MAX's source-backed compile/init/execute and cache routes are authoritative here."),
+    ("Clang · Cross compilation", "https://clang.llvm.org/docs/CrossCompilation.html", "Separate compiler host, target triple/features and supporting tools/libraries. CPU/NVIDIA/AMD selectors change the illustrated code artifacts."),
+    ("Modular · Mojo optimization pipeline, LLVM 2024", "https://llvm.org/devmtg/2024-10/slides/techtalk/Weiwei-What-We-Learned-Building-Mojo-OptimizationPipeline.pdf", "Compiler authors describe early structured-IR simplification, elaboration and LLVM-module splitting. Historical timing figures are not measurements of these examples."),
+    ("Modular · Mojo GPU compilation, LLVM 2025", "https://llvm.org/devmtg/2025-10/slides/lightning_talks/chen_dakkak.pdf", "Compiler authors show unified host/GPU input, GPU-module extraction during elaboration, target compilation and host incorporation of offload output. The workbench separates their artifacts without promising a strictly serial pipeline."),
 ]
 LESSONS = [
     ("graph", "01", "From Python to a verified graph", "Symbolic construction · no model execution", "Watch a definition become named operators, then seal its output contract.", "SOURCE · toy expression is schematic", "Python builder → G1 / native MLIR → Graph.output signature + verify\nVerified Graph ≠ compiled artifact ≠ initialized Model", ["graph_init", "graph_output"]),
@@ -166,6 +178,7 @@ def load_sources():
         r["line"] = r.get("line", r["start"])
         code = "".join(files[r["file"]]["text"].splitlines(keepends=True)[r["start"]-1:r["end"]])
         r["sha256"] = hashlib.sha256(code.encode()).hexdigest()
+    add_sources(refs, files, REPO, TASK, REVISION)
     return refs, files
 
 
@@ -175,8 +188,9 @@ def build_compiler_workbench():
     def link(key):
         r=refs[key]
         return f'<a data-ref="{key}" href="../sources/{r["file"]}#L{r["line"]}">{html.escape(r["label"])} <small>[{r["alias"]}:L{r["line"]}]</small></a>'
-    lessons=[]
+    lessons=[journey_panel()]
     for key, number, title, subtitle, intro, evidence, ascii_flow, sources in LESSONS:
+        number = f"{int(number)+1:02}"
         lessons.append(f'''<section class="lesson" id="{key}" data-lesson="{key}" aria-labelledby="heading-{key}"><div class="experiment">
 <div class="experiment-top"><button class="lesson-badge" data-card="{key}" aria-label="Explain {number}: {title}">{number}</button><h2 id="heading-{key}">{title}</h2><span>{subtitle}</span></div>
 <div class="settings" data-interactive hidden>{controls(key)}</div><p class="intro">{intro}</p>
@@ -194,9 +208,9 @@ def build_compiler_workbench():
         r=refs[key]; lines=files[r["file"]]["text"].splitlines()
         code="\n".join(f'<span class="source-line"><span>{n}</span>{html.escape(lines[n-1])}</span>' for n in range(r["start"],r["end"]+1))
         source_cells.append(f'<details class="source-cell"><summary>{html.escape(r["label"])} · complete source</summary><p>{link(key)}</p><pre><code>{code}</code></pre></details>')
-    payload=dict(revision=REVISION,references=refs,files=files,lessons=[dict(id=v[0],number=v[1],title=v[2],detail=v[4],evidence=v[5],ascii=v[6],refs=v[7]) for v in LESSONS],readings=READINGS)
+    payload=dict(revision=REVISION,references=refs,files=files,lessons=[journey_lesson(),*[dict(id=v[0],number=f"{int(v[1])+1:02}",title=v[2],detail=v[4],evidence=v[5],ascii=v[6],refs=v[7]) for v in LESSONS]],readings=READINGS)
     colors="\n".join(f'[data-component="{key}"], [data-color="{key}"]{{--ink:{ink};--tint:{tint}}}' for key,(ink,tint) in COLORS.items())
-    replacements={"css":(SRC/"compiler_workbench.css").read_text()+"\n"+(SRC/"compiler_example_links.css").read_text()+"\n"+colors,"js":"\n".join((SRC/name).read_text() for name in ("compiler_workbench_model.js","compiler_workbench_visuals.js","compiler_reader_ui.js","compiler_workbench.js")),"lessons":"\n".join(lessons),"examples":progression_cards(),"legend":"\n".join(legend),"source-cells":"\n".join(source_cells),"readings":"".join(f'<li><a href="{url}" target="_blank" rel="noreferrer">{title}</a><p>{note}</p></li>' for title,url,note in READINGS),"revision":REVISION,"payload":json.dumps(payload,ensure_ascii=False).replace("<","\\u003c")}
+    replacements={"css":(SRC/"compiler_workbench.css").read_text()+"\n"+(SRC/"compiler_example_links.css").read_text()+"\n"+(SRC/"compiler_journey.css").read_text()+"\n"+colors,"js":"\n".join((SRC/name).read_text() for name in ("compiler_workbench_model.js","compiler_journey_model.js","compiler_workbench_visuals.js","compiler_journey_visuals.js","compiler_journey.js","compiler_reader_ui.js","compiler_workbench.js")),"lessons":"\n".join(lessons),"examples":progression_cards(),"legend":"\n".join(legend),"source-cells":"\n".join(source_cells),"readings":"".join(f'<li><a href="{url}" target="_blank" rel="noreferrer">{title}</a><p>{note}</p></li>' for title,url,note in READINGS),"revision":REVISION,"payload":json.dumps(payload,ensure_ascii=False).replace("<","\\u003c")}
     template=(SRC/"compiler_workbench.html").read_text()
     # Substitute only the shell's tokens. Original embedded source may contain
     # similar brace sequences and must remain byte-for-byte unchanged.
@@ -210,7 +224,7 @@ def build_compiler_workbench():
     companion=["# MAX / MLIR / Mojo compiler workbench", "", f"[Open the animation](link_htmls/{PAGE_NAME}).", "", f"SOURCE revision: `{REVISION}`. IR views, filenames, lane counts and device motion are illustrations. No MAX compilation or hardware execution was run.", ""]
     for item in payload["lessons"]: companion += ["## "+item["number"]+" · "+item["title"],"",item["detail"],"", "```text",item["ascii"],"```", ""]
     (TASK/"COMPILER_WORKBENCH.md").write_text("\n".join(companion).rstrip()+"\n")
-    print(f"Built {PAGE_NAME}: {len(LESSONS)} lessons, {len(refs)} source targets, {len(files)} complete pinned files")
+    print(f"Built {PAGE_NAME}: connected journey + {len(LESSONS)} focused lessons, {len(refs)} source targets, {len(files)} complete pinned files")
     return payload
 
 

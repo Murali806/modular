@@ -1,0 +1,168 @@
+{
+  "date": "2026-11-07",
+  "retrieval": "Direct HTTPS; web tool returned no usable content",
+  "scope": "Primary compiler documentation, original author tutorials and compiler-author talks; no hosted demo or compiler execution",
+  "source_revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "references": [
+    {
+      "url": "https://blog.llvm.org/2012/11/life-of-instruction-in-llvm.html",
+      "final_url": "https://blog.llvm.org/2012/11/life-of-instruction-in-llvm.html",
+      "status": "fetched",
+      "bytes": 28304,
+      "sha256": "b04e3dd15f71ff62c2f8e4f93d274bdb2a6d96464a04352527d715dc9539b06a",
+      "content_type": "text/html; charset=utf-8",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "Historical operation ancestry and backend stages; current LLVM docs override old implementation details."
+    },
+    {
+      "url": "https://www.npopov.com/2023/04/07/LLVM-middle-end-pipeline.html",
+      "final_url": "https://www.npopov.com/2023/04/07/LLVM-middle-end-pipeline.html",
+      "status": "fetched",
+      "bytes": 16055,
+      "sha256": "ff2441452414cbee546d1416818495ae4ffdbb30e22717f50c28a28c8520210c",
+      "content_type": "text/html; charset=utf-8",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "Grouped and repeated optimization pipeline; no universal one-pass conveyor."
+    },
+    {
+      "url": "https://www.jeremykun.com/2023/11/01/mlir-lowering-through-llvm/",
+      "final_url": "https://www.jeremykun.com/2023/11/01/mlir-lowering-through-llvm/",
+      "status": "fetched",
+      "bytes": 160410,
+      "sha256": "7d7dbae457bb49a568631ade0f4c203b61b0e675da12eaeb835e22c220c1b65e",
+      "content_type": "text/html; charset=UTF-8",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "Original worked MLIR-to-LLVM conversion; before/after fragments used as design inspiration."
+    },
+    {
+      "url": "https://eli.thegreenplace.net/2017/adventures-in-jit-compilation-part-3-llvm/",
+      "final_url": "https://eli.thegreenplace.net/2017/adventures-in-jit-compilation-part-3-llvm/",
+      "status": "fetched",
+      "bytes": 76840,
+      "sha256": "bf699e704cb268dca0038e133220ee97ec8a314d50a4a366c1d62f21b53ef80b",
+      "content_type": "text/html",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "Native code generation and subsequently invoking generated code are distinct."
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Tutorials/Toy/Ch-5/",
+      "final_url": "https://mlir.llvm.org/docs/Tutorials/Toy/Ch-5/",
+      "status": "fetched",
+      "bytes": 62490,
+      "sha256": "1a0d4d60d3a1f3f29981f5d6b4d2ba6ff241da4b1fd1d2970c5a5b29102c0648",
+      "content_type": "text/html; charset=utf-8",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "Partial mixed-dialect lowering and a distinct MLIR LLVM-dialect to LLVM module translation."
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Tutorials/Toy/Ch-6/",
+      "final_url": "https://mlir.llvm.org/docs/Tutorials/Toy/Ch-6/",
+      "status": "fetched",
+      "bytes": 79492,
+      "sha256": "8de55426a2685eec0adabd760b5e3ad1b80d68b6303a044d869083c8419db4e7",
+      "content_type": "text/html; charset=utf-8",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "Partial mixed-dialect lowering and a distinct MLIR LLVM-dialect to LLVM module translation."
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Bufferization/",
+      "final_url": "https://mlir.llvm.org/docs/Bufferization/",
+      "status": "fetched",
+      "bytes": 68525,
+      "sha256": "da5f7e0f1a47c4c6121b65c524b03f94596619ab379e304ce535c5786b103669",
+      "content_type": "text/html; charset=utf-8",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "Tensor values, buffer aliases and access/lifetime analysis; generic One-Shot Bufferize is not asserted as a MAX pass."
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Tutorials/transform/Ch0/",
+      "final_url": "https://mlir.llvm.org/docs/Tutorials/transform/Ch0/",
+      "status": "fetched",
+      "bytes": 76450,
+      "sha256": "0d164d5754d622c086e1460dfbc7f8bf79b6c61c7b86789c111646cf6f02256f",
+      "content_type": "text/html; charset=utf-8",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "Payload operations differ from transform handles; informs selectable source ancestry."
+    },
+    {
+      "url": "https://llvm.org/docs/ORCv2.html",
+      "final_url": "https://llvm.org/docs/ORCv2.html",
+      "status": "fetched",
+      "bytes": 173312,
+      "sha256": "a5d7a39d48c677fd49196481003c4172ccb655cc6802a6907d5719888d35f793",
+      "content_type": "text/html",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "Symbol lookup/materialization and optional lazy compilation; no claim MAX uses ORC or recompiles each first execute."
+    },
+    {
+      "url": "https://llvm.org/docs/CodeGenerator.html",
+      "final_url": "https://llvm.org/docs/CodeGenerator.html",
+      "status": "fetched",
+      "bytes": 257796,
+      "sha256": "f54f874e8c719165ca4abef4f59a0faf318495842950d5d1c40fe6bd8e3c7261",
+      "content_type": "text/html",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "Instruction selection, virtual/physical registers, MC encoding; NVIDIA PTX registers require a later compilation boundary."
+    },
+    {
+      "url": "https://clang.llvm.org/docs/CrossCompilation.html",
+      "final_url": "https://clang.llvm.org/docs/CrossCompilation.html",
+      "status": "fetched",
+      "bytes": 50596,
+      "sha256": "f37984841fe201d8e4cba709ea9ec345bf5facd3ef4e09dd846cb859fbfa9dbb",
+      "content_type": "text/html",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "Compilation host, target triple/features, tools and libraries; target choice changes artifact outcomes."
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Dialects/GPU/",
+      "final_url": "https://mlir.llvm.org/docs/Dialects/GPU/",
+      "status": "fetched",
+      "bytes": 267678,
+      "sha256": "d5b09172ccca0b8d42dd7d7a37d58df3d5de45e70344376911d115405facf386",
+      "content_type": "text/html; charset=utf-8",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "Host/offload and target serialization are distinct; generic GPU passes do not establish MAX ordering."
+    },
+    {
+      "url": "https://llvm.org/devmtg/2024-10/slides/techtalk/Weiwei-What-We-Learned-Building-Mojo-OptimizationPipeline.pdf",
+      "final_url": "https://llvm.org/devmtg/2024-10/slides/techtalk/Weiwei-What-We-Learned-Building-Mojo-OptimizationPipeline.pdf",
+      "status": "fetched",
+      "bytes": 23606242,
+      "sha256": "a46d4e1d6e1a1b9e2f1cf87a67bab521fb37386d84062641e10e2527e0f89508",
+      "content_type": "application/pdf",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "PDF text inspected: structured-IR optimization, elaboration, LLVM splitting and parallel codegen; historical statistics are not current timings."
+    },
+    {
+      "url": "https://llvm.org/devmtg/2025-10/slides/lightning_talks/chen_dakkak.pdf",
+      "final_url": "https://llvm.org/devmtg/2025-10/slides/lightning_talks/chen_dakkak.pdf",
+      "status": "fetched",
+      "bytes": 10306533,
+      "sha256": "72515e71c53bebfad886d1e0b001fba1840f80378ac02abd2abfefb38b35de18",
+      "content_type": "application/pdf",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "PDF text inspected: host/GPU input, GPU extraction during elaboration, offload compile and host incorporation."
+    },
+    {
+      "url": "https://github.com/joepothiboot/vizmlir",
+      "final_url": "https://github.com/joepothiboot/vizmlir",
+      "status": "fetched",
+      "bytes": 281857,
+      "sha256": "f846f05ac29fa16d4a01d20c4c563658d90cdd88b7566c3dbd4a528d0ebd7f8f",
+      "content_type": "text/html; charset=utf-8",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "Primary project inspected; source operation ancestry across creation/fusion/lowering/erasure."
+    },
+    {
+      "url": "https://github.com/mortbopet/mlir-interactive",
+      "final_url": "https://github.com/mortbopet/mlir-interactive",
+      "status": "fetched",
+      "bytes": 208549,
+      "sha256": "e87a13c01a69c813e604271b1558ecaccd88bef2d62077e994e6384b076c2a50",
+      "content_type": "text/html; charset=utf-8",
+      "retrieved_date": "2026-11-07",
+      "applied_decision": "Primary project inspected; intermediate IR/pass composition. Hosted demo not executed as compiler evidence."
+    }
+  ]
+}

@@ -6,9 +6,14 @@
   const explanation=document.getElementById('explanation-card'),legend=document.getElementById('legend-card'),legendButton=document.getElementById('legend-button');
   let badge=null,dismissTimer=null,suppressFocus=false;
   function positionCard(card,trigger,alignRight=false) {
+    card.style.maxHeight='';
     const b=trigger.getBoundingClientRect(),gap=14,w=card.offsetWidth,h=card.offsetHeight;
     card.style.left=Math.max(gap,Math.min(innerWidth-w-gap,alignRight?innerWidth-w-gap:b.left))+'px';
-    card.style.top=Math.max(68,Math.min(innerHeight-h-gap,b.bottom+10))+'px';
+    const below=Math.max(68,b.bottom+10),belowSpace=innerHeight-below-gap,aboveSpace=b.top-68-gap;
+    const useBelow=belowSpace>=180||belowSpace>=aboveSpace;
+    const top=useBelow?below:Math.max(68,b.top-h-gap);
+    card.style.top=top+'px';
+    card.style.maxHeight=Math.max(80,useBelow?belowSpace:b.top-top-gap)+'px';
   }
   function showExplanation(button,focus=false) {
     clearTimeout(dismissTimer);badge=button;

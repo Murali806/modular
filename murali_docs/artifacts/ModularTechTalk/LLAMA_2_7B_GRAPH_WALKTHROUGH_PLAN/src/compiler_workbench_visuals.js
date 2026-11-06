@@ -143,7 +143,7 @@
         for(let i=1;i<=4;i++){const y=i*h/5;g.append(el('path',{class:'chip-pin',d:'M0 '+y+'H6M'+(w-6)+' '+y+'H'+w}));}
       } else if(target.kind==='crate') {
         g.append(el('rect',{class:'actor-box crate',width:w,height:h,rx:12}));
-        g.append(el('path',{class:'crate-rail',d:'M9 16H'+(w-9)+'M9 '+(h-16)+'H'+(w-9)}));
+        if(h>48)g.append(el('path',{class:'crate-rail',d:'M9 7H'+(w-9)+'M9 '+(h-7)+'H'+(w-9)}));
       } else if(target.kind==='tool') {
         g.append(el('rect',{class:'actor-box tool-box',width:w,height:h,rx:9}));
         g.append(el('path',{class:'tool-handle',d:'M'+(w/2-28)+' 0V-7H'+(w/2+28)+'V0'}));

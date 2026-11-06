@@ -91,6 +91,7 @@
   reduced.addEventListener('change',()=>controllers.forEach(c=>c.render(false)));
   document.querySelector('[data-print]').addEventListener('click',()=>print());
 
-  window.CompilerReaderUI(data,controllers);
-  window.compilerWorkbenchSnapshot=key=>controllers.find(c=>c.kind===key)?.model.snapshot();
+  const journey=window.CompilerJourney.attach(data);
+  window.CompilerReaderUI(data,[journey,...controllers]);
+  window.compilerWorkbenchSnapshot=key=>key==='journey'?journey.model.snapshot():controllers.find(c=>c.kind===key)?.model.snapshot();
 })();

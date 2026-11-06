@@ -16,362 +16,362 @@
   "audits": [
     {
       "label": "initial",
-      "samples": 400,
+      "samples": 462,
       "minimum": 4.553
     },
     {
       "label": "graph frame 0",
-      "samples": 400,
+      "samples": 462,
       "minimum": 4.553
     },
     {
       "label": "graph frame 1",
-      "samples": 404,
+      "samples": 466,
       "minimum": 4.553
     },
     {
       "label": "graph frame 2",
-      "samples": 408,
+      "samples": 470,
       "minimum": 4.553
     },
     {
       "label": "graph frame 3",
-      "samples": 406,
+      "samples": 468,
       "minimum": 4.553
     },
     {
       "label": "graph frame 4",
-      "samples": 406,
+      "samples": 468,
       "minimum": 4.553
     },
     {
       "label": "graph frame 5",
-      "samples": 406,
+      "samples": 468,
       "minimum": 4.553
     },
     {
       "label": "graph frame 6",
-      "samples": 405,
+      "samples": 467,
       "minimum": 4.553
     },
     {
       "label": "lower frame 0",
-      "samples": 405,
+      "samples": 467,
       "minimum": 4.553
     },
     {
       "label": "lower frame 1",
-      "samples": 412,
+      "samples": 474,
       "minimum": 4.553
     },
     {
       "label": "lower frame 2",
-      "samples": 417,
+      "samples": 479,
       "minimum": 4.553
     },
     {
       "label": "lower frame 3",
-      "samples": 418,
+      "samples": 480,
       "minimum": 4.553
     },
     {
       "label": "lower frame 4",
-      "samples": 420,
+      "samples": 482,
       "minimum": 4.553
     },
     {
       "label": "lower frame 5",
-      "samples": 425,
+      "samples": 487,
       "minimum": 4.553
     },
     {
       "label": "lower frame 6",
-      "samples": 423,
+      "samples": 485,
       "minimum": 4.553
     },
     {
       "label": "lower frame 7",
-      "samples": 423,
+      "samples": 485,
       "minimum": 4.553
     },
     {
       "label": "lower frame 8",
-      "samples": 426,
+      "samples": 488,
       "minimum": 4.553
     },
     {
       "label": "lower frame 9",
-      "samples": 422,
+      "samples": 484,
       "minimum": 4.553
     },
     {
       "label": "mojo frame 0",
-      "samples": 422,
+      "samples": 484,
       "minimum": 4.553
     },
     {
       "label": "mojo frame 1",
-      "samples": 425,
+      "samples": 487,
       "minimum": 4.553
     },
     {
       "label": "mojo frame 2",
-      "samples": 426,
+      "samples": 488,
       "minimum": 4.553
     },
     {
       "label": "mojo frame 3",
-      "samples": 426,
+      "samples": 488,
       "minimum": 4.553
     },
     {
       "label": "mojo frame 4",
-      "samples": 429,
+      "samples": 491,
       "minimum": 4.553
     },
     {
       "label": "mojo frame 5",
-      "samples": 429,
+      "samples": 491,
       "minimum": 4.553
     },
     {
       "label": "mojo frame 6",
-      "samples": 426,
+      "samples": 488,
       "minimum": 4.553
     },
     {
       "label": "mojo frame 7",
-      "samples": 425,
+      "samples": 487,
       "minimum": 4.553
     },
     {
       "label": "target frame 0",
-      "samples": 425,
+      "samples": 487,
       "minimum": 4.553
     },
     {
       "label": "target frame 1",
-      "samples": 432,
+      "samples": 494,
       "minimum": 4.553
     },
     {
       "label": "target frame 2",
-      "samples": 430,
+      "samples": 492,
       "minimum": 4.553
     },
     {
       "label": "target frame 3",
-      "samples": 434,
+      "samples": 496,
       "minimum": 4.553
     },
     {
       "label": "target frame 4",
-      "samples": 434,
+      "samples": 496,
       "minimum": 4.553
     },
     {
       "label": "target frame 5",
-      "samples": 438,
+      "samples": 500,
       "minimum": 4.553
     },
     {
       "label": "package frame 0",
-      "samples": 438,
+      "samples": 500,
       "minimum": 4.553
     },
     {
       "label": "package frame 1",
-      "samples": 436,
+      "samples": 498,
       "minimum": 4.553
     },
     {
       "label": "package frame 2",
-      "samples": 434,
+      "samples": 496,
       "minimum": 4.553
     },
     {
       "label": "package frame 3",
-      "samples": 438,
+      "samples": 500,
       "minimum": 4.553
     },
     {
       "label": "package frame 4",
-      "samples": 435,
+      "samples": 497,
       "minimum": 4.553
     },
     {
       "label": "package frame 5",
-      "samples": 435,
+      "samples": 497,
       "minimum": 4.553
     },
     {
       "label": "package frame 6",
-      "samples": 443,
+      "samples": 505,
       "minimum": 4.553
     },
     {
       "label": "package frame 7",
-      "samples": 440,
+      "samples": 502,
       "minimum": 4.553
     },
     {
       "label": "runtime frame 0",
-      "samples": 440,
+      "samples": 502,
       "minimum": 4.553
     },
     {
       "label": "runtime frame 1",
-      "samples": 438,
+      "samples": 500,
       "minimum": 4.553
     },
     {
       "label": "runtime frame 2",
-      "samples": 438,
+      "samples": 500,
       "minimum": 4.553
     },
     {
       "label": "runtime frame 3",
-      "samples": 441,
+      "samples": 503,
       "minimum": 4.553
     },
     {
       "label": "runtime frame 4",
-      "samples": 439,
+      "samples": 501,
       "minimum": 4.553
     },
     {
       "label": "runtime frame 5",
-      "samples": 441,
+      "samples": 503,
       "minimum": 4.553
     },
     {
       "label": "runtime frame 6",
-      "samples": 439,
+      "samples": 501,
       "minimum": 4.553
     },
     {
       "label": "runtime frame 7",
-      "samples": 442,
+      "samples": 504,
       "minimum": 4.553
     },
     {
       "label": "unfused",
-      "samples": 442,
+      "samples": 504,
       "minimum": 4.553
     },
     {
       "label": "borrow blocked",
-      "samples": 419,
+      "samples": 481,
       "minimum": 4.553
     },
     {
       "label": "borrow repaired",
-      "samples": 415,
+      "samples": 477,
       "minimum": 4.553
     },
     {
       "label": "SIMD 1",
-      "samples": 442,
+      "samples": 504,
       "minimum": 4.553
     },
     {
       "label": "SIMD 8",
-      "samples": 442,
+      "samples": 504,
       "minimum": 4.553
     },
     {
       "label": "binary / disassembly cpu",
-      "samples": 438,
+      "samples": 500,
       "minimum": 4.553
     },
     {
       "label": "assembly cpu",
-      "samples": 430,
+      "samples": 492,
       "minimum": 4.553
     },
     {
       "label": "binary / disassembly rocm",
-      "samples": 439,
+      "samples": 501,
       "minimum": 4.553
     },
     {
       "label": "assembly rocm",
-      "samples": 431,
+      "samples": 493,
       "minimum": 4.553
     },
     {
       "label": "binary / disassembly cuda",
-      "samples": 441,
+      "samples": 503,
       "minimum": 4.553
     },
     {
       "label": "assembly cuda",
-      "samples": 433,
+      "samples": 495,
       "minimum": 4.553
     },
     {
       "label": "target failure arch",
-      "samples": 434,
+      "samples": 496,
       "minimum": 4.553
     },
     {
       "label": "target failure toolkit",
-      "samples": 437,
+      "samples": 499,
       "minimum": 4.553
     },
     {
       "label": "missing weight",
-      "samples": 423,
+      "samples": 485,
       "minimum": 4.553
     },
     {
       "label": "binding repaired / exported",
-      "samples": 428,
+      "samples": 490,
       "minimum": 4.553
     },
     {
       "label": "reuse cpu true",
-      "samples": 424,
+      "samples": 486,
       "minimum": 4.553
     },
     {
       "label": "reuse cpu false",
-      "samples": 424,
+      "samples": 486,
       "minimum": 4.553
     },
     {
       "label": "reuse cuda true",
-      "samples": 426,
+      "samples": 488,
       "minimum": 4.553
     },
     {
       "label": "reuse cuda false",
-      "samples": 427,
+      "samples": 489,
       "minimum": 4.553
     },
     {
       "label": "legend open",
-      "samples": 525,
+      "samples": 587,
       "minimum": 4.553
     },
     {
       "label": "narrow 320",
-      "samples": 403,
+      "samples": 465,
       "minimum": 4.553
     },
     {
       "label": "touch legend 320",
-      "samples": 501,
+      "samples": 563,
       "minimum": 4.553
     },
     {
       "label": "narrow 390",
-      "samples": 403,
+      "samples": 465,
       "minimum": 4.553
     },
     {
       "label": "touch legend 390",
-      "samples": 501,
+      "samples": 563,
       "minimum": 4.553
     }
   ],

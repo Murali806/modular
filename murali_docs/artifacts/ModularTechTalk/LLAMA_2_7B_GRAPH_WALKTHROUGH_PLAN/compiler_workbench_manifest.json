@@ -814,6 +814,150 @@
       "language": "file",
       "alias": "TEST",
       "sha256": "c575db9f2bd7a8651818bb7095f0edf37e19f044cb13625148815dc9e4843ee7"
+    },
+    "package_load": {
+      "id": "package_load",
+      "file": "max/python/max/graph/graph.py",
+      "start": 269,
+      "end": 294,
+      "line": 269,
+      "symbol": "KernelLibrary.load_paths",
+      "label": "Import source or precompiled Mojo packages",
+      "language": "python",
+      "alias": "PY",
+      "sha256": "860ee0f4db64c332c1eea39d6444ff6462f4f6936c2058e4b28d1560bbab1d85"
+    },
+    "custom_api": {
+      "id": "custom_api",
+      "file": "max/python/max/graph/ops/custom.py",
+      "start": 69,
+      "end": 129,
+      "line": 69,
+      "symbol": "custom",
+      "label": "Create and immediately verify a custom graph operation",
+      "language": "python",
+      "alias": "PY",
+      "sha256": "773e68d0ecb02a0df9655ec04c98e0424a106a2a96871edb616e9ed855f5ca36"
+    },
+    "mojo_package": {
+      "id": "mojo_package",
+      "file": "Mojo/docs/compiler/MojoCompilerWalkthrough.md",
+      "start": 569,
+      "end": 814,
+      "line": 569,
+      "symbol": "## Mojo Packages and Precompiled Files",
+      "label": "Mojo package bytecode and deferred specialization",
+      "language": "section",
+      "alias": "DOC",
+      "sha256": "f0c98f23ca8c715e610cb649824dade223e9974f99a1694d1ae171533be798e5"
+    },
+    "artifact_cache": {
+      "id": "artifact_cache",
+      "file": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
+      "start": 377,
+      "end": 459,
+      "line": 377,
+      "symbol": "MOFContext::compileToBinary(void *source,",
+      "label": "Native graph-artifact cache hit and miss",
+      "language": "cpp",
+      "alias": "C++",
+      "sha256": "e150c9d6abbde87a5b788918085d14bfaaf18b0dbfc5046a3bca4c745dc9c9de"
+    },
+    "kernel_cache": {
+      "id": "kernel_cache",
+      "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+      "start": 213,
+      "end": 326,
+      "line": 213,
+      "symbol": "checkCache(const CompilationState &state,",
+      "label": "Per-generator compiled-kernel cache lookup",
+      "language": "cpp",
+      "alias": "C++",
+      "sha256": "918585c27283c06bc7b183f576922f7f1ad5269ecd29d6adff1bd24ccd319002"
+    },
+    "kernel_misses": {
+      "id": "kernel_misses",
+      "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+      "start": 435,
+      "end": 504,
+      "line": 435,
+      "symbol": "handleCacheMisses(CompilationState &state,",
+      "label": "Elaborate and compile cache-miss routines",
+      "language": "cpp",
+      "alias": "C++",
+      "sha256": "e13bce02ba836d5ed569f0b1629f9d4e195da80463110ef6c62d8bcbbc725b50"
+    },
+    "kernel_hits": {
+      "id": "kernel_hits",
+      "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+      "start": 507,
+      "end": 527,
+      "line": 507,
+      "symbol": "void handleCacheHits(CompilationState &state,",
+      "label": "Load compatible compiled-kernel archives",
+      "language": "cpp",
+      "alias": "C++",
+      "sha256": "c26cf921c59d13ece46940b36656d2d146c842447d06a32a08c14b1b43adc952"
+    },
+    "runtime_calls": {
+      "id": "runtime_calls",
+      "file": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
+      "start": 102,
+      "end": 282,
+      "line": 102,
+      "symbol": "void LowerCompiledRoutinesPass::runOnOperation()",
+      "label": "Lower compiled loads/calls to runtime operations",
+      "language": "cpp",
+      "alias": "C++",
+      "sha256": "c01b007dcc3e6ea6d813b72767a51a76d37eaa0747fdf8012f15c9df5396ca00"
+    },
+    "jit_pipeline": {
+      "id": "jit_pipeline",
+      "file": "GraphCompiler/lib/GraphCompiler.cpp",
+      "start": 75,
+      "end": 84,
+      "line": 75,
+      "symbol": "void M::MO::buildJitPipeline(",
+      "label": "Finalize runtime chains and outline callables",
+      "language": "cpp",
+      "alias": "C++",
+      "sha256": "673d90f54ff1b88d968a1ceaeeda87de72fc36dc419db7cf35f224b677547866"
+    },
+    "entry": {
+      "id": "entry",
+      "file": "max/examples/custom_ops/addition.py",
+      "start": 1,
+      "end": 88,
+      "line": 1,
+      "symbol": "",
+      "label": "Complete original addition example",
+      "language": "file",
+      "alias": "PY",
+      "sha256": "b6b5cac6c78273563cdbf4e837953ffe2dd9c6527481717f521d46a7e5656042"
+    },
+    "registration": {
+      "id": "registration",
+      "file": "max/examples/custom_ops/kernels/add_one.mojo",
+      "start": 32,
+      "end": 50,
+      "line": 32,
+      "symbol": "AddOne",
+      "label": "Original AddOne implementation",
+      "language": "mojo",
+      "alias": "MOJO",
+      "sha256": "50e3fe551a5bb8e5ffb244039b2bc3021867c50a31e8878dfe58e385dffd40fa"
+    },
+    "math": {
+      "id": "math",
+      "file": "max/examples/custom_ops/kernels/add_one.mojo",
+      "start": 32,
+      "end": 50,
+      "line": 32,
+      "symbol": "AddOne",
+      "label": "Original AddOne implementation",
+      "language": "mojo",
+      "alias": "MOJO",
+      "sha256": "50e3fe551a5bb8e5ffb244039b2bc3021867c50a31e8878dfe58e385dffd40fa"
     }
   },
   "files": [
@@ -892,12 +1036,46 @@
     {
       "path": "max/python/max/pipelines/architectures/llama3/llama3.py",
       "sha256": "21f5b05344026565572db6bdd8ee1f5642ae997fffa0de37f321bf4d1068ed39"
+    },
+    {
+      "path": "max/python/max/graph/ops/custom.py",
+      "sha256": "fe92b0f35a5b839fe6807be4e9982cc191a59b667af6700cca795c2817f0ca7c"
+    },
+    {
+      "path": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+      "sha256": "75e1657342c97f93c9f385d907bed0dbf316afa6a0a35ab09cb94c63b7b6b7eb"
+    },
+    {
+      "path": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
+      "sha256": "4c743a6615b991738892556c42b90d26bba83bfd85a33b3130d02bfab321527b"
+    },
+    {
+      "path": "max/examples/custom_ops/addition.py",
+      "sha256": "b6b5cac6c78273563cdbf4e837953ffe2dd9c6527481717f521d46a7e5656042"
+    },
+    {
+      "path": "max/examples/custom_ops/kernels/add_one.mojo",
+      "sha256": "dabd4d30f44599be01c1cfdda5cd67a8a1d01380d7ddfc0f3dcbfbd5b70e114a"
     }
   ],
   "lessons": [
     {
-      "id": "graph",
+      "id": "journey",
       "number": "01",
+      "title": "Follow one operation all the way through",
+      "detail": "Select an operation or its loads/stores. Follow its source ancestry, changing representations, cache route, compiled code and two calls to the retained model.",
+      "evidence": "SOURCE lifecycle \u00b7 schematic transformations / calls",
+      "refs": [
+        "package_load",
+        "artifact_cache",
+        "kernel_cache",
+        "runtime_calls"
+      ],
+      "ascii": "Python builder + Mojo package \u2192 verified G1\nG1 retained \u2192 compiler clone C1 \u2192 artifact lookup\nmiss: MO \u2192 MAP \u2192 MOGG \u2192 MGP \u2192 kernel lookup\nkernel miss: specialize Mojo \u2192 LLVM \u2192 target code\ncompiled routines \u2192 runtime callables \u2192 CM1 / MEF bytes\nartifact hit: reuse CM1; kernel hit: reuse code, prepare graph\nS1.init(CM1) \u2192 M1 \u2192 execute(B1) \u2192 O1 ready\nSame S1 / M1 / code \u2192 execute(B2) \u2192 O2 ready"
+    },
+    {
+      "id": "graph",
+      "number": "02",
       "title": "From Python to a verified graph",
       "detail": "Watch a definition become named operators, then seal its output contract.",
       "evidence": "SOURCE \u00b7 toy expression is schematic",
@@ -909,7 +1087,7 @@
     },
     {
       "id": "lower",
-      "number": "02",
+      "number": "03",
       "title": "A module changes its language",
       "detail": "Follow C1 through structured bodies, kernel calls, buffers and generated Mojo.",
       "evidence": "SOURCE order \u00b7 illustrative IR views / fusion",
@@ -922,7 +1100,7 @@
     },
     {
       "id": "mojo",
-      "number": "03",
+      "number": "04",
       "title": "Readable code. Native control.",
       "detail": "Change the SIMD width, or try a conflicting borrow and watch the legality gate.",
       "evidence": "SOURCE concepts \u00b7 CPU lane and ownership examples",
@@ -935,7 +1113,7 @@
     },
     {
       "id": "target",
-      "number": "04",
+      "number": "05",
       "title": "Pick a target. Change the binary.",
       "detail": "Change the target, choose assembly or a binary, then inspect its disassembly.",
       "evidence": "SOURCE backend routes \u00b7 illustrative files",
@@ -949,7 +1127,7 @@
     },
     {
       "id": "package",
-      "number": "05",
+      "number": "06",
       "title": "Pack the artifact. Bind the values.",
       "detail": "A cutaway archive separates compiled code, its plan and the weight-binding rack.",
       "evidence": "SOURCE lifecycle \u00b7 conceptual MEF cutaway",
@@ -962,7 +1140,7 @@
     },
     {
       "id": "runtime",
-      "number": "06",
+      "number": "07",
       "title": "Code stays. Buffers move.",
       "detail": "Queue new inputs while the same code, weights, M1 and S1 remain resident.",
       "evidence": "BOUNDARY device motion \u00b7 SOURCE readiness / reuse",
@@ -987,8 +1165,8 @@
     ],
     [
       "VizMLIR",
-      "https://github.com/joepotibutr/vizmlir",
-      "Primary browser visualizer: keep pass order and IR changes visible."
+      "https://github.com/joepothiboot/vizmlir",
+      "Primary browser visualizer: follow operation ancestry across creation, fusion, lowering and removal."
     ],
     [
       "MLIR Toy \u00b7 partial lowering",
@@ -1029,6 +1207,61 @@
       "NVIDIA \u00b7 CUDA binary utilities",
       "https://docs.nvidia.com/cuda/cuda-binary-utilities/index.html",
       "nvdisasm and cuobjdump inspect CUDA cubin/SASS. The workbench keeps that listing separate from PTX text emission."
+    ],
+    [
+      "LLVM blog \u00b7 Life of an instruction",
+      "https://blog.llvm.org/2012/11/life-of-instruction-in-llvm.html",
+      "Historical instruction walkthrough: follow values through backend selection and encoding. Current backend documentation establishes today's general mechanisms; this is not the exact MAX pass order."
+    ],
+    [
+      "Nikita Popov \u00b7 LLVM middle-end pipeline",
+      "https://www.npopov.com/2023/04/07/LLVM-middle-end-pipeline.html",
+      "The LLVM contributor explains grouped and repeated optimization pipelines. A lowering diagram is not a promise that each pass runs exactly once."
+    ],
+    [
+      "Jeremy Kun \u00b7 MLIR lowering through LLVM",
+      "https://www.jeremykun.com/2023/11/01/mlir-lowering-through-llvm/",
+      "Original worked example tracks conversions into LLVM and native output. Before/after fragments here are labeled schematic, not copied compiler dumps."
+    ],
+    [
+      "Eli Bendersky \u00b7 Adventures in JIT compilation",
+      "https://eli.thegreenplace.net/2017/adventures-in-jit-compilation-part-3-llvm/",
+      "Original LLVM JIT tutorial separates generated code from calling it. Its older API example does not establish MAX's runtime implementation."
+    ],
+    [
+      "MLIR \u00b7 Bufferization",
+      "https://mlir.llvm.org/docs/Bufferization/",
+      "Tensor values and memory buffers have different semantics; aliasing and reads/writes matter. The epilogue counters illustrate intermediate traffic without claiming MAX uses One-Shot Bufferize."
+    ],
+    [
+      "MLIR \u00b7 Transform tutorial",
+      "https://mlir.llvm.org/docs/Tutorials/transform/Ch0/",
+      "Payload operations and transformation handles are separate. Inspiration for selecting operation ancestry; not a claim that MAX uses the Transform dialect."
+    ],
+    [
+      "LLVM \u00b7 Code generator",
+      "https://llvm.org/docs/CodeGenerator.html",
+      "Instruction selection, virtual/physical registers, scheduling and MC emission. PTX registers are a virtual-ISA boundary; physical GPU allocation happens later."
+    ],
+    [
+      "LLVM \u00b7 ORC JIT v2",
+      "https://llvm.org/docs/ORCv2.html",
+      "Symbol lookup/materialization and optional lazy compilation are distinct. MAX's source-backed compile/init/execute and cache routes are authoritative here."
+    ],
+    [
+      "Clang \u00b7 Cross compilation",
+      "https://clang.llvm.org/docs/CrossCompilation.html",
+      "Separate compiler host, target triple/features and supporting tools/libraries. CPU/NVIDIA/AMD selectors change the illustrated code artifacts."
+    ],
+    [
+      "Modular \u00b7 Mojo optimization pipeline, LLVM 2024",
+      "https://llvm.org/devmtg/2024-10/slides/techtalk/Weiwei-What-We-Learned-Building-Mojo-OptimizationPipeline.pdf",
+      "Compiler authors describe early structured-IR simplification, elaboration and LLVM-module splitting. Historical timing figures are not measurements of these examples."
+    ],
+    [
+      "Modular \u00b7 Mojo GPU compilation, LLVM 2025",
+      "https://llvm.org/devmtg/2025-10/slides/lightning_talks/chen_dakkak.pdf",
+      "Compiler authors show unified host/GPU input, GPU-module extraction during elaboration, target compilation and host incorporation of offload output. The workbench separates their artifacts without promising a strictly serial pipeline."
     ]
   ]
 }

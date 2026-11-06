@@ -29,10 +29,11 @@
       if(this.kind==='build') {
         add('source','Read the actual Python example',this.example.expression);
         if(id==='matmul')add('buffers','Create input buffers before constructing this graph','The helper calls Buffer.from_numpy(...).to(device) first. Graph input types use those buffer shapes.',{hostInputs:true,inputs:true},['entry']);
+        add('package','Prepare the implementation package','KernelLibrary loads the source directory as a precompiled .mojoc package. The package retains MLIR implementation bodies for later specialization.',{package:true},['package_load','mojo_package']);
         add('contract','Describe shapes, dtype and device','TensorType describes symbolic inputs. These are contracts, not numerical inference results.',{graph:true},['entry','graph_init']);
+        add('register','Import implementations before invoking the builder',`Graph imports kernels/. The registration name resolves ${routine} before ops.custom verifies its call.`,{registered:true},['graph_init','registration','custom_api']);
         add('custom','Record a named custom operation',`ops.custom("${name}") records the operation and explicit output type.`,{ops:1},['entry','custom_api']);
         if(id==='epilogue')add('compose','Keep the surrounding math visible','The Python @ operator records matmul; add_one_elementwise and ×2 compose after it. Three mathematical operations can become one eligible epilogue route.',{ops:3},['entry','registration']);
-        add('register','Connect the string to its Mojo implementation',`custom_extensions points at kernels/. The registered name selects ${routine}.`,{registered:true},['registration','custom_api']);
         add('output','Finalize the graph output contract',id==='addition'||id==='epilogue'?'Graph(forward=...) calls the builder and finalizes its returned output through Graph.output.':'The context-manager example explicitly calls graph.output(...) before leaving Graph.',{verified:true},['entry','graph_output','graph_init']);
         add('verified','G1 is verified. No executable model yet.',id==='addition'?'The explicit output TensorType makes the optional add_one_shape function unnecessary here. It is not implemented in this example.':'Typed inputs, explicit output and registered implementation are ready for compilation.',{},['entry',id==='addition'?'shape_function':'registration']);
       } else if(this.kind==='compile') {
@@ -47,7 +48,9 @@
         add('mojo','Mojo specializes the implementation',id==='matmul'?`Compile-time target=${cpu?'cpu':'gpu'}, algorithm=${algorithm}. ${cpu?'CPU uses the naive function.':p.grid+'.'}`:id==='attention'?`BN=${p.BN}, BD=${p.BD}; ${routine}. ${cpu?'CPU key tile BN=4.':'GPU key tile BN_1=8, distinct from BN=16.'}`:'Types, SIMD width and target become concrete native code; the elementwise body does not call Python for every value.',{level:5},['registration','dispatch','mojo_semantics','mojo_elaboration']);
         add('llvm','Mojo MLIR → LLVM dialect → LLVM IR','LIT/KGEN/POP lowering and LLVM-module translation are separate transformations. File sheets represent in-memory views.',{level:6},['mojo_llvm','llvm_translation']);
         add('target',cpu?'Host backend emits and links native code':o.target==='cuda'?'LLVM NVPTX → PTX → cubin':'LLVM AMDGPU → object → linked ELF',cpu?'The host backend can emit an object directly and link native code. Assembly is an optional textual output.':o.target==='cuda'?'The pinned backend passes PTX through CUDA CompilationDevice to produce same-SM code. This is host compilation targeting a GPU.':'The AMDGPU backend emits target object code and links an ELF code object. This is host compilation targeting a GPU.',{level:7,code:true},['backend_select',cpu?'host_object':o.target==='cuda'?'nvptx_object':'amdgpu_backend']);
+        add('runtime_calls','Finish the graph’s runtime call interface','The kernel JIT route lowers compiled-load/call placeholders to module loading and runtime calls, then outlines callables. This happens after kernel compilation.',{runtimeCalls:true},['runtime_calls','jit_pipeline']);
         add('mef','Prepare the runtime artifact / MEF bytes','Compiled routines plus prepared execution-plan resources form an in-memory compiled artifact. These scripts do not export a .mef disk file.',{level:8,mef:true},['serialize','artifact','gc_pipeline']);
+        add('load_modules','Load modules and resolve executable handles','Initialization uses the prepared module-load and callable plan. Compiled bytes alone are not an initialized executable.',{loading:true},['runtime_calls','init_all']);
         add('init','session.init(compiled) creates executable M1','All four examples take their tensors as call inputs. No model-weight registry is required by these calls.',{initialized:true},['entry','init_all']);
         add('ready','M1 is ready; numerical inputs are separate',id==='matmul'?'The helper already created its buffers. Each new helper invocation compiles and initializes a model, while main reuses S1.':'Random arrays and Buffer arguments are supplied after initialization. Compilation did not compute their results.',{},['entry']);
       } else {
@@ -64,16 +67,19 @@
           add('store','Write all four illustrated output values','The real example applies this operation to 5×10 float32 values.',{computed:values.map(x=>x+1)},['math']);
         } else if(id==='epilogue') {
           const product=matmul(A,B),flat=product.flat(),result=flat.map(x=>(x+1)*2);
+          add('traffic','Compare intermediate storage for the same expression','Counters below count scalar intermediate reads/writes in the tiny 2×2 comparison. They exclude A/B reads, caches and physical bus traffic. Fusion eligibility does not prove that this example compiled into that route.',{traffic:{reads:0,writes:0,output:0},tempLive:0},['registration','entry']);
           if(state.fusion) {
             for(let i=0;i<4;i++) {
               const r=Math.floor(i/2),c=i%2;
               add('dot',`Accumulate Y[${r},${c}]`,`${A[r][0]}×${B[0][c]} + ${A[r][1]}×${B[1][c]} = ${flat[i]}. Keep the value in the illustrative accumulator.`,{cell:i,acc:[flat[i]],operands:[A[r][0],B[0][c],A[r][1],B[1][c]]},['entry','math']);
-              add('epilogue','Apply +1, then ×2 before the final store',`(${flat[i]} + 1) × 2 = ${result[i]}. This eligible fusion sketch avoids a full intermediate tensor.`,{cell:i,acc:[result[i]],computed:result.slice(0,i+1)},['entry','math']);
+              add('epilogue','Apply +1, then ×2 before the final store',`(${flat[i]} + 1) × 2 = ${result[i]}. This eligible fusion sketch avoids a full intermediate tensor.`,{cell:i,acc:[result[i]],computed:result.slice(0,i+1),traffic:{reads:0,writes:0,output:i+1}},['entry','math']);
             }
           } else {
-            add('matmul','Store the matmul intermediate','Illustrative separate route: materialize A@B in TMP1.',{acc:flat,temporary:flat,tempName:'TMP1'},['entry']);
-            add('add_one','Read TMP1 and store the add-one intermediate','Elementwise +1 produces TMP2 in this comparison.',{acc:flat.map(x=>x+1),temporary:flat.map(x=>x+1),tempName:'TMP2'},['math']);
-            add('multiply','Read TMP2 and store the final output','The two intermediate matrices belong only to the unfused teaching comparison.',{acc:result,computed:result,tempName:'TMP2'},['entry']);
+            add('matmul','Store the matmul intermediate','Illustrative separate route: materialize A@B in TMP1. Four intermediate values are written.',{acc:flat,temporary:flat,tempName:'TMP1',tempLive:1,traffic:{reads:0,writes:4,output:0}},['entry']);
+            add('add_one','Read TMP1 and store the add-one intermediate','Four TMP1 values are read; four TMP2 values are written. This comparison uses distinct allocations.',{acc:flat.map(x=>x+1),temporary:flat.map(x=>x+1),tempName:'TMP2',tempLive:2,traffic:{reads:4,writes:8,output:0}},['math']);
+            add('release_tmp1','TMP1 has no remaining consumer','Release the first illustrative intermediate after producing TMP2. Allocation reuse is a separate possible implementation policy.',{tempLive:1},['entry']);
+            add('multiply','Read TMP2 and store the final output','Four more intermediate reads and four final output writes. Both routes produce the same values.',{acc:result,computed:result,tempName:'TMP2',traffic:{reads:8,writes:8,output:4}},['entry']);
+            add('release_tmp2','The last intermediate is no longer live','Keep the result buffer; release TMP2. The accumulated counters retain the comparison.',{temporary:[],tempLive:0},['entry']);
           }
         } else if(id==='matmul') {
           const result=matmul(TA,TB).flat();

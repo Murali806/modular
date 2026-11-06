@@ -1,0 +1,4911 @@
+{
+  "evidence": "CPU-RUN · offline Chromium teaching animations; no MAX compilation/inference or GPU measurements",
+  "audits": [
+    {
+      "label": "overview cuda cold 0",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 1",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 2",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 3",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 4",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 5",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 6",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 7",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 8",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 9",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 10",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 11",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 12",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 13",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 14",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 15",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 16",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 17",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 18",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 19",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 20",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 21",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 22",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 23",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 24",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 25",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 26",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 27",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 28",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 29",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 30",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 31",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 32",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 33",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 34",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda cold 35",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 0",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 1",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 2",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 3",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 4",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 5",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 6",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 7",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 8",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 9",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 10",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 11",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 12",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 13",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 14",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 15",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 16",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 17",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 18",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 19",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 20",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 21",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 22",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 23",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 24",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda kernel-hit 25",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 0",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 1",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 2",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 3",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 4",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 5",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 6",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 7",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 8",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 9",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 10",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 11",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 12",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 13",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 14",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 15",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 16",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cuda artifact-hit 17",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 0",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 1",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 2",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 3",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 4",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 5",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 6",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 7",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 8",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 9",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 10",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 11",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 12",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 13",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 14",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 15",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 16",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 17",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 18",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 19",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 20",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 21",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 22",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 23",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 24",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 25",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 26",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 27",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 28",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 29",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 30",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 31",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 32",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 33",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu cold 34",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 0",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 1",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 2",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 3",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 4",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 5",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 6",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 7",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 8",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 9",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 10",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 11",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 12",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 13",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 14",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 15",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 16",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 17",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 18",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 19",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 20",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 21",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 22",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 23",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 24",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu kernel-hit 25",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 0",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 1",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 2",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 3",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 4",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 5",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 6",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 7",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 8",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 9",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 10",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 11",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 12",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 13",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 14",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 15",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 16",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview cpu artifact-hit 17",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 0",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 1",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 2",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 3",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 4",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 5",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 6",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 7",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 8",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 9",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 10",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 11",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 12",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 13",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 14",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 15",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 16",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 17",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 18",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 19",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 20",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 21",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 22",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 23",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 24",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 25",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 26",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 27",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 28",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 29",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 30",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 31",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 32",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 33",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 34",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm cold 35",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 0",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 1",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 2",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 3",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 4",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 5",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 6",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 7",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 8",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 9",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 10",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 11",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 12",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 13",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 14",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 15",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 16",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 17",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 18",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 19",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 20",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 21",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 22",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 23",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 24",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm kernel-hit 25",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 0",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 1",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 2",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 3",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 4",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 5",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 6",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 7",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 8",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 9",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 10",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 11",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 12",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 13",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 14",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 15",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 16",
+      "minimum": 4.553
+    },
+    {
+      "label": "overview rocm artifact-hit 17",
+      "minimum": 4.553
+    },
+    {
+      "label": "addition cuda cold 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 27",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 28",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 29",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 30",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 31",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 32",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 33",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 34",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda cold 35",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda kernel-hit 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cuda artifact-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 27",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 28",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 29",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 30",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 31",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 32",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 33",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu cold 34",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu kernel-hit 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu artifact-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 27",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 28",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 29",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 30",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 31",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 32",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 33",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 34",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm cold 35",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm kernel-hit 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm artifact-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 27",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 28",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 29",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 30",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 31",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 32",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 33",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 34",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 35",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda cold 36",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda kernel-hit 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cuda artifact-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 27",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 28",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 29",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 30",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 31",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 32",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 33",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 34",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu cold 35",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu kernel-hit 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu artifact-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 27",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 28",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 29",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 30",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 31",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 32",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 33",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 34",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 35",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm cold 36",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm kernel-hit 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm artifact-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 27",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 28",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 29",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 30",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 31",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 32",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 33",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 34",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 35",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda cold 36",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda kernel-hit 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cuda artifact-hit 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 27",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 28",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 29",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 30",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 31",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 32",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 33",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 34",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu cold 35",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu kernel-hit 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu artifact-hit 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 27",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 28",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 29",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 30",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 31",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 32",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 33",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 34",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 35",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm cold 36",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm kernel-hit 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm artifact-hit 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 27",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 28",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 29",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 30",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 31",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 32",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 33",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 34",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda cold 35",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda kernel-hit 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cuda artifact-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 27",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 28",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 29",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 30",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 31",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 32",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 33",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu cold 34",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu kernel-hit 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu artifact-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 26",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 27",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 28",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 29",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 30",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 31",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 32",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 33",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 34",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm cold 35",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 18",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 19",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 20",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 21",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 22",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 23",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 24",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm kernel-hit 25",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 0",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 1",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 2",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 3",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 4",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 5",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 6",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 7",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 8",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 9",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 10",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 11",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 12",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 13",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 14",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 15",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 16",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm artifact-hit 17",
+      "minimum": 5.232
+    },
+    {
+      "label": "overview mobile 320",
+      "minimum": 4.553
+    },
+    {
+      "label": "addition mobile 320",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue mobile 320",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul mobile 320",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention mobile 320",
+      "minimum": 5.232
+    },
+    {
+      "label": "overview mobile 390",
+      "minimum": 4.553
+    },
+    {
+      "label": "addition mobile 390",
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue mobile 390",
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul mobile 390",
+      "minimum": 5.232
+    },
+    {
+      "label": "attention mobile 390",
+      "minimum": 5.232
+    }
+  ],
+  "screenshots": [
+    "compiler_journey_overview_ir.png",
+    "compiler_journey_overview_code.png",
+    "compiler_journey_overview_reuse.png",
+    "compiler_journey_addition_ir.png",
+    "compiler_journey_addition_code.png",
+    "compiler_journey_addition_reuse.png",
+    "compiler_journey_epilogue_ir.png",
+    "compiler_journey_epilogue_code.png",
+    "compiler_journey_epilogue_reuse.png",
+    "compiler_journey_matmul_ir.png",
+    "compiler_journey_matmul_code.png",
+    "compiler_journey_matmul_reuse.png",
+    "compiler_journey_attention_ir.png",
+    "compiler_journey_attention_code.png",
+    "compiler_journey_attention_reuse.png"
+  ],
+  "errors": [],
+  "network": [],
+  "checks": [
+    "All five pages × three targets × three cache paths",
+    "Visible original graph / plan / LLVM module / initialized model distinctions",
+    "Pointer/keyboard selection and meaningful-change seeking",
+    "Persistent actor motion, frozen pause, resume and offscreen pause",
+    "Hover/touch cards, source explorer, 320/390px fit, no-JS and print"
+  ]
+}

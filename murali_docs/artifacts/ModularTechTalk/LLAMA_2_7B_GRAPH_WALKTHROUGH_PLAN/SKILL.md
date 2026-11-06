@@ -25,6 +25,9 @@ and resource changes to draw.
    Inspect its rendered page, builder/template, behavioral model, controller,
    and relevant checks. Read the current files; generated HTML or old
    screenshots may predate edits to the authoring source.
+   Compiler example requests should start from the connected operation journey,
+   then add the example's numerical/resource zoom. Reusing only the shell and
+   generic three-phase captions misses the accepted teaching behavior.
 4. Resolve the requested symbols and callers against the pinned source. Map
    each teaching decision to a source span before designing the transitions.
    Preserve independent working-tree changes.
@@ -45,7 +48,8 @@ matching the motion, state detail and interactions of the cited local examples.
 | Any new or changed animation | [Shared recipe](references/animation_authoring.md); matched files in [example catalog](references/animation_examples.md) |
 | Serve admission, API, worker, batch constructor, busy/slow-reader/replica stories | [Serve requirements and invariants](references/max_serve_os_animations.md); Serve family in the catalog |
 | Session creation, devices, native context, handles and lifetimes | InferenceSession family in the catalog |
-| Graph/dialect transformations, Mojo systems control, target tools/binaries, MEF and driver/buffer movement | [Compiler and systems animations](references/compiler_and_systems_animations.md); compiler workbench family in the catalog |
+| Graph/dialect transformations, Mojo systems control, target tools/binaries, MEF and driver/buffer movement | [Compiler and systems animations](references/compiler_and_systems_animations.md); connected journey + focused workbench/example family in the catalog |
+| Deeper LLVM/MLIR/JIT research or a compiler redesign | [Research and applied decisions](COMPILER_WORKBENCH_RESEARCH.md); primary mechanisms inform design, pinned MAX source establishes implementation |
 | Memory budgets, KV pages, input origins or parent/worker planning | Memory family in the catalog; memory rules in [agent.md](agent.md) |
 | Main QnA/call-stack guide or requirements-only updates | Relevant sections of [agent.md](agent.md); update the affected reference without rebuilding pages |
 
@@ -65,6 +69,12 @@ matching the motion, state detail and interactions of the cited local examples.
 - Draw stable actor identities, occupied/empty slots, real ownership edges,
   decision outcomes and repeatable work where the topic exposes them. Keep
   the current event readable in larger bold text on a fitted tinted backing.
+- For compiler lessons, follow selectable operation ancestry through changing
+  representations. Preserve G1, keep C1's graph/readiness plan separate from
+  kernel IR and the translated LLVM module, and distinguish host/device code,
+  prepared bytes and initialized handles. Show the actual work skipped by
+  each cache route and code retained between calls. Use the focused guide for
+  backend, finalization, JIT, memory-comparison and source-example limits.
 - Keep the state model separate from visual motion. Step/Reset and scenario
   selection must be deterministic. Include Play/Pause without autoplay; use
   Back/seek for reversible timeline lessons. Respect reduced motion and
@@ -87,6 +97,9 @@ its first and last frame. Check that a reader can see what moved, what waited,
 what was created or retained, and why a branch succeeded or stopped. Inspect
 card dismissal, color matching, dynamic text, routes, narrow-screen layout and
 offline behavior. A source illustration does not prove MAX/GPU execution.
+When shared journey assets change, rebuild both compiler parent and examples
+and run their journey checks. A frame audit alone misses live-control bugs;
+exercise actual Play/Pause and verify that the same actor moves and resumes.
 
 For instruction-only changes, validate skill frontmatter, reference paths and
 `git diff --check`; page rebuilds and model/browser workloads are unnecessary.

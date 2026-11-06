@@ -1,0 +1,228 @@
+{
+  "evidence": "CPU-RUN · deterministic JavaScript teaching model; no MAX compilation or inference",
+  "routes": [
+    {
+      "example": "addition",
+      "target": "cpu",
+      "cache": "cold",
+      "frames": 35
+    },
+    {
+      "example": "addition",
+      "target": "cpu",
+      "cache": "kernel-hit",
+      "frames": 26
+    },
+    {
+      "example": "addition",
+      "target": "cpu",
+      "cache": "artifact-hit",
+      "frames": 18
+    },
+    {
+      "example": "addition",
+      "target": "cuda",
+      "cache": "cold",
+      "frames": 36
+    },
+    {
+      "example": "addition",
+      "target": "cuda",
+      "cache": "kernel-hit",
+      "frames": 26
+    },
+    {
+      "example": "addition",
+      "target": "cuda",
+      "cache": "artifact-hit",
+      "frames": 18
+    },
+    {
+      "example": "addition",
+      "target": "rocm",
+      "cache": "cold",
+      "frames": 36
+    },
+    {
+      "example": "addition",
+      "target": "rocm",
+      "cache": "kernel-hit",
+      "frames": 26
+    },
+    {
+      "example": "addition",
+      "target": "rocm",
+      "cache": "artifact-hit",
+      "frames": 18
+    },
+    {
+      "example": "epilogue",
+      "target": "cpu",
+      "cache": "cold",
+      "frames": 36
+    },
+    {
+      "example": "epilogue",
+      "target": "cpu",
+      "cache": "kernel-hit",
+      "frames": 27
+    },
+    {
+      "example": "epilogue",
+      "target": "cpu",
+      "cache": "artifact-hit",
+      "frames": 18
+    },
+    {
+      "example": "epilogue",
+      "target": "cuda",
+      "cache": "cold",
+      "frames": 37
+    },
+    {
+      "example": "epilogue",
+      "target": "cuda",
+      "cache": "kernel-hit",
+      "frames": 27
+    },
+    {
+      "example": "epilogue",
+      "target": "cuda",
+      "cache": "artifact-hit",
+      "frames": 18
+    },
+    {
+      "example": "epilogue",
+      "target": "rocm",
+      "cache": "cold",
+      "frames": 37
+    },
+    {
+      "example": "epilogue",
+      "target": "rocm",
+      "cache": "kernel-hit",
+      "frames": 27
+    },
+    {
+      "example": "epilogue",
+      "target": "rocm",
+      "cache": "artifact-hit",
+      "frames": 18
+    },
+    {
+      "example": "matmul",
+      "target": "cpu",
+      "cache": "cold",
+      "frames": 36
+    },
+    {
+      "example": "matmul",
+      "target": "cpu",
+      "cache": "kernel-hit",
+      "frames": 27
+    },
+    {
+      "example": "matmul",
+      "target": "cpu",
+      "cache": "artifact-hit",
+      "frames": 19
+    },
+    {
+      "example": "matmul",
+      "target": "cuda",
+      "cache": "cold",
+      "frames": 37
+    },
+    {
+      "example": "matmul",
+      "target": "cuda",
+      "cache": "kernel-hit",
+      "frames": 27
+    },
+    {
+      "example": "matmul",
+      "target": "cuda",
+      "cache": "artifact-hit",
+      "frames": 19
+    },
+    {
+      "example": "matmul",
+      "target": "rocm",
+      "cache": "cold",
+      "frames": 37
+    },
+    {
+      "example": "matmul",
+      "target": "rocm",
+      "cache": "kernel-hit",
+      "frames": 27
+    },
+    {
+      "example": "matmul",
+      "target": "rocm",
+      "cache": "artifact-hit",
+      "frames": 19
+    },
+    {
+      "example": "attention",
+      "target": "cpu",
+      "cache": "cold",
+      "frames": 35
+    },
+    {
+      "example": "attention",
+      "target": "cpu",
+      "cache": "kernel-hit",
+      "frames": 26
+    },
+    {
+      "example": "attention",
+      "target": "cpu",
+      "cache": "artifact-hit",
+      "frames": 18
+    },
+    {
+      "example": "attention",
+      "target": "cuda",
+      "cache": "cold",
+      "frames": 36
+    },
+    {
+      "example": "attention",
+      "target": "cuda",
+      "cache": "kernel-hit",
+      "frames": 26
+    },
+    {
+      "example": "attention",
+      "target": "cuda",
+      "cache": "artifact-hit",
+      "frames": 18
+    },
+    {
+      "example": "attention",
+      "target": "rocm",
+      "cache": "cold",
+      "frames": 36
+    },
+    {
+      "example": "attention",
+      "target": "rocm",
+      "cache": "kernel-hit",
+      "frames": 26
+    },
+    {
+      "example": "attention",
+      "target": "rocm",
+      "cache": "artifact-hit",
+      "frames": 18
+    }
+  ],
+  "checks": [
+    "Package/import/custom-call order",
+    "Artifact hit bypasses graph lowering; kernel hit retains new graph planning",
+    "Init precedes numerical calls; code reused across two calls",
+    "Source references resolve; next-change filtering and immutable seek/reset",
+    "CPU/GPU target code roles and original matmul buffer ordering"
+  ]
+}

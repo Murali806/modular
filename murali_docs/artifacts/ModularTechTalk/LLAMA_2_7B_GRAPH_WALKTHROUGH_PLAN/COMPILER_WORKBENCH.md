@@ -4,7 +4,22 @@
 
 SOURCE revision: `610f7111836d9a950d45ba52ec9b3e0ed589fe3f`. IR views, filenames, lane counts and device motion are illustrations. No MAX compilation or hardware execution was run.
 
-## 01 · From Python to a verified graph
+## 01 · Follow one operation all the way through
+
+Select an operation or its loads/stores. Follow its source ancestry, changing representations, cache route, compiled code and two calls to the retained model.
+
+```text
+Python builder + Mojo package → verified G1
+G1 retained → compiler clone C1 → artifact lookup
+miss: MO → MAP → MOGG → MGP → kernel lookup
+kernel miss: specialize Mojo → LLVM → target code
+compiled routines → runtime callables → CM1 / MEF bytes
+artifact hit: reuse CM1; kernel hit: reuse code, prepare graph
+S1.init(CM1) → M1 → execute(B1) → O1 ready
+Same S1 / M1 / code → execute(B2) → O2 ready
+```
+
+## 02 · From Python to a verified graph
 
 Watch a definition become named operators, then seal its output contract.
 
@@ -13,7 +28,7 @@ Python builder → G1 / native MLIR → Graph.output signature + verify
 Verified Graph ≠ compiled artifact ≠ initialized Model
 ```
 
-## 02 · A module changes its language
+## 03 · A module changes its language
 
 Follow C1 through structured bodies, kernel calls, buffers and generated Mojo.
 
@@ -23,7 +38,7 @@ MO → MAP → MOGG → MGP → symbol DCE → emitted Mojo
 Enclosing pipeline: kernel JIT → final runtime-call lowering
 ```
 
-## 03 · Readable code. Native control.
+## 04 · Readable code. Native control.
 
 Change the SIMD width, or try a conflicting borrow and watch the legality gate.
 
@@ -33,7 +48,7 @@ Parameters → elaborated functions → LLVM dialect
 Handle/reference movement ≠ copying allocation cells
 ```
 
-## 04 · Pick a target. Change the binary.
+## 05 · Pick a target. Change the binary.
 
 Change the target, choose assembly or a binary, then inspect its disassembly.
 
@@ -45,7 +60,7 @@ AMD: LLVM AMDGPU → .o → ELF link → hsaco
 Binary → disassembly is an inspection branch
 ```
 
-## 05 · Pack the artifact. Bind the values.
+## 06 · Pack the artifact. Bind the values.
 
 A cutaway archive separates compiled code, its plan and the weight-binding rack.
 
@@ -55,7 +70,7 @@ Optional export → model.mef
 CompiledModel + weight registry → init_all → executable M1
 ```
 
-## 06 · Code stays. Buffers move.
+## 07 · Code stays. Buffers move.
 
 Queue new inputs while the same code, weights, M1 and S1 remain resident.
 

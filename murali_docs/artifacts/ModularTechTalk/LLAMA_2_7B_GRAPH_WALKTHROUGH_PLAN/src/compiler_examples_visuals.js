@@ -19,7 +19,7 @@
         }
         if(s.graph) add('signature','handle','out_types · explicit shape / dtype / device',374,338,405,40,'engine',{origin:point(270,327),place:'G1 output contract'});
         if(s.verified)add('verified','stamp','Graph.output → VERIFIED',477,414,300,39,'sync',{origin:point(760,385),place:'output contract'});
-        add('mojo-source','file',s.id==='matmul'?'MatrixMultiplication':s.id==='attention'?'FusedAttention':s.id==='epilogue'?'AddOneElementwise':'AddOne',878,139,273,225,'mojo',{tag:'ORIGINAL .MOJO',lines:['@register(name)',s.routine,s.registered?'name resolved':'awaiting graph reference'],place:'registered source'});
+        add('mojo-source','file',s.id==='matmul'?'MatrixMultiplication':s.id==='attention'?'FusedAttention':s.id==='epilogue'?'AddOneElementwise':'AddOne',878,139,273,225,'mojo',{tag:s.package?'P1 · .MOJOC / MLIR BYTECODE':'ORIGINAL .MOJO',lines:['@register(name)',s.routine,s.registered?'imported before custom call':'parameters retained'],place:'registered source'});
         if(s.registered)add('name-link','handle','same registration string',878,402,273,47,'mojo',{origin:point(569,299),place:'registration match'});
         if(s.id==='matmul'&&s.inputs)add('early-buffers','crate','A / B buffers already created',45,380,240,69,'buffer',{tag:'BEFORE GRAPH',place:'caller owns data'});
       } else if(this.kind==='compile') {
@@ -55,8 +55,10 @@
           add('BIN1','binary',s.cpu?'.o → native code':s.target==='cuda'?'PTX → cubin':'.o → ELF / hsaco',771,256,187,99,'artifact',{tag:'COMPILED BYTES',lines:['code / symbols'],origin:point(862,178),place:'compiled target code'});
         }
         if(s.mef)add('CM1','crate','CM1 · MEF bytes',1023,142,136,166,'artifact',{tag:'PREPARED ARTIFACT',lines:['code + plan','in memory','no disk export'],origin:point(862,306),via:[point(991,315)],place:'compiled artifact'});
+        if(s.loading&&!s.initialized)add('H1','handle','H1 · callable refs',1023,343,136,85,'runtime',{tag:'LOADING MODULES',origin:point(1090,272),place:'initialization gate'});
         if(s.initialized)add('M1','chip','M1 · executable',1023,347,136,107,'engine',{tag:'INITIALIZED',lines:['S1 retained'],origin:point(1090,272),place:'initialized model'});
       } else {
+        if(s.id==='epilogue')this.node.querySelector('[data-temporary-edges]').toggleAttribute('hidden',s.fusion||!s.traffic);
         add('M1','chip','M1 / S1',369,142,225,89,'engine',{tag:'INITIALIZED / RETAINED',lines:['same compiled code'],place:'resident model'});
         add('BIN1','binary','BIN1 · resident code',369,243,225,34,'artifact',{place:'resident compiled code'});
         if(s.job)add('JOB1','descriptor','execute(input refs)',369,290,225,76,'runtime',{tag:'DEPENDENCY DISPATCH',origin:point(284,219),place:'native execution'});
@@ -123,12 +125,12 @@
           add('sum-state','handle','l = '+fmt(s.l),1008,261,139,73,'mojo',{tag:'DENOMINATOR',place:'arithmetic state'});
           if(s.local) {
             add('S-label','tile','S · local scores',855,165,139,18,'buffer',{place:'local score label'});
-            s.scores.forEach((v,i)=>add('S-'+s.tile+'-'+i,'cell',fmt(v),855+i*75,188,63,42,'buffer',{origin:point(746,234),place:'local score tile'}));
+            s.scores.forEach((v,i)=>add('S-slot-'+i,'cell',fmt(v),855+i*75,188,63,42,'buffer',{origin:point(746,234),place:'reusable local score slot · tile '+s.tile}));
           }
           if(s.scores.length&&s.phase!=='score')add('alpha','tile','α = '+fmt(s.alpha),1009,193,139,36,'mojo',{place:'rescaling factor'});
           if(s.local&&s.E.length) {
             add('E-label','tile','E · exp(S − m)',855,357,139,18,'buffer',{place:'local exponent label'});
-            s.E.forEach((v,i)=>add('E-'+s.tile+'-'+i,'cell',fmt(v),855+i*75,380,63,42,'buffer',{origin:point(886+i*75,211),place:'local exp tile'}));
+            s.E.forEach((v,i)=>add('E-slot-'+i,'cell',fmt(v),855+i*75,380,63,42,'buffer',{origin:point(886+i*75,211),place:'reusable local exponent slot · tile '+s.tile}));
           }
           add('running-O-label','tile','O_i · normalized',1008,335,139,20,'mojo',{place:'running output label'});
           s.O.forEach((v,i)=>add('O-running-'+i,'cell',fmt(v),1008,355+i*46,139,38,'mojo',{place:'normalized running output'}));
@@ -137,6 +139,36 @@
         s.computed.forEach((v,i)=>add('O1-'+i,'cell',fmt(v),852+i*74,491,64,40,'runtime',{origin:point(1000,383),place:'target result',delay:i*60}));
         if(s.hostRead)s.computed.forEach((v,i)=>add('H-O1-'+i,'cell',fmt(v),49+i*62,444,54,40,'runtime',{origin:s.cpu?point(49+i*62,444):point(884+i*74,510),via:s.cpu?[]:[point(1158,570),point(310,570)],place:s.cpu?'CPU result view':'explicit result.to(CPU())',delay:i*60}));
         if(s.id==='attention'&&s.ready)add('print-result','handle','print(output) · Buffer handles',49,444,241,56,'python',{origin:point(481,475),place:'caller output printing'});
+        if(s.id==='epilogue'&&s.traffic) {
+          if(s.fusion) {
+            add('fusion-chain','binary','accumulator → +1 → ×2 → final store',266,717,667,78,'mojo',{tag:'ELIGIBLE FUSION ILLUSTRATION',place:'epilogue comparison'});
+          } else {
+            add('producer-body','tile','MATMUL',49,720,172,59,'mlir',{place:'comparison producer'});
+            if(s.temporary.length&&s.tempName==='TMP1'||s.tempLive===2)add('TMP1-life','crate','TMP1 · 4 values',241,713,166,80,'buffer',{tag:'LIVE INTERMEDIATE',place:'TMP1 live allocation'});
+            add('add-body','tile','+ 1',427,720,130,59,'mojo',{place:'comparison consumer'});
+            if(s.temporary.length&&s.tempName==='TMP2')add('TMP2-life','crate','TMP2 · 4 values',577,713,166,80,'buffer',{tag:'LIVE INTERMEDIATE',origin:point(260,716),place:'TMP2 live allocation'});
+            add('multiply-body','tile','× 2 → final Y',764,720,220,59,'backend',{place:'comparison final consumer'});
+          }
+          add('intermediate-read-count','handle','Intermediate reads: '+s.traffic.reads,49,813,268,38,'buffer',{place:'logical scalar access count'});
+          add('intermediate-write-count','handle','Intermediate writes: '+s.traffic.writes,339,813,277,38,'buffer',{place:'logical scalar access count'});
+          add('output-write-count','handle','Final writes: '+s.traffic.output,638,813,226,38,'runtime',{place:'logical output access count'});
+          add('live-count','handle','Live TMPs: '+s.tempLive,886,813,268,38,'artifact',{place:'intermediate lifetime count'});
+        }
+        if(s.id==='attention') {
+          const fullScores=K.map(row=>Q.reduce((total,q,i)=>total+q*row[i],0));
+          const full=s.ready?[]:s.tile>=0?fullScores.slice(0,(s.tile+1)*2):[];
+          this.slots('full-scores',full);this.slots('online-scores',s.local?s.scores:[]);
+          full.forEach((v,i)=>add('full-score-slot-'+i,'cell',fmt(v),49+i*128,729,108,40,'artifact',{origin:point(883,209),place:'hypothetical full score storage'}));
+          if(s.local)s.scores.forEach((v,i)=>add('online-score-slot-'+i,'cell',fmt(v),627+i*128,729,108,40,'buffer',{origin:point(883+i*75,209),place:'same online score slots · tile '+s.tile}));
+          add('full-score-size','handle','Full score matrix: '+s.params.N*s.params.N+' elements',49,815,484,35,'artifact',{place:'N × N storage comparison'});
+          add('online-score-size','handle','Local scores: '+s.params.BN*s.params.keyTile+' elements / tile',627,815,510,35,'buffer',{place:'queryTile × keyTile source score storage'});
+          if(s.tile>=0||s.phase==='initialize') {
+            add('retain-m','handle','m = '+(s.m===null?'MIN':fmt(s.m)),627,775,111,30,'mojo',{place:'retained maximum'});
+            add('retain-l','handle','l = '+fmt(s.l),759,775,111,30,'mojo',{place:'retained denominator'});
+            add('retain-O','handle','O = ['+s.O.map(fmt)+']',891,775,246,30,'mojo',{place:'retained normalized output'});
+            add('full-score-life','handle',s.ready?'Row complete: score storage released':'Retain scores until full-row reduction',49,775,484,30,'artifact',{place:'comparison score lifetime'});
+          }
+        }
       }
       return list;
     }

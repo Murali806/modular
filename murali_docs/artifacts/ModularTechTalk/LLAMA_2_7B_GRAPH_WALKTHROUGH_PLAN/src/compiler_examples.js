@@ -25,8 +25,9 @@
   }
   function statePreview(s) {
     if(s.lesson==='build')return 'G1: '+(s.graph?'created':'not yet created')+'\n'+s.signature.join('\n')+'\nMojo registration: '+(s.registered?'resolved':'pending')+'\nOutput contract: '+(s.verified?'verified':'open')+'\nExecutable model: absent';
-    if(s.lesson==='compile')return 'G1 stays with caller\nC1: '+(s.clone?'compiler-owned':'not created')+'\n'+['MO','MAP','MOGG','MGP','MGP finalization','Mojo LIT/KGEN/POP','LLVM dialect → LLVM IR','target code','prepared artifact'][s.level]+'\n'+s.routine+'\nMEF bytes: '+(s.mef?'prepared':'pending')+'\nM1: '+(s.initialized?'initialized':'absent')+'\nWeight registry: not required by this example';
-    if(s.id==='attention')return 'Tile '+(s.tile+1)+' / 2 (tiny view)\nscores: ['+s.scores+']\nm='+ (s.m===null?'MIN':fmt(s.m))+'   α='+fmt(s.alpha)+'\nl='+fmt(s.l)+'\nO=['+s.O.map(fmt)+']\nFinal result: ['+s.computed.map(fmt)+']\nOnly local score tiles; running m/l/O survive';
+    if(s.lesson==='compile')return 'G1 stays with caller\nC1: '+(s.clone?'compiler-owned':'not created')+'\n'+['MO','MAP','MOGG','MGP','MGP finalization','Mojo LIT/KGEN/POP','LLVM dialect → LLVM IR','target code','prepared artifact'][s.level]+'\n'+s.routine+'\nRuntime calls: '+(s.runtimeCalls?'outlined':'pending')+'\nMEF bytes: '+(s.mef?'prepared':'pending')+'\nM1: '+(s.initialized?'initialized':s.loading?'loading / resolving':'absent')+'\nWeight registry: not required by this example';
+    if(s.id==='attention')return 'Tile '+(s.tile+1)+' / 2 (tiny view)\nscores: ['+s.scores+']\nm='+ (s.m===null?'MIN':fmt(s.m))+'   α='+fmt(s.alpha)+'\nl='+fmt(s.l)+'\nO=['+s.O.map(fmt)+']\nFinal result: ['+s.computed.map(fmt)+']\nOnly local score tiles; running m/l/O survive\nSource score elements: full comparison '+s.params.N*s.params.N+'; provided local tile '+s.params.BN*s.params.keyTile;
+    if(s.id==='epilogue'&&s.traffic)return 'Route: '+(s.fusion?'eligible epilogue sketch':'separate-body sketch')+'\nTiny logical intermediate reads: '+s.traffic.reads+'\nTiny logical intermediate writes: '+s.traffic.writes+'\nFinal output writes: '+s.traffic.output+'\nLive intermediate allocations: '+s.tempLive+'\nResult: ['+s.computed.map(fmt)+']\nCounts exclude A/B reads and measured bus/cache traffic';
     return 'Inputs: '+(s.inputs?s.cpu?'CPU references':'device buffers':'not supplied')+'\n'+(s.id==='matmul'?`Selected ${s.algorithm}; k=${s.k}\nCopy ready: ${s.copyReady}; block ready: ${s.blockReady}\n`:s.id==='epilogue'?`Route: ${s.fusion?'eligible epilogue sketch':'separate-body sketch'}\n`:'Illustrative SIMD group: '+(s.lane+1)+'\n')+'Accumulator: ['+s.acc.map(fmt)+']\nResult: ['+s.computed.map(fmt)+']\nBuffer ready: '+s.ready+'\nExplicit host read: '+s.hostRead;
   }
   class Lesson {
@@ -52,5 +53,6 @@
   document.querySelectorAll('.example-options select').forEach(e=>e.addEventListener('change',refreshOptions));refreshOptions();
   const observer=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)controllers.find(c=>c.node===e.target)?.setPlaying(false);}),{threshold:.1});controllers.forEach(c=>observer.observe(c.node));
   document.addEventListener('visibilitychange',()=>{if(document.hidden)controllers.forEach(c=>c.setPlaying(false));});reduced.addEventListener('change',()=>controllers.forEach(c=>c.render(false)));document.querySelector('[data-print]').addEventListener('click',()=>print());
-  window.CompilerReaderUI(data,controllers);window.compilerExampleSnapshot=key=>controllers.find(c=>c.kind===key)?.model.snapshot();
+  const journey=window.CompilerJourney.attach(data);
+  window.CompilerReaderUI(data,[journey,...controllers]);window.compilerExampleSnapshot=key=>key==='journey'?journey.model.snapshot():controllers.find(c=>c.kind===key)?.model.snapshot();
 })();

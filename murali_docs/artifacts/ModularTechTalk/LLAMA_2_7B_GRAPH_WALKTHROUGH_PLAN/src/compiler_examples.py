@@ -11,6 +11,7 @@ import subprocess
 from build import python_span
 from compiler_workbench import COLORS, COMPONENTS, SRC, TASK, REPO, owner, slots, wire
 from cells import REVISION
+from compiler_journey import add_sources, lesson as journey_lesson, panel as journey_panel
 
 EXAMPLES = [
     dict(id="addition", number="01", level="Simple", title="Add one. Follow every boundary.",
@@ -94,6 +95,7 @@ def load_example(example):
     for r in refs.values():
         code="".join(files[r["file"]]["text"].splitlines(keepends=True)[r["start"]-1:r["end"]])
         r["sha256"]=hashlib.sha256(code.encode()).hexdigest()
+    add_sources(refs, files, REPO, TASK, REVISION)
     return refs,files
 
 
@@ -109,7 +111,17 @@ def scene(kind,example):
         body+='<rect class="memory-rack" x="667" y="132" width="166" height="324" rx="8"/><text class="static-label" x="679" y="150">INPUT STORAGE</text><rect class="kernel-bench" x="845" y="132" width="312" height="310" rx="8"/><text class="static-label" x="858" y="155" data-kernel-label>Kernel arithmetic</text><text class="static-label" x="49" y="426">Host result / explicit read</text><text class="static-label" x="856" y="476">Output storage</text>'
         body+=slots("host-output",49,444,4,54,8)+slots("target-output",852,491,4,64,10)
         body+=wire("M316 205 H330 V574 H653 V254 H667","explicit .to(device)",398,592,"upload","data")+wire("M620 290 H648","execute / native boundary",523,275,"submit")+wire("M1160 555 V612 H294 V499","readiness / explicit host copy where present",489,605,"result","data")
-    height=630 if kind=="run" else 520
+    if kind=="run" and example["id"]=="attention":
+        body+=owner("artifact",24,650,548,255,"COMPARISON · FULL SCORE MATRIX","hypothetical full-score route · not the provided kernel")
+        body+=owner("mojo",600,650,576,255,"THIS KERNEL · REUSE SCORE TILES","local scores expire; running m / l / O survive")
+        body+='<text class="static-label" x="49" y="710">Tiny row: four score slots</text><text class="static-label" x="627" y="710">Tiny row: two reusable score slots</text>'
+        body+=slots("full-scores",49,729,4,108,20)+slots("online-scores",627,729,2,108,20)
+        body+='<text class="static-label" x="49" y="872">Score elements only · excludes Q/K/V/O and E/scratch</text><text class="static-label" x="627" y="872">Running state is retained across key tiles</text>'
+    elif kind=="run" and example["id"]=="epilogue":
+        body+=owner("artifact",24,650,1152,255,"INTERMEDIATE LIFETIMES / LOGICAL TRAFFIC","tiny 2×2 comparison · eligibility is SOURCE; fusion / allocations are schematic")
+        body+='<g data-temporary-edges>'+''.join(wire(path,"",0,0) for path in ["M221 748H240","M407 748H426","M557 748H576","M744 748H762"])+ '</g>'
+        body+='<text class="static-label" x="49" y="874">Counters exclude input A/B loads, cache lines and measured hardware traffic</text>'
+    height=930 if kind=="run" and example["id"] in {"epilogue","attention"} else 630 if kind=="run" else 520
     return f'<svg viewBox="0 0 1200 {height}" role="img" aria-label="{html.escape(example["short"])} · {kind}" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid-{kind}" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#dfe7ed" stroke-width=".7"/></pattern><marker id="arrow-{kind}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#596e79"/></marker></defs><rect class="canvas-backing" width="1200" height="{height}"/><rect width="1200" height="{height}" fill="url(#grid-{kind})"/><text class="scene-label" x="25" y="31">{dict(build="READ SOURCE / RECORD CONTRACT",compile="TRANSFORM REPRESENTATIONS / INITIALIZE",run="FOLLOW VALUES / COORDINATE WORK")[kind]}</text>{body.replace("url(#arrow)",f"url(#arrow-{kind})")}<g data-actors></g></svg>'
 
 
@@ -124,9 +136,18 @@ def build_compiler_examples():
         def link(key):
             r=refs[key]
             return f'<a data-ref="{key}" href="../sources/{r["file"]}#L{r["line"]}">{html.escape(r["label"])} <small>[{r["alias"]}:L{r["line"]}]</small></a>'
-        lessons=[dict(id="build",number="01",title="Record this example's graph",detail="Follow the unchanged Python source, typed graph inputs and its Mojo registration.",ascii="Python example → TensorType + Graph → ops.custom(name, out_types)\ncustom_extensions / registered Mojo name\nGraph.output → verified G1; numerical execution has not happened",refs=["entry","registration"],evidence="SOURCE · exact example / graph API"),dict(id="compile",number="02",title="Compile it into an executable model",detail="Preserve G1 while a compiler-owned representation lowers; then prepare the artifact and initialize M1.",ascii="S1.compile(G1) → clone C1 → MO / MAP / MOGG / MGP\ndevice-graph finalization → emitted/custom Mojo → LIT / KGEN / POP\nLLVM dialect → LLVM IR → target code → prepared MEF byte buffer\nS1.init(compiled) → M1; these examples need no weight registry",refs=["entry","gc_pipeline","registration"],evidence="SOURCE pipeline · schematic IR / backend outputs"),dict(id="run",number="03",title="Watch the kernel's values and decisions",detail=example["tiny"]+". Arithmetic is a small deterministic illustration of the original operation.",ascii="M1 + Buffer inputs → native execution → kernel arithmetic\nRuntime readiness → result Buffer\n"+("print(output); no explicit host copy in this source" if example["id"]=="attention" else "explicit result.to(CPU()) → to_numpy() → print/check")+"\nSame resident code/session, separate per-call data",refs=["entry","math"],evidence="SOURCE kernel logic · browser math illustration · BOUNDARY device timing")]
-        sections=[]
+        lessons=[dict(id="build",number="01",title="Record this example's graph",detail="Follow the unchanged Python source, typed graph inputs and its Mojo registration.",ascii="Python example + Mojo package → registered implementation\nGraph imports custom_extensions before invoking builder\nTensorType + ops.custom(name, out_types) → Graph.output\nVerified G1; numerical execution has not happened",refs=["entry","registration"],evidence="SOURCE · exact example / graph API"),dict(id="compile",number="02",title="Compile it into an executable model",detail="This focused view expands the cold route. Use 01 for graph-artifact and compiled-kernel cache comparisons.",ascii="S1.compile(G1) → clone C1 → MO / MAP / MOGG / MGP\ndevice-graph finalization → emitted/custom Mojo → kernel JIT\nMojo specialization → LLVM dialect → LLVM IR → target code\nfinal runtime-call lowering → prepared MEF byte buffer\nload modules / resolve callables → initialized M1\nThese examples need no weight registry",refs=["entry","gc_pipeline","registration"],evidence="SOURCE pipeline · schematic IR / backend outputs"),dict(id="run",number="03",title="Watch the kernel's values and decisions",detail=example["tiny"]+". Arithmetic is a small deterministic illustration of the original operation.",ascii="M1 + Buffer inputs → native execution → kernel arithmetic\nRuntime readiness → result Buffer\n"+("print(output); no explicit host copy in this source" if example["id"]=="attention" else "explicit result.to(CPU()) → to_numpy() → print/check")+"\nSame resident code/session, separate per-call data",refs=["entry","math"],evidence="SOURCE kernel logic · browser math illustration · BOUNDARY device timing")]
+        if example["id"]=="epilogue":
+            lessons[2]["ascii"]+="\nFused illustration: intermediate reads / writes 0 / 0; final writes 4\nSeparate: TMP1 → TMP2 → Y; intermediate reads / writes 8 / 8\nBoth produce [10, 10; 22, 18]; intermediate lifetimes then end"
+        elif example["id"]=="attention":
+            lessons[2]["ascii"]+="\nFull-score comparison: N×N score elements\nProvided tiled route: queryTile×keyTile local score elements\nTiny row: 4 retained scores versus 2 reused slots\nRetain m / l / normalized O; release local score and exponent tiles"
+        for i, item in enumerate(lessons, 2):
+            item["number"] = f"{i:02}"
+        lessons = [journey_lesson(), *lessons]
+        sections=[journey_panel(zoom="run")]
         for l in lessons:
+            if l["id"] == "journey":
+                continue
             sections.append(f'''<section class="lesson" id="{l['id']}" data-lesson="{l['id']}" aria-labelledby="heading-{l['id']}"><div class="experiment"><div class="experiment-top"><button class="lesson-badge" data-card="{l['id']}" aria-label="Explain {l['number']}: {html.escape(l['title'])}">{l['number']}</button><h2 id="heading-{l['id']}">{html.escape(l['title'])}</h2><span>{html.escape(l['evidence'])}</span></div><p class="intro">{html.escape(l['detail'])}</p><div class="visual" tabindex="0" aria-label="{html.escape(l['title'])}; scroll inside on narrow screens">{scene(l['id'],example)}</div><div class="playback" data-interactive hidden><button class="play" data-action="play" aria-pressed="false">▶ Play</button><button data-action="back">Back</button><button data-action="step">Step</button><button data-action="reset">↺ Reset</button><label>Speed <select data-speed><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label><input data-seek type="range" min="0" max="1" value="0" aria-label="{html.escape(l['title'])} step"><output data-progress>Ready</output></div><div class="state-strip" data-state-strip></div><div class="event" role="status" aria-live="polite"><strong data-event-title>Ready to explore</strong><span data-event-detail>{html.escape(l['detail'])}</span></div><div class="ir-diff"><div><span>Original source · selected current definition</span><pre data-code-preview></pre></div><div><span>Schematic state / numerical work · not a generated dump</span><pre data-state-preview></pre></div></div><div class="event-sources" data-event-sources>{' · '.join(link(r) for r in l['refs'])}</div><details class="transcript"><summary>Portable flow · step-by-step transcript · evidence</summary><pre>{html.escape(l['ascii'])}</pre><ol data-transcript></ol></details></div></section>''')
         legend=[]
         for key,title,kind,detail,sources in COMPONENTS:
@@ -157,14 +178,14 @@ def build_compiler_examples():
         # Shared source/card markup keeps keyboard/touch/offline behavior equal.
         shared=shell[shell.index('<aside id="explanation-card"'):shell.index('<script id="compiler-workbench-data"')]
         colors="\n".join(f'[data-component="{k}"], [data-color="{k}"]{{--ink:{ink};--tint:{tint}}}' for k,(ink,tint) in COLORS.items())
-        replacements=dict(css=(SRC/"compiler_workbench.css").read_text()+"\n"+(SRC/"compiler_example_links.css").read_text()+"\n"+(SRC/"compiler_examples.css").read_text()+"\n"+colors,js="\n".join((SRC/name).read_text() for name in ("compiler_examples_model.js","compiler_workbench_visuals.js","compiler_examples_visuals.js","compiler_reader_ui.js","compiler_examples.js")),title=html.escape(example["short"]),number=example["number"],level=example["level"],heading=html.escape(example["title"]),subtitle=html.escape(example["subtitle"]),expression=html.escape(example["expression"]),tiny=html.escape(example["tiny"]),notes=html.escape(example["notes"]),controls=controls,sections="\n".join(sections),cards=progression_cards(example["id"]),sources="\n".join(cells),shared=shared.replace('{{legend}}',"\n".join(legend)),payload=json.dumps(payload,ensure_ascii=False).replace('<','\\u003c'),revision=REVISION,filename=example["filename"])
+        replacements=dict(css=(SRC/"compiler_workbench.css").read_text()+"\n"+(SRC/"compiler_example_links.css").read_text()+"\n"+(SRC/"compiler_examples.css").read_text()+"\n"+(SRC/"compiler_journey.css").read_text()+"\n"+colors,js="\n".join((SRC/name).read_text() for name in ("compiler_examples_model.js","compiler_journey_model.js","compiler_workbench_visuals.js","compiler_examples_visuals.js","compiler_journey_visuals.js","compiler_journey.js","compiler_reader_ui.js","compiler_examples.js")),title=html.escape(example["short"]),number=example["number"],level=example["level"],heading=html.escape(example["title"]),subtitle=html.escape(example["subtitle"]),expression=html.escape(example["expression"]),tiny=html.escape(example["tiny"]),notes=html.escape(example["notes"]),controls=controls,sections="\n".join(sections),cards=progression_cards(example["id"]),sources="\n".join(cells),shared=shared.replace('{{legend}}',"\n".join(legend)),payload=json.dumps(payload,ensure_ascii=False).replace('<','\\u003c'),revision=REVISION,filename=example["filename"])
         template=(SRC/"compiler_examples.html").read_text()
         tokens=set(re.findall(r"\{\{([a-z-]+)\}\}",template))
         if tokens!=replacements.keys():raise ValueError(f"Example template tokens differ: {tokens^replacements.keys()}")
         page=re.sub(r"\{\{([a-z-]+)\}\}",lambda m:replacements[m[1]],template)
         (TASK/"link_htmls"/example["page"]).write_text(page)
         manifests.append(dict(page="link_htmls/"+example["page"],example=example,references=refs,lessons=lessons,files=[{k:v for k,v in f.items() if k!='text'} for f in files.values()]))
-        print(f"Built {example['page']}: 3 focused animations / {len(refs)} source targets")
+        print(f"Built {example['page']}: connected journey + 3 focused animations / {len(refs)} source targets")
     (TASK/"compiler_examples_manifest.json").write_text(json.dumps(dict(revision=REVISION,examples=manifests),indent=2)+"\n")
 
 

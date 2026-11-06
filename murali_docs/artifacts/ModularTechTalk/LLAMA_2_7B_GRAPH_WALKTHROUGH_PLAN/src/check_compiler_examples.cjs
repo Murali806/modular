@@ -31,7 +31,11 @@ for(const e of manifest.examples)for(const target of ['cuda','rocm','cpu'])for(c
     assert.equal(s.tileCount,2);assert.equal(s.params.keyTile,target==='cpu'?4:8);assert.equal(s.params.BN,target==='cpu'?4:16);
     const rescaled=run.frames.find(f=>f.phase==='rescale'&&f.tile===1);assert.ok(rescaled.O.every((v,i)=>v<rescaled.oldO[i]));
   }
-  if(e.example.id==='epilogue')assert.equal(run.frames.some(f=>f.temporary.length),variant==='separate');
+  if(e.example.id==='epilogue') {
+    assert.equal(run.frames.some(f=>f.temporary.length),variant==='separate');
+    assert.equal(s.tempLive,0);assert.equal(s.traffic.output,4);
+    assert.deepEqual([s.traffic.reads,s.traffic.writes],variant==='separate'?[8,8]:[0,0]);
+  }
   results.push({example:e.example.id,target,variant,frames:[build.frames.length,compile.frames.length,run.frames.length],result:s.computed});
 }
 checks.push('Independent tiny arithmetic: add-one, composed matmul, full-K tiled matmul and full-softmax attention');

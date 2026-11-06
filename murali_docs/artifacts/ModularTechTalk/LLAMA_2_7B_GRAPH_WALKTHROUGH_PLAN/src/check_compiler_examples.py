@@ -27,6 +27,7 @@ def check_examples():
     assert len(manifest['examples'])==4
     workbench=TASK/'link_htmls/max_mlir_mojo_compiler_and_runtime.html'
     home=Parser();home.feed(workbench.read_text())
+    parsers[workbench.resolve()]=home
     for e in manifest['examples']:
         page=TASK/e['page'];text=page.read_text();p=Parser();p.feed(text);parsers[page.resolve()]=p
         assert len(p.ids)==len(set(p.ids)),page
@@ -57,7 +58,7 @@ def check_examples():
                     parser=Parser();parser.feed(target.read_text());parsers[target]=parser
                 assert fragment in parsers[target].ids,href
             links+=1
-    return dict(result='PASS',revision=manifest['revision'],pages=4,animations=12,source_files=len(file_checks),source_spans=spans,local_links=links,external_runtime_dependencies=0,evidence='Source/document checks only; no MAX execution')
+    return dict(result='PASS',revision=manifest['revision'],pages=4,animations=sum(len(e['lessons']) for e in manifest['examples']),source_files=len(file_checks),source_spans=spans,local_links=links,external_runtime_dependencies=0,evidence='Source/document checks only; no MAX execution')
 
 
 if __name__=='__main__':
