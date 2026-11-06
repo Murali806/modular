@@ -217,6 +217,9 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
             |   |   |               |       |   receives pipeline_config, model class, tokenizer, adapters and memory_plan.
             |   |   |               |       +-- {{session}} [MAX engine session]
             |   |   |               |       |   owns runtime/compilation context on the selected devices.
+            |   |   |               |       |
+            |   |   |               |       |   +-- [[doc:engine_lifecycle]]
+            |   |   |               |       |
             |   |   |               |       +-- {{weight_paths}} [QnA 1.1.5]  {{weight_paths_call}}
             |   |   |               |       |   +-- local repository -> direct local checkpoint paths.
             |   |   |               |       |   +-- online repository -> {{download}}  {{download_call}}

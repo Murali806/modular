@@ -245,6 +245,36 @@
       "path": "max/python/max/pipelines/kv_cache/paged_kv_cache/jenga_block_pool.py",
       "snapshot": "sources/max/python/max/pipelines/kv_cache/paged_kv_cache/jenga_block_pool.py",
       "sha256": "0d543ce144b69409b21617d01bfac2a5d41a0d84d11d24d9fb592c9e236def11"
+    },
+    {
+      "path": "GraphCompiler/lib/MEFModel/MEFModel.cpp",
+      "snapshot": "sources/GraphCompiler/lib/MEFModel/MEFModel.cpp",
+      "sha256": "d66e6b2e8ec680b71562eabd52491de7dcc8a5de5530b4dd2c4128744bc49f92"
+    },
+    {
+      "path": "MLRT/lib/GraphRT/MEFExecutor/MEFInvokable.cpp",
+      "snapshot": "sources/MLRT/lib/GraphRT/MEFExecutor/MEFInvokable.cpp",
+      "sha256": "8016b290150483f06eabf592ede1b5c3c3a1488a4af2fcbb131acc16a95914f3"
+    },
+    {
+      "path": "Mojo/docs/compiler/MojoCompilerWalkthrough.md",
+      "snapshot": "sources/Mojo/docs/compiler/MojoCompilerWalkthrough.md",
+      "sha256": "fb6e4624fdfdb8b382822d1cac558e8bc8cb788a2c6702bb8db8f8addaa9f92d"
+    },
+    {
+      "path": "max/kernels/src/graph_compiler/builtin_kernels/elementwise.mojo",
+      "snapshot": "sources/max/kernels/src/graph_compiler/builtin_kernels/elementwise.mojo",
+      "sha256": "4c9d5ea022132d081547792f65608641bd1fe935ed9916742b8a7de84336f239"
+    },
+    {
+      "path": "max/lib/max_license/API/c/ModelExecution.cpp",
+      "snapshot": "sources/max/lib/max_license/API/c/ModelExecution.cpp",
+      "sha256": "08d86cfd546619ce9fb2ded596cf97cc48ddf70598dc5981e1120e668a0021ba"
+    },
+    {
+      "path": "max/python/max/engine/_precompiled_mefs.py",
+      "snapshot": "sources/max/python/max/engine/_precompiled_mefs.py",
+      "sha256": "9387b84cc1cb287b3efff377fd61dac2ce914ae34104e7f2b41d2db0d40ebf33"
     }
   ],
   "cells": [

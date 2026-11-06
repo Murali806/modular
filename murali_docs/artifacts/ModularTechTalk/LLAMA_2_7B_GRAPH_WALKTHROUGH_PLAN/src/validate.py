@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Validate source fidelity, complete functions, and local guide navigation."""
 
+import argparse
 import ast
 from datetime import datetime, timezone
 import hashlib
@@ -129,7 +130,7 @@ class ComponentsParser(GuideParser):
             self.in_payload = True
 
 
-def main():
+def main(report_path=None):
     manifest = json.loads((TASK / "source_manifest.json").read_text())
     assert manifest["revision"] == REVISION
     parser = GuideParser()
@@ -358,10 +359,29 @@ def main():
             assert all(s in machine["states"] for s in scenario["path"])
             assert all(pair in pairs for pair in zip(scenario["path"],scenario["path"][1:]))
 
+    from engine_lifecycle import source_span
+    engine_page = TASK / "link_htmls" / "max_engine_graph_compilation_mef_and_inference.html"
+    engine_parser = GuideParser()
+    engine_text = engine_page.read_text()
+    engine_parser.feed(engine_text)
+    assert len(engine_parser.ids) == len(set(engine_parser.ids))
+    assert not engine_parser.dependencies
+    engine_payload = json.loads(re.search(r'<script id="engine-data" type="application/json">(.*?)</script>', engine_text, re.S)[1])
+    engine_manifest = json.loads((TASK / "engine_lifecycle_manifest.json").read_text())
+    assert engine_payload["revision"] == engine_manifest["revision"] == REVISION
+    for key in ("references", "objects", "phases", "events"):
+        assert engine_payload[key] == engine_manifest[key]
+    for file, record in engine_payload["files"].items():
+        assert record["text"].encode() == source_bytes[file]
+        assert hashlib.sha256(source_bytes[file]).hexdigest() == record["sha256"]
+    for ref in engine_payload["references"].values():
+        source = source_bytes[ref["file"]].decode()
+        assert source_span(source, ref, python_span, cpp_span) == (ref["start"], ref["end"])
+        assert ref["line"] == ref["start"]
     checked_links = 0
     page_parsers = {TASK / "index.html": parser, TASK / READER_NAME: stack_parser,
                     memory_page: memory_parser, systems_page: systems_parser,
-                    components_page: components_parser}
+                    components_page: components_parser, engine_page: engine_parser}
     for page, parsed in list(page_parsers.items()):
         for href in parsed.links:
             if href.startswith("http"):
@@ -400,6 +420,9 @@ def main():
         complete_source_cells=len(manifest["cells"]), displayed_source_lines=line_count,
         call_stack_sections=len(stack_parser.trees),
         call_stack_source_targets=len(stack_manifest["references"]),
+        engine_source_targets=len(engine_manifest["references"]),
+        engine_component_count=len(engine_manifest["objects"]),
+        engine_chapters=len(engine_manifest["phases"]),
         memory_planning_source_targets=len(memory_manifest["references"]),
         memory_planning_complete_code_cells=len(memory_manifest["complete_code_cells"]),
         memory_planning_displayed_source_lines=memory_line_count,
@@ -424,9 +447,13 @@ def main():
         evidence="Document/source validation only; no MAX model execution.",
     )
     (TASK / "validation").mkdir(exist_ok=True)
-    (TASK / "validation" / "source_checks.json").write_text(json.dumps(report, indent=2) + "\n")
+    target = Path(report_path) if report_path else TASK / "validation" / "source_checks.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))
 
 
 if __name__ == "__main__":
-    main()
+    args = argparse.ArgumentParser()
+    args.add_argument("--report", help="Write validation evidence to a separate report path")
+    main(args.parse_args().report)

@@ -18,6 +18,12 @@ max serve --model meta-llama/Llama-2-7b-hf --task text_generation
 max serve --model meta-llama/Llama-2-7b-hf"""
 
 LOCAL_LINKS = {
+    "engine_lifecycle": {
+        "href": "link_htmls/max_engine_graph_compilation_mef_and_inference.html",
+        "label": "Animate InferenceSession, graph compilation, MEF and inference ↗",
+        "text": "Animate InferenceSession, graph compilation, MEF and inference ↗ (link_htmls/max_engine_graph_compilation_mef_and_inference.html)",
+        "title": "Explore MAX and Mojo graph compilation, MEF preparation, weight initialization and inference",
+    },
     "manifest_roles": {
         "href": "link_htmls/model_manifest_roles_and_diffusers.html",
         "label": "Model manifest roles, components, and Diffusers ↗",

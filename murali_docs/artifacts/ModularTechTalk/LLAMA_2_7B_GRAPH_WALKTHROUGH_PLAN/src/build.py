@@ -108,6 +108,7 @@ def cpp_span(text: str, needle: str, prefix: int) -> tuple[int, int]:
 def extract_sources() -> dict:
     from call_stack_refs import FILES
     from memory_planning import FILES as MEMORY_FILES
+    from engine_lifecycle import EXTRA_FILES as ENGINE_FILES
     files = {}
     cells = []
     extra_files = [
@@ -132,7 +133,7 @@ def extract_sources() -> dict:
         "max/python/max/pipelines/weights/hf_utils.py",
         "max/python/max/pipelines/lib/tokenizer.py",
     ]
-    for file in [c["file"] for c in CELLS] + extra_files + list(FILES.values()) + list(MEMORY_FILES.values()):
+    for file in [c["file"] for c in CELLS] + extra_files + list(FILES.values()) + list(MEMORY_FILES.values()) + ENGINE_FILES:
         if file not in files:
             raw = (REPO / file).read_bytes()
             pinned = subprocess.check_output(["git", "show", f"{REVISION}:{file}"], cwd=REPO)
@@ -206,12 +207,14 @@ def build_guide(data: dict) -> None:
     from memory_planning import build_memory_planning
     from os_systems import build_os_systems
     from os_components import build_os_components
+    from engine_lifecycle import build_engine_lifecycle
     from widgets import WIDGETS, stage_data
 
     reference_count = build_call_stack(data, TASK, SRC, python_span)
     memory_references, memory_cells = build_memory_planning(data, TASK, SRC, python_span)
     systems_references, systems_cells = build_os_systems(data, TASK, SRC, python_span)
     components_references, components_count, components_steps = build_os_components(data, TASK, SRC, python_span)
+    engine_references, engine_objects = build_engine_lifecycle(data, TASK, SRC, python_span, cpp_span)
 
     cells = {c["id"]: c for c in data["cells"]}
     template = (SRC / "content.md").read_text()
@@ -385,6 +388,7 @@ def build_guide(data: dict) -> None:
     print(f"Built memory-planning QnA: {memory_references} source targets, {memory_cells} complete code cells.")
     print(f"Built OS/GPU systems lab: {systems_references} source targets, {systems_cells} complete code cells.")
     print(f"Built focused OS reader: {components_references} source targets, {components_count} components, {components_steps} flow steps.")
+    print(f"Built MAX engine lifecycle animation: {engine_references} source targets, {engine_objects} objects / roles.")
 
 
 if __name__ == "__main__":

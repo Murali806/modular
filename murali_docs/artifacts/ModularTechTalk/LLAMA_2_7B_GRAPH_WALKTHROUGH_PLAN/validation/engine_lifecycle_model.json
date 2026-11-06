@@ -1,0 +1,16 @@
+{
+  "result": "PASS",
+  "scenarios": 24,
+  "transitions": 445,
+  "objects": 40,
+  "sourceTargets": 47,
+  "checks": [
+    "lifecycle gates",
+    "cache/import/read bypasses",
+    "export before initialization",
+    "explicit failure termination",
+    "virtual execution refusal",
+    "deterministic seek/reset"
+  ],
+  "evidence": "CPU-RUN animation model; no MAX execution"
+}

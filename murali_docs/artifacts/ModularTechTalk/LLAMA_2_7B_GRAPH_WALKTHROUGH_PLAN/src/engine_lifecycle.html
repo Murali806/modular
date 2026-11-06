@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAX engine · Graph compilation, Mojo, MEF & inference</title>
+<meta name="description" content="Interactive MAX and Mojo internals: InferenceSession, symbolic Graph, native graph compiler, kernel JIT, MEF reuse, weight initialization and dependency-driven inference.">
+<!-- ENGINE_CSS --></head>
+<body>
+<a class="skip-link" href="#animation">Skip to the animation</a>
+<header class="topbar"><a class="brand" href="../max_serve_llama2_7b_startup_call_stack.html">MAX / ENGINE <span>↗ source call stack</span></a>
+<nav aria-label="Engine chapters" id="chapter-nav"></nav>
+<button id="legend-button" class="legend-button" aria-label="Component legend" aria-expanded="false" aria-controls="legend-card">L</button>
+<aside id="legend-card" class="floating-card legend-card" aria-labelledby="legend-title" hidden tabindex="-1">
+<div class="card-heading"><div><span class="eyebrow">COLOR → COMPONENT → TYPE / OWNER</span><h2 id="legend-title">Engine objects and compiler roles</h2></div><button data-close="legend" aria-label="Close legend">×</button></div>
+<p>Frames group roles, not OS processes. Native work uses runtime threads in the application process. Each component keeps its own color.</p>
+<label class="legend-search">Find a component <input id="legend-filter" type="search" placeholder="Session, lock, MEF, Mojo, AsyncValue…"></label>
+<div class="legend-owners"><span>Python / native objects</span><span>Compiler IR / phases</span><span>Runtime synchronization / hardware</span></div>
+<div id="legend-rows"></div>
+</aside></header>
+<main>
+<div class="hero"><div class="eyebrow">MAX + MOJO INTERNALS · BUILT-IN GRAPH API</div><h1>From a symbolic graph to a running model.</h1>
+<p>Session → graph compiler → Mojo kernels → MEF → initialized model → inference.</p>
+<div class="evidence"><span>SOURCE · {{revision-short}}</span><span>Logical order · illustrative movement</span><a href="../MAX_ENGINE_GRAPH_MEF_AND_INFERENCE.md">Text companion ↗</a></div></div>
+<section id="animation" aria-label="Interactive MAX engine lifecycle">
+<div class="controls" data-interactive hidden>
+<div class="play-controls"><button id="previous" aria-label="Previous engine step">← Back</button><button id="step">Step →</button><button id="play" aria-pressed="false">Play</button><button id="reset">Reset</button><span id="step-count">0 steps</span></div>
+<div class="settings"><label>Artifact route <select id="route-mode"><option value="cold">Cold compilation</option><option value="cache">Native cache hit</option><option value="export">Compile + MEF export</option><option value="import">Graph + MEF import</option><option value="read">Direct read(MEF)</option><option value="decline">Import key declined</option><option value="missing">Missing import artifact</option><option value="prejit">Stop before kernel JIT</option></select></label><label>Initialization <select id="initialization-mode"><option value="device">Real device setup</option><option value="virtual">Virtual / compile only</option><option value="bad-layout">Bad weight layout</option></select></label></div>
+</div>
+<div class="gate-strip" aria-label="Engine lifecycle milestones"><div data-gate="graphReady"><i></i><span>Graph verified</span></div><div data-gate="compiledReady"><i></i><span>Artifact compiled / read</span></div><div data-gate="initialized"><i></i><span>Model initialized</span></div><div data-gate="outputsReady"><i></i><span>Output Buffers returned</span></div></div>
+<div class="canvas-heading"><button id="lesson-button" class="lesson-button" aria-label="Lesson 01: Session and graph" aria-controls="hover-card" aria-expanded="false">01</button><h2 id="phase-title">Session & graph</h2><span class="movement-key"><i></i> active call / data handoff</span></div>
+<div class="canvas-scroll"><svg id="engine-svg" viewBox="0 0 1240 710" role="group" aria-labelledby="svg-title svg-description">
+<title id="svg-title">MAX engine lifecycle: Python objects, graph and Mojo compiler, MEF artifacts and runtime devices</title>
+<desc id="svg-description">Three frames group roles without implying separate processes. Component cards track graph, compilation, initialization and inference states. A moving marker follows the active call or data handoff. Numbered lesson and component cards show explanations on hover, focus or touch; the text walkthrough provides a static equivalent.</desc>
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#26354a"/></marker></defs>
+<rect class="role-box left-box" x="14" y="16" width="344" height="600" rx="16"/>
+<text class="process-label" id="left-label" x="32" y="43">PYTHON · SESSION / RECIPE</text><text class="process-status" id="left-status" x="32" y="68">SESSION / GRAPH</text>
+<rect class="role-box middle-box" x="376" y="16" width="600" height="600" rx="16"/>
+<text class="process-label" id="middle-label" x="396" y="43">SYMBOLIC GRAPH · MLIR</text><text class="process-status" id="middle-status" x="396" y="68">NOT CREATED</text>
+<rect class="role-box right-box" x="994" y="16" width="232" height="600" rx="16"/>
+<text class="boundary-label" id="right-label" x="1012" y="42">LATER · ARTIFACTS</text><text class="boundary-label" x="1012" y="62">HOVER FOR TYPE / OWNERSHIP</text>
+<g id="object-nodes"></g><g id="active-edge"></g><g id="detail-strip"></g>
+<text id="svg-static-hint" x="40" y="175">Open the text walkthrough below to follow the lifecycle without JavaScript.</text>
+</svg></div>
+<div class="timeline" data-interactive hidden><input id="timeline" type="range" min="-1" max="40" value="-1" aria-label="Seek engine step"><output id="timeline-label">Ready to start</output></div>
+<div class="event-row"><p id="current-event" role="status" aria-live="polite">Ready to follow the engine lifecycle.</p><span id="event-source-links"></span></div>
+<details class="transcript"><summary>Event transcript</summary><ol id="event-history"><li>Use the text walkthrough below for the complete source order.</li></ol></details>
+</section>
+<aside id="hover-card" class="floating-card hover-card" aria-labelledby="hover-title" hidden tabindex="-1"><div class="card-heading"><div><span id="hover-kind" class="eyebrow"></span><h2 id="hover-title"></h2></div><button data-close="hover" aria-label="Close explanation">×</button></div><p id="hover-role"></p><div id="hover-sources"></div></aside>
+<details class="reference" id="text-walkthrough"><summary>Portable text walkthrough · six focused chapters</summary><div class="reference-body">{{text-phases}}</div></details>
+<details class="reference" id="ownership"><summary>Component legend · objects, threads, IR and synchronization</summary><div class="reference-body">{{inventory}}</div></details>
+<details class="reference" id="call-order"><summary>Source scope and evidence</summary><div class="reference-body"><p><a href="../max_serve_llama2_7b_startup_call_stack.html">Source-linked Llama call stack ↗</a> · <a href="../engine_lifecycle_manifest.json">Source manifest ↗</a></p>
+<pre>Graph                  symbolic computation / verified interface
+CompiledModel / MEF    compiled or deserialized artifact
+Initialized Model      artifact + actual weights + setup context
+Model.execute          per-call inputs → runtime work → output Buffers
+
+GraphSpec + import     traces before the artifact lookup
+Direct read(MEF)       bypasses creating a new Graph
+Native cache           optional module/options-keyed compiler cache
+Python MefStore        explicit/default artifact-selection policy</pre>
+<p>SOURCE revision: <code>{{revision}}</code>. This page follows repository definitions and the internal Mojo compiler walkthrough. Add is a real source example of kernel registration. Compiler stages and readiness examples are illustrative; no MAX model compilation, initialization or inference was run to create this page.</p>
+<p>BOUNDARY: exact backend launches, physical GPU behavior and timing need runtime evidence. Native input/result handling is linked where visible. Result extraction awaits runtime values; no universal device-wide barrier or CPU output copy is implied.</p></div></details>
+<footer><span>Choose a route, then Step or Play. Hover the lesson number for context.</span><a href="../index.html#qna-1-1">Main walkthrough ↗</a></footer>
+</main>
+<dialog id="source-dialog" aria-labelledby="source-title"><div class="source-heading"><div><span class="eyebrow">COMPLETE ORIGINAL SOURCE</span><h2 id="source-title">Source explorer</h2></div><button id="close-source" aria-label="Close source explorer">Close ×</button></div><p id="source-meta"></p><pre id="source-code" tabindex="0"><code></code></pre></dialog>
+<noscript><style>.reference,.text-phase{display:block}.reference-body,.text-phase>pre,.text-phase>p{display:block!important}#lesson-button{display:none}</style><p class="no-script">JavaScript is disabled. Open the text walkthrough and component legend for all source links.</p></noscript>
+<!-- ENGINE_DATA --><!-- ENGINE_JS -->
+</body></html>

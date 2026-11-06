@@ -1,0 +1,23 @@
+{
+  "result": "PASS",
+  "chapters": 6,
+  "contrastAudits": 6,
+  "renderedEdges": 32,
+  "mobileWidths": [
+    320,
+    390
+  ],
+  "checks": [
+    "no autoplay",
+    "hover/focus/touch cards",
+    "click-only legend",
+    "complete source explorer",
+    "object labels fit",
+    "graph/artifact/init/output gates",
+    "reset/seek/pause",
+    "pause offscreen",
+    "reduced motion",
+    "offline/no-JavaScript"
+  ],
+  "evidence": "CPU-RUN headless Chromium; no MAX execution"
+}

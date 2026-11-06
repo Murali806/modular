@@ -233,6 +233,9 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
             |   |   |               |       |   receives pipeline_config, model class, tokenizer, adapters and memory_plan.
             |   |   |               |       +-- InferenceSession(devices=..., ...) [ENGINE:L664] [MAX engine session]
             |   |   |               |       |   owns runtime/compilation context on the selected devices.
+            |   |   |               |       |
+            |   |   |               |       |   +-- Animate InferenceSession, graph compilation, MEF and inference ↗ (link_htmls/max_engine_graph_compilation_mef_and_inference.html)
+            |   |   |               |       |
             |   |   |               |       +-- MAXModelConfig.resolved_weight_paths() [MODEL_CFG:L1563] [QnA 1.1.5]  call site [TEXT:L293]
             |   |   |               |       |   +-- local repository -> direct local checkpoint paths.
             |   |   |               |       |   +-- online repository -> download_weight_files() [WEIGHTS:L239]  call site [MODEL_CFG:L1594]
