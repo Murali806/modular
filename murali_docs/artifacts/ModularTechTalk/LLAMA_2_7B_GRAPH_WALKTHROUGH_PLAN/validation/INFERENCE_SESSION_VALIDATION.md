@@ -13,11 +13,12 @@ It is linked immediately below the session ownership explanation in the
 | Runtime evidence | CPU-RUN browser/JavaScript checks; no MAX model or GPU execution |
 | Standalone page | Four full-width animated lessons; no external runtime dependencies |
 | Constructor cases | 160 combinations of devices, threads, MEF policy and extensions |
-| State checks | 1,549 frames; initialization dependencies, batch reuse and reference ownership |
+| State checks | 1,652 frames; initialization dependencies, repair, repeated batch reuse and all six release orders |
 | Source provenance | 30 exact targets in 10 complete, hash-verified source files |
 | Browser checks | Desktop, 390px touch viewport, no JavaScript and printing |
-| Contrast | 34 audits; SVG text checked against its actual drawn backing |
-| Interactions | Moving packets, Play/Pause, Step/Back, Reset, speed and step index |
+| Contrast | 37 audits; SVG text checked against its actual drawn backing |
+| Interactions | Persistent moving objects, merging device cards, binding slots/gate, additional decodes and independent owner release |
+| Playback | Play/Pause freezes objects in flight; Step/Back, Reset, speed and step index |
 | Readability | Numbered lesson cards, component legend, source search/copy and focus return |
 | Motion policy | No autoplay; reduced motion; pause offscreen and when the document is hidden |
 | Integration | Real call-tree link opens the standalone page in a new window |
@@ -26,6 +27,17 @@ It is linked immediately below the session ownership explanation in the
 The device combinations, weight names, token IDs, session/model labels and
 pictured reference counts are teaching inputs. Native driver/GPU motion is
 marked BOUNDARY. Setup and reference counts are not measured hardware data.
+KV tiles illustrate token entries rather than cache page geometry. A/B output
+tiles are views of sequence logits, not a count of native output buffers.
+
+The reference OS reader was played alongside the revised page. Its persistent
+request/slot interaction pattern now carries through to four session lessons:
+individual device cards move and duplicates merge; compiler input tiles form
+an artifact while MEF import takes a different route; missing weight bindings
+block initialization until supplied; sampled tokens feed the next decode;
+released owner references detach while the remaining references retain S1.
+Browser checks verify actual object movement and identity, concurrent token
+movement, frozen positions on Pause, and each intervention's visible outcome.
 
 Commands run from the repository root:
 
@@ -45,11 +57,13 @@ Detailed results:
 - [Browser checks and contrast audits](inference_session_browser.json)
 - [Constructor screenshot](inference_session_constructor.png)
 - [Missing-weight branch](inference_session_missing_weight.png)
+- [Missing weight supplied](inference_session_repaired_weight.png)
 - [Repeated execution](inference_session_execution.png)
+- [Device work illustration](inference_session_device_work.png)
+- [Independent owner release](inference_session_lifetime.png)
 - [Source explorer](inference_session_source_explorer.png)
 - [Mobile layout](inference_session_mobile.png)
 
-All listed checks passed. Source-highlight line-number contrast was corrected
-during browser review. The final diagrams route weight bindings to initialization
-and runtime configuration to the context without crossing unrelated component
-boxes.
+All listed checks passed. The page retains the numbered lesson cards, circled
+L legend, complete source explorer, offline/direct-file reading, portable flows
+and mobile-contained horizontal scrolling.

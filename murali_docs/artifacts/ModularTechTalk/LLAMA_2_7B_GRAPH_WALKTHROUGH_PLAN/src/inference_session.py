@@ -69,7 +69,7 @@ REFS = {
 
 COMPONENTS = {
     "pipeline": ("Pipeline / caller", "pipeline", "Python object in the model worker. Creates the session and supplies model work.", ["pipeline_session", "pipeline_execute"]),
-    "arguments": ("Constructor arguments", "config", "Device handles and optional thread, artifact and extension settings. These are example values, not a measurement.", ["session"]),
+    "arguments": ("Constructor arguments", "config", "Device handles and optional thread, artifact and extension settings. Input slots track handles awaiting inspection; the original argument list stays with the caller. Values are illustrative.", ["session"]),
     "python": ("Python InferenceSession", "session", "Normalizes devices, records options and owns the native _impl reference.", ["session", "session_native"]),
     "normalize": ("Device normalization", "device", "Preserves first-occurrence order and includes CPU(). Duplicate Device values do not create extra entries.", ["session"]),
     "store": ("Artifacts and extensions", "config", "Import/export policy and custom-extension inputs. Explicit import and export are mutually exclusive.", ["session", "compile_reuse"]),
@@ -89,7 +89,7 @@ COMPONENTS = {
     "driver": ("OS GPU driver", "driver", "Kernel and hardware boundary outside the worker's Python object hierarchy. Submission arrows illustrate causality, not actual kernel traces.", ["native_execute"]),
     "gpu": ("GPU and device buffers", "gpu", "Weights, KV data and model work on the selected hardware. The diagrams assume a supported GPU model configuration and do not measure resource use.", ["model_execute", "prepare_batch"]),
     "buffers": ("Prepared input Buffers", "device", "Packed token IDs, row offsets and KV inputs. Shapes and placement follow the model's input contract; not every buffer has to move to the same device.", ["prepare_batch", "model_execute"]),
-    "results": ("Output Buffers / logits", "weights", "Native output buffers are wrapped for Python and processed by the pipeline. This does not imply an automatic host copy of every output.", ["extract_results", "model_execute", "pipeline_execute"]),
+    "results": ("Output Buffers / logits", "weights", "Native output buffers are wrapped for Python and processed by the pipeline. A/B tiles show sequence views of the logits; buffer placement is retained until an explicit operation changes it.", ["extract_results", "model_execute", "pipeline_execute"]),
     "caller": ("Python session owner", "session", "The Python wrapper retains the native _impl. Releasing the wrapper does not remove the references held by initialized native models.", ["session_native", "model_handle"]),
     "decoder": ("Decoder ModelHandle", "model", "Retains compiled/executable state, weight ownership and a reference to native S1.", ["native_load_all", "model_handle"]),
     "sampler": ("Sampler ModelHandle", "model", "Illustrates a second engine model using the same session. This is a minimal ownership example, not a count of all models in max serve.", ["pipeline_session", "model_handle"]),
@@ -120,7 +120,7 @@ Underlying device contexts and CPU runtime resources can be shared."""),
     dict(id="compilation", number="02", title="From a graph to a runnable model", subtitle="One ungrouped decoder graph · same S1",
          intro="A session, a compiled artifact, and an initialized model become ready at different points.",
          detail="Tracing creates the graph. Compilation produces an artifact. Initialization binds real weights and returns the executable engine model. Each object has its own role.",
-         try_it="Compare Cold compile and Stored MEF hit. Both still need initialization. Missing weight fails before native model initialization.",
+         try_it="Compare Cold compile with Stored MEF hit: follow the alternate path around compiler work. Choose Missing weight, then Add missing W_b. The empty binding fills and initialization can proceed using the same artifact.",
          refs=["load_graphs", "compile_graphs", "compile_reuse", "init_all"],
          ascii="""SOURCE · ordinary real-device, ungrouped GraphSpec route
 Llama model -> GraphSpec.trace() -> Graph
@@ -143,8 +143,8 @@ Returned decoder -> Llama model / compiled callable
 All arrows represent logical source order, not captured GPU timing."""),
     dict(id="execution", number="03", title="Change the batch. Reuse the model.", subtitle="Packed inputs → device work → output Buffers",
          intro="Prefill and decode change the inputs while the session and initialized decoder remain available.",
-         detail="The Python pipeline prepares Buffers. Llama's engine Model calls the native runtime through its retained session. Result Buffers come back for output processing and sampling.",
-         try_it="Play Prefill + decode. Watch five prompt tokens become two decode tokens while S1, M1 and the setup counts stay unchanged.",
+         detail="The Python pipeline prepares Buffers. Llama's engine Model calls the native runtime through its retained session. Output logits are processed and sampled per sequence. A/B tiles depict sequence views; KV tile counts illustrate token entries, not actual cache-page allocation.",
+         try_it="Play Prefill + decode. Follow A and B's sampled tokens back into the next input batch. Run another decode to grow both histories and KV entries while S1, M1 and the setup count stay unchanged.",
          refs=["prepare_batch", "model_execute", "native_execute", "extract_results", "pipeline_execute"],
          ascii="""SOURCE + BOUNDARY · illustrative token IDs, placements and event timing
 MODEL WORKER PROCESS                            OS / HARDWARE
@@ -167,7 +167,7 @@ Setup counts are fixture counts, not performance measurements."""),
     dict(id="lifetime", number="04", title="Who keeps the session alive?", subtitle="References → retained context → eligible release",
          intro="Follow native-session ownership after the Python wrapper or a model is released.",
          detail="Native ModelHandles retain S1. Its context must outlive model state that uses the runtime to release buffers. This example shows a wrapper, a decoder and a sampler.",
-         try_it="Compare Caller first and Models first. A remaining pictured model keeps a strong reference to S1. Shared resources can survive the last pictured owner.",
+         try_it="Use the three Release buttons in any order. Each reference leaves its slot; S1 and its context remain while one pictured owner is still alive. Compare with the two automatic release orders.",
          refs=["session_native", "native_load_all", "native_class", "model_handle", "context_create"],
          ascii="""SOURCE · minimal ownership example; only pictured owners are counted
 Python InferenceSession._impl -----------+
@@ -210,96 +210,131 @@ def svg_shell(key, height, body):
             f'<desc>Full text equivalent and complete source definitions are in the disclosure below this animation.</desc>'
             f'<defs><marker id="arrow-{key}" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">'
             '<path d="M0 0 L7 3.5 L0 7" fill="#667d6c"/></marker></defs>'
-            + body + '<g class="motion-packet" hidden aria-hidden="true"><rect x="-20" y="-12" width="40" height="24" rx="6"/>'
-            '<text text-anchor="middle" y="4"></text></g></svg>')
+            + body + '<g data-actors aria-label="Moving objects and retained references"></g></svg>')
+
+
+def pockets(key, x, y, count, width=70, gap=12):
+    """Empty places remain visible as objects enter, leave or merge."""
+    return (f'<g data-slots="{key}" transform="translate({x} {y})">' + ''.join(
+        f'<g class="live-slot" data-slot="{i}" data-occupied="false" transform="translate({i * (width + gap)} 0)">'
+        f'<rect width="{width}" height="30" rx="5"/><text x="{width / 2}" y="20">—</text></g>'
+        for i in range(count)) + '</g>')
 
 
 def constructor_svg():
-    b = '<rect class="process-boundary" x="20" y="26" width="970" height="500" rx="15"/><text class="process-label" x="505" y="51">MODEL WORKER · HOST PROCESS</text>'
-    b += '<rect class="native-boundary" data-boundary="native" x="298" y="311" width="666" height="190" rx="12"/><text class="boundary-label" x="631" y="339">Core::InferenceSession · native C++ object</text>'
-    b += wire("call", "M266 124 H298", "call", 282, 112)
-    b += wire("normalize", "M576 124 H610")
-    b += wire("options", "M437 162 V187")
-    b += wire("native-call", "M437 287 V311", "_impl", 480, 304)
-    b += wire("compile-config", "M614 345 V361")
-    b += wire("register", "M787 227 V298 H410 V361", "DeviceSpec + ctx", 748, 286)
-    b += wire("context", "M410 477 V489 H835 V477", "runtimeConfig", 620, 486)
-    b += wire("device-handle", "M943 441 H1016 V420 H1038", "handles", 1007, 404, "reference")
-    b += wire("return", "M320 479 H284 V172 H154 V162", "return S1", 239, 465, "return")
-    b += node("pipeline", 42, 82, 224, 80, "TextGenerationPipeline", "creates session", status="pipeline")
-    b += node("python", 298, 82, 278, 80, "InferenceSession", "Python wrapper", status="python")
-    b += node("normalize", 610, 82, 354, 145, "Normalize devices", "first occurrences + host CPU", status="devicesStatus")
-    b += '<g data-slots="normalized" transform="translate(630 153)"></g>'
-    b += node("arguments", 42, 190, 224, 163, "Arguments", "illustrative Device handles", status=False)
-    b += '<text class="input-value" x="154" y="266" data-constructor-input>[gpu0]</text><text class="node-sub" x="154" y="300" data-constructor-threads>num_threads = None</text><text class="node-sub" x="154" y="326" data-constructor-store>MEF policy: none</text>'
-    b += node("store", 298, 187, 278, 100, "Artifact / extension policy", "session options", status="storeStatus")
-    b += node("devices", 320, 361, 180, 116, "Device handles", "runtimeConfig.devices", status="registered")
-    b += node("compile", 522, 361, 184, 116, "Compile config", "sessionCompileConfig", status="compileStatus")
-    b += node("context", 730, 361, 213, 116, "Engine::Context", "runtimeConfig + CPUDevice", status="contextStatus")
-    b += node("hardware", 1038, 352, 180, 152, "Selected hardware", "device boundary", status="hardware")
-    b += '<text class="diagram-note" x="1128" y="322">BOUNDARY</text><text class="diagram-note" x="631" y="550">At return: compilation context exists; the decoder is still unloaded.</text>'
-    return svg_shell("constructor", 574, b)
+    b = '<rect class="process-boundary" x="20" y="24" width="1200" height="536" rx="15"/><text class="process-label" x="620" y="49">MODEL WORKER · ONE HOST PROCESS</text>'
+    b += '<rect class="native-boundary" data-boundary="native" x="752" y="74" width="448" height="438" rx="12"/><text class="boundary-label" x="976" y="100">S1 · native InferenceSession</text>'
+    b += wire("call", "M320 117 H352")
+    b += wire("normalize", "M320 276 H352")
+    b += wire("options", "M181 356 V390")
+    b += wire("native-call", "M716 117 H752", "_impl", 733, 107)
+    b += wire("compile-config", "M716 447 H770")
+    b += wire("register", "M716 237 H770")
+    b += wire("context", "M1076 269 V304", "create", 1104, 291)
+    b += wire("return", "M754 510 H336 V175 H181 V158", "return S1", 547, 526, "return")
+    b += node("pipeline", 42, 74, 278, 84, "TextGenerationPipeline", "calls constructor → retains S1", status="pipeline")
+    b += node("python", 352, 74, 364, 84, "Python InferenceSession", "normalizes handles + owns _impl", status="python")
+    b += node("arguments", 42, 192, 278, 164, "Device references to inspect", "original list stays with caller", status=False)
+    b += pockets("input", 62, 262, 4, 52, 10)
+    b += '<text class="node-sub" x="181" y="323" data-constructor-input>[gpu0]</text>'
+    b += node("normalize", 352, 192, 364, 164, "final_devices", "keep first occurrence · ensure CPU", status="devicesStatus")
+    b += pockets("normalized", 378, 262, 3, 92, 18)
+    b += '<text class="decision-note" x="534" y="317" data-decision>Choose a device list, then Play.</text>'
+    b += node("store", 42, 390, 278, 122, "Artifact / extension policy", "checked before native creation", status="storeStatus")
+    b += '<g data-policy-lights><rect class="policy-lamp" x="99" y="448" width="74" height="22" rx="4"/><text class="lamp-label" x="136" y="463">import</text><rect class="policy-lamp" x="189" y="448" width="74" height="22" rx="4"/><text class="lamp-label" x="226" y="463">export</text></g>'
+    b += '<rect class="settings-box" x="352" y="390" width="364" height="105" rx="8"/><text class="node-label" x="534" y="415">Arguments passed to native code</text><text class="node-sub" x="534" y="442" data-constructor-threads>num_threads = None → 0</text><text class="node-sub" x="534" y="477" data-constructor-store>extensions = []</text>'
+    b += node("devices", 770, 126, 412, 143, "Retained handles + device contexts", "runtimeConfig.devices · existing device contexts", status="registered")
+    b += pockets("registered", 792, 191, 3, 112, 16)
+    b += node("compile", 770, 304, 184, 158, "Compile config", "settings + library paths", status="compileStatus")
+    b += pockets("config", 818, 374, 1, 88)
+    b += node("context", 970, 304, 212, 158, "Engine::Context", "owns runtime entry point", status="contextStatus")
+    b += pockets("context", 1032, 374, 1, 88)
+    b += '<text class="diagram-note" x="976" y="491">Underlying CPU / device resources can be shared.</text>'
+    b += '<text class="diagram-note" x="620" y="547">Native session ready ≠ decoder loaded. This constructor creates zero model artifacts.</text>'
+    return svg_shell("constructor", 583, b)
 
 
 def compilation_svg():
-    b = '<rect class="process-boundary" x="20" y="24" width="1200" height="459" rx="15"/><text class="process-label" x="620" y="50">MODEL LOADING IN THE WORKER · SOURCE</text>'
-    b += node("session", 42, 70, 1160, 70, "S1 · the same InferenceSession", "compilation configuration + selected-device runtime", status=False)
-    b += wire("trace", "M164 140 V173", "trace", 202, 162)
-    b += wire("compile", "M284 229 H330")
-    b += wire("artifact", "M592 229 H630")
-    b += wire("reuse", "M461 173 V151 H754 V173", "MEF reuse", 680, 164, "reference")
-    b += wire("initialize", "M878 229 H923")
-    b += wire("weights", "M878 379 H899 V305 H990 V285", "bind", 946, 300)
-    b += wire("model", "M1063 285 V326")
-    b += node("graph", 42, 173, 242, 112, "GraphSpec → Graph", "trace the model", status="graphStatus")
-    b += node("compiler", 330, 173, 262, 112, "Compile / import", "session.compile_reusing_mefs", status="compilerStatus")
-    b += node("artifact", 630, 173, 248, 112, "CompiledModel", "code + metadata", status="artifactStatus")
-    b += node("init", 923, 173, 279, 112, "session.init_all", "validate → initialize", status="initStatus")
-    b += node("registry", 630, 326, 248, 122, "Weight registry", "illustrative name → value pairs", status="registryStatus")
-    b += '<g data-slots="weights" transform="translate(656 382)"></g>'
-    b += node("model", 923, 326, 279, 122, "Engine Model M1", "executable decoder", status="modelStatus")
-    b += '<text class="diagram-note" x="285" y="358">Graph IR records computation.</text><text class="diagram-note" x="285" y="391">Weights provide actual values.</text><text class="diagram-note" x="285" y="424">Initialization joins the two.</text>'
-    return svg_shell("compilation", 510, b)
+    b = '<rect class="process-boundary" x="20" y="24" width="1200" height="507" rx="15"/><text class="process-label" x="620" y="50">MODEL LOADING IN THE WORKER · SOURCE</text>'
+    b += node("session", 42, 70, 1158, 65, "S1 · same session throughout", "trace → compile or import → validate weights → initialize", status=False)
+    b += wire("compile", "M277 242 H322", "IR", 300, 226)
+    b += wire("artifact", "M563 242 H614")
+    b += wire("reuse", "M277 417 H581 V333 H734 V314", "MEF path · bypass compile work", 431, 358, "return")
+    b += wire("initialize", "M854 242 H897")
+    b += wire("weights", "M854 428 H878 V339 H1060 V314")
+    b += wire("model", "M1145 314 V362", "initialize", 1175, 345)
+    b += node("graph", 42, 150, 235, 164, "GraphSpec → Graph", "schematic graph operations", status="graphStatus")
+    b += pockets("graph", 59, 224, 3, 54, 19)
+    b += node("compiler", 322, 150, 241, 164, "Native compile work", "runs on the host CPU runtime", status="compilerStatus")
+    b += pockets("compiler", 343, 224, 3, 54, 19)
+    b += '<g data-compile-work><rect class="work-track" x="343" y="267" width="200" height="7" rx="3"/><rect class="work-fill" data-work-fill x="343" y="267" width="0" height="7" rx="3"/></g>'
+    b += node("artifact", 614, 150, 240, 164, "CompiledModel", "compiled code + metadata", status="artifactStatus")
+    b += pockets("artifact", 689, 224, 1, 90)
+    b += node("init", 897, 150, 303, 164, "init_all · required bindings", "each expected name needs a value", status="initStatus")
+    b += pockets("bindings", 932, 224, 2, 104, 30)
+    b += '<g data-init-gate><path class="init-gate" d="M913 284 H1184"/><text class="gate-label" x="1048" y="279" data-gate-label>waiting for artifact + weights</text></g>'
+    b += '<g data-cache><rect class="cache-box" x="42" y="362" width="235" height="135" rx="9"/><text class="node-label" x="159" y="387">Compatible MEF store</text><text class="node-sub" x="159" y="408">example cache hit</text>' + pockets("cache", 114, 427, 1, 90) + '</g>'
+    b += node("registry", 614, 362, 240, 135, "Weight registry", "name → value · illustrative names", status="registryStatus")
+    b += pockets("weights", 636, 427, 2, 86, 24)
+    b += node("model", 897, 362, 303, 135, "Engine Model M1", "executable decoder · retains native S1", status="modelStatus")
+    b += pockets("model", 1004, 427, 1, 88)
+    b += '<text class="diagram-note" x="620" y="519">The compiler produces an artifact. Binding valid weights makes an executable model possible.</text>'
+    return svg_shell("compilation", 552, b)
 
 
 def execution_svg():
-    b = '<rect class="process-boundary" x="20" y="28" width="944" height="491" rx="15"/><text class="process-label" x="492" y="54">MODEL WORKER · SAME S1 AND M1 ACROSS PASSES</text>'
-    b += wire("prepare", "M166 205 V251", "prepare", 209, 232)
-    b += wire("execute", "M289 155 H344", "call", 316, 144)
-    b += wire("runtime", "M589 155 H645")
-    b += wire("submit", "M939 155 H996 M1104 173 V210", "submit", 981, 145)
-    b += wire("result", "M996 404 H939", "Buffers", 980, 389, "return")
-    b += wire("feedback", "M645 405 H612 V222 H166 V205", "process / sample / next pass", 418, 214, "return")
-    b += node("pipeline", 44, 105, 245, 100, "Text-generation pipeline", "prepare → execute → sample", status="pipelineStatus")
-    b += node("model", 344, 105, 245, 100, "Engine Model M1", "retains native session S1", status="modelStatus")
-    b += node("runtime", 645, 105, 294, 100, "MAX runtime / user driver", "native code in this process", status="runtimeStatus")
-    b += node("driver", 996, 95, 215, 78, "OS GPU driver", "kernel / device boundary", status=False)
-    b += node("gpu", 996, 210, 215, 280, "GPU device", "hardware · illustrative work", status="gpuStatus")
-    b += '<rect class="device-memory weight-memory" x="1014" y="274" width="179" height="38" rx="6"/><text class="memory-label" x="1103" y="298">weights · retained</text>'
-    b += '<rect class="device-memory kv-memory" x="1014" y="324" width="179" height="38" rx="6"/><text class="memory-label" x="1103" y="348">KV data · retained</text>'
-    b += '<g data-gpu-work><rect class="device-work" x="1014" y="381" width="179" height="52" rx="6"/><text class="work-label" x="1103" y="412" data-work-label>between passes</text></g>'
-    b += node("buffers", 44, 251, 545, 155, "Packed model input view", "A then B · token IDs are illustrative", status="bufferPlace")
-    b += '<g data-slots="tokens" transform="translate(91 321)"></g><text class="input-value" x="316" y="372" data-offsets>row_offsets = []</text>'
-    b += node("results", 645, 326, 294, 123, "Result Buffers", "batch processor → sampling", status="resultStatus")
-    b += '<g data-result-tile hidden><rect class="logits-tile" x="751" y="382" width="83" height="27" rx="5"/><text class="memory-label" x="792" y="401">logits</text></g>'
-    b += '<text class="diagram-note" x="316" y="453">Buffer placement follows model input metadata.</text><text class="diagram-note" x="316" y="481">A new batch reuses the initialized decoder.</text><text class="diagram-note" x="1104" y="542">BOUNDARY · no GPU run</text>'
-    return svg_shell("execution", 566, b)
+    b = '<rect class="process-boundary" x="20" y="24" width="947" height="516" rx="15"/><text class="process-label" x="493" y="49">MODEL WORKER · SAME S1 AND M1 ACROSS PASSES</text>'
+    b += wire("prepare", "M175 246 V292", "prepare", 210, 272)
+    b += wire("execute", "M306 162 H354", "call", 330, 150)
+    b += wire("runtime", "M616 162 H664")
+    b += wire("submit", "M949 126 H999 M1104 162 V206", "submit", 974, 113)
+    b += wire("result", "M999 394 H949", "refs", 974, 381, "return")
+    b += wire("feedback", "M806 461 V494 H637 V264 H175 V246", "sample → next model inputs", 581, 514, "return")
+    b += node("pipeline", 44, 80, 262, 166, "Text-generation pipeline", "sampled tokens · A and B", status="pipelineStatus")
+    b += '<text class="stream-label sequence-a" x="68" y="165">A</text><text class="stream-label sequence-b" x="68" y="203">B</text>'
+    b += pockets("history-a", 82, 145, 6, 28, 8) + pockets("history-b", 82, 183, 6, 28, 8)
+    b += node("model", 354, 80, 262, 166, "Engine Model M1", "same compiled decoder every pass", status="modelStatus")
+    b += '<rect class="identity-badge" x="373" y="146" width="69" height="32" rx="8"/><text class="identity-label" x="407" y="167">M1</text>'
+    b += pockets("invocation", 484, 146, 1, 92)
+    b += node("runtime", 664, 80, 285, 166, "MAX runtime / user driver", "S1 → retained Engine::Context", status="runtimeStatus")
+    b += '<rect class="identity-badge" x="683" y="146" width="69" height="32" rx="8"/><text class="identity-label" x="717" y="167">S1</text>'
+    b += pockets("runtime", 800, 146, 1, 104)
+    b += node("driver", 999, 90, 210, 72, "OS GPU driver", "kernel / device boundary", status=False)
+    b += node("gpu", 999, 206, 210, 322, "GPU device", "schematic buffers + work", status="gpuStatus")
+    b += '<rect class="device-memory weight-memory" x="1015" y="269" width="178" height="34" rx="6"/><text class="memory-label" x="1104" y="291">weights · retained</text>'
+    b += '<text class="memory-label" x="1104" y="329" data-kv-label>KV entries · A 0 / B 0</text><g data-kv-tiles></g>'
+    b += '<g data-gpu-work><rect class="device-work" x="1015" y="388" width="178" height="92" rx="6"/><text class="work-label" x="1104" y="469" data-work-label>between passes</text><rect class="work-track" x="1027" y="443" width="154" height="6" rx="3"/><rect class="work-fill" data-work-fill x="1027" y="443" width="0" height="6" rx="3"/></g>'
+    b += node("buffers", 44, 292, 572, 169, "Packed input Buffers", "A then B · shapes change between prefill and decode", status="bufferPlace")
+    b += pockets("tokens", 78, 357, 5, 82, 24)
+    b += '<text class="input-value" x="330" y="421" data-offsets>row_offsets = []</text>'
+    b += node("results", 664, 326, 285, 135, "Result Buffers", "A / B views of logits → sampling", status="resultStatus")
+    b += pockets("results", 695, 388, 2, 94, 24)
+    b += '<g data-result-tile hidden><text class="diagram-note" x="805" y="478">logits available · placement retained</text></g>'
+    b += '<text class="diagram-note" x="1104" y="554">BOUNDARY · no GPU run</text><text class="diagram-note" x="493" y="564">Moving batch labels track calls; GPU tiles track work. Buffer placement still follows the model contract.</text>'
+    return svg_shell("execution", 584, b)
 
 
 def lifetime_svg():
-    b = '<rect class="process-boundary" x="20" y="28" width="1200" height="450" rx="15"/><text class="process-label" x="620" y="54">NATIVE OWNERSHIP · THREE PICTURED OWNERS · SOURCE</text>'
-    b += wire("caller-ref", "M304 178 H506", "_impl reference", 404, 158, "reference")
-    b += wire("decoder-ref", "M304 363 H458 V218 H506", "native ref", 407, 338, "reference")
-    b += wire("sampler-ref", "M628 308 V256", "native ref", 675, 291, "reference")
-    b += wire("owned", "M778 178 H879", "owns", 829, 163, "reference")
-    b += node("caller", 54, 112, 250, 130, "Python session wrapper", "InferenceSession._impl", status="caller")
-    b += node("decoder", 54, 308, 250, 124, "Decoder ModelHandle", "inferenceSession reference", status="decoder")
-    b += node("sampler", 506, 308, 250, 124, "Sampler ModelHandle", "inferenceSession reference", status="sampler")
-    b += node("native", 506, 112, 272, 144, "Native session S1", "illustrated strong owners", status="nativeStatus")
-    b += '<text class="reference-count" x="642" y="206" data-reference-count>3</text>'
-    b += node("context", 879, 112, 309, 144, "Engine::Context", "config + MAX context / CPUDevice", status="runtimeStatus")
-    b += node("release", 879, 308, 309, 124, "After the final owner", "shared runtime / driver resources", status="releaseStatus")
-    return svg_shell("lifetime", 503, b)
+    b = '<rect class="process-boundary" x="20" y="24" width="1200" height="492" rx="15"/><text class="process-label" x="620" y="50">NATIVE OWNERSHIP · RELEASE ANY OWNER · SOURCE</text>'
+    b += wire("caller-ref", "M340 134 H433 V208 H532", "_impl", 407, 119, "reference")
+    b += wire("decoder-ref", "M340 278 H532", "native reference", 434, 264, "reference")
+    b += wire("sampler-ref", "M340 422 H433 V346 H532", "native reference", 426, 457, "reference")
+    b += wire("owned", "M816 218 H915", "owns", 864, 202, "reference")
+    b += wire("shared", "M1062 306 V351", "may be shared", 1116, 333, "reference")
+    b += node("caller", 44, 80, 296, 116, "Python session wrapper", "InferenceSession._impl", status="caller")
+    b += node("decoder", 44, 224, 296, 116, "Decoder ModelHandle", "model state + native session reference", status="decoder")
+    b += node("sampler", 44, 368, 296, 116, "Sampler ModelHandle", "second illustrative engine model", status="sampler")
+    b += '<g data-owner-badges></g>'
+    b += node("native", 532, 138, 284, 256, "Native session S1", "pictured strong references", status="nativeStatus")
+    b += '<text class="reference-count" x="674" y="241" data-reference-count>3</text>'
+    b += pockets("references", 551, 273, 3, 64, 27)
+    b += '<text class="diagram-note" x="674" y="329" data-retention>Any remaining owner keeps S1 alive.</text>'
+    b += node("context", 915, 122, 285, 184, "Engine::Context", "retained for model work and cleanup", status="runtimeStatus")
+    b += pockets("context", 1013, 203, 1, 88)
+    b += node("release", 915, 351, 285, 133, "Underlying shared resources", "MAX context / CPUDevice / driver", status="releaseStatus")
+    b += '<rect class="released-shelf" x="532" y="432" width="284" height="52" rx="8"/><text class="diagram-note" x="674" y="453">Released references</text>'
+    b += '<text class="diagram-note" x="620" y="538">Only these three owners are counted. Destruction also requires no additional references or outstanding work.</text>'
+    return svg_shell("lifetime", 562, b)
 
 
 SVG_BUILDERS = dict(constructor=constructor_svg, compilation=compilation_svg,
@@ -320,8 +355,22 @@ def controls(key):
         "execution": [("prefill_decode", "Prefill + decode"), ("decode_only", "Decode only")],
         "lifetime": [("caller_first", "Caller first"), ("models_first", "Models first")],
     }[key]
-    return '<div class="scenario-options" role="group" aria-label="Choose a ' + key + ' scenario">' + "".join(
-        f'<button data-mode="{k}" aria-pressed="{str(i == 0).lower()}">{label}</button>' for i, (k, label) in enumerate(choices)) + "</div>"
+    experiment = {
+        "compilation": '<button data-repair disabled>Add missing W_b</button><span>Fill the missing binding to unblock initialization.</span>',
+        "execution": '<button data-another disabled>Run another decode</button><span>Complete a pass, then reuse the same S1 and M1.</span>',
+        "lifetime": '<span>Release an owner yourself:</span><button data-drop-owner="caller">Release wrapper</button><button data-drop-owner="decoder">Release decoder</button><button data-drop-owner="sampler">Release sampler</button>',
+    }[key]
+    return ('<div class="scenario-options" role="group" aria-label="Choose a ' + key + ' scenario">' + "".join(
+        f'<button data-mode="{k}" aria-pressed="{str(i == 0).lower()}">{label}</button>' for i, (k, label) in enumerate(choices)) +
+        '</div><div class="experiment-actions">' + experiment + '</div>')
+
+
+PHASES = {
+    "constructor": [("options", "Check options"), ("normalize", "Normalize"), ("native", "Create S1"), ("register", "Retain handles"), ("context", "Create context"), ("ready", "Ready")],
+    "compilation": [("trace", "Trace"), ("compile", "Compile / import"), ("bind", "Bind weights"), ("initialize", "Initialize"), ("ready", "Model ready")],
+    "execution": [("prepare", "Prepare"), ("execute", "Call M1 + S1"), ("submit", "Device work"), ("outputs", "Output Buffers"), ("sample", "Sample / repeat")],
+    "lifetime": [("3", "3 owners"), ("2", "2 owners"), ("1", "1 owner"), ("0", "No pictured owners")],
+}
 
 
 def build_inference_session(data, task: Path, src: Path, python_span, cpp_span):
@@ -358,6 +407,7 @@ def build_inference_session(data, task: Path, src: Path, python_span, cpp_span):
     for item in LESSONS:
         key = item["id"]
         sources = " · ".join(link(ref) for ref in item["refs"])
+        phases = ''.join(f'<li data-phase="{phase}" aria-current="false">{label}</li>' for phase, label in PHASES[key])
         lessons.append(f'''<section class="lesson" id="{key}" data-lesson="{key}" aria-labelledby="heading-{key}">
 <div class="experiment">
  <div class="experiment-top"><button class="lesson-badge" data-lesson-card="{key}" aria-label="Explain lesson {item['number']}: {html.escape(item['title'], quote=True)}">{item['number']}</button><h2 id="heading-{key}">{item['title']}</h2><span class="timing-note">{item['subtitle']}</span></div>
@@ -365,9 +415,10 @@ def build_inference_session(data, task: Path, src: Path, python_span, cpp_span):
  <p class="lesson-intro">{item['intro']}</p><p class="pan-hint">Scroll inside the diagram to see all components.</p>
  <div class="visual" tabindex="0" aria-label="{html.escape(item['title'], quote=True)}; scroll horizontally on narrow screens">{SVG_BUILDERS[key]()}</div>
  <div class="playback" data-interactive hidden><button class="play" data-action="play" aria-pressed="false">▶ Play</button><button data-action="back" aria-label="Previous {key} step">Back</button><button data-action="step">Step</button><button data-action="reset">↺ Reset</button><label>Speed <select data-speed><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label><output data-progress>Ready</output></div>
+ <ol class="phases" aria-label="{key} stages">{phases}</ol>
  <div class="state-strip" data-state-strip aria-label="Illustrated object state"></div>
- <div class="event" data-event role="status" aria-live="polite"><span data-event-title>Ready to explore</span><p data-event-detail>{item['detail']}</p></div>
- <div class="event-sources" data-event-sources>{sources}</div>
+ <div class="event" data-event role="status" aria-live="polite"><span data-event-title>Ready to explore</span></div>
+ <details class="event-explanation"><summary>Why this happened · source</summary><p data-event-detail>{item['detail']}</p><div class="event-sources" data-event-sources>{sources}</div></details>
  <details class="transcript"><summary>Step index, portable flow and source evidence</summary><p>{item['detail']}</p><p><b>Try it:</b> {item['try_it']}</p><ol data-transcript></ol><pre>{html.escape(item['ascii'])}</pre><p>{sources}</p></details>
 </div></section>''')
     source_cells = []
@@ -386,7 +437,7 @@ def build_inference_session(data, task: Path, src: Path, python_span, cpp_span):
         "{{revision}}": revision, "{{revision-short}}": revision[:12],
         "{{session-link}}": link("session"),
         "{{css}}": (src / "inference_session.css").read_text(),
-        "{{js}}": (src / "inference_session_model.js").read_text() + "\n" + (src / "inference_session.js").read_text(),
+        "{{js}}": "\n".join((src / name).read_text() for name in ("inference_session_model.js", "inference_session_visuals.js", "inference_session.js")),
         "{{payload}}": json.dumps(payload, ensure_ascii=False).replace("<", "\\u003c"),
     }
     for token, replacement in replacements.items():

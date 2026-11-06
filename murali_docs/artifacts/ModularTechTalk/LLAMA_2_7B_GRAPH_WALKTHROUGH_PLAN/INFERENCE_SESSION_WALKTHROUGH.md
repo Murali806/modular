@@ -87,7 +87,7 @@ Buffer metadata controls placement; an output Buffer can stay on device.
 Setup counts are fixture counts, not performance measurements.
 ```
 
-The Python pipeline prepares Buffers. Llama's engine Model calls the native runtime through its retained session. Result Buffers come back for output processing and sampling.
+The Python pipeline prepares Buffers. Llama's engine Model calls the native runtime through its retained session. Output logits are processed and sampled per sequence. A/B tiles depict sequence views; KV tile counts illustrate token entries, not actual cache-page allocation.
 
 [Prepare model inputs and KV references](sources/max/python/max/pipelines/lib/pipeline_variants/text_generation.py#L465) · [Llama executes its engine Model](sources/max/python/max/pipelines/architectures/llama3/model.py#L201) · [Native execution using the session context](sources/max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp#L521) · [Wrap native results as Python Buffers](sources/max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp#L55) · [Prepare, execute and sample](sources/max/python/max/pipelines/lib/pipeline_variants/text_generation.py#L594)
 

@@ -4,6 +4,10 @@ These rules apply to every file under `murali_docs/`.
 
 ## Visual-First Teaching
 
+- For animation HTML in `artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/`,
+  read its [local skill](artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/SKILL.md)
+  before authoring. Follow its shared animation recipe and matching example
+  model/controller so fresh sessions retain the accepted visual behavior.
 - Follow `../../visual_diagram_catalog.md`.
 - Keep prose minimal. Prefer labels, numbered callouts, and compact tables.
 - Put a portable ASCII diagram beside every important Mermaid diagram.

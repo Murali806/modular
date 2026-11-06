@@ -76,6 +76,16 @@ for (const mode of ["cold", "mef", "missing"]) {
 }
 assert.ok(!Model.compilationFrames("mef").some(f => f.compilerStatus === "native compiler work"));
 checks.push("Cold compile and MEF reuse both initialize; missing weights stop before native model initialization");
+const repaired = Model.compilationFrames("missing", {repaired: true});
+allFrames.push(...repaired);
+const stopped = repaired.findIndex(f => f.error);
+assert.ok(stopped > 0 && repaired[stopped].initCalls === 0);
+assert.deepEqual(repaired.slice(0, stopped + 1), Model.compilationFrames("missing"));
+assert.ok(repaired.at(-1).initialized && repaired.at(-1).validated);
+assert.equal(repaired.at(-1).initCalls, 1);
+assert.ok(repaired.slice(stopped).every(f => f.artifact && f.compileCalls === 1), "Repair reuses the artifact without recompiling");
+assert.deepEqual(repaired.at(-1).weightNames, ["W_a", "W_b"]);
+checks.push("Adding missing W_b unblocks validation and initialization with the same artifact and one compile request");
 
 for (const mode of ["prefill_decode", "decode_only"]) {
   const frames = Model.executionFrames(mode);
@@ -98,6 +108,19 @@ for (const mode of ["prefill_decode", "decode_only"]) {
   assert.equal(frames.at(-1).calls, frames.at(-1).completed);
 }
 checks.push("Packed prefill/decode buffers obey row offsets; batch execution reuses the decoder and session");
+for (const mode of ["prefill_decode", "decode_only"]) {
+  const frames = Model.executionFrames(mode, {extraPasses: 4});
+  allFrames.push(...frames);
+  const prepared = frames.filter(f => f.phase === "prepare");
+  const sampled = frames.filter(f => f.phase === "sample");
+  assert.equal(prepared.length, mode === "decode_only" ? 5 : 6);
+  for (let i = 1; i < prepared.length; i++) {
+    assert.deepEqual(prepared[i].tokens, sampled[i - 1].history.at(-1), "Next decode consumes the previous sampled tokens");
+    assert.ok(sampled[i].kvCounts.every((n, j) => n === sampled[i - 1].kvCounts[j] + 1), "KV entries grow one per decode sequence");
+  }
+  assert.ok(frames.every(f => f.compilationCount === 1 && f.initializedCount === 1));
+}
+checks.push("Four additional decodes preserve setup, feed sampled values into subsequent inputs and grow per-sequence KV entries");
 
 for (const mode of ["caller_first", "models_first"]) {
   const frames = Model.lifetimeFrames(mode);
@@ -111,6 +134,19 @@ for (const mode of ["caller_first", "models_first"]) {
 }
 assert.ok(Model.lifetimeFrames("caller_first")[1].decoder && Model.lifetimeFrames("caller_first")[1].retained);
 checks.push("Both release orders preserve the native context until the final pictured owner is gone");
+const owners = ["caller", "decoder", "sampler"];
+for (const first of owners) for (const second of owners.filter(key => key !== first)) {
+  const order = [first, second, ...owners.filter(key => key !== first && key !== second)];
+  const frames = Model.lifetimeFrames("caller_first", {order});
+  allFrames.push(...frames);
+  assert.deepEqual(frames.map(f => f.references), [3, 2, 1, 0]);
+  for (let i = 1; i < frames.length; i++) {
+    assert.deepEqual(frames[i].releaseHistory, order.slice(0, i));
+    assert.equal(frames[i].retained, i !== 3);
+    assert.equal(frames[i][order[i - 1]], false);
+  }
+}
+checks.push("All six user-selected release orders preserve S1 until no pictured owner remains");
 
 for (const frame of allFrames) {
   assert.ok(frame.title && frame.detail && frame.refs.length > 0);

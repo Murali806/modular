@@ -1,4 +1,4 @@
-/* Presentation for the four deterministic InferenceSession lessons. */
+/* Controls, accessible explanations and source explorer for the live lessons. */
 (function () {
   "use strict";
   const data = JSON.parse(document.getElementById("inference-session-data").textContent);
@@ -28,15 +28,6 @@
     if (text !== undefined) el.textContent = text;
     return el;
   }
-  function tiles(group, values, width, gap) {
-    if (!group) return;
-    group.replaceChildren(...values.map((value, index) => {
-      const g = svgElement("g", {class: "slot " + (value.className || ""), transform: "translate(" + index * (width + gap) + " 0)"});
-      g.append(svgElement("rect", {width, height: 28, rx: 5}));
-      g.append(svgElement("text", {x: width / 2, y: 18}, value.label));
-      return g;
-    }));
-  }
   function statusText(text, value) {
     text.textContent = value;
     const shape = text.parentElement.querySelector(":scope > rect");
@@ -64,37 +55,31 @@
       alive = {pipeline: true, arguments: true, hardware: true, python: frame.python,
         normalize: frame.python && !frame.error, store: frame.python, devices: frame.runtimeConfig,
         compile: frame.compileConfig, context: frame.context};
-      values.pipeline = frame.returned ? "self.session = session" : "constructor call";
+      values.pipeline = frame.returned ? "self.session = S1" : "constructor call";
       values.python = frame.returned ? "Python wrapper retained" : frame.python ? "constructor active" : "not constructed";
-      values.registered = frame.runtimeConfig ? frame.normalized.join(" + ") : "not registered";
+      values.registered = frame.runtimeConfig ? frame.normalized.length + " distinct device references retained" : "no handles registered";
       values.hardware = frame.context ? "no decoder execution" : "selected device target";
       node.querySelector("[data-constructor-input]").textContent = "[" + frame.input.join(", ") + "]";
-      node.querySelector("[data-constructor-threads]").textContent = "num_threads = " + (frame.threads === null ? "None" : frame.threads);
-      node.querySelector("[data-constructor-store]").textContent = "MEF policy: " + frame.store;
-      tiles(node.querySelector('[data-slots="normalized"]'), frame.normalized.map(d => ({
-        label: d === "cpu" ? "CPU" : "GPU " + d.slice(3), className: d === "cpu" ? "cpu" : ""
-      })), 78, 12);
+      node.querySelector("[data-constructor-threads]").textContent = "num_threads = " + (frame.threads === null ? "None → 0" : frame.threads);
+      node.querySelector("[data-constructor-store]").textContent = "custom_extensions = " + (frame.extension ? "[example]" : "[]");
       node.querySelector("[data-boundary]").dataset.state = frame.native ? "ready" : "waiting";
       chips = chip("Native session", frame.native ? "S1" : "—") +
         chip("Device handles", frame.normalized.length) +
         chip("Native thread option", frame.native ? frame.nativeThreads : "—") +
         chip("Decoder artifacts", 0) + chip("Initialized decoders", 0);
     } else if (scene.kind === "compilation") {
-      alive = {session: true, graph: frame.graph, compiler: frame.compileCalls > 0,
+      alive = {session: true, graph: frame.graph, compiler: frame.compileCalls > 0 && frame.mode !== "mef",
         artifact: frame.artifact, registry: frame.registry, init: frame.registry, model: frame.initialized};
-      tiles(node.querySelector('[data-slots="weights"]'), frame.registry ? [
-        {label: "W_a"},
-        {label: frame.mode === "missing" ? "W_b ?" : "W_b", className: frame.mode === "missing" ? "missing" : ""}
-      ] : [], 76, 16);
+      if (frame.mode === "mef") values.compilerStatus = "bypassed · stored MEF used";
+      else if (frame.artifact) values.compilerStatus = "compile work completed";
+      node.querySelector("[data-repair]").disabled = !frame.error;
       chips = chip("Session", "S1") + chip("Traced graphs", frame.graph ? 1 : 0) +
         chip("Artifacts", frame.artifact ? 1 : 0) + chip("Native init calls", frame.initCalls) +
         chip("Ready decoders", frame.initialized ? 1 : 0);
     } else if (scene.kind === "execution") {
       alive = {pipeline: true, model: true, runtime: true, driver: true, gpu: true,
         buffers: frame.tokens.length > 0, results: frame.output};
-      tiles(node.querySelector('[data-slots="tokens"]'), frame.tokens.map((token, i) => ({
-        label: token, className: i >= frame.offsets[1] ? "sequence-b" : ""
-      })), 65, 17);
+      node.querySelector("[data-another]").disabled = scene.index !== scene.frames.length - 1 || (scene.options.extraPasses || 0) >= 4;
       node.querySelector("[data-offsets]").textContent = "row_offsets = [" + frame.offsets.join(", ") + "]";
       node.querySelector("[data-gpu-work]").dataset.busy = String(frame.executing);
       node.querySelector("[data-work-label]").textContent = frame.executing ? "batch " + frame.pass : "between passes";
@@ -108,9 +93,11 @@
       values.caller = frame.caller ? "retains native S1" : "wrapper released";
       values.decoder = frame.decoder ? "retains native S1" : "model released";
       values.sampler = frame.sampler ? "retains native S1" : "model released";
+      values.releaseStatus = "can outlive this session";
       node.querySelector("[data-reference-count]").textContent = frame.references;
       ["caller", "decoder", "sampler"].forEach(key => {
         node.querySelector('[data-wire="' + key + '-ref"]').classList.toggle("released", !frame[key]);
+        node.querySelector('[data-drop-owner="' + key + '"]').disabled = !frame[key];
       });
       node.querySelector('[data-wire="owned"]').classList.toggle("released", !frame.retained);
       chips = chip("Pictured native refs", frame.references) +
@@ -144,42 +131,41 @@
       w.classList.toggle("active", w.dataset.wire === frame.packet?.edge);
       w.style.markerEnd = "url(#arrow-" + scene.kind + ")";
     });
-  }
-  function animateFrame(scene, frame) {
-    scene.packet = null;
-    const el = scene.node.querySelector(".motion-packet");
-    el.toggleAttribute("hidden", true);
-    if (!frame.packet || reduced.matches) return;
-    const path = scene.node.querySelector('[data-wire="' + frame.packet.edge + '"]');
-    if (!path) return;
-    scene.packet = {path, length: path.getTotalLength(), started: performance.now(), duration: 1100 / scene.speed};
-    el.querySelector("text").textContent = frame.packet.label;
-    el.toggleAttribute("hidden", false);
-    schedule();
+    const phase = scene.kind === "constructor" ? frame.returned ? "ready" : frame.context ? "context" :
+      frame.runtimeConfig ? "register" : frame.native ? "native" : frame.normalized.length ? "normalize" : "options"
+      : scene.kind === "compilation" ? ({ready: "trace", trace: "trace", request: "compile", compile: "compile", import: "compile",
+        artifact: "compile", collect: "bind", validate: "bind", initialize: "initialize", model: "ready"})[frame.phase]
+      : scene.kind === "execution" ? ({ready: "prepare", prepare: "prepare", call: "execute", runtime: "execute",
+        submit: "submit", outputs: "outputs", sample: "sample"})[frame.phase] : String(frame.references);
+    node.querySelectorAll("[data-phase]").forEach(el => el.setAttribute("aria-current", String(el.dataset.phase === phase)));
   }
   function setFrame(scene, index, animate = false) {
     scene.index = Math.max(0, Math.min(scene.frames.length - 1, index));
-    scene.packet = null;
-    scene.node.querySelector(".motion-packet").toggleAttribute("hidden", true);
     renderState(scene, scene.frames[scene.index]);
-    if (animate) animateFrame(scene, scene.frames[scene.index]);
+    scene.visual.render(scene.frames[scene.index], animate, scene.speed);
+    if (animate) schedule();
   }
   function pause(scene) {
     scene.playing = false;
-    scene.packet = null;
+    scene.visual.pause();
     scene.node.dataset.playing = "false";
-    scene.node.querySelector(".motion-packet").toggleAttribute("hidden", true);
     const button = scene.node.querySelector('[data-action="play"]');
     button.textContent = "▶ Play";
     button.setAttribute("aria-pressed", "false");
   }
   function pauseAll() {scenes.forEach(pause);}
-  function reset(scene) {
-    pause(scene);
+  function rebuildFrames(scene) {
     scene.frames = Model.framesFor(scene.kind, scene.options);
     scene.node.querySelector("[data-transcript]").innerHTML = scene.frames.map((frame, i) =>
       '<li><button data-jump="' + i + '" aria-pressed="false"><span>' + String(i + 1).padStart(2, "0") +
       "</span>" + escape(frame.title) + "</button></li>").join("");
+  }
+  function reset(scene) {
+    pause(scene);
+    const modes = [...scene.node.querySelectorAll("[data-mode]")];
+    const selected = scene.options.mode || modes[0]?.dataset.mode;
+    modes.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.mode === selected)));
+    rebuildFrames(scene);
     setFrame(scene, 0);
   }
   function start(scene) {
@@ -189,11 +175,11 @@
     if (scene.index === scene.frames.length - 1) setFrame(scene, 0);
     scene.playing = true;
     scene.node.dataset.playing = "true";
-    scene.nextAt = performance.now() + 2300 / scene.speed;
+    scene.nextAt = performance.now() + 1900 / scene.speed;
     const button = scene.node.querySelector('[data-action="play"]');
     button.textContent = "Ⅱ Pause";
     button.setAttribute("aria-pressed", "true");
-    animateFrame(scene, scene.frames[scene.index]);
+    scene.visual.resume();
     schedule();
   }
   function schedule() {if (raf === null) raf = requestAnimationFrame(tick);}
@@ -205,25 +191,19 @@
         if (scene.index === scene.frames.length - 1) pause(scene);
         else {
           setFrame(scene, scene.index + 1, true);
-          scene.nextAt = now + 2300 / scene.speed;
+          scene.nextAt = now + 1900 / scene.speed;
         }
       }
-      if (scene.packet) {
-        const p = scene.packet;
-        const progress = Math.min(1, (now - p.started) / p.duration);
-        const point = p.path.getPointAtLength(p.length * progress);
-        const packet = scene.node.querySelector(".motion-packet");
-        packet.setAttribute("transform", "translate(" + point.x + " " + point.y + ")");
-        if (progress >= 1) {scene.packet = null; packet.toggleAttribute("hidden", true);}
-      }
-      needed ||= scene.playing || Boolean(scene.packet);
+      const moving = scene.visual.tick(now);
+      needed ||= scene.playing || moving;
     }
     if (needed) schedule();
   }
   for (const lesson of data.lessons) {
     const node = $(lesson.id);
     const scene = {kind: lesson.id, node, options: {}, index: 0, frames: [],
-      playing: false, speed: 1, nextAt: 0, packet: null};
+      playing: false, speed: 1, nextAt: 0,
+      visual: new globalThis.InferenceSessionVisual(node, lesson.id, reduced)};
     scenes.set(lesson.id, scene);
     reset(scene);
     node.querySelector(".playback").addEventListener("click", event => {
@@ -234,13 +214,16 @@
       if (action === "play") {if (scene.playing) pause(scene); else start(scene);}
       else {
         pause(scene);
-        if (action === "reset") reset(scene);
+        if (action === "reset") {
+          delete scene.options.repaired; delete scene.options.extraPasses; delete scene.options.order;
+          reset(scene);
+        }
         else setFrame(scene, scene.index + (action === "step" ? 1 : -1), true);
       }
     });
     node.querySelector("[data-speed]").addEventListener("change", event => {
       scene.speed = Number(event.target.value);
-      if (scene.playing) scene.nextAt = performance.now() + 2300 / scene.speed;
+      if (scene.playing) scene.nextAt = performance.now() + 1900 / scene.speed;
     });
     node.querySelectorAll("[data-device-case], [data-mode]").forEach(button => {
       button.addEventListener("click", () => {
@@ -249,6 +232,7 @@
         node.querySelectorAll(attr === "mode" ? "[data-mode]" : "[data-device-case]")
           .forEach(b => b.setAttribute("aria-pressed", String(b === button)));
         scene.options[attr === "mode" ? "mode" : "devices"] = button.dataset[attr];
+        delete scene.options.repaired; delete scene.options.extraPasses; delete scene.options.order;
         reset(scene);
       });
     });
@@ -264,6 +248,32 @@
       const button = event.target.closest("[data-jump]");
       if (button) {pause(scene); setFrame(scene, Number(button.dataset.jump), true);}
     });
+    node.querySelector("[data-repair]")?.addEventListener("click", () => {
+      if (!scene.frames[scene.index].error) return;
+      pause(scene); closeCard(false);
+      scene.options.repaired = true;
+      rebuildFrames(scene);
+      setFrame(scene, scene.index + 1, true);
+      start(scene);
+    });
+    node.querySelector("[data-another]")?.addEventListener("click", () => {
+      if (scene.index !== scene.frames.length - 1 || (scene.options.extraPasses || 0) >= 4) return;
+      pause(scene); closeCard(false);
+      scene.options.extraPasses = (scene.options.extraPasses || 0) + 1;
+      rebuildFrames(scene);
+      setFrame(scene, scene.index + 1, true);
+      start(scene);
+    });
+    node.querySelectorAll("[data-drop-owner]").forEach(button => button.addEventListener("click", () => {
+      const frame = scene.frames[scene.index], owner = button.dataset.dropOwner;
+      if (!frame[owner]) return;
+      pause(scene); closeCard(false);
+      const prefix = [...frame.releaseHistory, owner];
+      scene.options.order = [...prefix, ...["caller", "decoder", "sampler"].filter(key => !prefix.includes(key))];
+      node.querySelectorAll("[data-mode]").forEach(button => button.setAttribute("aria-pressed", "false"));
+      rebuildFrames(scene);
+      setFrame(scene, prefix.length, true);
+    }));
   }
   const observer = new IntersectionObserver(entries => {
     entries.forEach(entry => {

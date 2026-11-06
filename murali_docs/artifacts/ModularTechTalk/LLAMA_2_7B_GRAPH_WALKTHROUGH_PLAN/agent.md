@@ -4,7 +4,10 @@ These notes capture the user's requirements for this walkthrough. They apply
 under this folder and supplement the repository-wide guidance in
 `murali_docs/AGENTS.md` and the repository's `AGENTS.md`.
 
-The local skill entry point is [SKILL.md](SKILL.md). For the two MAX Serve OS
+The local skill entry point is [SKILL.md](SKILL.md). For animation HTML, read
+the [shared authoring recipe](references/animation_authoring.md) and select the
+relevant source/model/controller family from
+[the example catalog](references/animation_examples.md). For the two MAX Serve OS
 readers, also read the consolidated
 [animation requirements and accepted decisions](references/max_serve_os_animations.md).
 
@@ -14,6 +17,10 @@ readers, also read the consolidated
   `max serve --model meta-llama/Llama-2-7b-hf`, with the standard API/worker
   route, one device, and MAX's built-in Graph API unless the user changes the
   scope.
+- For a standalone MAX/Mojo component or engine lesson, use the requested
+  symbol and source route as its scope. Serve startup supplies context only
+  when needed; the Serve 01/02/03 ordering and API thread badges do not apply
+  to standalone session/compiler animations.
 - Explain how the startup path leads into model construction, graph tracing,
   compilation/initialization, and serving. Keep startup, model configuration,
   weight loading, graph work, and HTTP serving as distinguishable phases.
@@ -135,7 +142,8 @@ readers, also read the consolidated
   additional tests or runtime verification.
 - For instruction-only updates, validate the skill metadata and changed
   reference links without rebuilding HTML. For animation changes, use the
-  scoped model, browser and source-link checks in the OS animation reference.
+  scoped model, browser and source-link checks in the example catalog; use the
+  OS animation reference for its additional Serve-specific invariants.
 - Preserve existing Git checkpoints, tags, unrelated modifications, and
   untracked artifacts. Never use a hard reset to roll back. Stage only this
   task's files; follow the repository's signed-off commit and push procedure

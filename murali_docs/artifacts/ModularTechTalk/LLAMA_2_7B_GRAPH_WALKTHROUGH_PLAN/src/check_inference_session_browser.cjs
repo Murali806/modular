@@ -105,7 +105,9 @@ const finish = async (page, key) => {
       await ctor.locator('[data-device-case="' + key + '"]').click();
       await finish(page, "constructor");
       const expected = Model.normalizeDevices(record.devices).map(d => d === "cpu" ? "CPU" : "GPU " + d.slice(3));
-      assert.deepEqual(await ctor.locator('[data-slots="normalized"] text').allTextContents(), expected);
+      assert.deepEqual(JSON.parse(await ctor.locator('[data-slots="normalized"]').getAttribute("data-values")), expected);
+      assert.equal(await ctor.locator('[data-slots="registered"] [data-occupied="true"]').count(), expected.length);
+      assert.equal(await ctor.locator('[data-actor][data-place="registered"]:not([hidden])').count(), expected.length);
       assert.equal(await ctor.locator('[data-node="context"]').getAttribute("data-state"), "ready");
       assert.match(await ctor.locator("[data-state-strip]").innerText(), /Decoder artifacts\s*0/);
       await audit(page, "Constructor: " + key);
@@ -117,7 +119,7 @@ const finish = async (page, key) => {
       await finish(page, "constructor");
       if (policy === "conflict") {
         assert.equal(await ctor.locator("[data-boundary]").getAttribute("data-state"), "waiting");
-        assert.equal(await ctor.locator('[data-slots="normalized"] .slot').count(), 0);
+        assert.equal(await ctor.locator('[data-slots="normalized"] [data-occupied="true"]').count(), 0);
         assert.equal(await ctor.locator("[data-event]").getAttribute("data-kind"), "error");
       } else {
         assert.match(await ctor.locator("[data-state-strip]").innerText(), /Native thread option\s*4/);
@@ -143,13 +145,24 @@ const finish = async (page, key) => {
     await align(page, "compilation");
     await screenshot(page, "missing_weight");
     checks.push("Cold compile and MEF reuse reach a model; missing-weight validation stops native initialization");
+    assert.equal(await compilation.locator('[data-init-gate]').getAttribute("data-blocked"), "true");
+    assert.equal(await compilation.locator('[data-slots="bindings"] [data-missing="true"]').count(), 1);
+    await compilation.locator('[data-repair]').click();
+    await finish(page, "compilation");
+    assert.equal(await compilation.locator('[data-init-gate]').getAttribute("data-open"), "true");
+    assert.equal(await compilation.locator('[data-slots="bindings"] [data-occupied="true"]').count(), 2);
+    assert.equal(await compilation.locator('[data-node="model"]').getAttribute("data-state"), "ready");
+    assert.equal(await compilation.locator('[data-actor="compiled-artifact"]:not([hidden])').count(), 1);
+    await audit(page, "Missing weight supplied: gate opens");
+    await screenshot(page, "repaired_weight");
+    checks.push("Supply W_b fills the empty binding, opens the gate and initializes M1 using the retained artifact");
 
     const execution = page.locator("#execution");
     await execution.locator('[data-mode="prefill_decode"]').click();
     let sawFive = false, sawTwo = false, sawOutput = false;
     for (let i = 0; i < 12; i++) {
       await execution.locator('[data-action="step"]').click();
-      const count = await execution.locator('[data-slots="tokens"] .slot').count();
+      const count = await execution.locator('[data-slots="tokens"] [data-occupied="true"]').count();
       sawFive ||= count === 5; sawTwo ||= count === 2;
       sawOutput ||= await execution.locator("[data-result-tile]").isVisible();
       assert.match(await execution.locator("[data-state-strip]").innerText(), /Decoder setups\s*1/);
@@ -159,6 +172,15 @@ const finish = async (page, key) => {
     assert.match(await execution.locator("[data-state-strip]").innerText(), /Completed passes\s*2/);
     await align(page, "execution");
     await screenshot(page, "execution");
+    await execution.locator('[data-another]').click();
+    assert.deepEqual(JSON.parse(await execution.locator('[data-slots="tokens"]').getAttribute("data-values")), ["64", "12"]);
+    await finish(page, "execution");
+    assert.match(await execution.locator("[data-state-strip]").innerText(), /Completed passes\s*3/);
+    assert.deepEqual(JSON.parse(await execution.locator('[data-slots="history-a"]').getAttribute("data-values")), ["88", "64", "25"]);
+    assert.equal(await execution.locator('[data-kv-tiles] [data-owner="A"][data-filled="true"]').count(), 5);
+    assert.equal(await execution.locator('[data-kv-tiles] [data-owner="B"][data-filled="true"]').count(), 4);
+    assert.match(await execution.locator("[data-state-strip]").innerText(), /Decoder setups\s*1/);
+    await audit(page, "Additional decode feeds previous samples");
     await execution.locator('[data-mode="decode_only"]').click();
     await finish(page, "execution");
     assert.match(await execution.locator("[data-state-strip]").innerText(), /Completed passes\s*1/);
@@ -175,6 +197,20 @@ const finish = async (page, key) => {
       }
     }
     checks.push("Reference edges and lifetime states follow both release orders");
+    await lifetime.locator('[data-action="reset"]').click();
+    for (const [i, owner] of ["sampler", "caller", "decoder"].entries()) {
+      await lifetime.locator('[data-drop-owner="' + owner + '"]').click();
+      assert.equal(await lifetime.locator("[data-reference-count]").textContent(), String(2 - i));
+      assert.equal(await lifetime.locator('[data-drop-owner="' + owner + '"]').isDisabled(), true);
+      assert.equal(await lifetime.locator('[data-actor="reference-' + owner + '"]').getAttribute("data-place"), "released");
+      assert.equal(await lifetime.locator('[data-node="context"]').getAttribute("data-state"), i === 2 ? "released" : "ready");
+    }
+    assert.equal(await lifetime.locator('[data-actor="shared-resources"]').isVisible(), true);
+    assert.equal(await lifetime.locator('[data-mode][aria-pressed="true"]').count(), 0, "Custom order does not falsely select a preset");
+    await audit(page, "Custom release order leaves shared resources");
+    await align(page, "lifetime");
+    await screenshot(page, "lifetime");
+    checks.push("Release sampler, wrapper and decoder directly: each reference detaches, context survives until the last, shared resources remain illustrated");
 
     await align(page, "constructor");
     const badge = ctor.locator("[data-lesson-card]");
@@ -254,13 +290,33 @@ const finish = async (page, key) => {
     const motion = await setup({viewport: {width: 1440, height: 1050}, reducedMotion: "no-preference"});
     const animated = motion.page.locator("#constructor");
     await align(motion.page, "constructor");
+    await animated.locator('[data-device-case="duplicates"]').click();
     await animated.locator('[data-action="step"]').click();
-    const packet = animated.locator(".motion-packet");
-    assert.equal(await packet.isVisible(), true, "Visible moving packet");
+    await animated.locator('[data-action="step"]').click();
+    const device = animated.locator('[data-actor="device-input-0"]');
+    await device.evaluate(el => {window.__keptDevice = el;});
+    const initialPosition = await device.getAttribute("transform");
+    await animated.locator('[data-action="step"]').click();
     await motion.page.waitForTimeout(80);
-    const before = await packet.getAttribute("transform");
+    const before = await device.getAttribute("transform");
     await motion.page.waitForTimeout(140);
-    assert.notEqual(await packet.getAttribute("transform"), before, "Packet travels along source call");
+    assert.notEqual(await device.getAttribute("transform"), before, "The actual device card moves toward final_devices");
+    assert.notEqual(before, initialPosition);
+    assert.ok(await device.evaluate(el => el === window.__keptDevice), "Object identity survives movement");
+    await animated.locator('[data-action="play"]').click();
+    await motion.page.waitForTimeout(100);
+    await animated.locator('[data-action="play"]').click();
+    const frozenPosition = await device.getAttribute("transform");
+    await motion.page.waitForTimeout(220);
+    assert.equal(await device.getAttribute("transform"), frozenPosition, "Pause freezes in-flight objects");
+    await animated.locator('[data-action="step"]').click();
+    const duplicate = animated.locator('[data-actor="device-input-1"]');
+    assert.equal(await duplicate.getAttribute("data-place"), "merged");
+    await motion.page.waitForTimeout(1280);
+    assert.equal(await duplicate.isVisible(), false, "Duplicate merges and disappears without another slot");
+    assert.equal(await animated.locator('[data-slots="normalized"] [data-occupied="true"]').count(), 1);
+    assert.equal(await device.isVisible(), true);
+    checks.push("Persistent device identity moves into a slot; duplicate merges into it; Pause freezes the object mid-movement");
     await animated.locator('[data-action="reset"]').click();
     await animated.locator("[data-speed]").selectOption("2");
     await animated.locator('[data-action="play"]').click();
@@ -282,8 +338,23 @@ const finish = async (page, key) => {
       delete document.hidden;
     });
     assert.equal(await animated.getAttribute("data-playing"), "false", "Hidden-document pause");
+    const movingExecution = motion.page.locator("#execution");
+    await align(motion.page, "execution");
+    await movingExecution.locator('[data-action="step"]').click();
+    const tokenPositions = await movingExecution.locator('[data-actor][data-place="input"]').evaluateAll(els => els.map(el => el.getAttribute("transform")));
+    await motion.page.waitForTimeout(180);
+    const shiftedPositions = await movingExecution.locator('[data-actor][data-place="input"]').evaluateAll(els => els.map(el => el.getAttribute("transform")));
+    assert.equal(tokenPositions.length, 5);
+    assert.ok(shiftedPositions.filter((p, i) => p !== tokenPositions[i]).length >= 3, "Several distinct input tokens move concurrently");
+    for (let i = 0; i < 3; i++) await movingExecution.locator('[data-action="step"]').click();
+    await motion.page.waitForTimeout(250);
+    assert.equal(await movingExecution.locator('[data-actor][data-place="gpu-work"]:not([hidden])').count(), 2);
+    const gauge = Number(await movingExecution.locator('[data-work-fill]').getAttribute("width"));
+    assert.ok(gauge > 0 && gauge < 154, "GPU work has visible progress during the boundary illustration");
+    await motion.page.waitForTimeout(1000);
+    await screenshot(motion.page, "device_work");
     await motion.context.close();
-    checks.push("Animated SVG packets move; Play/Pause, speed, reset, offscreen pause and document-hidden pause work");
+    checks.push("Concurrent token and GPU work objects, activity progress, Play/Pause, speed, reset, offscreen and hidden-document pause work");
 
     const mobile = await setup({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true, reducedMotion: "reduce"});
     await audit(mobile.page, "Mobile 390px");
@@ -299,7 +370,7 @@ const finish = async (page, key) => {
     await visual.evaluate(el => {el.scrollLeft = 330;});
     assert.ok(await visual.evaluate(el => el.scrollLeft > 0));
     await mobile.page.locator('#constructor [data-action="step"]').tap();
-    assert.equal(await mobile.page.locator("#constructor .motion-packet").isVisible(), false, "Reduced motion has no moving markers");
+    assert.equal(await mobile.page.locator('#constructor [data-actor][data-moving="true"]').count(), 0, "Reduced motion settles objects without travel");
     await screenshot(mobile.page, "mobile");
     await mobile.context.close();
     checks.push("Touch lesson/legend controls, contained diagram panning, 390px layout and reduced motion");

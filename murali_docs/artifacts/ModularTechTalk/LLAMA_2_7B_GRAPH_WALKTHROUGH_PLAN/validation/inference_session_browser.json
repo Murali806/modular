@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-11-06T12:09:32.015Z",
+  "checked_at": "2026-11-06T16:17:12.788Z",
   "result": "PASS",
   "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
   "command": "NODE_PATH=<Playwright installation>/node_modules node src/check_inference_session_browser.cjs",
@@ -7,253 +7,277 @@
   "checks": [
     "All device presets, thread/extension settings, import/export and constructor rejection displayed correctly",
     "Cold compile and MEF reuse reach a model; missing-weight validation stops native initialization",
+    "Supply W_b fills the empty binding, opens the gate and initializes M1 using the retained artifact",
     "Prefill/decode token tiles, row offsets, returned logits, reset and persistent decoder setup",
     "Reference edges and lifetime states follow both release orders",
+    "Release sampler, wrapper and decoder directly: each reference detaches, context survives until the last, shared resources remain illustrated",
     "Numbered hover/focus cards, hover-to-card handoff, Space/Enter, Escape, click-only legend and focus restoration",
     "All 30 source targets open exact complete definitions; full-file content, search, copy and return focus verified",
     "Print view exposes portable flows and hides playback controls",
     "The new link beneath InferenceSession opens the standalone animation from the real call-tree reader",
-    "Animated SVG packets move; Play/Pause, speed, reset, offscreen pause and document-hidden pause work",
+    "Persistent device identity moves into a slot; duplicate merges into it; Pause freezes the object mid-movement",
+    "Concurrent token and GPU work objects, activity progress, Play/Pause, speed, reset, offscreen and hidden-document pause work",
     "Touch lesson/legend controls, contained diagram panning, 390px layout and reduced motion",
     "No-JavaScript portable flows and complete source definitions remain readable"
   ],
   "audits": [
     {
       "state": "Desktop initial",
-      "html_samples": 350,
+      "html_samples": 415,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 123,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Constructor: gpu",
-      "html_samples": 354,
+      "html_samples": 415,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 125,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Constructor: cpu",
-      "html_samples": 353,
+      "html_samples": 415,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 124,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Constructor: duplicates",
-      "html_samples": 354,
+      "html_samples": 415,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 125,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Constructor: host_first",
-      "html_samples": 354,
+      "html_samples": 415,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 125,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Constructor: multi",
-      "html_samples": 355,
+      "html_samples": 415,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 126,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "MEF policy: import",
-      "html_samples": 355,
+      "html_samples": 415,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 126,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "MEF policy: export",
-      "html_samples": 355,
+      "html_samples": 415,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 126,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "MEF policy: conflict",
-      "html_samples": 347,
+      "html_samples": 415,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 123,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Compilation: cold",
-      "html_samples": 358,
+      "html_samples": 415,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 127,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Compilation: mef",
-      "html_samples": 358,
+      "html_samples": 415,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 127,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Compilation: missing",
-      "html_samples": 353,
+      "html_samples": 417,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 127,
+      "svg_samples": 183,
+      "minimum_svg_ratio": 5.177
+    },
+    {
+      "state": "Missing weight supplied: gate opens",
+      "html_samples": 415,
+      "minimum_html_ratio": 5.157,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Execution event 1",
-      "html_samples": 358,
+      "html_samples": 418,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 132,
+      "svg_samples": 184,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Execution event 2",
-      "html_samples": 355,
+      "html_samples": 417,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 132,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Execution event 3",
-      "html_samples": 358,
+      "html_samples": 417,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 132,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Execution event 4",
-      "html_samples": 355,
+      "html_samples": 419,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 132,
+      "svg_samples": 185,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Execution event 5",
-      "html_samples": 361,
+      "html_samples": 418,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 133,
+      "svg_samples": 184,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Execution event 6",
-      "html_samples": 359,
+      "html_samples": 418,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 133,
+      "svg_samples": 184,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Execution event 7",
-      "html_samples": 355,
+      "html_samples": 418,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 129,
+      "svg_samples": 184,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Execution event 8",
-      "html_samples": 352,
+      "html_samples": 417,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 129,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Execution event 9",
-      "html_samples": 355,
+      "html_samples": 417,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 129,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Execution event 10",
-      "html_samples": 352,
+      "html_samples": 419,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 129,
+      "svg_samples": 185,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Execution event 11",
-      "html_samples": 358,
+      "html_samples": 418,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 130,
+      "svg_samples": 184,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Execution event 12",
-      "html_samples": 354,
+      "html_samples": 418,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 130,
+      "svg_samples": 184,
+      "minimum_svg_ratio": 5.177
+    },
+    {
+      "state": "Additional decode feeds previous samples",
+      "html_samples": 418,
+      "minimum_html_ratio": 5.157,
+      "svg_samples": 184,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Lifetime caller_first: 2",
-      "html_samples": 356,
+      "html_samples": 418,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 130,
+      "svg_samples": 184,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Lifetime caller_first: 1",
-      "html_samples": 356,
+      "html_samples": 416,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 130,
+      "svg_samples": 184,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Lifetime caller_first: 0",
-      "html_samples": 354,
+      "html_samples": 412,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 130,
+      "svg_samples": 184,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Lifetime models_first: 2",
-      "html_samples": 356,
+      "html_samples": 418,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 130,
+      "svg_samples": 184,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Lifetime models_first: 1",
-      "html_samples": 356,
+      "html_samples": 416,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 130,
+      "svg_samples": 184,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Lifetime models_first: 0",
-      "html_samples": 354,
+      "html_samples": 412,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 130,
+      "svg_samples": 184,
+      "minimum_svg_ratio": 5.177
+    },
+    {
+      "state": "Custom release order leaves shared resources",
+      "html_samples": 412,
+      "minimum_html_ratio": 5.157,
+      "svg_samples": 184,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Component legend",
-      "html_samples": 389,
+      "html_samples": 447,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 130,
+      "svg_samples": 184,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Full-file source explorer",
-      "html_samples": 3283,
+      "html_samples": 3341,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 130,
+      "svg_samples": 184,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Mobile 390px",
-      "html_samples": 354,
+      "html_samples": 419,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 123,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     },
     {
       "state": "Mobile lesson card",
-      "html_samples": 370,
+      "html_samples": 435,
       "minimum_html_ratio": 5.157,
-      "svg_samples": 123,
+      "svg_samples": 183,
       "minimum_svg_ratio": 5.177
     }
   ],
@@ -261,8 +285,11 @@
     "inference_session_overview.png",
     "inference_session_constructor.png",
     "inference_session_missing_weight.png",
+    "inference_session_repaired_weight.png",
     "inference_session_execution.png",
+    "inference_session_lifetime.png",
     "inference_session_source_explorer.png",
+    "inference_session_device_work.png",
     "inference_session_mobile.png"
   ],
   "page_errors": [],

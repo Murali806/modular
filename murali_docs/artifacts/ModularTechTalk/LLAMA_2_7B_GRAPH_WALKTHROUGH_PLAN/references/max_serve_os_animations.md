@@ -6,6 +6,13 @@ current authoring sources and recorded validation. Primary target:
 Shared lessons also appear in
 [max_serve_os_components_and_flow.html](../link_htmls/max_serve_os_components_and_flow.html).
 
+For the reusable visual/state/motion workflow, read
+[animation_authoring.md](animation_authoring.md); for exact reusable models,
+controllers and checks, use [animation_examples.md](animation_examples.md).
+The lesson ordering and thread-badge rules below are scoped to these Serve
+readers. Standalone session, compiler, MEF and lifetime lessons use the
+corresponding example family rather than inheriting the Serve sequence.
+
 Explicit user requirements describe the desired experience. Accepted design
 choices describe how the current artifact satisfies them. Source invariants
 describe the pinned implementation. Illustrative scenarios and numbers remain
