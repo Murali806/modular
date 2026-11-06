@@ -45,14 +45,15 @@ matching the motion, state detail and interactions of the cited local examples.
 | Any new or changed animation | [Shared recipe](references/animation_authoring.md); matched files in [example catalog](references/animation_examples.md) |
 | Serve admission, API, worker, batch constructor, busy/slow-reader/replica stories | [Serve requirements and invariants](references/max_serve_os_animations.md); Serve family in the catalog |
 | Session creation, devices, native context, handles and lifetimes | InferenceSession family in the catalog |
-| Graph passes, Mojo lowering, MEF preparation/reuse, initialization and inference | Engine/compiler family in the catalog |
+| Graph/dialect transformations, Mojo systems control, target tools/binaries, MEF and driver/buffer movement | [Compiler and systems animations](references/compiler_and_systems_animations.md); compiler workbench family in the catalog |
 | Memory budgets, KV pages, input origins or parent/worker planning | Memory family in the catalog; memory rules in [agent.md](agent.md) |
 | Main QnA/call-stack guide or requirements-only updates | Relevant sections of [agent.md](agent.md); update the affected reference without rebuilding pages |
 
 ## Preserve the accepted experience
 
-- Use the light article theme for the animation supplements, a full-width
-  scene and compact controls. Keep the main guide's dark theme scoped to it.
+- Use a light theme, a full-width scene and compact controls. The compiler
+  workbench's drafting surface and physical artifact shapes are an accepted
+  variation for compiler/systems concepts. Keep the main guide's dark theme scoped to it.
 - Keep a numbered lesson badge inside the animation. Hover/focus reveals a
   temporary explanation card; moving into the card keeps it open, and leaving
   both dismisses it. Support touch and Escape. Keep the circled **L** legend

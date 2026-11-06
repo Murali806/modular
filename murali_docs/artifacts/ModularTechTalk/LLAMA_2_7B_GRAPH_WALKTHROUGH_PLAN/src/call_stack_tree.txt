@@ -220,7 +220,7 @@ max serve --model meta-llama/Llama-2-7b-hf [optional: --task text_generation]
             |   |   |               |       |
             |   |   |               |       |   +-- [[doc:inference_session]]
             |   |   |               |       |
-            |   |   |               |       |   +-- [[doc:engine_lifecycle]]
+            |   |   |               |       |   +-- [[doc:compiler_workbench]]
             |   |   |               |       |
             |   |   |               |       +-- {{weight_paths}} [QnA 1.1.5]  {{weight_paths_call}}
             |   |   |               |       |   +-- local repository -> direct local checkpoint paths.

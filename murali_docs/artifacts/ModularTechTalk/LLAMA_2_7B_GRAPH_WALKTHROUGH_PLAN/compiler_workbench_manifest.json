@@ -1,0 +1,1034 @@
+{
+  "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "page": "link_htmls/max_mlir_mojo_compiler_and_runtime.html",
+  "references": {
+    "graph_init": {
+      "id": "graph_init",
+      "file": "max/python/max/graph/graph.py",
+      "symbol": "Graph.__init__",
+      "purpose": "Create MLIR graph structure and optionally trace a Python callable.",
+      "language": "python",
+      "notes": [
+        {
+          "needle": "self._params = dict.fromkeys(",
+          "title": "Symbolic dimensions",
+          "text": "Names from symbolic tensor/buffer dimensions become graph parameters.",
+          "span": 7
+        },
+        {
+          "needle": "self._module = (",
+          "title": "MLIR ownership",
+          "text": "Use a supplied module or create one, then create mo.graph with input types and initially empty result types.",
+          "span": 12
+        },
+        {
+          "needle": "self._import_kernels",
+          "title": "Kernel declarations and graph mode",
+          "text": "Import the kernel library and mark the graph if explicit device-graph construction was requested.",
+          "span": 7
+        },
+        {
+          "needle": "if forward is not None:",
+          "title": "Automatic finalization",
+          "text": "Run the callable inside the active graph context. Its return form determines how output is invoked.",
+          "span": 15
+        }
+      ],
+      "evidence": "SOURCE",
+      "alias": "PY",
+      "start": 819,
+      "end": 932,
+      "line": 819,
+      "label": "Create MLIR graph structure and optionally trace a Python callable.",
+      "sha256": "5a6debe1cb56fce3389e470f2ecdf217a2a059e7aa7b249a436c675a5d0fbcf9"
+    },
+    "graph_output": {
+      "id": "graph_output",
+      "file": "max/python/max/graph/graph.py",
+      "symbol": "Graph.output",
+      "purpose": "Finish the graph's output contract and verify the completed graph.",
+      "language": "python",
+      "notes": [
+        {
+          "needle": "root = (",
+          "title": "1 \u00b7 Flatten outputs",
+          "text": "Retain the Python output structure; flatten its leaves. A string leaf is rejected because unpacking a dict into its keys is usually a mistake.",
+          "span": 12
+        },
+        {
+          "needle": "outputs = tuple(",
+          "title": "2 \u00b7 Normalize values and chains",
+          "text": "Convert leaves to Graph Values and include final chain values when the graph has chain inputs. Chains preserve dependency ordering.",
+          "span": 10
+        },
+        {
+          "needle": "function_type = mlir.FunctionType.get(",
+          "title": "3 \u00b7 Set both signatures",
+          "text": "The actual argument and result types define functionType and the kgen generator signature. Symbolic dimensions can remain symbolic.",
+          "span": 9
+        },
+        {
+          "needle": "self._add_op_generated(",
+          "title": "4 \u00b7 Append the terminator",
+          "text": "mo.output identifies which SSA values leave the graph. This records IR; it does not launch inference.",
+          "span": 6
+        },
+        {
+          "needle": "input_names = [f'\"input{i}\"'",
+          "title": "5 \u00b7 Name the interface",
+          "text": "Ordinal input/result names are written for the engine. The Python output tree is retained separately.",
+          "span": 8
+        },
+        {
+          "needle": "self._subgraphs = {}",
+          "title": "6 \u00b7 Verify the graph",
+          "text": "Clear temporary bookkeeping and invoke MLIR graph verification. Failure reports diagnostics. Numerical correctness and target compilation remain separate checks.",
+          "span": 11
+        }
+      ],
+      "evidence": "SOURCE",
+      "alias": "PY",
+      "start": 1396,
+      "end": 1498,
+      "line": 1396,
+      "label": "Finish the graph's output contract and verify the completed graph.",
+      "sha256": "b2a3e3e13303a5f616d14037e51b8a4eb1e26657e3fcdab29202db28f70e01c7"
+    },
+    "llama_trace": {
+      "id": "llama_trace",
+      "file": "max/python/max/pipelines/architectures/llama3/llama3.py",
+      "symbol": "Llama3.trace",
+      "purpose": "Adapt flat graph inputs back into the Llama forward contract.",
+      "language": "python",
+      "notes": [
+        {
+          "needle": "kv_collections = tree.leaves(",
+          "title": "Recover KV structure",
+          "text": "The graph boundary is flat; this adapter reconstructs the per-device KV collection required by the model.",
+          "span": 10
+        },
+        {
+          "needle": "return Graph(",
+          "title": "Trace through the constructor",
+          "text": "Passing forward to Graph causes the constructor to invoke it on symbolic graph inputs and finalize its returned outputs.",
+          "span": 8
+        }
+      ],
+      "evidence": "SOURCE",
+      "alias": "PY",
+      "start": 273,
+      "end": 325,
+      "line": 273,
+      "label": "Adapt flat graph inputs back into the Llama forward contract.",
+      "sha256": "580608e9fb6a2b39ad07c9179e8e52b6e94dc9ca166e17b0c6cac53614016d8c"
+    },
+    "frontend": {
+      "id": "frontend",
+      "file": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
+      "symbol": "MOFContext::compileToBinary(void*, FileFormat)",
+      "needle": "MOFContext::compileToBinary(void *source,",
+      "purpose": "Clone the graph module, configure lowering, and consult the native MEF cache.",
+      "language": "cpp",
+      "notes": [
+        {
+          "needle": "ModuleOp::getFromOpaquePointer(source).clone()",
+          "title": "Compiler-owned module",
+          "text": "Lowering transforms a clone of the incoming module. Weight resources are owned by its MLIR context.",
+          "span": 1
+        },
+        {
+          "needle": "overrideLoweringOptions",
+          "title": "Resolve compiler options",
+          "text": "Collect configuration and detect pre-seeded kernel declarations before deriving cache behavior.",
+          "span": 10
+        },
+        {
+          "needle": "if (maybeMef) {",
+          "title": "Cache-hit return",
+          "text": "When model-IR caching is enabled and a matching artifact exists, return it before convertMOToMEF runs.",
+          "span": 7
+        },
+        {
+          "needle": "auto outBufOr =",
+          "title": "Cache miss",
+          "text": "Compile/serialize, then attempt to insert the resulting buffer in the cache.",
+          "span": 10
+        }
+      ],
+      "prefix": 0,
+      "evidence": "SOURCE",
+      "alias": "C++",
+      "start": 377,
+      "end": 459,
+      "line": 377,
+      "label": "Clone the graph module, configure lowering, and consult the native MEF cache.",
+      "sha256": "e150c9d6abbde87a5b788918085d14bfaaf18b0dbfc5046a3bca4c745dc9c9de"
+    },
+    "mo_pipeline": {
+      "id": "mo_pipeline",
+      "file": "GraphCompiler/lib/GraphCompiler.cpp",
+      "symbol": "buildMoPipeline",
+      "needle": "void M::MO::buildMoPipeline",
+      "purpose": "Prepare and optimize high-level graph operations before MAP lowering.",
+      "language": "cpp",
+      "notes": [
+        {
+          "needle": "MOGG::createImportPackages",
+          "title": "Kernel definitions",
+          "text": "Import/verify packages only when declarations were not already seeded by the caller.",
+          "span": 4
+        },
+        {
+          "needle": "if (opts.useShapeInference)",
+          "title": "Shape and symbolic work",
+          "text": "Shape inference and constant folding are configured independently; symbolic optimization and cleanup run in this stage.",
+          "span": 8
+        },
+        {
+          "needle": "MO::createInferLayouts",
+          "title": "Layouts and optional patterns",
+          "text": "Infer layouts and optionally run named pattern fusion before validating device information.",
+          "span": 11
+        },
+        {
+          "needle": "MO::createValidateDevicesPass",
+          "title": "Target legality",
+          "text": "Check device information before the final cleanup and unused-operation removal.",
+          "span": 1
+        }
+      ],
+      "prefix": 0,
+      "evidence": "SOURCE",
+      "alias": "C++",
+      "start": 219,
+      "end": 336,
+      "line": 219,
+      "label": "Prepare and optimize high-level graph operations before MAP lowering.",
+      "sha256": "6f109458d4ac81a6bf1b8596d58020a61322dd6ec9f5231908786ac93e560c16"
+    },
+    "map_pipeline": {
+      "id": "map_pipeline",
+      "file": "GraphCompiler/lib/GraphCompiler.cpp",
+      "symbol": "buildMapPipeline",
+      "needle": "void M::MO::buildMapPipeline",
+      "purpose": "Fuse eligible structured computations and outline kernel bodies.",
+      "language": "cpp",
+      "notes": [
+        {
+          "needle": "MAP::createFuseKernels",
+          "title": "Structural fusion",
+          "text": "Fusion is a transformation of eligible graph structure. The schedule alone does not prove which Llama operations fuse.",
+          "span": 3
+        },
+        {
+          "needle": "MAP::createAllocateAccumulatingBuffers",
+          "title": "Output storage",
+          "text": "Provide accumulating buffers after fusion, including mixed-precision handling.",
+          "span": 1
+        },
+        {
+          "needle": "MAP::createOutlineStructuredKernelBodies",
+          "title": "Outline bodies",
+          "text": "Create structured kernel bodies after view handling, then simplify their captures and invariant views.",
+          "span": 10
+        }
+      ],
+      "prefix": 0,
+      "evidence": "SOURCE",
+      "alias": "C++",
+      "start": 338,
+      "end": 368,
+      "line": 338,
+      "label": "Fuse eligible structured computations and outline kernel bodies.",
+      "sha256": "252df302dc902780abd46062522b7f42ebf2f42ea8105915ab663e74d0b05c2a"
+    },
+    "mogg_pipeline": {
+      "id": "mogg_pipeline",
+      "file": "GraphCompiler/lib/GraphCompiler.cpp",
+      "symbol": "buildMoggPipeline",
+      "needle": "void M::MO::buildMoggPipeline",
+      "purpose": "Legalize kernel calls and outline routines.",
+      "language": "cpp",
+      "notes": [
+        {
+          "needle": "MOGG::createLegalizeRowwiseKernels",
+          "title": "Call preparation",
+          "text": "Legalize rowwise kernels, conform operands, outline routines, and add tracing wrappers before module cleanup.",
+          "span": 8
+        }
+      ],
+      "prefix": 0,
+      "evidence": "SOURCE",
+      "alias": "C++",
+      "start": 370,
+      "end": 380,
+      "line": 370,
+      "label": "Legalize kernel calls and outline routines.",
+      "sha256": "38d07d73382b1c2f4e43414aefd813d56c17d0a642edf0eeffd154f0c59629f0"
+    },
+    "mgp_pipeline": {
+      "id": "mgp_pipeline",
+      "file": "GraphCompiler/lib/GraphCompiler.cpp",
+      "symbol": "buildMgpPipeline",
+      "needle": "void M::MO::buildMgpPipeline",
+      "purpose": "Plan runtime resources, lower primitives, and emit Mojo routines.",
+      "language": "cpp",
+      "notes": [
+        {
+          "needle": "MGP::createSimpleBufferReusePass",
+          "title": "Memory planning",
+          "text": "Buffer reuse, allocation planning, deferral, and argument validation operate on the runtime-model representation.",
+          "span": 7
+        },
+        {
+          "needle": "MGP::createStageDeviceGraphsPass",
+          "title": "Device-graph path",
+          "text": "Staging, dependency computation, build stubs, and finalization are separate from the frontend Graph.output operation.",
+          "span": 13
+        },
+        {
+          "needle": "MOGG::createMergeIdenticalFuncs",
+          "title": "Deduplicate routines",
+          "text": "Earlier canonicalization makes equivalent routines eligible for merging. Layer count is not necessarily the count of distinct generated routines.",
+          "span": 1
+        },
+        {
+          "needle": "MOGG::createEmitMojo",
+          "title": "Emit source for JIT",
+          "text": "Mojo emission is at the end of this builder. The enclosing pipeline schedules kernel JIT afterward.",
+          "span": 1
+        }
+      ],
+      "prefix": 0,
+      "evidence": "SOURCE",
+      "alias": "C++",
+      "start": 382,
+      "end": 488,
+      "line": 382,
+      "label": "Plan runtime resources, lower primitives, and emit Mojo routines.",
+      "sha256": "09c9e66aabc18e2aec8dd8d41545594afd26bac7c03f5bd2c5878362d0de8a56"
+    },
+    "gc_pipeline": {
+      "id": "gc_pipeline",
+      "file": "GraphCompiler/lib/GraphCompiler.cpp",
+      "symbol": "gcPipelineImpl",
+      "needle": "static void gcPipelineImpl",
+      "purpose": "Build the ordered sequence of representation conversions and compiler stages.",
+      "language": "cpp",
+      "notes": [
+        {
+          "needle": "buildMoPipeline(p, moOpts); }, \"mo-pre-map\"",
+          "title": "High-level graph stage",
+          "text": "The mo-pre-map dump follows MO processing; subsequent stage names distinguish conversions from stage-local transforms.",
+          "span": 1
+        },
+        {
+          "needle": "p.addPass(MO::createMOToMAP())",
+          "title": "Representation transition",
+          "text": "Stable-tensor marking precedes MO-to-MAP conversion.",
+          "span": 3
+        },
+        {
+          "needle": "buildMoggPipeline(p, moggOpts)",
+          "title": "Kernel representation",
+          "text": "MOGG preparation precedes conversion into the MGP runtime model.",
+          "span": 7
+        },
+        {
+          "needle": "if (!skipJit) {",
+          "title": "JIT configuration",
+          "text": "JIT target and compilation options are only configured when JIT is enabled.",
+          "span": 11
+        },
+        {
+          "needle": "p.addPass(MOGG::createJitCompileKernels",
+          "title": "Compile kernels",
+          "text": "After MGP/Mojo emission, run JIT compilation, strip kernel declarations, and finish runtime-call lowering.",
+          "span": 3
+        }
+      ],
+      "prefix": 0,
+      "evidence": "SOURCE",
+      "alias": "C++",
+      "start": 494,
+      "end": 624,
+      "line": 494,
+      "label": "Build the ordered sequence of representation conversions and compiler stages.",
+      "sha256": "39d51e4b82705d2e6db1784b7e303602aa645e205b2293aa8b955ef6727545ec"
+    },
+    "compile_async": {
+      "id": "compile_async",
+      "file": "max/python/max/engine/api.py",
+      "symbol": "InferenceSession.compile_async",
+      "purpose": "Prepare a Graph, Module, or artifact path for asynchronous native compilation.",
+      "language": "python",
+      "notes": [
+        {
+          "needle": "if isinstance(model, Path | str):",
+          "title": "Source-kind dispatch",
+          "text": "Paths and in-memory Graphs follow different branches. A Graph contributes its MLIR module and extension libraries.",
+          "span": 7
+        },
+        {
+          "needle": "expected_weights = {",
+          "title": "Retain initialization expectations",
+          "text": "The graph's weight declarations supply expected device metadata, checked when weight buffers are bound.",
+          "span": 4
+        },
+        {
+          "needle": "kernel_library = getattr",
+          "title": "Seed declarations",
+          "text": "Reuse kernel declarations already loaded by the Graph's KernelLibrary before the native module handoff.",
+          "span": 7
+        },
+        {
+          "needle": "compiled = CompiledModel(",
+          "title": "Return an artifact handle",
+          "text": "The handle carries the asynchronous result and graph names. compile() below waits for completion.",
+          "span": 6
+        }
+      ],
+      "evidence": "SOURCE",
+      "alias": "PY",
+      "start": 969,
+      "end": 1060,
+      "line": 969,
+      "label": "Prepare a Graph, Module, or artifact path for asynchronous native compilation.",
+      "sha256": "51f4f87cb00c807aa366dbed100d1db0f68ad488532a318fcd02094b5eda24b9"
+    },
+    "serialize": {
+      "id": "serialize",
+      "file": "GraphCompiler/lib/GraphCompiler.cpp",
+      "symbol": "convertMGPToMEF",
+      "needle": "ErrorOr<BufferRef> M::MO::convertMGPToMEF",
+      "purpose": "Serialize MEF",
+      "language": "cpp",
+      "notes": [],
+      "prefix": 0,
+      "evidence": "SOURCE",
+      "alias": "C++",
+      "start": 692,
+      "end": 728,
+      "line": 692,
+      "label": "Serialize MEF",
+      "sha256": "99582128525c80fd221cbcfb8d6dc33ee7555ae6696adc3061097b056042860a"
+    },
+    "artifact": {
+      "id": "artifact",
+      "file": "max/python/max/engine/api.py",
+      "symbol": "CompiledModel",
+      "purpose": "CompiledModel",
+      "language": "python",
+      "notes": [],
+      "evidence": "SOURCE",
+      "alias": "PY",
+      "start": 414,
+      "end": 466,
+      "line": 414,
+      "label": "CompiledModel",
+      "sha256": "d71b8f56bf91f1440eda5ef617debfd4dcd0744380a067d689829269d902d108"
+    },
+    "export": {
+      "id": "export",
+      "file": "max/python/max/engine/api.py",
+      "symbol": "CompiledModel.export_mef",
+      "purpose": "export_mef",
+      "language": "python",
+      "notes": [],
+      "evidence": "SOURCE",
+      "alias": "PY",
+      "start": 449,
+      "end": 466,
+      "line": 449,
+      "label": "export_mef",
+      "sha256": "bda349742f10f77e78767add8415398a0b0a0056c678acb8b6e5400ba750a849"
+    },
+    "init_all": {
+      "id": "init_all",
+      "file": "max/python/max/engine/api.py",
+      "symbol": "InferenceSession.init_all",
+      "purpose": "Validate weight buffers and initialize models in a compiled artifact.",
+      "language": "python",
+      "notes": [
+        {
+          "needle": "if compiled._expected_weights is not None:",
+          "title": "Weight contract",
+          "text": "Check names and expected CPU/device category captured from the graph. These checks occur after graph finalization and compilation.",
+          "span": 20
+        },
+        {
+          "needle": "_raise_if_not_contiguous(weight_value)",
+          "title": "Buffer layout check",
+          "text": "Non-contiguous registered weights are rejected with the offending weight's name.",
+          "span": 5
+        },
+        {
+          "needle": "models = self._impl._load_all(",
+          "title": "Native initialization",
+          "text": "Bind the registry through the native load path; return models keyed by their names.",
+          "span": 9
+        }
+      ],
+      "evidence": "SOURCE",
+      "alias": "PY",
+      "start": 1160,
+      "end": 1253,
+      "line": 1160,
+      "label": "Validate weight buffers and initialize models in a compiled artifact.",
+      "sha256": "aceef753886e980230ce4dad555e0ef4faefdce0f81b6c2039fcf45b0881400c"
+    },
+    "native_init": {
+      "id": "native_init",
+      "file": "max/lib/max_license/API/c/EngineContext.cpp",
+      "symbol": "Engine::Context::initModel(CompiledModels)",
+      "needle": "Engine::Context::initModel(AsyncValueRef<CompiledModels> compiledModels,",
+      "purpose": "Create executable model instances once compilation resolves.",
+      "language": "cpp",
+      "notes": [
+        {
+          "needle": ".andThenAsync(",
+          "title": "Initialize on a runtime worker",
+          "text": "The continuation uses the compiled artifact and captured weight registry on the CPU runtime worker.",
+          "span": 11
+        },
+        {
+          "needle": "createExecutableModels(compiledModelsRef.get()",
+          "title": "Executable state",
+          "text": "Create the executable models with runtime configuration and actual weight buffers, then resolve the result.",
+          "span": 7
+        }
+      ],
+      "prefix": 1,
+      "evidence": "SOURCE",
+      "alias": "C++",
+      "start": 310,
+      "end": 340,
+      "line": 310,
+      "label": "Create executable model instances once compilation resolves.",
+      "sha256": "30550ab23f132fa7ad2aefac0468318a57996093464cbfafa97bb65231a9f1ff"
+    },
+    "setup": {
+      "id": "setup",
+      "file": "max/lib/max_license/API/c/EngineContext.cpp",
+      "symbol": "createExecutableModel",
+      "needle": "createExecutableModel(const M::Model *model,",
+      "purpose": "Create executable model",
+      "language": "cpp",
+      "notes": [],
+      "prefix": 1,
+      "evidence": "SOURCE",
+      "alias": "C++",
+      "start": 79,
+      "end": 97,
+      "line": 79,
+      "label": "Create executable model",
+      "sha256": "b2ecd49a2346a27689663bbbb30bdcc7e3655fd20d7bb9b08d07b2e4cd25aa79"
+    },
+    "native_execute": {
+      "id": "native_execute",
+      "file": "max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp",
+      "symbol": "ModelHandle::executeDeviceTensors",
+      "needle": "M::Core::ModelHandle::executeDeviceTensors(",
+      "purpose": "Native input preparation",
+      "language": "cpp",
+      "notes": [],
+      "prefix": 1,
+      "evidence": "SOURCE",
+      "alias": "C++",
+      "start": 451,
+      "end": 519,
+      "line": 451,
+      "label": "Native input preparation",
+      "sha256": "26a1af734f6c4f325c5b1f59bf632350c14788084bbfb13d57ba1f736a8c9ff8"
+    },
+    "driver_execute": {
+      "id": "driver_execute",
+      "file": "max/lib/max_license/API/c/ModelExecution.cpp",
+      "symbol": "executeFromDriver",
+      "needle": "executeFromDriver(const M::Engine::Context &context,",
+      "purpose": "Driver execution",
+      "language": "cpp",
+      "notes": [],
+      "prefix": 1,
+      "evidence": "SOURCE",
+      "alias": "C++",
+      "start": 192,
+      "end": 214,
+      "line": 192,
+      "label": "Driver execution",
+      "sha256": "54cb19278a6b2cbfd30001ffc543bb97938fa1792357ee0533656881b11d9ca9"
+    },
+    "driver_results": {
+      "id": "driver_results",
+      "file": "max/lib/max_license/API/c/ModelExecution.cpp",
+      "symbol": "extractDriverResults",
+      "needle": "extractDriverResults(const M::Engine::Context &context,",
+      "purpose": "Await / extract outputs",
+      "language": "cpp",
+      "notes": [],
+      "prefix": 1,
+      "evidence": "SOURCE",
+      "alias": "C++",
+      "start": 100,
+      "end": 188,
+      "line": 100,
+      "label": "Await / extract outputs",
+      "sha256": "1ef1ee869eada113d55499a0a6854118d7d9c86ec2f4982c0e7a137bc4f756c3"
+    },
+    "runtime_execute": {
+      "id": "runtime_execute",
+      "file": "GraphCompiler/lib/MEFModel/MEFModel.cpp",
+      "symbol": "ExecutableModel::execute",
+      "needle": "ExecutableModel::execute(MutableArrayRef<AnyAsyncValueRef> args) const",
+      "purpose": "ExecutableModel.execute",
+      "language": "cpp",
+      "notes": [],
+      "prefix": 1,
+      "evidence": "SOURCE",
+      "alias": "C++",
+      "start": 362,
+      "end": 385,
+      "line": 362,
+      "label": "ExecutableModel.execute",
+      "sha256": "dc6b210ae2c4f8b819f3b0ed9dedecf0d442f62bb0b589e669135a647718ae98"
+    },
+    "ready_counts": {
+      "id": "ready_counts",
+      "file": "MLRT/lib/GraphRT/MEFExecutor/MEFInvokable.cpp",
+      "symbol": "MEFExecutor::decrementOperandsNotReadyCounts",
+      "needle": "void MEFExecutor::decrementOperandsNotReadyCounts(",
+      "purpose": "Ready primitive worklist",
+      "language": "cpp",
+      "notes": [],
+      "prefix": 0,
+      "evidence": "SOURCE",
+      "alias": "C++",
+      "start": 559,
+      "end": 687,
+      "line": 559,
+      "label": "Ready primitive worklist",
+      "sha256": "1178b6b2bf66a910dd5aa3a6c8de4ef1aeefe8577087e4f06f0ea4f579604cf1"
+    },
+    "async_users": {
+      "id": "async_users",
+      "file": "MLRT/lib/GraphRT/MEFExecutor/MEFInvokable.cpp",
+      "symbol": "MEFExecutor::processUsedByRecords",
+      "needle": "void MEFExecutor::processUsedByRecords(",
+      "purpose": "Result readiness callbacks",
+      "language": "cpp",
+      "notes": [],
+      "prefix": 0,
+      "evidence": "SOURCE",
+      "alias": "C++",
+      "start": 698,
+      "end": 771,
+      "line": 698,
+      "label": "Result readiness callbacks",
+      "sha256": "0584aa990ec78dd7618b6291a2c0e3317708b5b05c2cb5a611cc750081d9aafa"
+    },
+    "execute": {
+      "id": "execute",
+      "file": "max/python/max/engine/api.py",
+      "symbol": "_Model_execute",
+      "purpose": "Model.execute",
+      "language": "python",
+      "notes": [],
+      "evidence": "SOURCE",
+      "alias": "PY",
+      "start": 118,
+      "end": 145,
+      "line": 118,
+      "label": "Model.execute",
+      "sha256": "4078385fedc60905c4abb4179b4ec49674ebe5d1c8f5c1c56d1be24831ed7723"
+    },
+    "mojo_add": {
+      "id": "mojo_add",
+      "file": "max/kernels/src/graph_compiler/builtin_kernels/elementwise.mojo",
+      "symbol": "Add",
+      "language": "mojo",
+      "anchor": "@extensibility.register(\"mo.add\")",
+      "until": "@extensibility.register(\"mo.sub\")",
+      "purpose": "Mojo mo.add registration",
+      "alias": "MOJO",
+      "start": 107,
+      "end": 140,
+      "line": 107,
+      "label": "Mojo mo.add registration",
+      "sha256": "50e20f47f4d50b9155fbe6f5b3fd36669dd4d18285cffff6d3b9dd33d5f818e5"
+    },
+    "mojo_compiler": {
+      "id": "mojo_compiler",
+      "file": "Mojo/docs/compiler/MojoCompilerWalkthrough.md",
+      "symbol": "Mojo compiler phases",
+      "language": "text",
+      "anchor": "## High-Level Architecture",
+      "until": "## Phase 1:",
+      "purpose": "Mojo compiler architecture",
+      "alias": "DOC",
+      "start": 58,
+      "end": 136,
+      "line": 58,
+      "label": "Mojo compiler architecture",
+      "sha256": "d042507e42817802428afa71fbc442637fa05f423a6741138f7c40545a05fcb0"
+    },
+    "backend_select": {
+      "id": "backend_select",
+      "file": "Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp",
+      "start": 93,
+      "end": 154,
+      "line": 93,
+      "symbol": "ObjectCompiler::create(",
+      "label": "Select target backend",
+      "language": "cpp",
+      "alias": "C++",
+      "sha256": "c51ac55a6b39b6422f93a9aa2bd41f6fa94f0de41a912f693357079b8931d512"
+    },
+    "llvm_translation": {
+      "id": "llvm_translation",
+      "file": "Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp",
+      "start": 796,
+      "end": 814,
+      "line": 796,
+      "symbol": "translateModuleToLLVMIR(llvm::LLVMContext &ctx, ModuleOp module,",
+      "label": "MLIR \u2192 LLVM module translation",
+      "language": "cpp",
+      "alias": "C++",
+      "sha256": "af421e1a857ebd680ba2043842ac7f31e975267279723ee113447625ed67df33"
+    },
+    "host_assembly": {
+      "id": "host_assembly",
+      "file": "Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.cpp",
+      "start": 30,
+      "end": 52,
+      "line": 30,
+      "symbol": "HostBackend::emitAssembly(",
+      "label": "Host/target assembly emission",
+      "language": "cpp",
+      "alias": "C++",
+      "sha256": "1fc352426d5aa188c6e91fee1a4a4962b91008fd5cd9356fb5564eb346ef6d65"
+    },
+    "host_object": {
+      "id": "host_object",
+      "file": "Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.cpp",
+      "start": 54,
+      "end": 69,
+      "line": 54,
+      "symbol": "HostBackend::emitObject(",
+      "label": "Object emission and linking",
+      "language": "cpp",
+      "alias": "C++",
+      "sha256": "df59b69a7338d0fd0d8898b18d7d9fda31a93540fa52bd57e14b09237586b253"
+    },
+    "nvptx_object": {
+      "id": "nvptx_object",
+      "file": "Mojo/lib/Compiler/ObjectCompiler/Target/max_license/NVPTX/NVPTXBackend.cpp",
+      "start": 152,
+      "end": 206,
+      "line": 152,
+      "symbol": "ErrorOr<BufferRef> emitObject(llvm::Module &module,",
+      "label": "LLVM PTX \u2192 CUDA CompilationDevice \u2192 cubin",
+      "language": "cpp",
+      "alias": "C++",
+      "sha256": "76e856de406bc8c00e8caa131d57d9de3cadf560d8aec5b564cfd4beaee6fc68"
+    },
+    "amdgpu_backend": {
+      "id": "amdgpu_backend",
+      "file": "Mojo/lib/Compiler/ObjectCompiler/Target/max_license/AMDGPU/AMDGPUBackend.cpp",
+      "start": 77,
+      "end": 151,
+      "line": 77,
+      "symbol": "class AMDGPUBackend final",
+      "label": "AMDGPU target and ELF linking",
+      "language": "cpp",
+      "alias": "C++",
+      "sha256": "ce4e123c6a32cae9bf08bed30db8f74ceee9cf3d5e473270fe7dd21619cb233e"
+    },
+    "mojo_semantics": {
+      "id": "mojo_semantics",
+      "file": "Mojo/docs/compiler/MojoCompilerWalkthrough.md",
+      "start": 245,
+      "end": 303,
+      "line": 245,
+      "symbol": "## Phase 2: Semantic Checking and LIT Lowering",
+      "label": "Mojo lifetimes and LIT lowering",
+      "language": "section",
+      "alias": "DOC",
+      "sha256": "748377bb81e57521b9cff24a35a59098a0c34c664928f4c9e0cba8253f5bf4f1"
+    },
+    "mojo_elaboration": {
+      "id": "mojo_elaboration",
+      "file": "Mojo/docs/compiler/MojoCompilerWalkthrough.md",
+      "start": 428,
+      "end": 504,
+      "line": 428,
+      "symbol": "## Phase 4: Elaboration (Monomorphization)",
+      "label": "Mojo compile-time specialization",
+      "language": "section",
+      "alias": "DOC",
+      "sha256": "e4f241a02af2d9eaf384a273042eae0de52d7fc77e0de4bdc2c64cb352c9fbbc"
+    },
+    "mojo_llvm": {
+      "id": "mojo_llvm",
+      "file": "Mojo/docs/compiler/MojoCompilerWalkthrough.md",
+      "start": 542,
+      "end": 568,
+      "line": 542,
+      "symbol": "## Phase 6: Lowering to LLVM",
+      "label": "KGEN / POP \u2192 LLVM dialect",
+      "language": "section",
+      "alias": "DOC",
+      "sha256": "ea53f55bbd7d8d875f64cabe3153c84b92068d0ab84471e892c681dd2f89f66c"
+    },
+    "compiler_tools": {
+      "id": "compiler_tools",
+      "file": "Mojo/docs/compiler/README.md",
+      "start": 50,
+      "end": 81,
+      "line": 50,
+      "symbol": "## Artifacts",
+      "label": "Compiler artifacts and tools",
+      "language": "section",
+      "alias": "DOC",
+      "sha256": "5a4d2b61764c9c8327652c972fc7fabefa9e0065421ba39ede347ae310c6e07b"
+    },
+    "cross_target": {
+      "id": "cross_target",
+      "file": "GraphCompiler/test/mo-opt/cross-compile-gpu-arch.mlir",
+      "start": 1,
+      "end": 23,
+      "line": 1,
+      "symbol": "cross-compile-gpu-arch.mlir",
+      "label": "Cross-target codegen test \u00b7 inspected, not run",
+      "language": "file",
+      "alias": "TEST",
+      "sha256": "cd7f362a32706dd84649d77623c6d58ceb6ab76a103491266f97f0c11c54494d"
+    },
+    "stage_dumps": {
+      "id": "stage_dumps",
+      "file": "GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir",
+      "start": 1,
+      "end": 33,
+      "line": 1,
+      "symbol": "gc-pipeline-dump.mlir",
+      "label": "MAX stage-dump test \u00b7 inspected, not run",
+      "language": "file",
+      "alias": "TEST",
+      "sha256": "c575db9f2bd7a8651818bb7095f0edf37e19f044cb13625148815dc9e4843ee7"
+    }
+  },
+  "files": [
+    {
+      "path": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
+      "sha256": "b868f959d3b486102face53b85cd3f31ab68ff139fb3345d3222194b066facc2"
+    },
+    {
+      "path": "GraphCompiler/lib/GraphCompiler.cpp",
+      "sha256": "1faafd01fd4dbe42b00ae48a6ccb7df85f93162890f2d6d97272bdf347693ee8"
+    },
+    {
+      "path": "GraphCompiler/lib/MEFModel/MEFModel.cpp",
+      "sha256": "d66e6b2e8ec680b71562eabd52491de7dcc8a5de5530b4dd2c4128744bc49f92"
+    },
+    {
+      "path": "GraphCompiler/test/mo-opt/cross-compile-gpu-arch.mlir",
+      "sha256": "cd7f362a32706dd84649d77623c6d58ceb6ab76a103491266f97f0c11c54494d"
+    },
+    {
+      "path": "GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir",
+      "sha256": "c575db9f2bd7a8651818bb7095f0edf37e19f044cb13625148815dc9e4843ee7"
+    },
+    {
+      "path": "MLRT/lib/GraphRT/MEFExecutor/MEFInvokable.cpp",
+      "sha256": "8016b290150483f06eabf592ede1b5c3c3a1488a4af2fcbb131acc16a95914f3"
+    },
+    {
+      "path": "Mojo/docs/compiler/MojoCompilerWalkthrough.md",
+      "sha256": "fb6e4624fdfdb8b382822d1cac558e8bc8cb788a2c6702bb8db8f8addaa9f92d"
+    },
+    {
+      "path": "Mojo/docs/compiler/README.md",
+      "sha256": "362540db9c6bdc7fb8b6060316a93ee4d591d41cd335e26883f70cc7e3af8c80"
+    },
+    {
+      "path": "Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp",
+      "sha256": "1e4fc345a6c5466343cb996078fa7fe67c9476e4a2f1336304fc380d73e22668"
+    },
+    {
+      "path": "Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.cpp",
+      "sha256": "538a0a3c07879153fbe2976f3ad89681f6eda601bfc2b3893ff54559c4f2d0e3"
+    },
+    {
+      "path": "Mojo/lib/Compiler/ObjectCompiler/Target/max_license/AMDGPU/AMDGPUBackend.cpp",
+      "sha256": "0e7b0c2f3b22a21275b8aba77afd7fa82b2adb255c24e416978a3af4bd80975a"
+    },
+    {
+      "path": "Mojo/lib/Compiler/ObjectCompiler/Target/max_license/NVPTX/NVPTXBackend.cpp",
+      "sha256": "a71c5c8f5a4f03a35229466a2ec586418f617c220405a02ea11afe7b86da3bc9"
+    },
+    {
+      "path": "max/kernels/src/graph_compiler/builtin_kernels/elementwise.mojo",
+      "sha256": "4c9d5ea022132d081547792f65608641bd1fe935ed9916742b8a7de84336f239"
+    },
+    {
+      "path": "max/lib/max_license/API/c/EngineContext.cpp",
+      "sha256": "b55fd5eed0bc9c04022abdfb1df7c5062d7d312809600d6bb1d505f6c3de2564"
+    },
+    {
+      "path": "max/lib/max_license/API/c/ModelExecution.cpp",
+      "sha256": "08d86cfd546619ce9fb2ded596cf97cc48ddf70598dc5981e1120e668a0021ba"
+    },
+    {
+      "path": "max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp",
+      "sha256": "c293d6dfa872e623f80ad8b6587b669b621b05a7a8dc5d5688e3558b32360001"
+    },
+    {
+      "path": "max/python/max/engine/api.py",
+      "sha256": "97f0592962c1853c884c8d8145a0faf4aa9ca622262271de4b080990b47da017"
+    },
+    {
+      "path": "max/python/max/graph/graph.py",
+      "sha256": "1d22145baa183f535d9e707aa959b7cb833ef4c150d39e2ebccf66e24923edb4"
+    },
+    {
+      "path": "max/python/max/pipelines/architectures/llama3/llama3.py",
+      "sha256": "21f5b05344026565572db6bdd8ee1f5642ae997fffa0de37f321bf4d1068ed39"
+    }
+  ],
+  "lessons": [
+    {
+      "id": "graph",
+      "number": "01",
+      "title": "From Python to a verified graph",
+      "detail": "Watch a definition become named operators, then seal its output contract.",
+      "evidence": "SOURCE \u00b7 toy expression is schematic",
+      "ascii": "Python builder \u2192 G1 / native MLIR \u2192 Graph.output signature + verify\nVerified Graph \u2260 compiled artifact \u2260 initialized Model",
+      "refs": [
+        "graph_init",
+        "graph_output"
+      ]
+    },
+    {
+      "id": "lower",
+      "number": "02",
+      "title": "A module changes its language",
+      "detail": "Follow C1 through structured bodies, kernel calls, buffers and generated Mojo.",
+      "evidence": "SOURCE order \u00b7 illustrative IR views / fusion",
+      "ascii": "G1 retained \u2192 compiler clone C1\nMO \u2192 MAP \u2192 MOGG \u2192 MGP \u2192 symbol DCE \u2192 emitted Mojo\nEnclosing pipeline: kernel JIT \u2192 final runtime-call lowering",
+      "refs": [
+        "frontend",
+        "gc_pipeline",
+        "stage_dumps"
+      ]
+    },
+    {
+      "id": "mojo",
+      "number": "03",
+      "title": "Readable code. Native control.",
+      "detail": "Change the SIMD width, or try a conflicting borrow and watch the legality gate.",
+      "evidence": "SOURCE concepts \u00b7 CPU lane and ownership examples",
+      "ascii": "Mojo \u2192 LIT \u2192 lifetime/control-flow checks \u2192 KGEN\nParameters \u2192 elaborated functions \u2192 LLVM dialect\nHandle/reference movement \u2260 copying allocation cells",
+      "refs": [
+        "mojo_compiler",
+        "mojo_semantics",
+        "mojo_add"
+      ]
+    },
+    {
+      "id": "target",
+      "number": "04",
+      "title": "Pick a target. Change the binary.",
+      "detail": "Change the target, choose assembly or a binary, then inspect its disassembly.",
+      "evidence": "SOURCE backend routes \u00b7 illustrative files",
+      "ascii": "LLVM dialect / MLIR \u2192 LLVM module\nCPU: LLVM MC \u2192 .o \u2192 link \u2192 .so\nNVIDIA: LLVM NVPTX \u2192 PTX \u2192 CUDA CompilationDevice \u2192 cubin\nAMD: LLVM AMDGPU \u2192 .o \u2192 ELF link \u2192 hsaco\nBinary \u2192 disassembly is an inspection branch",
+      "refs": [
+        "llvm_translation",
+        "backend_select",
+        "nvptx_object",
+        "amdgpu_backend"
+      ]
+    },
+    {
+      "id": "package",
+      "number": "05",
+      "title": "Pack the artifact. Bind the values.",
+      "detail": "A cutaway archive separates compiled code, its plan and the weight-binding rack.",
+      "evidence": "SOURCE lifecycle \u00b7 conceptual MEF cutaway",
+      "ascii": "Compiled routines + MGP plan/resources \u2192 prepared primitives \u2192 MEF bytes\nOptional export \u2192 model.mef\nCompiledModel + weight registry \u2192 init_all \u2192 executable M1",
+      "refs": [
+        "serialize",
+        "export",
+        "init_all"
+      ]
+    },
+    {
+      "id": "runtime",
+      "number": "06",
+      "title": "Code stays. Buffers move.",
+      "detail": "Queue new inputs while the same code, weights, M1 and S1 remain resident.",
+      "evidence": "BOUNDARY device motion \u00b7 SOURCE readiness / reuse",
+      "ascii": "Ready M1/S1 + inputs \u2192 optional explicit upload\nDescriptor references code/buffers \u2192 native driver \u2192 hardware\nAsyncValue ready \u2192 result buffers \u2192 optional explicit host copy\nNext call reuses code/model/session",
+      "refs": [
+        "driver_execute",
+        "driver_results",
+        "ready_counts"
+      ]
+    }
+  ],
+  "readings": [
+    [
+      "Modular \u00b7 Mojo at LLVM 2023",
+      "https://www.modular.com/blog/mojo-llvm-2023",
+      "The author describes an animated, clickable presentation. Inspiration for staged semantic views; its hosted player is not a runtime dependency."
+    ],
+    [
+      "MLIR interactive pipeline editor",
+      "https://github.com/mortbopet/mlir-interactive",
+      "Primary project: inspect intermediate IR and compose compiler passes interactively."
+    ],
+    [
+      "VizMLIR",
+      "https://github.com/joepotibutr/vizmlir",
+      "Primary browser visualizer: keep pass order and IR changes visible."
+    ],
+    [
+      "MLIR Toy \u00b7 partial lowering",
+      "https://mlir.llvm.org/docs/Tutorials/Toy/Ch-5/",
+      "Mixing dialects lets a compiler preserve useful high-level semantics while lowering selected operations."
+    ],
+    [
+      "MLIR Toy \u00b7 LLVM lowering",
+      "https://mlir.llvm.org/docs/Tutorials/Toy/Ch-6/",
+      "LLVM-dialect lowering, translation and JIT are distinct activities."
+    ],
+    [
+      "MLIR \u00b7 LLVM IR target",
+      "https://mlir.llvm.org/docs/TargetLLVMIR/",
+      "LLVM dialect is MLIR; an LLVM IR module is produced through translation."
+    ],
+    [
+      "MLIR \u00b7 GPU compilation",
+      "https://mlir.llvm.org/docs/Dialects/GPU/#gpu-compilation",
+      "Generic MLIR GPU target serialization and offloading. This is a reference route, not a claim that MAX uses every generic GPU pass."
+    ],
+    [
+      "LLVM \u00b7 NVPTX backend",
+      "https://llvm.org/docs/NVPTXUsage.html",
+      "The target backend emits PTX virtual-ISA assembly."
+    ],
+    [
+      "LLVM \u00b7 CUDA compilation",
+      "https://llvm.org/docs/CompileCudaWithLLVM.html",
+      "PTX assembly and machine-code binaries have different roles. Generic toolchain examples do not override the pinned MAX/Mojo path."
+    ],
+    [
+      "LLVM \u00b7 objdump",
+      "https://llvm.org/docs/CommandGuide/llvm-objdump.html",
+      "Disassembly is a read-only view of existing object/binary code."
+    ],
+    [
+      "NVIDIA \u00b7 CUDA binary utilities",
+      "https://docs.nvidia.com/cuda/cuda-binary-utilities/index.html",
+      "nvdisasm and cuobjdump inspect CUDA cubin/SASS. The workbench keeps that listing separate from PTX text emission."
+    ]
+  ]
+}

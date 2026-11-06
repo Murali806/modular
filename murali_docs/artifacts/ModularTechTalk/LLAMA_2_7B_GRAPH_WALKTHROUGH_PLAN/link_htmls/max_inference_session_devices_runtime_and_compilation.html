@@ -16,6 +16,9 @@
 html { scroll-behavior: smooth; scroll-padding-top: 75px; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-size: 15px; line-height: 1.7; }
 main { max-width: 1372px; padding: 0 36px; margin: auto; }
+.compiler-extension { margin: 22px 0; padding: 20px; border: 1px solid #8dabad; border-left: 4px solid #376574; border-radius: 9px; background: #edf4f5; }
+.compiler-extension strong { color: #285463; }
+.compiler-extension p { margin: 7px 0 13px; font-size: 13px; }
 a { color: #285d42; text-underline-offset: 3px; }
 a:hover { color: #173d28; }
 button, input, select { font: inherit; color: #2d4e36; }
@@ -322,6 +325,7 @@ footer p { margin-bottom: 10px; }
 <main id="main">
 <section class="hero" aria-labelledby="page-title"><p class="kicker">An interactive explanation · ENGINE:L664</p><h1 id="page-title">One session.<br>The runtime behind<br><em>your model.</em></h1><p class="lead">Follow <code>InferenceSession(devices=…, …)</code> from a Python call to its native runtime context. Then watch the same session compile a graph, initialize a model, and support its next batch.</p><div class="hero-links"><a class="primary-link" href="#constructor">Inside the constructor ↓</a><a data-ref="session" href="../sources/max/python/max/engine/api.py#L664">InferenceSession.__init__ <small>[ENGINE:L664]</small></a></div></section>
 <div class="reading-key"><span><i class="key-session">S1</i> One reusable session</span><span><i class="key-model">M1</i> Initialized decoder</span><span><i class="key-buffer"></i> Buffers &amp; artifacts in motion</span><span>SOURCE 610f7111836d · illustrative event timing</span></div>
+<div class="compiler-extension"><strong>Open the compiler workbench</strong><p>Six animations follow Python → MLIR dialects → Mojo → target binaries → MEF → driver and buffers.</p><a class="primary-link" href="max_mlir_mojo_compiler_and_runtime.html">Files, IR, native code &amp; hardware →</a></div>
 <noscript><p class="nojs-note">The four portable flows and complete source definitions below work without JavaScript. Enable JavaScript for the device examples, animated steps and source explorer.</p></noscript>
 <section class="lesson" id="constructor" data-lesson="constructor" aria-labelledby="heading-constructor">
 <div class="experiment">

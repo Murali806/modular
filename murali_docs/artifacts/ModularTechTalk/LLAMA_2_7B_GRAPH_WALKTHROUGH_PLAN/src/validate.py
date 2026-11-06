@@ -43,7 +43,7 @@ class GuideParser(HTMLParser):
                 self.dependencies.append(src)
         if tag == "script" and attrs.get("id") == "guide-data":
             self.in_payload = True
-        if tag == "details" and "code-cell" in attrs.get("class", "").split():
+        if tag == "details" and "code-cell" in attrs.get("class", "").split() and "data-cell" in attrs:
             self.cell = attrs["data-cell"]
             self.lines[self.cell] = []
         if tag == "span" and "line-text" in attrs.get("class", "").split() and self.cell:
@@ -359,29 +359,37 @@ def main(report_path=None):
             assert all(s in machine["states"] for s in scenario["path"])
             assert all(pair in pairs for pair in zip(scenario["path"],scenario["path"][1:]))
 
-    from engine_lifecycle import source_span
-    engine_page = TASK / "link_htmls" / "max_engine_graph_compilation_mef_and_inference.html"
-    engine_parser = GuideParser()
-    engine_text = engine_page.read_text()
-    engine_parser.feed(engine_text)
-    assert len(engine_parser.ids) == len(set(engine_parser.ids))
-    assert not engine_parser.dependencies
-    engine_payload = json.loads(re.search(r'<script id="engine-data" type="application/json">(.*?)</script>', engine_text, re.S)[1])
-    engine_manifest = json.loads((TASK / "engine_lifecycle_manifest.json").read_text())
-    assert engine_payload["revision"] == engine_manifest["revision"] == REVISION
-    for key in ("references", "objects", "phases", "events"):
-        assert engine_payload[key] == engine_manifest[key]
-    for file, record in engine_payload["files"].items():
-        assert record["text"].encode() == source_bytes[file]
-        assert hashlib.sha256(source_bytes[file]).hexdigest() == record["sha256"]
-    for ref in engine_payload["references"].values():
-        source = source_bytes[ref["file"]].decode()
-        assert source_span(source, ref, python_span, cpp_span) == (ref["start"], ref["end"])
-        assert ref["line"] == ref["start"]
+    compiler_manifest = json.loads((TASK / "compiler_workbench_manifest.json").read_text())
+    compiler_page = TASK / compiler_manifest["page"]
+    compiler_parser = GuideParser()
+    compiler_text = compiler_page.read_text()
+    compiler_parser.feed(compiler_text)
+    assert len(compiler_parser.ids) == len(set(compiler_parser.ids))
+    assert not compiler_parser.dependencies
+    compiler_payload = json.loads(re.search(r'<script id="compiler-workbench-data" type="application/json">(.*?)</script>', compiler_text, re.S)[1])
+    assert compiler_payload["revision"] == compiler_manifest["revision"] == REVISION
+    for key in ("references", "lessons", "readings"):
+        assert compiler_payload[key] == compiler_manifest[key]
+    for record in compiler_manifest["files"]:
+        file = record["path"]
+        raw = (TASK / "sources" / file).read_bytes()
+        pinned = subprocess.check_output(["git", "show", f"{REVISION}:{file}"], cwd=REPO)
+        assert raw == pinned == (REPO / file).read_bytes()
+        assert compiler_payload["files"][file]["text"].encode() == raw
+        assert hashlib.sha256(raw).hexdigest() == record["sha256"]
+    for ref in compiler_payload["references"].values():
+        source = compiler_payload["files"][ref["file"]]["text"]
+        code = "".join(source.splitlines(keepends=True)[ref["start"] - 1:ref["end"]])
+        assert hashlib.sha256(code.encode()).hexdigest() == ref["sha256"]
+        assert ref["start"] <= ref["line"] <= ref["end"]
+    session_page = TASK / "link_htmls" / "max_inference_session_devices_runtime_and_compilation.html"
+    session_parser = GuideParser()
+    session_parser.feed(session_page.read_text())
     checked_links = 0
     page_parsers = {TASK / "index.html": parser, TASK / READER_NAME: stack_parser,
                     memory_page: memory_parser, systems_page: systems_parser,
-                    components_page: components_parser, engine_page: engine_parser}
+                    components_page: components_parser, compiler_page: compiler_parser,
+                    session_page: session_parser}
     for page, parsed in list(page_parsers.items()):
         for href in parsed.links:
             if href.startswith("http"):
@@ -420,9 +428,9 @@ def main(report_path=None):
         complete_source_cells=len(manifest["cells"]), displayed_source_lines=line_count,
         call_stack_sections=len(stack_parser.trees),
         call_stack_source_targets=len(stack_manifest["references"]),
-        engine_source_targets=len(engine_manifest["references"]),
-        engine_component_count=len(engine_manifest["objects"]),
-        engine_chapters=len(engine_manifest["phases"]),
+        compiler_source_targets=len(compiler_manifest["references"]),
+        compiler_source_files=len(compiler_manifest["files"]),
+        compiler_lessons=len(compiler_manifest["lessons"]),
         memory_planning_source_targets=len(memory_manifest["references"]),
         memory_planning_complete_code_cells=len(memory_manifest["complete_code_cells"]),
         memory_planning_displayed_source_lines=memory_line_count,

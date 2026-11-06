@@ -207,7 +207,7 @@ def build_guide(data: dict) -> None:
     from memory_planning import build_memory_planning
     from os_systems import build_os_systems
     from os_components import build_os_components
-    from engine_lifecycle import build_engine_lifecycle
+    from compiler_workbench import build_compiler_workbench
     from inference_session import build_inference_session
     from widgets import WIDGETS, stage_data
 
@@ -215,7 +215,7 @@ def build_guide(data: dict) -> None:
     memory_references, memory_cells = build_memory_planning(data, TASK, SRC, python_span)
     systems_references, systems_cells = build_os_systems(data, TASK, SRC, python_span)
     components_references, components_count, components_steps = build_os_components(data, TASK, SRC, python_span)
-    engine_references, engine_objects = build_engine_lifecycle(data, TASK, SRC, python_span, cpp_span)
+    build_compiler_workbench()
     session_references, session_lessons = build_inference_session(data, TASK, SRC, python_span, cpp_span)
 
     cells = {c["id"]: c for c in data["cells"]}
@@ -391,7 +391,6 @@ def build_guide(data: dict) -> None:
     print(f"Built memory-planning QnA: {memory_references} source targets, {memory_cells} complete code cells.")
     print(f"Built OS/GPU systems lab: {systems_references} source targets, {systems_cells} complete code cells.")
     print(f"Built focused OS reader: {components_references} source targets, {components_count} components, {components_steps} flow steps.")
-    print(f"Built MAX engine lifecycle animation: {engine_references} source targets, {engine_objects} objects / roles.")
 
 
 if __name__ == "__main__":

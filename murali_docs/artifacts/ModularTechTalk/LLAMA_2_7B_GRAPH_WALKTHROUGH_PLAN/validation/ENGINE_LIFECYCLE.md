@@ -2,7 +2,10 @@
 
 Date: November 6, 2026.
 
-Deliverable: [MAX engine / Mojo animation](../link_htmls/max_engine_graph_compilation_mef_and_inference.html).
+Historical validation for the retired MAX engine/Mojo page. The current
+[compiler workbench](../link_htmls/max_mlir_mojo_compiler_and_runtime.html) has
+[separate validation](COMPILER_WORKBENCH_VALIDATION.md); the results below
+apply to the earlier implementation.
 
 SOURCE revision: `610f7111836d9a950d45ba52ec9b3e0ed589fe3f`.
 The built-in Llama Graph API route anchors graph tracing; `meta-llama/Llama-2-7b-hf`

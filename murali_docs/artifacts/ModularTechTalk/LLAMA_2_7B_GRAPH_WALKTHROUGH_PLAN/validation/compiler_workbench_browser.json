@@ -1,0 +1,389 @@
+{
+  "evidence": "CPU-RUN · Chromium teaching animation only; no MAX/GPU execution",
+  "checks": [
+    "Offline startup; six independent lessons; no autoplay",
+    "Every default intermediate frame fits and has readable contrasting labels",
+    "Finalization and fusion interventions change visible resources",
+    "Borrow gate repairs lifetime, writes same B1 and transfers its handle",
+    "CPU/NVIDIA/AMD binaries, text-only output, disassembly and terminal compilation errors",
+    "MEF cutaway and export stay separate from weight-gated initialization",
+    "Resident input avoids upload; CPU has no GPU transfer; repeated calls reuse model/code",
+    "Transient hover/focus card, click-only L, matching colors and full original-source explorer",
+    "Persistent actors move, pause freezes in-flight motion, resume advances and offscreen pauses",
+    "320/390px document fit with internal scene scrolling and touch cards",
+    "No-JavaScript portable/source reading and print layout"
+  ],
+  "audits": [
+    {
+      "label": "initial",
+      "samples": 380,
+      "minimum": 4.553
+    },
+    {
+      "label": "graph frame 0",
+      "samples": 380,
+      "minimum": 4.553
+    },
+    {
+      "label": "graph frame 1",
+      "samples": 384,
+      "minimum": 4.553
+    },
+    {
+      "label": "graph frame 2",
+      "samples": 388,
+      "minimum": 4.553
+    },
+    {
+      "label": "graph frame 3",
+      "samples": 386,
+      "minimum": 4.553
+    },
+    {
+      "label": "graph frame 4",
+      "samples": 386,
+      "minimum": 4.553
+    },
+    {
+      "label": "graph frame 5",
+      "samples": 386,
+      "minimum": 4.553
+    },
+    {
+      "label": "graph frame 6",
+      "samples": 385,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 0",
+      "samples": 385,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 1",
+      "samples": 392,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 2",
+      "samples": 397,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 3",
+      "samples": 398,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 4",
+      "samples": 400,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 5",
+      "samples": 405,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 6",
+      "samples": 403,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 7",
+      "samples": 403,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 8",
+      "samples": 406,
+      "minimum": 4.553
+    },
+    {
+      "label": "lower frame 9",
+      "samples": 402,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 0",
+      "samples": 402,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 1",
+      "samples": 405,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 2",
+      "samples": 406,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 3",
+      "samples": 406,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 4",
+      "samples": 409,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 5",
+      "samples": 409,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 6",
+      "samples": 406,
+      "minimum": 4.553
+    },
+    {
+      "label": "mojo frame 7",
+      "samples": 405,
+      "minimum": 4.553
+    },
+    {
+      "label": "target frame 0",
+      "samples": 405,
+      "minimum": 4.553
+    },
+    {
+      "label": "target frame 1",
+      "samples": 412,
+      "minimum": 4.553
+    },
+    {
+      "label": "target frame 2",
+      "samples": 410,
+      "minimum": 4.553
+    },
+    {
+      "label": "target frame 3",
+      "samples": 414,
+      "minimum": 4.553
+    },
+    {
+      "label": "target frame 4",
+      "samples": 414,
+      "minimum": 4.553
+    },
+    {
+      "label": "target frame 5",
+      "samples": 418,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 0",
+      "samples": 418,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 1",
+      "samples": 416,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 2",
+      "samples": 414,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 3",
+      "samples": 418,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 4",
+      "samples": 415,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 5",
+      "samples": 415,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 6",
+      "samples": 423,
+      "minimum": 4.553
+    },
+    {
+      "label": "package frame 7",
+      "samples": 420,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 0",
+      "samples": 420,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 1",
+      "samples": 418,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 2",
+      "samples": 418,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 3",
+      "samples": 421,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 4",
+      "samples": 419,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 5",
+      "samples": 421,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 6",
+      "samples": 419,
+      "minimum": 4.553
+    },
+    {
+      "label": "runtime frame 7",
+      "samples": 422,
+      "minimum": 4.553
+    },
+    {
+      "label": "unfused",
+      "samples": 422,
+      "minimum": 4.553
+    },
+    {
+      "label": "borrow blocked",
+      "samples": 399,
+      "minimum": 4.553
+    },
+    {
+      "label": "borrow repaired",
+      "samples": 395,
+      "minimum": 4.553
+    },
+    {
+      "label": "SIMD 1",
+      "samples": 422,
+      "minimum": 4.553
+    },
+    {
+      "label": "SIMD 8",
+      "samples": 422,
+      "minimum": 4.553
+    },
+    {
+      "label": "binary / disassembly cpu",
+      "samples": 418,
+      "minimum": 4.553
+    },
+    {
+      "label": "assembly cpu",
+      "samples": 410,
+      "minimum": 4.553
+    },
+    {
+      "label": "binary / disassembly rocm",
+      "samples": 419,
+      "minimum": 4.553
+    },
+    {
+      "label": "assembly rocm",
+      "samples": 411,
+      "minimum": 4.553
+    },
+    {
+      "label": "binary / disassembly cuda",
+      "samples": 421,
+      "minimum": 4.553
+    },
+    {
+      "label": "assembly cuda",
+      "samples": 413,
+      "minimum": 4.553
+    },
+    {
+      "label": "target failure arch",
+      "samples": 414,
+      "minimum": 4.553
+    },
+    {
+      "label": "target failure toolkit",
+      "samples": 417,
+      "minimum": 4.553
+    },
+    {
+      "label": "missing weight",
+      "samples": 403,
+      "minimum": 4.553
+    },
+    {
+      "label": "binding repaired / exported",
+      "samples": 408,
+      "minimum": 4.553
+    },
+    {
+      "label": "reuse cpu true",
+      "samples": 404,
+      "minimum": 4.553
+    },
+    {
+      "label": "reuse cpu false",
+      "samples": 404,
+      "minimum": 4.553
+    },
+    {
+      "label": "reuse cuda true",
+      "samples": 406,
+      "minimum": 4.553
+    },
+    {
+      "label": "reuse cuda false",
+      "samples": 407,
+      "minimum": 4.553
+    },
+    {
+      "label": "legend open",
+      "samples": 505,
+      "minimum": 4.553
+    },
+    {
+      "label": "narrow 320",
+      "samples": 383,
+      "minimum": 4.553
+    },
+    {
+      "label": "touch legend 320",
+      "samples": 481,
+      "minimum": 4.553
+    },
+    {
+      "label": "narrow 390",
+      "samples": 383,
+      "minimum": 4.553
+    },
+    {
+      "label": "touch legend 390",
+      "samples": 481,
+      "minimum": 4.553
+    }
+  ],
+  "screenshots": [
+    "compiler_workbench_graph.png",
+    "compiler_workbench_lower.png",
+    "compiler_workbench_mojo.png",
+    "compiler_workbench_target.png",
+    "compiler_workbench_package.png",
+    "compiler_workbench_runtime.png",
+    "compiler_workbench_borrow_gate.png"
+  ],
+  "errors": [],
+  "network": []
+}

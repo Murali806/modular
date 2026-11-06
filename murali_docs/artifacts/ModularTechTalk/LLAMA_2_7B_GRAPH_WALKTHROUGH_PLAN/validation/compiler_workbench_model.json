@@ -1,0 +1,16 @@
+{
+  "evidence": "CPU-RUN · JavaScript teaching model only",
+  "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "checks": [
+    "Graph contract is a prerequisite, not execution",
+    "Original module retained; DCE precedes Mojo emission",
+    "SIMD specialization changes grouping, preserves results",
+    "Conflicting borrow blocks; repair mutates same allocation and moves owner",
+    "Target-dependent emission, inspection and failure gates",
+    "Weights gate initialization independently of MEF export",
+    "Repeated calls reuse resident code and count only explicit transfers",
+    "Seek/back/reset and scenario rebuilding are deterministic",
+    "Scenario reset clears repairs, inspection and repeated-call history",
+    "Embedded full files and complete definition spans match pinned snapshots"
+  ]
+}

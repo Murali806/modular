@@ -1,6 +1,7 @@
 # MAX engine: graph compilation, Mojo, MEF and inference
 
-[Interactive animation](link_htmls/max_engine_graph_compilation_mef_and_inference.html).
+The original animation was retired. [Open the current compiler workbench](link_htmls/max_mlir_mojo_compiler_and_runtime.html).
+The following portable notes retain the earlier artifact/reuse cases.
 
 SOURCE revision: `610f7111836d9a950d45ba52ec9b3e0ed589fe3f`.
 

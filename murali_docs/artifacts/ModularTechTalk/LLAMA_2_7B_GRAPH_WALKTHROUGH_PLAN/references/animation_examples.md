@@ -117,10 +117,29 @@ screenshots for the established layout. Inspect the
 more detailed resource/ownership animation. Current source may contain later
 improvements.
 
-## Engine/compiler: phase work, Mojo, MEF and runtime dependencies
+## Compiler workbench: transformations, artifacts and systems control
 
 Rendered reference:
-[max_engine_graph_compilation_mef_and_inference.html](../link_htmls/max_engine_graph_compilation_mef_and_inference.html).
+[max_mlir_mojo_compiler_and_runtime.html](../link_htmls/max_mlir_mojo_compiler_and_runtime.html).
+
+Read [the compiler/systems reference](compiler_and_systems_animations.md) for
+its research, design rules, source distinctions and exact builder/model/visual
+files. Reuse the sheets, operation lineage, backend cabinet, cutaway crate,
+owner/borrow handles and resident-code/per-call-buffer movement. Target choices,
+text/binary/disassembly branches and prerequisite repairs change visible state.
+The six lessons are the reference implementation, not a universal lesson order.
+
+Its isolated builder is `src/compiler_workbench.py`; checks are
+`src/check_compiler_workbench.cjs` and `src/check_compiler_workbench_browser.cjs`.
+Use the scoped builder for this family when rebuilding every page would disturb
+independent changes. The session reader has a visible link to the workbench.
+
+### Legacy engine source family
+
+The earlier engine HTML was retired on November 6, 2026. Its authoring/model
+files and source manifest remain useful for MEF cache/reuse and runtime cases;
+the new workbench is the rendered compiler reference. Do not regenerate the
+retired page merely to inspect these semantics.
 
 - Component/phase/event/source definitions: [engine_lifecycle.py](../src/engine_lifecycle.py)
 - Shell and colors: [engine_lifecycle.html](../src/engine_lifecycle.html),
@@ -133,7 +152,7 @@ Rendered reference:
   [check_engine_lifecycle_browser.cjs](../src/check_engine_lifecycle_browser.cjs)
 - Evidence: [ENGINE_LIFECYCLE.md](../validation/ENGINE_LIFECYCLE.md)
 
-This family separates session/Graph, graph compilation, Mojo, MEF, init and
+This source family separates session/Graph, graph compilation, Mojo, MEF, init and
 inference into focused chapters. Reuse its explicit route-dependent states,
 event/source mapping and ownership labels. For a new focused animation, combine
 those semantics with the persistent actor/slot pattern from InferenceSession

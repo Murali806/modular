@@ -10,6 +10,10 @@ relevant source/model/controller family from
 [the example catalog](references/animation_examples.md). For the two MAX Serve OS
 readers, also read the consolidated
 [animation requirements and accepted decisions](references/max_serve_os_animations.md).
+For compiler representations, Mojo systems programming and native artifacts,
+read [the focused compiler/systems guide](references/compiler_and_systems_animations.md).
+It adds the accepted drafting/workbench theme, transformation lineage and
+code-versus-buffer choreography without changing the Serve lesson order.
 
 ## Goal and technical scope
 
@@ -135,6 +139,10 @@ readers, also read the consolidated
   ```sh
   PYTHONDONTWRITEBYTECODE=1 python3 murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/build.py
   ```
+
+  For compiler/session-only work, use `src/compiler_workbench.py` with optional
+  `--refresh-session` instead, as described in the focused reference. Avoid a
+  broader rebuild when it would overwrite independent working-tree edits.
 
 - Validate generated links and source references. Do not run model inference,
   GPU measurements, or benchmarks for documentation-only work; use only the

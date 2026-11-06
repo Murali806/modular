@@ -8,6 +8,9 @@
 html { scroll-behavior: smooth; scroll-padding-top: 75px; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-size: 15px; line-height: 1.7; }
 main { max-width: 1372px; padding: 0 36px; margin: auto; }
+.compiler-extension { margin: 22px 0; padding: 20px; border: 1px solid #8dabad; border-left: 4px solid #376574; border-radius: 9px; background: #edf4f5; }
+.compiler-extension strong { color: #285463; }
+.compiler-extension p { margin: 7px 0 13px; font-size: 13px; }
 a { color: #285d42; text-underline-offset: 3px; }
 a:hover { color: #173d28; }
 button, input, select { font: inherit; color: #2d4e36; }

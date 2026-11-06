@@ -24,11 +24,11 @@ LOCAL_LINKS = {
         "text": "Animate InferenceSession: devices, runtime, model reuse and lifetime ↗ (link_htmls/max_inference_session_devices_runtime_and_compilation.html)",
         "title": "Explore the constructor, native ownership, compilation, initialization and repeated execution",
     },
-    "engine_lifecycle": {
-        "href": "link_htmls/max_engine_graph_compilation_mef_and_inference.html",
-        "label": "Animate InferenceSession, graph compilation, MEF and inference ↗",
-        "text": "Animate InferenceSession, graph compilation, MEF and inference ↗ (link_htmls/max_engine_graph_compilation_mef_and_inference.html)",
-        "title": "Explore MAX and Mojo graph compilation, MEF preparation, weight initialization and inference",
+    "compiler_workbench": {
+        "href": "link_htmls/max_mlir_mojo_compiler_and_runtime.html",
+        "label": "Compiler workbench: MLIR, Mojo, target binaries, MEF and buffers ↗",
+        "text": "Compiler workbench: MLIR, Mojo, target binaries, MEF and buffers ↗ (link_htmls/max_mlir_mojo_compiler_and_runtime.html)",
+        "title": "Follow representations, ownership, target codegen, initialization and driver activity",
     },
     "manifest_roles": {
         "href": "link_htmls/model_manifest_roles_and_diffusers.html",
