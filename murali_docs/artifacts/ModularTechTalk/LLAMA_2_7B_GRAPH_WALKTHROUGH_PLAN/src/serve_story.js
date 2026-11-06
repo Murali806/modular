@@ -638,6 +638,7 @@
   document.querySelectorAll(".ss-reference").forEach(node => node.open = false);
   document.querySelectorAll("[data-api-story]").forEach(node => controllers.push(new ApiStory(node)));
   document.querySelectorAll("[data-worker-story]").forEach(node => controllers.push(new window.ServeWorkerView(node, {reduced, startFrames, colors:COLORS, escape, element})));
+  document.querySelectorAll("[data-batch-story]").forEach(node => controllers.push(new window.ServeBatchView(node, {reduced, startFrames, escape, element})));
   document.querySelectorAll("[data-serve-story]").forEach(node => controllers.push(new Story(node)));
   const observer = new IntersectionObserver(entries => {
     for (const entry of entries) if (!entry.isIntersecting) controllers.find(c => c.node === entry.target)?.setPlaying(false);
@@ -660,6 +661,6 @@
   // Small, read-only bridge for browser validation of the actual rendered models.
   window.serveStorySnapshot = key => {
     const c = controllers.find(c => c.key === key);
-    return c ? ["api", "worker"].includes(c.key) ? c.model.snapshot() : c.workers.map(w => w.snapshot()) : null;
+    return c ? ["api", "worker", "batch"].includes(c.key) ? c.model.snapshot() : c.workers.map(w => w.snapshot()) : null;
   };
 })();

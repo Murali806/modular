@@ -276,6 +276,120 @@ async function workerIntro(page,audit,name) {
   await worker.locator('.ss-worker-transcript>summary').click();
   checks.push('Worker close-up on '+name+': second lesson, keyboard controls, partial prefill, result maps, busy-pass membership, KV waiting/reuse, idle backoff, reset and source links');
 }
+async function stepBatchUntil(page, predicate) {
+  const success = await page.evaluate(body => {
+    const test = new Function("s", "return (" + body + ")(s)");
+    for (let i=0; i<600; i++) {
+      if (test(window.serveStorySnapshot("batch"))) return true;
+      document.querySelector('#story-batch [data-batch-action="step"]').click();
+    }
+    return false;
+  }, String(predicate));
+  assert.ok(success, "Batch scene reaches its expected decision");
+}
+async function batchIntro(page, audit, name) {
+  const batch=page.locator("#story-batch");
+  assert.equal(await page.locator(".ss-story").nth(2).getAttribute("id"),"story-batch");
+  assert.equal(await batch.locator(".ss-lesson-button").innerText(),"03");
+  assert.equal(await batch.getAttribute("data-playing"),"false");
+  assert.equal(await batch.locator("[data-batch-mode]").count(),8);
+  assert.equal(await batch.locator("[data-api-thread]").count(),0);
+  await batch.locator('[data-batch-action="step"]').focus();
+  await page.keyboard.press("Enter");
+  assert.equal(await batch.getAttribute("data-batch-step"),"1");
+  await stepBatchUntil(page,s=>s.phase==="pack");
+  const first=await page.evaluate(()=>window.serveStorySnapshot("batch"));
+  assert.deepEqual(first.batch.map(op=>[op.id,op.kind,op.tokens]),[["R1","TG",1],["R2","CE",7]]);
+  assert.equal(await batch.locator('[data-batch-tg-rows] [data-request="R1"]').count(),1);
+  assert.equal(await batch.locator('[data-batch-ce-rows] [data-request="R2"]').count(),0);
+  assert.equal(await batch.locator('[data-input-token="CE"]').count(),7);
+  assert.equal(await batch.locator('[data-input-token="TG"]').count(),1);
+  const stateStyles=await batch.locator('[data-batch-row][data-occupied="true"]').evaluateAll(rows=>rows.map(row=>({
+    fill:getComputedStyle(row.querySelector("rect")).fill,
+    text:getComputedStyle(row.querySelector("text")).fill,
+    color:getComputedStyle(row.parentElement).getPropertyValue("--component-color").trim(),
+  })));
+  assert.equal(stateStyles.length,2);
+  stateStyles.forEach(style=>{
+    assert.notEqual(style.fill,"rgb(0, 0, 0)","Owned request rows inherit the component tint");
+    assert.notEqual(style.text,"rgb(0, 0, 0)","Request identifiers use their component ink");
+    assert.ok(style.color,"Request collections have a component owner color");
+  });
+  const objectBoundary=await batch.locator(".ss-batch-owner").evaluate(n=>getComputedStyle(n).strokeDasharray);
+  assert.equal(objectBoundary,"none","A solid object boundary differs from dashed process boundaries");
+  assert.match(await batch.locator("[data-batch-inputs]").textContent(),/R1, R2/);
+  await audit(page,"Batch mixed inputs "+name);
+  await batch.screenshot({path:"/tmp/max-serve-batch-mixed-"+name+".png"});
+  await stepBatchUntil(page,s=>s.phase==="advance");
+  assert.match(await batch.locator('[data-batch-ce-rows] [data-request="R2"]').textContent(),/7\/12/);
+  assert.equal((await page.evaluate(()=>window.serveStorySnapshot("batch"))).requests[1].emitted,0);
+  await stepBatchUntil(page,s=>s.finished);
+  assert.equal(await batch.locator('[data-batch-cells="kv"] [data-occupied="true"]').count(),0);
+  assert.equal(await batch.locator('[data-batch-action="step"]').isDisabled(),true);
+
+  await batch.locator('[data-batch-option="policy"]').selectOption("prefill");
+  await stepBatchUntil(page,s=>s.phase==="pack");
+  assert.ok((await page.evaluate(()=>window.serveStorySnapshot("batch"))).batch.every(op=>op.kind==="CE"));
+  await audit(page,"Batch CE priority "+name);
+  await batch.locator('[data-batch-option="policy"]').selectOption("strict");
+  await stepBatchUntil(page,s=>s.phase==="pack");
+  assert.deepEqual((await page.evaluate(()=>window.serveStorySnapshot("batch"))).batch.map(op=>op.kind),["TG"]);
+  await batch.locator('[data-batch-option="policy"]').selectOption("mixed");
+  await batch.locator('[data-batch-option="chunking"]').selectOption("off");
+  await stepBatchUntil(page,s=>s.phase==="pack");
+  assert.equal(await batch.getAttribute("data-active-tokens"),"13");
+  assert.match(await batch.locator('[data-batch-meter="tokens"]').textContent(),/soft target exceeded/);
+  assert.equal(await batch.locator('[data-input-token="CE"]').count(),12);
+  await audit(page,"Batch whole prompt soft target "+name);
+  await batch.locator('[data-batch-option="chunking"]').selectOption("on");
+  await batch.locator('[data-batch-option="budget"]').selectOption("12");
+  await stepBatchUntil(page,s=>s.phase==="pack");
+  assert.equal(await batch.getAttribute("data-active-tokens"),"12");
+  await batch.locator('[data-batch-option="budget"]').selectOption("8");
+
+  for (const [mode,check] of [["seats","seats"],["cache","kv"],["context","context"]]) {
+    await batch.locator('[data-batch-mode="'+mode+'"]').click();
+    await stepBatchUntil(page,s=>s.event.kind==="wait");
+    assert.equal(await batch.locator('[data-check="'+check+'"]').getAttribute("data-check-status"),"wait");
+    await audit(page,"Batch constrained by "+check+" "+name);
+    await batch.screenshot({path:"/tmp/max-serve-batch-"+mode+"-"+name+".png"});
+    await stepBatchUntil(page,s=>s.finished);
+  }
+  await batch.locator('[data-batch-mode="preempt"]').click();
+  await stepBatchUntil(page,s=>s.event.kind==="preempt");
+  const preempt=await page.evaluate(()=>window.serveStorySnapshot("batch"));
+  assert.equal(preempt.requests[1].prompt,5);
+  assert.equal(preempt.requests[1].emitted,1);
+  assert.equal(preempt.requests[1].pages,0);
+  assert.equal(await batch.locator('[data-batch-ce-rows] [data-request="R2"]').count(),1);
+  await audit(page,"Batch preemption preserves tokens "+name);
+  await batch.screenshot({path:"/tmp/max-serve-batch-preempt-"+name+".png"});
+  await stepBatchUntil(page,s=>s.finished);
+  await batch.locator('[data-batch-mode="readiness"]').click();
+  assert.match(await batch.locator("[data-batch-readiness]").textContent(),/grammar pending.*KV onload pending/);
+  await stepBatchUntil(page,s=>s.pass===2&&s.phase==="readiness");
+  assert.match(await batch.locator("[data-batch-readiness]").textContent(),/R3.*pending/);
+  assert.doesNotMatch(await batch.locator("[data-batch-readiness]").textContent(),/R2/);
+  await audit(page,"Batch readiness polling "+name);
+  await stepBatchUntil(page,s=>s.finished);
+  await batch.locator('[data-batch-mode="impossible"]').click();
+  await stepBatchUntil(page,s=>s.finished);
+  assert.equal(await batch.getAttribute("data-phase"),"fatal");
+  assert.match(await batch.locator("[data-current-event]").textContent(),/InsufficientBlocksError/);
+  await audit(page,"Batch irrecoverable KV shortage "+name);
+  await batch.locator('[data-batch-mode="idle"]').click();
+  await stepBatchUntil(page,s=>s.finished);
+  assert.match(await batch.locator("[data-current-event]").textContent(),/NO_PROGRESS.*backoff/);
+  await batch.locator('[data-batch-mode="mixed"]').click();
+  await batch.locator(".ss-batch-transcript>summary").click();
+  assert.equal(await batch.locator(".ss-api-role-table tbody tr").count(),8);
+  await batch.locator('.ss-api-role-table a[data-ref="context_budget"]').click();
+  assert.equal(await page.locator("#source-dialog").evaluate(n=>n.open),true);
+  assert.match(await page.locator("#source-file").innerText(),/class TotalContextTokenBudget/);
+  await page.keyboard.press("Escape");
+  await batch.locator(".ss-batch-transcript>summary").click();
+  checks.push("Batch constructor on "+name+": third lesson, owned request sets, candidate checks, mixed/chunked/whole inputs, local/global priority, seats, KV waiting/preemption/recompute, context budget, readiness, fatal shortage, empty inputs and source links");
+}
 (async()=>{
   const browser=await chromium.launch({headless:true,args:["--no-sandbox","--disable-dev-shm-usage"]});
   const setup=async options=>{
@@ -294,7 +408,7 @@ async function workerIntro(page,audit,name) {
     await page.goto(url("components_and_flow"));
     assert.equal(await page.locator("[data-serve-story]").count(),4);
     assert.equal(await page.locator("[data-api-story]").count(),1);
-    assert.deepEqual(await page.locator('.ss-lesson-button').allTextContents(),["01","02","03","04","05","06"]);
+    assert.deepEqual(await page.locator('.ss-lesson-button').allTextContents(),["01","02","03","04","05","06","07"]);
     assert.equal(await page.locator("[data-machine]").count(),3);
     assert.equal(await page.locator("#reference-atlas").evaluate(n=>n.open),false);
     await page.waitForTimeout(250);
@@ -305,6 +419,8 @@ async function workerIntro(page,audit,name) {
     await cardsAndLegend(page,"api",audit);
     await workerIntro(page,audit,"components");
     await cardsAndLegend(page,"worker",audit);
+    await batchIntro(page,audit,"components");
+    await cardsAndLegend(page,"batch",audit);
     await cardsAndLegend(page,"one",audit);
     await page.locator('#story-one [data-ss-action="step"]').focus();
     await page.keyboard.press("Enter");
@@ -373,10 +489,11 @@ async function workerIntro(page,audit,name) {
     await page.goto(url("driver_and_scaling"));
     assert.equal(await page.locator("[data-serve-story]").count(),3);
     assert.equal(await page.locator("[data-api-story]").count(),1);
-    assert.deepEqual(await page.locator('.ss-lesson-button').allTextContents(),["01","02","03","04","05"]);
+    assert.deepEqual(await page.locator('.ss-lesson-button').allTextContents(),["01","02","03","04","05","06"]);
     await audit(page,"Systems stories: initial page");
     await apiIntro(page,audit,"systems");
     await workerIntro(page,audit,"systems");
+    await batchIntro(page,audit,"systems");
     await cardsAndLegend(page,"clocks",audit);
     await stepUntil(page,"reader",s=>s[0].requests[0].state==="streaming"&&s[0].buffered>0);
     assert.equal(await page.locator("#story-reader").getAttribute("data-pages"),"0");
@@ -442,6 +559,16 @@ async function workerIntro(page,audit,name) {
         await worker.locator('[data-card-dismiss]').tap();
         assert.equal(await worker.locator('[data-ss-lesson]').evaluate(n=>n.open),false);
         assert.ok(await mobile.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Worker scene keeps document scrolling contained');
+        const batch=mobile.page.locator("#story-batch");
+        await batch.locator('[data-batch-mode="preempt"]').tap();
+        await batch.locator('[data-batch-action="step"]').tap();
+        assert.equal(await batch.getAttribute("data-batch-step"),"1");
+        await batch.locator(".ss-lesson-button").tap();
+        await inViewport(mobile.page,batch.locator(".ss-lesson-card"));
+        await audit(mobile.page,"Touch batch card "+width+" "+name);
+        await batch.locator("[data-card-dismiss]").tap();
+        assert.equal(await batch.locator("[data-ss-lesson]").evaluate(n=>n.open),false);
+        assert.ok(await mobile.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),"Batch scene keeps document scrolling contained");
       }
       await mobile.page.screenshot({path:"/tmp/max-serve-story-mobile-"+width+".png"});
       await mobile.context.close();
@@ -463,6 +590,11 @@ async function workerIntro(page,audit,name) {
     await nojs.page.locator('#story-worker .ss-worker-transcript>summary').click();
     assert.equal(await nojs.page.locator('#story-worker .ss-api-role-table').isVisible(),true);
     assert.match(await nojs.page.locator('#story-worker .ss-transcript pre').innerText(),/NO_PROGRESS.*backoff/);
+    assert.equal(await nojs.page.locator('#story-batch .ss-lesson-card h2').isVisible(),true);
+    assert.equal(await nojs.page.locator('#story-batch [data-batch-controls]').first().isVisible(),false);
+    await nojs.page.locator('#story-batch .ss-batch-transcript>summary').click();
+    assert.equal(await nojs.page.locator('#story-batch .ss-api-role-table').isVisible(),true);
+    assert.match(await nojs.page.locator('#story-batch .ss-transcript pre').innerText(),/TextBatchConstructor.*Python object/);
     assert.equal(await nojs.page.locator('#story-one .ss-lesson-card h2').isVisible(),true);
     await nojs.page.locator('.ss-legend-button').click();
     assert.equal(await nojs.page.locator('[data-ss-legend]').evaluate(n=>n.open),true);
@@ -506,6 +638,21 @@ async function workerIntro(page,audit,name) {
     await motion.page.locator('#state-machines').scrollIntoViewIfNeeded();
     await motion.page.waitForTimeout(150);
     assert.equal(await workerMotion.getAttribute('data-playing'),'false');
+    const batchMotion=motion.page.locator("#story-batch");
+    await batchMotion.locator('[data-batch-action="play"]').click();
+    await motion.page.waitForFunction(()=>window.serveStorySnapshot("batch").focus==="R1");
+    const cursor=batchMotion.locator("[data-batch-cursor]");
+    const cursorBefore=await cursor.getAttribute("transform");
+    await motion.page.waitForTimeout(200);
+    assert.notEqual(await cursor.getAttribute("transform"),cursorBefore,"A candidate marker moves through batch checks during playback");
+    await batchMotion.locator('[data-batch-action="play"]').click();
+    const batchPaused=await batchMotion.getAttribute("data-batch-step");
+    await motion.page.waitForTimeout(1300);
+    assert.equal(await batchMotion.getAttribute("data-batch-step"),batchPaused);
+    await batchMotion.locator('[data-batch-action="play"]').click();
+    await motion.page.locator("#state-machines").scrollIntoViewIfNeeded();
+    await motion.page.waitForTimeout(150);
+    assert.equal(await batchMotion.getAttribute("data-playing"),"false");
     await motion.page.locator('#story-one [data-ss-action="send"]').click();
     const dot=motion.page.locator('#story-one [data-dot-id="R2"]');
     const before=await dot.getAttribute("transform");await motion.page.waitForTimeout(200);
@@ -531,6 +678,8 @@ async function workerIntro(page,audit,name) {
       assert.equal(await print.page.locator('#story-api .ss-api-role-table').isVisible(),true);
       assert.equal(await print.page.locator('#story-worker .ss-api-role-table').isVisible(),true);
       assert.equal(await print.page.locator('#story-worker .ss-lesson-card h2').isVisible(),true);
+      assert.equal(await print.page.locator('#story-batch .ss-api-role-table').isVisible(),true);
+      assert.equal(await print.page.locator('#story-batch .ss-lesson-card h2').isVisible(),true);
       await print.page.emulateMedia({media:"screen"});
       await print.page.evaluate(()=>window.dispatchEvent(new Event("afterprint")));
       assert.equal(await print.page.locator('[data-ss-lesson]').first().evaluate(n=>n.open),false);

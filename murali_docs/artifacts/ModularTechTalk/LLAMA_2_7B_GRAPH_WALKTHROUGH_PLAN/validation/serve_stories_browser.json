@@ -1,6 +1,6 @@
 {
   "result": "PASS",
-  "checked_at": "2026-11-05T17:23:06.208Z",
+  "checked_at": "2026-11-06T02:26:50.188Z",
   "browser": "156.0.8078.4",
   "checks": [
     "Tokenizer executor color card opens on hover/focus, remains readable while hovered and hides after leaving; API loop status is larger and bold",
@@ -8,6 +8,8 @@
     "Full-width api animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
     "Worker close-up on components: second lesson, keyboard controls, partial prefill, result maps, busy-pass membership, KV waiting/reuse, idle backoff, reset and source links",
     "Full-width worker animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
+    "Batch constructor on components: third lesson, owned request sets, candidate checks, mixed/chunked/whole inputs, local/global priority, seats, KV waiting/preemption/recompute, context budget, readiness, fatal shortage, empty inputs and source links",
+    "Full-width batch animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
     "Full-width one animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
     "API and worker opening lessons plus four request lessons, three preserved machines, no autoplay and keyboard stepping to completion",
     "Burst fills M then visible N slots; 429 selects the rejected request; N=6 redraws six slots; occupancy follows admission, drain and reset",
@@ -15,6 +17,7 @@
     "Tokenizer executor color card opens on hover/focus, remains readable while hovered and hides after leaving; API loop status is larger and bold",
     "API introduction on systems: keyboard controls, normal stream/429, three absent-role stops, no-lock backpressure, replacement loop, reset and pinned-source links",
     "Worker close-up on systems: second lesson, keyboard controls, partial prefill, result maps, busy-pass membership, KV waiting/reuse, idle backoff, reset and source links",
+    "Batch constructor on systems: third lesson, owned request sets, candidate checks, mixed/chunked/whole inputs, local/global priority, seats, KV waiting/preemption/recompute, context budget, readiness, fatal shortage, empty inputs and source links",
     "Full-width clocks animation, numbered hover/focus card, click-only L legend, source links and matching component colors",
     "Slow-reader output outlives KV ownership; warming replicas excluded; advanced deep links preserved",
     "320/390 px touch controls, readable contrast and contained diagram scrolling",
@@ -25,289 +28,433 @@
   "audits": [
     {
       "label": "Request stories: initial page",
-      "samples": 689,
+      "samples": 814,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Tokenizer executor hover card components",
-      "samples": 733,
+      "samples": 858,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API shared loop and lock components",
-      "samples": 690,
+      "samples": 815,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API absent role uvicorn components",
-      "samples": 687,
+      "samples": 812,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API absent role fastapi components",
-      "samples": 687,
+      "samples": 812,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API absent role loop components",
-      "samples": 687,
+      "samples": 812,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API possible no-lock interleaving components",
-      "samples": 686,
+      "samples": 811,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Lesson hover card api",
-      "samples": 707,
+      "samples": 832,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Component legend api",
-      "samples": 768,
+      "samples": 893,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Worker partial prefill components",
-      "samples": 692,
+      "samples": 817,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Worker already executing components",
-      "samples": 690,
+      "samples": 815,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Worker KV pressure components",
-      "samples": 689,
+      "samples": 814,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Worker idle backoff components",
-      "samples": 687,
+      "samples": 812,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Lesson hover card worker",
-      "samples": 707,
+      "samples": 832,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Component legend worker",
-      "samples": 772,
+      "samples": 897,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch mixed inputs components",
+      "samples": 840,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch CE priority components",
+      "samples": 837,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch whole prompt soft target components",
+      "samples": 849,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch constrained by seats components",
+      "samples": 823,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch constrained by kv components",
+      "samples": 817,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch constrained by context components",
+      "samples": 823,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch preemption preserves tokens components",
+      "samples": 813,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch readiness polling components",
+      "samples": 818,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch irrecoverable KV shortage components",
+      "samples": 806,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Lesson hover card batch",
+      "samples": 823,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Component legend batch",
+      "samples": 897,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Lesson hover card one",
-      "samples": 698,
+      "samples": 823,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Component legend one",
-      "samples": 772,
+      "samples": 897,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Visible saturation and rejection",
-      "samples": 706,
+      "samples": 831,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Systems stories: initial page",
-      "samples": 467,
+      "samples": 592,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Tokenizer executor hover card systems",
-      "samples": 511,
+      "samples": 636,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API shared loop and lock systems",
-      "samples": 468,
+      "samples": 593,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API absent role uvicorn systems",
-      "samples": 465,
+      "samples": 590,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API absent role fastapi systems",
-      "samples": 465,
+      "samples": 590,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API absent role loop systems",
-      "samples": 465,
+      "samples": 590,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "API possible no-lock interleaving systems",
-      "samples": 464,
+      "samples": 589,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Worker partial prefill systems",
-      "samples": 470,
+      "samples": 595,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Worker already executing systems",
-      "samples": 468,
+      "samples": 593,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Worker KV pressure systems",
-      "samples": 467,
+      "samples": 592,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Worker idle backoff systems",
-      "samples": 465,
+      "samples": 590,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch mixed inputs systems",
+      "samples": 618,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch CE priority systems",
+      "samples": 615,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch whole prompt soft target systems",
+      "samples": 627,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch constrained by seats systems",
+      "samples": 601,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch constrained by kv systems",
+      "samples": 595,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch constrained by context systems",
+      "samples": 601,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch preemption preserves tokens systems",
+      "samples": 591,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch readiness polling systems",
+      "samples": 596,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Batch irrecoverable KV shortage systems",
+      "samples": 584,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Lesson hover card clocks",
-      "samples": 476,
+      "samples": 601,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Component legend clocks",
-      "samples": 546,
+      "samples": 671,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Independent replica routing",
-      "samples": 473,
+      "samples": 598,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch lesson card 390 components_and_flow",
-      "samples": 713,
+      "samples": 839,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch legend 390 components_and_flow",
-      "samples": 774,
+      "samples": 900,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch story 390 components_and_flow",
-      "samples": 695,
+      "samples": 821,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch worker card 390 components_and_flow",
-      "samples": 713,
+      "samples": 839,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Touch batch card 390 components_and_flow",
+      "samples": 829,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch lesson card 390 driver_and_scaling",
-      "samples": 490,
+      "samples": 616,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch legend 390 driver_and_scaling",
-      "samples": 551,
+      "samples": 677,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch story 390 driver_and_scaling",
-      "samples": 472,
+      "samples": 598,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch worker card 390 driver_and_scaling",
-      "samples": 490,
+      "samples": 616,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Touch batch card 390 driver_and_scaling",
+      "samples": 606,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch lesson card 320 components_and_flow",
-      "samples": 713,
+      "samples": 839,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch legend 320 components_and_flow",
-      "samples": 774,
+      "samples": 900,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch story 320 components_and_flow",
-      "samples": 695,
+      "samples": 821,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch worker card 320 components_and_flow",
-      "samples": 713,
+      "samples": 839,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Touch batch card 320 components_and_flow",
+      "samples": 829,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch lesson card 320 driver_and_scaling",
-      "samples": 490,
+      "samples": 616,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch legend 320 driver_and_scaling",
-      "samples": 551,
+      "samples": 677,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch story 320 driver_and_scaling",
-      "samples": 472,
+      "samples": 598,
       "minimum_text_ratio": 5.095,
       "failures": []
     },
     {
       "label": "Touch worker card 320 driver_and_scaling",
-      "samples": 490,
+      "samples": 616,
+      "minimum_text_ratio": 5.095,
+      "failures": []
+    },
+    {
+      "label": "Touch batch card 320 driver_and_scaling",
+      "samples": 606,
       "minimum_text_ratio": 5.095,
       "failures": []
     }

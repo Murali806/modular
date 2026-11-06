@@ -134,6 +134,67 @@ Release: request block ownership becomes reusable; the backing pool stays alloca
 One ordinary non-overlap pipeline; tiny queues, budgets and reservations are teaching choices.
 ```
 
+### 03 · Inside the batch constructor
+
+The third animation places ReplicaRequests inside TextBatchConstructor and follows readiness, priority, request seats, token checks, KV allocation, context references, execution and feedback. Repeated IDs refer to the same request context.
+
+Play, Step and Reset compare Mixed requests, Batch full, KV wait, Preempt + recompute, Context budget, Not ready, Cannot fit and No requests. Policy, active-target and chunking controls compare per-replica in-flight ON/OFF and global TG override.
+
+SOURCE: a one-replica projection of the pinned Python branches. BOUNDARY: tiny page costs, inputs, readiness and native execution are illustrative. No adapters, speculative drafts, DP padding or overlap. In this scene cadence/backfill are open, KV pressure uses a 90% teaching threshold, and chunk alignment/floors/per-request caps are disabled.
+
+The optional total-context budget counts page-aligned full context, not the current prefill chunk. Budget checks short-circuit at the first non-AVAILABLE result. With chunking OFF the active-token target is soft. KV preemption resets existing tokens into a fresh prompt for recomputation; it does not discard the token history.
+
+Transient allocation shortages can wait; an irrecoverable shortage with no other work or transfer raises InsufficientBlocksError. Empty inputs let the ordinary caller return NO_PROGRESS and back off.
+
+| Part | Logic / ownership |
+| --- | --- |
+| Request state | ReplicaRequests owns ordered CE and TG collections inside TextBatchConstructor. Selecting CE pops its context; selecting TG keeps it tracked. |
+| Ready work | Poll KV transfers, readmit completed onloads and promote grammar-ready contexts. Held work does not consume a model input row. |
+| Priority | Per-replica priority considers queue state, configuration, cadence and KV pressure. In-flight TG can backfill CE; a global override suppresses that backfill. |
+| Request seats | Selected CE plus active TG is bounded by max_batch_size. Spare token capacity does not create a seat. |
+| Active tokens | Check an active input window. With chunking OFF the active target is soft; with chunking ON a prompt can be split. Checks do not charge usage until the context is accepted. |
+| Context tokens | Optional separate budget for page-aligned context length. Chunking the active window does not shrink the full resident context. The budget collection stops at the first non-AVAILABLE status. |
+| KV allocation | TG checks token budget before allocating; CE allocates before the detailed token check. TG shortages can preempt the newest remaining candidate; transient CE shortages retry, irrecoverable shortages raise. |
+| Inputs + feedback | Return lists of the selected context references. The pipeline prepares tensors and executes. advance_requests returns partial prefill to CE, promotes completed prefill to TG, and the caller releases terminated requests. |
+
+~~~text
+MODEL WORKER PROCESS · one scheduler loop
+  scheduler: enqueue_new_request(context); construct_batch()
+       |
+       v
+ +------------- TextBatchConstructor: one Python object --------------+
+ | poll transfers / onloads / grammar readiness                       |
+ |                                                                   |
+ | ReplicaRequests         choose priority         next input batch   |
+ | CE [prefill contexts] -> CE or TG -----------> [context references] |
+ | TG [decode contexts]      |                                        |
+ |                         request seats                             |
+ |                         active-token window                       |
+ |                         optional total-context budget             |
+ |                         KV alloc / readiness                      |
+ |                                                                   |
+ | TG: token check -> KV alloc -> select                              |
+ |     no blocks -> preempt newest remaining TG candidate -> CE reset |
+ | CE: seat + remaining budget -> KV alloc -> chunk/check -> select    |
+ |     transient shortage -> retry; irrecoverable shortage -> error   |
+ |                                                                   |
+ | per-replica in-flight ON: TG first -> optional CE backfill          |
+ | per-replica in-flight OFF: CE first -> TG if CE selected nothing    |
+ | global TG override: TG only while a TG priority exists             |
+ +-----------------------------------|-------------------------------+
+                                     v
+                       TextGenerationInputs(batches=[[...]])
+                                     |
+                       pipeline prepares / executes / samples
+                                     |
+                       advance_requests + caller releases finished work
+                       partial prompt -> CE head; full prefill -> TG
+                       empty inputs -> NO_PROGRESS -> worker backoff
+ SOURCE: Python branches and ownership. BOUNDARY: native execution.
+ One ordinary replica; tiny page costs, tokens and readiness are illustrative.
+ Repeated request IDs refer to the same context, not duplicated requests.
+~~~
+
 ### Accepted. Then scheduled.
 
 A valid request R1 arrives at a ready MAX Serve instance. Follow it through tokenization, the admission gate, prefill and repeated decode passes.

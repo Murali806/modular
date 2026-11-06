@@ -2,6 +2,17 @@
   "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
   "page": "link_htmls/max_serve_os_components_and_flow.html",
   "references": {
+    "active_budget": {
+      "alias": "BUDGET",
+      "symbol": "ActiveTokenBudget.status_after_context",
+      "label": "ActiveTokenBudget.status_after_context()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/batch_constructor/token_budget.py",
+      "start": 313,
+      "end": 415,
+      "line": 313,
+      "sha256": "5b195f94adc4b265818950298d054df84fc1a2c4dafcef68711bd68f909f9935"
+    },
     "alive": {
       "alias": "WORKER",
       "symbol": "ModelWorker.run",
@@ -24,6 +35,116 @@
       "end": 479,
       "line": 346,
       "sha256": "bea64a90d8fd2575d954ef93d6db95659aec1732133e2c7f72d55e5285c17571"
+    },
+    "batch_advance": {
+      "alias": "BATCH",
+      "symbol": "TextBatchConstructor.advance_requests",
+      "label": "TextBatchConstructor.advance_requests()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py",
+      "start": 961,
+      "end": 1003,
+      "line": 961,
+      "sha256": "40669984b23d7412a247e0cc829b48ad9e793fc30e69b559238dd973f86d96c2"
+    },
+    "batch_budgets": {
+      "alias": "BATCH",
+      "symbol": "TextBatchConstructor._create_new_token_budget",
+      "label": "TextBatchConstructor._create_new_token_budget()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py",
+      "start": 651,
+      "end": 684,
+      "line": 651,
+      "sha256": "1b6a7f973aafb23769661dbec55e5d7efdbc5465e50ee1ea239597c3f9b9ef7d"
+    },
+    "batch_ce": {
+      "alias": "BATCH",
+      "symbol": "TextBatchConstructor._add_ce_requests",
+      "label": "TextBatchConstructor._add_ce_requests()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py",
+      "start": 1461,
+      "end": 1683,
+      "line": 1461,
+      "sha256": "490c33429a5b9bfd26a5824692c6b47bb55ef8718721d1e012ebd10eaef48157"
+    },
+    "batch_enqueue": {
+      "alias": "BATCH",
+      "symbol": "TextBatchConstructor.enqueue_new_request",
+      "label": "TextBatchConstructor.enqueue_new_request()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py",
+      "start": 758,
+      "end": 782,
+      "line": 758,
+      "sha256": "fdcfc5ac72f4d48838fd87ce460e2e8209bb143dc6b1121cfb5f560973721afa"
+    },
+    "batch_priority": {
+      "alias": "BATCH",
+      "symbol": "TextBatchConstructor._identify_priority",
+      "label": "TextBatchConstructor._identify_priority()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py",
+      "start": 1312,
+      "end": 1358,
+      "line": 1312,
+      "sha256": "af31fa5e67be5847fe2d3801269b463194c716adae202feb5f4198ed75b96a51"
+    },
+    "batch_replica": {
+      "alias": "BATCH",
+      "symbol": "TextBatchConstructor._construct_replica_batch",
+      "label": "TextBatchConstructor._construct_replica_batch()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py",
+      "start": 1860,
+      "end": 1938,
+      "line": 1860,
+      "sha256": "9cd3d0616d35654b33a41a597af9f61cd1899ea628eea86a9e3770bfe54b167b"
+    },
+    "batch_requeue": {
+      "alias": "BATCH",
+      "symbol": "TextBatchConstructor._return_to_request_queue",
+      "label": "TextBatchConstructor._return_to_request_queue()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py",
+      "start": 1203,
+      "end": 1264,
+      "line": 1203,
+      "sha256": "02c34ea9c84a7edf10d28993ddeb2b0aca695f5040f0f52eacad5001c670d157"
+    },
+    "batch_reset": {
+      "alias": "CONTEXT",
+      "symbol": "TextContext.reset",
+      "label": "TextContext.reset()",
+      "kind": "definition",
+      "file": "max/python/max/pipelines/context/context.py",
+      "start": 1101,
+      "end": 1107,
+      "line": 1101,
+      "sha256": "54b4e9ca174f6518ff5f14475634fd72aed2bf3a5319bdfcdbf8f6e6590baa57"
+    },
+    "batch_sets": {
+      "alias": "BATCH",
+      "symbol": "ReplicaRequests",
+      "label": "ReplicaRequests: constructor-owned request sets",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py",
+      "start": 193,
+      "end": 245,
+      "line": 193,
+      "sha256": "8593f93294a2809384e47b57e48ce5ae95b9b54541669b9bd239351b7038f4f4"
+    },
+    "batch_tg": {
+      "alias": "BATCH",
+      "symbol": "TextBatchConstructor._add_tg_requests",
+      "label": "TextBatchConstructor._add_tg_requests()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py",
+      "start": 1685,
+      "end": 1779,
+      "line": 1685,
+      "sha256": "b0141ab241a09631407c10d889d3e3b670b65468f1c68d290043ada2dcdd2960"
     },
     "buffer_copy": {
       "alias": "BUFFER",
@@ -91,6 +212,17 @@
       "end": 2349,
       "line": 2254,
       "sha256": "929263239623c953515356771461c5945cfe3b7ee31a4d81a18040a64d8b33f6"
+    },
+    "context_budget": {
+      "alias": "BUDGET",
+      "symbol": "TotalContextTokenBudget.status_after_context",
+      "label": "TotalContextTokenBudget.status_after_context()",
+      "kind": "definition",
+      "file": "max/python/max/serve/scheduler/batch_constructor/token_budget.py",
+      "start": 492,
+      "end": 539,
+      "line": 492,
+      "sha256": "e987f6f424ac712b34030c9ecd7b6d2eec94a7715cdb778b5a455b4465313641"
     },
     "eventloop": {
       "alias": "SERVE",
@@ -554,6 +686,10 @@
     }
   },
   "files": {
+    "max/python/max/serve/scheduler/batch_constructor/token_budget.py": {
+      "sha256": "38ac927457f76eb5a1b22084ec7f1380f1cc4a0f65fc1ce7eeceac7ed00e6eda",
+      "snapshot": "sources/max/python/max/serve/scheduler/batch_constructor/token_budget.py"
+    },
     "max/python/max/serve/pipelines/model_worker.py": {
       "sha256": "2470a201fd1fcb3f3537dc800f603653d793e052c4a8fbe6e85d50478ecd58b2",
       "snapshot": "sources/max/python/max/serve/pipelines/model_worker.py"
@@ -561,6 +697,14 @@
     "max/python/max/serve/api_server.py": {
       "sha256": "1348dcf0dfa8e50e0d0d9e0dd7c85c50cc3cdf7f91e603f0a84271aa997c1f9e",
       "snapshot": "sources/max/python/max/serve/api_server.py"
+    },
+    "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py": {
+      "sha256": "5042371189adc416a07f1b8c9ecf9ca465f1ca6a3bc2082e3089cf4e1c38836c",
+      "snapshot": "sources/max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py"
+    },
+    "max/python/max/pipelines/context/context.py": {
+      "sha256": "4d02a6e4339a511f32b870af4cf8803f2ccbc71eb73bc2caff243e0e9fb11894",
+      "snapshot": "sources/max/python/max/pipelines/context/context.py"
     },
     "max/python/max/driver/buffer.py": {
       "sha256": "572618625e340f65583027ad6cafe138a64b67b3dd9db2c42888a542d7074dcf",
@@ -573,10 +717,6 @@
     "max/python/max/serve/worker_interface/zmq_interface.py": {
       "sha256": "77cec3e86d80b5ab02f05ef0cc5daaf296d739d022449f13db53e5ea284a9a2b",
       "snapshot": "sources/max/python/max/serve/worker_interface/zmq_interface.py"
-    },
-    "max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py": {
-      "sha256": "5042371189adc416a07f1b8c9ecf9ca465f1ca6a3bc2082e3089cf4e1c38836c",
-      "snapshot": "sources/max/python/max/serve/scheduler/batch_constructor/text_batch_constructor.py"
     },
     "max/python/max/serve/process_control.py": {
       "sha256": "de7b25fc676a2c04eb1b541cf9eadde712c12c161080121d2bc6bdb918a1a0ec",

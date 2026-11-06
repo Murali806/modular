@@ -4,6 +4,7 @@ from html import escape
 
 from serve_api import API_REFS, api_intro_markdown, render_api_intro
 from serve_worker import WORKER_REFS, render_worker_intro, worker_intro_markdown
+from serve_batch import BATCH_REFS, batch_intro_markdown, render_batch_intro
 
 
 LEGEND = [
@@ -102,7 +103,7 @@ def story_refs(page):
         "queue_settings", "proxy_submit", "scheduler_pending", "construct_batch",
         "http_429", "worker_run", "scheduler_execute", "release_request",
         "proxy_init", "start_worker", "connected",
-    } | {ref for row in LEGEND for ref in row[4]} | API_REFS | WORKER_REFS
+    } | {ref for row in LEGEND for ref in row[4]} | API_REFS | WORKER_REFS | BATCH_REFS
 
 
 def pipeline_svg(key):
@@ -178,8 +179,9 @@ def queue_slots_svg(fleet=False):
 
 
 def render_stories(page):
-    result = [render_api_intro(), render_worker_intro()]
-    for story in STORIES[page]:
+    result = [render_api_intro(), render_worker_intro(), render_batch_intro()]
+    for original in STORIES[page]:
+        story = {**original, "number": f"{int(original['number']) + 1:02d}"}
         key = story["id"]
         option = ""
         if "option" in story:
@@ -218,6 +220,7 @@ def story_contract():
 <p><b>SOURCE</b> Admission, the N/M backpressure chain, the worker loop and request cleanup follow this checkout's pinned source. <b>BOUNDARY</b> Device execution and OS lanes describe ownership; they are not GPU or Linux traces.</p>
 <p>The opening API-process lesson uses two valid requests and one connected IPC slot. Component removals and the alternative event loop are thought experiments. The no-lock trace selects a possible interleaving where two probes see room before either sends; it does not claim a captured race or queue overflow. Normal playback stops after the first output chunk.</p>
 <p>The second lesson starts inside the separate model worker after API admission. It uses the same teaching worker as the later stories to compare normal batches, a busy pass, KV pressure and an idle loop. CPU request markers, GPU work tiles, KV ownership blocks and response maps show distinct parts of the flow. The process diagrams do not imply a separate thread for each box.</p>
+<p>The third lesson isolates the batch constructor and places its owned CE/TG collections inside it. Its separate branch projection shows readiness, local priority, global TG override, seats, token budget checks, KV grants, preemption/reset, context references and feedback after execution. Its tiny four-token pages and readiness steps are illustrative. Execution is outside the constructor. The decision transcript records its source scope and disabled features.</p>
 <p>The diagrams use exact, small N-slot queues, artificial event durations, tiny token counts, one ordinary non-overlap worker and a simple chunked, decode-first policy. Real ZeroMQ high-water marks are approximate. MAX's batch strategy, token budgets, grammar readiness, adapters, cache availability and overlap settings can change the selected work and when results arrive.</p>
 <p>The toy worker conservatively reserves prompt plus output KV pages at batch entry. MAX allocates through its cache manager and can preempt/recompute or use configured transfer paths. A request waiting for cache space is already admitted; this simulation never converts that wait into an HTTP 429.</p>
 <p>M is checked against <code>all_ce_reqs</code> at the start of the iteration. The drawings keep unfinished prefill visible with waiting prefill. Decoders are separate. Both queue limits default to <code>None</code> (unbounded) in the pinned source; finite values here are teaching settings.</p>
@@ -237,6 +240,7 @@ def story_markdown(page):
               'Dashed boxes show process ownership. Request IPC has visible empty/occupied message slots, redrawn when N changes. Native runtime, kernel driver and hardware are distinct boundaries. Request-pill colors describe lifecycle state separately from component colors.']
     lines += api_intro_markdown()
     lines += worker_intro_markdown()
+    lines += batch_intro_markdown()
     for story in STORIES[page]:
         lines += ['### ' + story['title'], story['intro'], story['lesson'],
                   'Try it: ' + story['try_it'], '```text\n' + story['ascii'] + '\n```']

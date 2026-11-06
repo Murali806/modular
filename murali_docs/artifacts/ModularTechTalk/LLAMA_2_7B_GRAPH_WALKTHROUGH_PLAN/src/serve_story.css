@@ -120,6 +120,30 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
 .ss-worker-token > rect { fill: #dceee4; stroke: #497259; stroke-width: 1.2; }
 .ss-worker-token > text { fill: #31573f; font: 600 10px ui-monospace, monospace; }
 .ss-worker-story .ss-event[data-kind="cache"] { color: #793b28; background: #f8e9df; border-color: #ae684c; }
+.ss-batch-diagram [data-batch-component][data-active="true"] > .ss-component-box { stroke-width: 3; }
+.ss-batch-owner { stroke-width: 1.7; }
+.ss-batch-diagram text[text-anchor="start"] { text-anchor: start; }
+.ss-batch-focus-plate { fill: #e6f4f8; stroke: #166777; stroke-dasharray: 3 3; }
+.ss-batch-cursor > rect { fill: #e6f4f8; stroke: #166777; stroke-width: 1.5; }
+.ss-batch-cursor > text { fill: #15515f; font: 600 10px ui-monospace, monospace; }
+.ss-batch-check > rect { fill: #f5f6ed; stroke: #bdcdb7; }
+.ss-batch-check > text { fill: #4a604f; font: 11px ui-monospace, monospace; }
+.ss-batch-check[data-check-status="pass"] > rect { fill: #e4f1df; stroke: #658857; }
+.ss-batch-check[data-check-status="pass"] > text { fill: #31532d; }
+.ss-batch-check[data-check-status="wait"] > rect { fill: #fae9dd; stroke: #a46344; }
+.ss-batch-check[data-check-status="wait"] > text { fill: #793b28; }
+.ss-batch-input-row > rect { fill: #fffefa; stroke: #166777; stroke-dasharray: 3 3; }
+.ss-batch-input-row > text { fill: #15515f; font: 11px ui-monospace, monospace; }
+.ss-batch-input-row[data-occupied="true"] > rect { fill: #edf6f7; stroke-dasharray: none; }
+.ss-batch-token-cell > rect { fill: #dfe9f4; stroke: #6a88a0; }
+.ss-batch-token-cell > text { fill: #37556d; font: 10px ui-monospace, monospace; }
+.ss-batch-input-row[data-input-kind="TG"] .ss-batch-token-cell > rect { fill: #dbedd6; stroke: #6b8d5e; }
+.ss-batch-input-row[data-input-kind="TG"] .ss-batch-token-cell > text { fill: #34572d; }
+.ss-batch-budget-cell > rect { fill: #fffefa; stroke: var(--component-color); stroke-dasharray: 2 2; }
+.ss-batch-budget-cell > text { fill: var(--component-color); font: 10px ui-monospace, monospace; }
+.ss-batch-budget-cell[data-occupied="true"] > rect { fill: var(--component-tint); stroke-dasharray: none; }
+.ss-batch-story .ss-event[data-kind="wait"], .ss-batch-story .ss-event[data-kind="preempt"], .ss-batch-story .ss-event[data-kind="fatal"] { color: #793b28; background: #f8e9df; border-color: #ae684c; }
+.ss-batch-story [data-batch-request-states] > span { flex: 1 1 260px; }
 .ss-api-story .ss-api-thread-badge { --thread-ink: #54317f; --thread-fill: #f8f2ff; }
 .ss-api-story .ss-api-thread-badge[data-api-thread="T2"] { --thread-ink: #875015; --thread-fill: #fff6df; }
 .ss-api-story .ss-api-thread-badge[data-api-thread="T3"] { --thread-ink: #8a365f; --thread-fill: #fff0f6; }

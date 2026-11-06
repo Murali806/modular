@@ -21,6 +21,8 @@ FILES = {**STACK_FILES, **MEMORY_FILES, **{key: BASE + path for key, path in {
     "OPENAI": "serve/router/openai_routes.py",
     "TG_SCHED": "serve/scheduler/text_generation_scheduler.py",
     "BATCH": "serve/scheduler/batch_constructor/text_batch_constructor.py",
+    "BUDGET": "serve/scheduler/batch_constructor/token_budget.py",
+    "CONTEXT": "pipelines/context/context.py",
     "BUFFER": "driver/buffer.py",
     "HOST_MEMORY": "support/host_memory.py",
 }.items()}}
@@ -57,6 +59,18 @@ REFS.update({
     "scheduler_iteration": definition("TG_SCHED", "TokenGenerationScheduler.run_iteration"),
     "scheduler_execute": definition("TG_SCHED", "TokenGenerationScheduler._schedule", "Execute, advance requests and release completed requests", "                responses = self.pipeline.execute(inputs)"),
     "construct_batch": definition("BATCH", "TextBatchConstructor.construct_batch"),
+    "batch_sets": definition("BATCH", "ReplicaRequests", "ReplicaRequests: constructor-owned request sets"),
+    "batch_enqueue": definition("BATCH", "TextBatchConstructor.enqueue_new_request"),
+    "batch_priority": definition("BATCH", "TextBatchConstructor._identify_priority"),
+    "batch_replica": definition("BATCH", "TextBatchConstructor._construct_replica_batch"),
+    "batch_ce": definition("BATCH", "TextBatchConstructor._add_ce_requests"),
+    "batch_tg": definition("BATCH", "TextBatchConstructor._add_tg_requests"),
+    "batch_budgets": definition("BATCH", "TextBatchConstructor._create_new_token_budget"),
+    "batch_advance": definition("BATCH", "TextBatchConstructor.advance_requests"),
+    "batch_requeue": definition("BATCH", "TextBatchConstructor._return_to_request_queue"),
+    "batch_reset": definition("CONTEXT", "TextContext.reset"),
+    "active_budget": definition("BUDGET", "ActiveTokenBudget.status_after_context"),
+    "context_budget": definition("BUDGET", "TotalContextTokenBudget.status_after_context"),
     "release_request": definition("BATCH", "TextBatchConstructor.release_request"),
     "preempt_request": definition("BATCH", "TextBatchConstructor._preempt_request"),
     "pipeline_execute": definition("TEXT", "TextGenerationPipeline._execute"),
@@ -241,7 +255,7 @@ def build_os_systems(data, task, src, span_finder):
     payload = json.dumps(viewer, ensure_ascii=False).replace('<', '\\u003c')
     template = template.replace('<!-- OS_DATA -->', '<script id="os-data" type="application/json">' + payload + '</script>')
     template = template.replace('<!-- OS_CSS -->', '<style>' + (src / "os_systems.css").read_text() + '\n' + (src / "serve_story.css").read_text() + '</style>')
-    scripts = ('os_systems_lab.js', 'os_systems.js', 'serve_story_model.js', 'serve_api_model.js', 'serve_worker_model.js', 'serve_worker.js', 'serve_story.js')
+    scripts = ('os_systems_lab.js', 'os_systems.js', 'serve_story_model.js', 'serve_api_model.js', 'serve_worker_model.js', 'serve_worker.js', 'serve_batch_model.js', 'serve_batch.js', 'serve_story.js')
     template = template.replace('<!-- OS_JS -->', ''.join('<script>' + (src / name).read_text() + '</script>' for name in scripts))
     (task / "link_htmls" / PAGE_NAME).write_text(template)
     manifest = dict(revision=data["revision"], page='link_htmls/' + PAGE_NAME,
