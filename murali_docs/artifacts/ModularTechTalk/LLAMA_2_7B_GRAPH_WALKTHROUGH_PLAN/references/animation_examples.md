@@ -58,17 +58,15 @@ Rendered reference:
   [inference_session.css](../src/inference_session.css)
 - State model: [inference_session_model.js](../src/inference_session_model.js)
 - Controls/cards/source explorer: [inference_session.js](../src/inference_session.js)
-- Persistent actor interpolation and target placements: follow the renderer
-  used by `inference_session.js`. If it delegates to the extracted
-  `src/inference_session_visuals.js` layer, inspect that file too; the layer
-  may be a local enhancement not yet present in another checkout.
+- Persistent actor interpolation and target placements:
+  [inference_session_visuals.js](../src/inference_session_visuals.js)
 - Provenance: [inference_session_manifest.json](../inference_session_manifest.json)
 - Checks: [check_inference_session.cjs](../src/check_inference_session.cjs),
   [check_inference_session_browser.cjs](../src/check_inference_session_browser.cjs)
 
 Use `constructorFrames`, `compilationFrames`, `executionFrames` and
-`lifetimeFrames` as the finite-timeline pattern. Where present,
-`InferenceSessionVisual` keeps an actor map keyed by ID, samples the current
+`lifetimeFrames` as the finite-timeline pattern. `InferenceSessionVisual`
+keeps an actor map keyed by ID, samples the current
 pose before retargeting, maps frames to resource slots, follows via paths and
 supports reduced motion and freeze/resume. Inspect how the current visual
 layer is included by the builder. If the checkout has only packet markers,
@@ -81,6 +79,14 @@ object movement rather than treating the older renderer as the quality limit.
 | Compile/init | Symbolic Graph inputs, compile work, CompiledModel artifact, named registry bindings, missing-weight gate and initialized M1 |
 | Repeat inference | Packed token and row-offset buffers for prefill/decode, input/completion slots, fresh results and the same S1/M1 retained across calls |
 | Lifetime | Python-wrapper and native-ModelHandle reference edges, release-order branches and a session that survives while a model handle retains it |
+
+Reuse the interventions as well as playback: supplying the missing W_b binding
+opens initialization's gate; running another decode feeds sampled tokens into
+fresh inputs while S1/M1 remain; independently releasing caller/decoder/sampler
+owners detaches the corresponding references. These controls change the model
+and visible resources. The device-work tiles represent schematic execution;
+KV tiles represent token entries rather than page geometry, and A/B result
+tiles are sequence views rather than a count of native output buffers.
 
 Source invariants at the recorded revision:
 
@@ -104,8 +110,12 @@ See [recorded validation](../validation/INFERENCE_SESSION_VALIDATION.md) and
 [constructor](../validation/inference_session_constructor.png),
 [execution](../validation/inference_session_execution.png) and
 [missing-binding](../validation/inference_session_missing_weight.png)
-screenshots for the established layout. Current source may contain later
-motion improvements.
+screenshots for the established layout. Inspect the
+[device-work](../validation/inference_session_device_work.png),
+[binding-repair](../validation/inference_session_repaired_weight.png) and
+[owner-release](../validation/inference_session_lifetime.png) states for the
+more detailed resource/ownership animation. Current source may contain later
+improvements.
 
 ## Engine/compiler: phase work, Mojo, MEF and runtime dependencies
 

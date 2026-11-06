@@ -39,6 +39,13 @@ ready versus waiting, valid versus missing bindings. A scenario control changes
 the state/route/consequence; changing its caption alone adds little teaching
 value. A single narrow mechanism does not need unrelated failure scenarios.
 
+Where useful, let the reader intervene in the mechanism: supply a missing
+binding, add another decode, drain an output queue or release one owner.
+The control changes the model's prerequisites/work/ownership and the scene
+shows the consequence. Recoverable gates resume only after their prerequisite
+is supplied; terminating errors still stop the route. Label such inputs as
+teaching interventions, without implying a production HTTP/API feature.
+
 ## 2. Draw owners, actors and resources separately
 
 Maintain a component table with `id`, label, kind, owner, role, color, source
