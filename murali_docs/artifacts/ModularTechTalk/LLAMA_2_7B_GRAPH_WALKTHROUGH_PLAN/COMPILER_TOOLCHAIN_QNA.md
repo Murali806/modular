@@ -1,3 +1,364 @@
+# Add-one: Graph, session, compile and init call trees
+
+SOURCE · repository revision 610f7111836d9a950d45ba52ec9b3e0ed589fe3f. Numerical values are illustrative; no MAX execution.
+
+## A · Graph(...) → G1 + package P1
+
+graph = Graph("addition", forward=..., input_types=..., custom_extensions=[mojo_kernels])
+
+INPUT: name="addition"; symbolic X: float32[5,10] @ device; forward callback; kernels/
+OUTPUT: G1: Python Graph + mo.graph module; P1: resolved .mojoc package path
+EXAMPLE: forward records custom("add_one", [X]) → symbolic Y: float32[5,10]
+
+```text
+Graph.__init__(name, forward, input_types, custom_extensions) [max/python/max/graph/graph.py:L819]
+├─ in_default_mlir_context [max/python/max/_mlir_context.py:L70] → enter the default MLIR context
+├─ create builtin.ModuleOp + mo.GraphOp("addition") → G1
+│  ├─ input TensorType → MLIR block argument: X: float32[5,10]
+│  ├─ _params = {} → this shape has no symbolic dimensions
+│  ├─ _populate_device_info_mapping() [max/python/max/graph/graph.py:L1366] → CPU/GPU target metadata
+│  └─ _weights = {}; device chains + always-ready chain → ordering tokens
+│
+├─ KernelLibrary() [max/python/max/graph/graph.py:L245] → native kernel Analysis
+├─ _resolved_custom_extensions([kernels/]) [max/python/max/graph/graph.py:L363] → paths + default overlays
+├─ _import_kernels(paths) [max/python/max/graph/graph.py:L1703]
+│  └─ KernelLibrary.load_paths(paths) [max/python/max/graph/graph.py:L269]
+│     ├─ source directory + __init__.mojo → _build_mojo_source_package(kernels/) [Mojo/python/mojo/paths.py:L141]
+│     │  └─ mojo precompile kernels/ -o staging.mojoc → publish P1
+│     └─ existing .mojoc → add directly; skip the source-package subprocess
+│
+├─ with G1 → forward(*self.inputs) runs once with symbolic X
+│  ├─ ops.custom(name="add_one", device, values=[X], out_types=[...]) [max/python/max/graph/ops/custom.py:L69]
+│  │  ├─ record mo.custom → registration name + target + result type
+│  │  └─ KernelLibrary.verify_custom_op(op) [max/python/max/graph/graph.py:L307] → validate Mojo contract
+│  └─ callback returns the custom result's .tensor → symbolic Y
+├─ Graph.output(Y) [max/python/max/graph/graph.py:L1396] → mo.output + signature + whole-graph verification
+└─ return G1 → recorded computation; P1 available for later specialization
+```
+
+### A.1 · Expand the .mojo → .mojoc compiler subprocess
+
+```text
+_build_mojo_source_package(kernels_dir) [Mojo/python/mojo/paths.py:L141]  [parent Python process]
+├─ input: absolute directory with kernels/__init__.mojo [max/examples/custom_ops/kernels/__init__.mojo:L1]
+├─ hash = MD5(absolute path string) → a stable filename, not a source-content hash
+├─ final: <tempdir>/.modular_<uid>/mojo_pkg/mojo_pkg_<hash>.mojoc
+├─ staging: .staging.<pid>/mojo_pkg_<hash>.mojoc
+├─ subprocess_run_mojo(["precompile", kernels_dir, "-o", staging], check=True) [Mojo/python/mojo/run.py:L57]
+│  ├─ executable: MODULAR_MOJO_MAX_DRIVER_PATH, otherwise mojo on PATH
+│  └─ subprocess.run(...) → Python waits for the separate compiler process
+│     └─ mojo precompile: precompile(State) [Mojo/tools/mojo/Precompile/mojo-precompile.cpp:L209]
+│        ├─ validate source package / names; create compiler context; open output
+│        ├─ invokeMojoParser(...)
+│        │  └─ LIT::importMojoPackage(kernels_dir, "kernels", ...) [Mojo/lib/MojoParser/EntryPoint.cpp:L391]
+│        │     └─ DeclResolver::resolveAllReferencedFrom(package) [Mojo/lib/MojoParser/DeclResolver.cpp:L1756]
+│        │        ├─ parse the package + child modules, including add_one.mojo [max/examples/custom_ops/kernels/add_one.mojo:L1]
+│        │        └─ resolve referenced dependency declarations and bodies
+│        ├─ buildPrecompiledPackage(...) [Mojo/lib/Precompile/Precompile.cpp:L146] → serializable post-parse IR clone
+│        ├─ KGENCompiler::runCheckLITPipeline(parsed_module) [Mojo/lib/Compiler/KGENCompiler.cpp:L1119] → semantic/lifetime checks
+│        └─ writePrecompiledFile(built_package, stream) [Mojo/lib/Support/MojoPrecompiledFile.cpp:L128]
+│           └─ MLIR bytecode → zstd payload + MPKG V2 header → staging .mojoc
+│
+├─ compiler succeeds → os.replace(staging, final) → atomic publication
+├─ finally → remove staging directory
+└─ return final Path → P1; addition.py stays a separate Python program
+   The source-directory branch invokes precompile again; it has no exists() skip.
+```
+
+### A.2 · Expand registration, validation and Graph.output
+
+```text
+ops.custom("add_one", values=[X], out_types=[Y_type], device) [max/python/max/graph/ops/custom.py:L69]
+├─ explicit out_types → output dtype/shape/device is already supplied
+│  └─ this path bypasses AddOne's optional unimplemented shape function
+├─ insert mo.custom with name="add_one" → link to @extensibility.register("add_one") / AddOne [max/examples/custom_ops/kernels/add_one.mojo:L32]
+├─ KernelLibrary.verify_custom_op(operation) [max/python/max/graph/graph.py:L307]
+│  ├─ lookup reusable native Analysis by frozenset(package_paths)
+│  └─ Analysis::verifyCustomOp(operation) [max/python/max/_core/max_license/lib/Graph/Bindings.cpp:L69]
+│     └─ MojoRegistry → check registered kernel, device, arguments and results
+├─ return symbolic custom result → callback returns its .tensor
+└─ Graph.output(Y) [max/python/max/graph/graph.py:L1396]
+   ├─ flatten result tree; infer output types/names; write graph signature
+   ├─ record mo.output(Y, required chains)
+   └─ verify G1 → Y describes a future output; it contains no computed numbers
+```
+
+## B · InferenceSession(devices=[device]) → S1
+
+session = InferenceSession(devices=[device])
+
+INPUT: existing Device handle(s); num_threads=None; session custom_extensions=None
+OUTPUT: S1: Python session → native session → Engine::Context + host CPU runtime
+EXAMPLE: CPU → [CPU]; GPU → [Accelerator, CPU]. G1 keeps its own package P1.
+
+```text
+InferenceSession.__init__(devices=[device]) [max/python/max/engine/api.py:L664] → S1
+├─ normalize devices → deduplicate while preserving first occurrence
+├─ append CPU() if absent → host runtime is present for both target routes
+├─ optional import/export MEF policy → neither selected in addition.py
+├─ session extensions = []; num_threads or 0 → automatic runtime choice
+└─ _InferenceSession(final_devices, [], 0) [max/python/max/_core/max_license/modules/engine.cpp:L787]  [nanobind → C++]
+   └─ Core::InferenceSession::InferenceSession(...) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L541]
+      ├─ populateCompileConfig([]) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L615] → session compilation settings
+      ├─ retain Device handles; runtimeConfig.addDevice(DeviceSpec, driver context)
+      ├─ runtimeConfig → numThreads=0; API language="python"
+      └─ Engine::Context::create(runtimeConfig) [max/lib/max_license/API/c/EngineContext.cpp:L169]
+         ├─ getOrCreateCPUDeviceOptions(config) [max/lib/max_license/API/c/EngineContext.cpp:L50] → host scheduling options
+         ├─ Init::getOrCreateContext("max-engine", options) [Init/lib/Init.cpp:L116]
+         │  ├─ matching global context exists → retain it
+         │  └─ otherwise → createContextImpl(...) [Init/lib/Init.cpp:L40] → MAX context + CPUDevice
+         ├─ Engine::Context(config, maxContext) [max/lib/max_license/API/c/EngineContext.cpp:L214] → retain runtime references
+         └─ native session owns this Engine::Context → S1 ready for compile/init
+```
+
+### B.1 · Expand ownership, threads and constructor examples
+
+```text
+Constructor input → normalized output [max/python/max/engine/api.py:L664]
+├─ [CPU()]                  → [CPU()]
+├─ [Accelerator()]          → [Accelerator(), CPU()]
+└─ [device, device, CPU()]  → [device, CPU()]  (if device is an accelerator)
+
+S1 [Python InferenceSession]
+└─ _impl → Core::InferenceSession [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L541] [C++ object in the same host process]
+   ├─ devices → retained existing driver handles / contexts
+   ├─ sessionCompileConfig → compiler settings / optional extension paths
+   └─ runtimeContext → Engine::Context [max/lib/max_license/API/c/EngineContext.cpp:L214] [owned native object]
+      ├─ config → runtime settings / device descriptions
+      ├─ maxContext → shared MAX ContextRef [Init/lib/Init.cpp:L116]
+      │  └─ creation/reuse protected by std::mutex
+      └─ cpuDevice → AsyncRT host runtime / worker scheduling
+
+Thread policy → num_threads=None becomes 0: automatic selection [max/lib/max_license/API/c/EngineContext.cpp:L50]
+└─ context/runtime can be reused → do not infer a new private pool per S1
+Constructor result → configuration + ownership; G1 is supplied later to compile.
+```
+
+## C · session.compile(G1) → compiled artifact CM1
+
+compiled = session.compile(graph)
+
+INPUT: S1 + G1 module + package P1 + graph target metadata; expected_weights={}
+OUTPUT: CM1: CompiledModel with resolved native artifact, MEF bytes and uninitialized model descriptor(s)
+EXAMPLE: name="addition"; one X/Y float32[5,10]; AddOne specializes for CPU or GPU
+
+```text
+InferenceSession.compile(G1) [max/python/max/engine/api.py:L1062]  [Python caller]
+├─ compile_async(G1) [max/python/max/engine/api.py:L969]
+│  ├─ module = G1.module; extensions += G1.kernel_libraries_paths → P1
+│  ├─ expected_weights = {} → add-one has no external weight bindings
+│  ├─ Analysis::seedKernelDecls(module) [max/python/max/_core/max_license/lib/Graph/Bindings.cpp:L75] → add reusable declarations to caller module
+│  ├─ _compile_module(module, extensions, tile_based_fusion=False) [max/python/max/engine/api.py:L1276]
+│  │  ├─ acquire process-global compilation lock
+│  │  ├─ _impl.compile(module._CAPIPtr, extensions, pipeline_name, False) [max/python/max/_core/max_license/modules/engine.cpp:L824]
+│  │  │  └─ Core::InferenceSession::compile(capsule, ...) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L654]
+│  │  │     ├─ CompilationRequest → source module pointer + graph format + options
+│  │  │     └─ Engine::Context::compileModel(config) [max/lib/max_license/API/c/EngineContext.cpp:L225]
+│  │  │        ├─ allocate pending AsyncValue<CompiledModels>
+│  │  │        └─ addTask(cpuDevice, ...) → compilation on a host runtime worker
+│  │  │           └─ compileModelSync(config) [max/lib/max_license/API/c/EngineContext.cpp:L269]
+│  │  │              └─ CompiledModels::create(context, compileCfg, runtimeCfg) [max/lib/max_license/API/c/CompiledModels.cpp:L100]
+│  │  │                 └─ MOFContext::compileToBinary(source, format) [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L377]
+│  │  │                    ├─ clone module → compiler working graph C1
+│  │  │                    ├─ graph-artifact cache hit → reuse prepared MEF bytes
+│  │  │                    └─ miss/disabled → MO → MAP → MOGG → MGP → kernel JIT → MEF
+│  │  └─ done callback → release compilation lock when the task resolves
+│  └─ wrap pending handle → CompiledModel(handle, expected_weights={}) [max/python/max/engine/api.py:L414] → CM1
+│
+├─ handle.wait() → caller waits for completion; exception() → raise on failure
+└─ return resolved CM1 → graph names=("addition",); executable state comes from init
+   G1 remains with the caller; native lowering transforms the clone C1.
+```
+
+### C.1 · Expand MO → MAP → MOGG → MGP and their actual owners
+
+```text
+MOFContext::compileToBinary [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L377] → owns the compilation route for C1
+└─ cache miss → convertMOToMEF(C1, options) [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L356]
+   └─ MO::runGCPipeline(C1, options) [GraphCompiler/lib/GraphCompiler.cpp:L638]
+      ├─ create mlir::PassManager; gcPipelineImpl builds passes; pm.run(C1) executes them
+      ├─ buildMoPipeline [GraphCompiler/lib/GraphCompiler.cpp:L219] → MO = Modular Operations
+      │  ├─ graph/tensors/shapes/device placement/custom op contracts
+      │  └─ seeded kernel declarations → skip redundant package import
+      ├─ MOToMAPPass [GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:L764] → MAP = Modular Access Primitives
+      │  └─ expose accesses and computations for fusion / implementation decisions
+      ├─ buildMapPipeline [GraphCompiler/lib/GraphCompiler.cpp:L338] → optimize access patterns / eligible fusion
+      ├─ MAPToMOGGPass [GraphCompiler/lib/Conversion/MAPToMOGG/MAPToMOGG.cpp:L53] → MOGG = Modular Operation Generator Graph
+      │  └─ MojoRegistry + MAPToMOGGState → select implementation / glue calls
+      ├─ buildMoggPipeline [GraphCompiler/lib/GraphCompiler.cpp:L370] → refine Mojo-oriented functions and calls
+      ├─ MOGGToMGPPass [GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp:L2406] → MGP = Modular Glue Primitives
+      │  └─ MOGraphLowering → init/execute regions, buffers, state slots and chains
+      ├─ buildMgpPipeline [GraphCompiler/lib/GraphCompiler.cpp:L382]
+      │  ├─ FinalizeDeviceGraphsPass [GraphCompiler/lib/MGPDialect/Transforms/FinalizeDeviceGraphsPass.cpp:L375] → finalize marked device graphs when present
+      │  └─ EmitMojo [GraphCompiler/lib/MOGGDialect/Transforms/EmitMojo.cpp:L147] → emitted source for native routines / package imports
+      ├─ JitCompileKernelsPass [GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:L529] → compile/reuse native routines (C.2)
+      └─ buildJitPipeline [GraphCompiler/lib/GraphCompiler.cpp:L75]
+         ├─ LowerCompiledRoutinesPass [GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp:L102] → ModuleLoad / ExecuteGeneric
+         └─ inline/clean chains → OutlineModelsToCallables → initialization + execution plan
+   Dialect names and roles → GraphCompiler.md [GraphCompiler/docs/GraphCompiler.md:L1]
+
+Add-one ancestry [schematic representation; not a captured compiler dump]
+└─ mo.custom("add_one", X) → implementation-oriented accesses/call
+   → selected AddOne routine → buffer/state execution plan → compiled callable
+```
+
+### C.2 · Expand specialization, LLVM translation, targets and JIT
+
+```text
+compileMojoToBinary(C1, emitted Mojo, ...) [GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:L529]
+├─ emitted routine + P1 → parser/checks/LIT lowering → separate kernel IR KIR1
+├─ compiled-kernel lookup → checkCache(state, ...) [GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:L213]
+│  ├─ hit → handleCacheHits [GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:L507] → reuse compatible native archives
+│  └─ miss → handleCacheMisses [GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:L435]
+│     ├─ KGENCompiler::runElaborationPipeline [Mojo/lib/Compiler/KGENCompiler.cpp:L1140]
+│     │  ├─ populateElaborateModulePasses [Mojo/lib/Compiler/KGENCompiler.cpp:L967] → concrete parameter specialization
+│     │  ├─ buildPostElaborationPipeline [Mojo/lib/Compiler/Pipeline/Pipeline.cpp:L154] → concrete IR optimization
+│     │  └─ offloads encountered → compileOffloads [Mojo/lib/Compiler/KGENCompiler.cpp:L516] → group/slice IR by TargetInfo
+│     └─ ObjectCompiler::emitArchive [Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp:L1023] → native archive with callable symbols
+│        └─ ObjectCompiler::lowerAllFuncsToLLVM [Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp:L816]
+│           ├─ buildLowerToLLVMPipeline [Mojo/lib/Compiler/ObjectCompiler/KGENToLLVMPipeline.cpp:L26] → KGEN/POP/control flow → LLVM dialect (MLIR)
+│           └─ MLIR-to-LLVM translation [Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp:L796] → llvm::Module → LLVM1 (LLVM IR)
+│
+├─ target options guide compilation → TargetBackendRegistry::getBackend [Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp:L114] uses the triple
+│  ├─ host target → HostBackend [Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.cpp:L54] → CPU object / host routines
+│  ├─ nvptx64-nvidia-cuda, e.g. sm_90a → NVPTXBackend [Mojo/lib/Compiler/ObjectCompiler/Target/max_license/NVPTX/NVPTXBackend.cpp:L1] → PTX → cubin
+│  └─ amdgcn-amd-amdhsa, e.g. gfx942 → AMDGPUBackend [Mojo/lib/Compiler/ObjectCompiler/Target/max_license/AMDGPU/AMDGPUBackend.cpp:L77] → GPU object → ELF image
+│     Target examples are source examples, not detected hardware on this host.
+├─ LLVM TargetRegistry + TargetMachine [Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp:L63] → in-process LLVM code generation [Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp:L277]
+└─ native compiled resources + C1 runtime plan → continue MEF preparation (C.3)
+
+JIT = just-in-time compilation → required specialized code is prepared as the program runs.
+└─ here: addition.py → session.compile(G1) invokes compiler APIs in the host process
+   → AddOne's dtype/layout/target specialize; compiled code can be reused for later inputs.
+   P1 precompilation is the earlier subprocess; kernel JIT is a later compilation phase.
+```
+
+### C.3 · Expand MEF preparation, compiled descriptors and cache boundaries
+
+```text
+convertMOToMEF(C1) [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L356]  [after graph passes + native routine JIT]
+└─ MO::convertMGPToMEF(lowered_module) [GraphCompiler/lib/GraphCompiler.cpp:L692]
+   ├─ clone for serialization → prepare device-specific runtime primitive names
+   ├─ translateMLIRToMEF → serialized graph callables / attrs / native resources
+   └─ WriteableBuffer → prepared MEF bytes in memory
+
+CompiledModels::create(...) [max/lib/max_license/API/c/CompiledModels.cpp:L100] receives those bytes
+└─ CompiledModels::read(buffer, frameworkCtx, sourceModel) [max/lib/max_license/API/c/CompiledModels.cpp:L80]
+   └─ loadModelsFromMEF(buffer) [max/lib/max_license/API/c/CompiledModels.cpp:L29]
+      ├─ MEFFile::open → validate/open the prepared container
+      ├─ loadMGPMEFFile(mef) [GraphCompiler/lib/MEFModel/MEFModel.cpp:L901] → register runtime primitives; read Model descriptors
+      └─ retain buffer + MEF handle + model descriptors → native CompiledModels
+         → resolve async handle → Python CM1: CompiledModel
+
+Cache routes → MOFContext graph-artifact cache [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L377]
+├─ artifact hit → skip graph lowering / kernel JIT; read retained MEF bytes/descriptors
+├─ kernel hit only → reuse routine code; still lower/prepare the graph's runtime plan
+└─ cold path → both compilation phases run
+
+On disk → CM1.export_mef(path) [max/python/max/engine/api.py:L414] explicitly exports the compiled bytes
+└─ session.compile(G1) itself returns CM1; it does not require a user-named .mef file.
+```
+
+## D · session.init(CM1) → executable model M1
+
+model = session.init(compiled)
+
+INPUT: S1 + resolved CM1 + real device contexts; weights_registry omitted → {}
+OUTPUT: M1: initialized ModelHandle retaining executable state, CM1 and native S1
+EXAMPLE: init_all → {"addition": M1}; init → M1. The input Buffer is supplied later.
+
+```text
+InferenceSession.init(CM1) [max/python/max/engine/api.py:L1126]
+├─ init_all(CM1, weights_registry=None) [max/python/max/engine/api.py:L1160]
+│  ├─ registry = {}; expected_weights = {} → no weight-binding validation failures
+│  ├─ _impl._load_all(compiled_handle, registry) [max/python/max/_core/max_license/modules/engine.cpp:L787] → share artifact handle
+│  │  └─ Core::InferenceSession::loadAll(handle, weightsDict) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L289]
+│  │     ├─ buildWeightsFromDict({}) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L214] → empty native registry + managed-tensor list
+│  │     ├─ await compiled handle (release GIL while waiting) → descriptor "addition"
+│  │     └─ for each model descriptor → Core::InferenceSession::load(model, registry) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L275]
+│  │        └─ Engine::Context::initModel(model, registry) [max/lib/max_license/API/c/EngineContext.cpp:L288]
+│  │           └─ addTask(cpuDevice, ...) → initializer runs on a host runtime worker
+│  │              └─ createExecutableModel(model, cpuDevice, config, registry) [max/lib/max_license/API/c/EngineContext.cpp:L79]
+│  │                 ├─ DeviceMap from session DeviceSpecs + retained driver contexts
+│  │                 ├─ Model::setup(cpuDevice, registry, deviceMap) [GraphCompiler/lib/MEFModel/MEFModel.cpp:L184]
+│  │                 │  ├─ mapDeviceRefsToDevices [GraphCompiler/lib/Driver/Device/DeviceMap.cpp:L24] → synchronize/resolve contexts
+│  │                 │  ├─ initArgs = registry pointer + model device contexts
+│  │                 │  ├─ initFn.invoke(initArgs) → run compiled initialization callable
+│  │                 │  └─ construct ExecutableModel from chain/context/registry/extra args
+│  │                 └─ waitForModelSetup() [GraphCompiler/lib/MEFModel/MEFModel.cpp:L387] → initialization results must be ready
+│  │        → ModelHandle(..., native_session_ref, executable, registry, index) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L194]
+│  │          → cache input/output devices → M1
+│  └─ name-index results → {"addition": M1}
+├─ exactly one model? yes → return sole model M1
+└─ next source step → numeric input allocation, model.execute(x) (outside init)
+```
+
+### D.1 · Expand initialization resources, loading and readiness
+
+```text
+Model::setup [GraphCompiler/lib/MEFModel/MEFModel.cpp:L184] → compiled initFn.invoke(registry + devices)
+├─ mapDeviceRefsToDevices [GraphCompiler/lib/Driver/Device/DeviceMap.cpp:L24]
+│  ├─ synchronize supplied driver contexts before first resource use
+│  ├─ CPU DeviceRef → create legacy runtime CPU context
+│  └─ GPU DeviceRef → reuse supplied context; fallback create by device id if absent
+├─ CUDA/HIP contexts → ensure configured stream count before capture (default: 2)
+├─ invoke the compiled init region → runtime/state initialization and native routine loading
+│  └─ ModuleLoad planned by LowerCompiledRoutinesPass [GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp:L102]
+│     └─ mgp_module_load_cpu [GraphCompiler/lib/MGPDialect/Primitives/MGPCPUPrimitives.cpp:L55] → CompiledKernelsContext in a runtime state slot
+│        └─ CompiledKernelsContext::load(archive_bytes, symbols) [GraphCompiler/lib/Support/CompiledKernelsContext.cpp:L85]
+│           ├─ ordinary route: archive hash → execution engine addIfAbsent<StaticArchiveLayer>
+│           └─ lookup named symbols → resident native callable pointers
+│              (debug/profiler route can link/load a shared library)
+├─ initializer results → [chain, MGP context, weight-registry reference, extra state/device args]
+├─ waitForModelSetup [GraphCompiler/lib/MEFModel/MEFModel.cpp:L387] → await every required value; propagate errors
+└─ executable M1 → reuse retained state and routines for fresh execution inputs
+
+Boundaries
+├─ .mojoc P1: portable post-parse package for later specialization
+├─ CM1: compiled bytes + descriptors; still needs runtime setup
+└─ M1: ready executable handle; numeric X arrives at execute, not at constructor/init
+```
+
+### D.2 · Expand initialization gates and retained ownership
+
+```text
+init_all initialization gates [max/python/max/engine/api.py:L1160]
+├─ add-one: expected weights {} + supplied registry {} → pass
+├─ weighted graph: missing declared name → ValueError before native initialization
+├─ supplied weight: device type must match; array must be contiguous
+├─ actual device/context/setup failure → native initialization raises
+├─ virtual-device mode → CompileOnlyModel stand-in; execute refuses hardware work
+└─ init [max/python/max/engine/api.py:L1126] requires exactly one result; multi-model artifacts use init_all
+
+M1 [native ModelHandle exposed as the Python Model]
+├─ loadedModel → initialized ExecutableModel and persistent execution state
+├─ compiledModels → shared CM1 native artifact / model descriptors / bytes
+├─ inferenceSession → retained native S1 reference [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L194]
+│  └─ Engine::Context → MAX context / CPU runtime / session device settings
+└─ weightsRegistry + managedTensors → retained bindings (empty in add-one)
+
+Repeated initialization → _load_all uses compiled.copy() [max/python/max/_core/max_license/modules/engine.cpp:L787]
+└─ same CM1 can initialize multiple handles; each handle retains what it needs.
+```
+
+## E · Input and output example
+
+```text
+addition.py: execution happens after all four preparation calls [max/examples/custom_ops/addition.py:L1]
+├─ x_values = np.random.uniform(size=(5,10)).astype(np.float32) → host array
+├─ x = Buffer.from_numpy(x_values).to(device) → B1: input Buffer
+├─ result = model.execute(x)[0] → O1: output Buffer
+└─ result.to(CPU()).to_numpy() → CPU-readable numbers; expected = x_values + 1
+
+Illustrative values in the same [5,10] shape [not an executed MAX result]
+├─ input row 0:  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+├─ output row 0: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+└─ G1 / S1 / CM1 / M1 were prepared without these numbers; B1/O1 hold per-call data.
+```
+
+
+---
+
 # From Bazel’s build graph to a selected device backend
 
 ## 1. Previous answer — unchanged

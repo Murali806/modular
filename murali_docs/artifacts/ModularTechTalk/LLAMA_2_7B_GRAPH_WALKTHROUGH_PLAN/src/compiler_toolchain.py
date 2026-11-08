@@ -11,6 +11,7 @@ import subprocess
 import markdown
 
 from build import cpp_span, python_span
+from cells import REVISION
 
 
 SOURCES = [
@@ -53,8 +54,8 @@ SOURCES = [
 ]
 
 
-def add_toolchain_sources(refs, files, repo, task, revision):
-    for key, file, symbol, kind, prefix, label in SOURCES:
+def add_toolchain_sources(refs, files, repo, task, revision, *, sources=SOURCES):
+    for key, file, symbol, kind, prefix, label in sources:
         raw = (repo / file).read_bytes()
         if raw != subprocess.check_output(["git", "show", f"{revision}:{file}"], cwd=repo):
             raise ValueError(f"Toolchain source differs from pinned revision: {file}")
@@ -169,6 +170,69 @@ def reading_diagrams():
         ("M1034 69H1047V531H706", "submit", 983, 518),
     ], 600)
     return {"build": build, "macro": macro, "ir": flow, "kernel": kernel, "offload": offload}
+
+
+QNA_COLOR_TERMS = {
+    "build": [("custom_op_example_py_binary", False), ("mojo_library", False), ("mojo_binary", False), ("py_binary", False), ("filegroup", False), ("runfiles", False), ("Bazel", True), ("./bazelw", False)],
+    "ir": [("LLVM dialect", True), ("LLVM IR", False), ("GraphCompiler", False), ("InferenceSession", False), ("MO", False), ("MAP", False), ("MOGG", False), ("MGP", False), ("MLIR", False), ("KGEN", False), ("POP", False)],
+    "compile": [("device-graph finalization", True), ("specialization", True), ("precompile", True), ("compilation", True), ("compiler", True), ("JIT", False), ("lowering", True), ("lower", True), ("compile", True), ("initialize", True), ("execute", True), ("runtime", True)],
+    "artifact": [(".mojoc", False), ("MEF", False), ("PTX", False), ("cubin", True), ("hsaco", False), ("LLVM1", False), ("llvm::Module", False), ("host object", True), ("device code", True), ("target artifact", True)],
+    "device": [("NVIDIA", True), ("AMDGPU", False), ("NVPTX", False), ("CUDA", False), ("GPU", False), ("CPU", False), ("AMD", False), ("gfx942", False), ("sm_90a", False)],
+}
+
+
+def color_qna_text(markup):
+    """Wrap selected visible terms in font-color-only spans.
+
+    Keep markup, SVG diagrams, links and their labels intact. This is a
+    presentation-only pass; source, copy and download payloads remain plain.
+    """
+    term_colors = {}
+    alternatives = []
+    for color, terms in QNA_COLOR_TERMS.items():
+        for term, ignore_case in terms:
+            term_colors[term.casefold()] = color
+            escaped = re.escape(term)
+            alternatives.append((len(term), f"(?i:{escaped})" if ignore_case else escaped))
+    alternatives.sort(reverse=True)
+    term_pattern = re.compile(r"(?<![\w])(" + "|".join(term for _, term in alternatives) + r")(?![\w])")
+
+    def color_text(text):
+        return term_pattern.sub(
+            lambda match: f'<span class="qna-color qna-color--{term_colors[match.group(1).casefold()]}">{match.group(1)}</span>',
+            text,
+        )
+
+    out = []
+    pos = 0
+    while pos < len(markup):
+        tag_start = markup.find("<", pos)
+        if tag_start < 0:
+            out.append(color_text(markup[pos:]))
+            break
+        out.append(color_text(markup[pos:tag_start]))
+        tag_end = markup.find(">", tag_start)
+        if tag_end < 0:
+            out.append(markup[tag_start:])
+            break
+        tag = markup[tag_start:tag_end + 1]
+        if re.match(r"<svg\b", tag, re.I):
+            close = re.search(r"</svg\s*>", markup[tag_end + 1:], re.I)
+            if close:
+                end = tag_end + 1 + close.end()
+                out.append(markup[tag_start:end])
+                pos = end
+                continue
+        if re.match(r"<a\b", tag, re.I):
+            close = re.search(r"</a\s*>", markup[tag_end + 1:], re.I)
+            if close:
+                end = tag_end + 1 + close.end()
+                out.append(markup[tag_start:end])
+                pos = end
+                continue
+        out.append(tag)
+        pos = tag_end + 1
+    return "".join(out)
 
 
 def render_toolchain_text(refs, example, task, src):
@@ -323,12 +387,21 @@ def render_toolchain_text(refs, example, task, src):
     portable = re.sub(r"\[SOURCE:([a-z_]+)\]", markdown_link, full)
     portable = re.sub(r"\{\{diagram:[a-z]+\}\}", "", portable)
     portable = re.sub(r'<code>(.*?)</code>', lambda m: '`' + html.unescape(m[1]) + '`', portable, flags=re.S)
+    calltrees = None
     if example["id"] == "addition":
+        from compiler_addition_calltrees import render_addition_calltrees
+        calltree_html, calltree_text, calltrees = render_addition_calltrees(refs, REVISION)
+        body = [calltree_html, '<details class="qna-reference" id="toolchain-reference"><summary>Reference · complete answers 1–7, diagrams and finer numbered explanations</summary><div class="qna-reference-body">', *body, '</div></details>']
+        portable = calltree_text + '\n\n---\n\n' + portable
         (task / "COMPILER_TOOLCHAIN_QNA.md").write_text(portable)
-    tools = '<div class="qna-tools" data-interactive hidden><button type="button" data-return-animation>Back to Animation</button><button type="button" data-qna-copy>Copy complete 1–7</button><a href="../COMPILER_TOOLCHAIN_QNA.md" download>Download the full text</a><output data-qna-copy-status role="status"></output></div>'
+    copy_label = 'Copy call trees + 1–7' if calltrees else 'Copy complete 1–7'
+    tools = '<div class="qna-tools" data-interactive hidden><button type="button" data-return-animation>Back to Animation</button><button type="button" data-qna-copy>' + copy_label + '</button><a href="../COMPILER_TOOLCHAIN_QNA.md" download>Download the full text</a><output data-qna-copy-status role="status"></output></div>'
     footer = '<div class="qna-tools" data-interactive hidden><button type="button" data-return-animation>Back to Animation · current step</button><a href="#toolchain-q1">Back to question 1</a></div>'
-    return tools + "".join(body) + footer, dict(originals={"1": point1, **originals}, text=portable,
-                                      point1_sha256=hashlib.sha256(point1.encode()).hexdigest())
+    metadata = dict(originals={"1": point1, **originals}, text=portable,
+                    point1_sha256=hashlib.sha256(point1.encode()).hexdigest())
+    if calltrees:
+        metadata['calltrees'] = calltrees
+    return tools + color_qna_text("".join(body) + footer), metadata
 
 
 def portable_frames(example, src):

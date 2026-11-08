@@ -5,12 +5,14 @@
   "animations": 24,
   "questions": 7,
   "toolchain_steps": 34,
+  "addition_call_trees": 4,
+  "addition_expanded_branches": 9,
   "previous_answers_preserved": true,
   "rendered_diagrams_per_page": 5,
   "visible_mermaid_source": false,
-  "source_files": 58,
-  "source_spans": 364,
-  "local_links": 1592,
+  "source_files": 74,
+  "source_spans": 413,
+  "local_links": 1968,
   "external_runtime_dependencies": 0,
   "evidence": "Source/document checks only; no MAX execution"
 }

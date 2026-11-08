@@ -66,3 +66,40 @@ measured. IR/artifact sheets and device motion remain illustrations.
 - [Epilogue applies before store](compiler_example_epilogue_mechanism.png).
 - [Copies ready while the block gate waits](compiler_example_matmul_mechanism.png).
 - [Attention rescales previous O after a larger maximum](compiler_example_attention_mechanism.png).
+
+## Add-one Text call trees · November 8, 2026
+
+The [add-one Text reader](../link_htmls/max_example_01_add_one_compilation_and_execution.html#toolchain-call-graph)
+now starts with four annotated call trees: Graph/package creation,
+InferenceSession construction, compile/MEF preparation and executable
+initialization. Each has input, output and example cards. Nine expandable
+branches cover package serialization, registration, ownership, compiler
+passes/JIT, runtime loading, gates and the later input/result buffers.
+The complete earlier answers 1–7 remain in a collapsible reference and in
+copy/download text.
+
+Evidence remains pinned to `610f7111836d9a950d45ba52ec9b3e0ed589fe3f`.
+[Source validation](compiler_examples_sources.json) passed for four pages,
+74 complete source files, 413 hashed source spans and 1,968 local links.
+[Browser validation](compiler_examples_browser.json) passed 12 groups and
+904 render audits, including all nine branches at 320/390px, native/package
+source links, preserved old question links and paused animation state.
+[The final compiler-link check](addition_calltrees_browser.json) also passed
+at 1600/320/390px and with JavaScript disabled for print. These checks inspect
+documentation and browser behavior; no MAX/Mojo compilation or inference ran.
+
+Scoped commands from this task directory:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 src/compiler_examples.py
+PYTHONDONTWRITEBYTECODE=1 python3 src/check_compiler_examples.py
+NODE_PATH=/tmp/max-os-playwright/node_modules node src/check_compiler_examples_browser.cjs
+git diff --check -- .
+```
+
+Representative call trees:
+[Graph](compiler_example_addition_calltree_graph.png),
+[session](compiler_example_addition_calltree_session.png),
+[compile](compiler_example_addition_calltree_compile.png),
+[init](compiler_example_addition_calltree_init.png) and
+[mobile](compiler_example_addition_calltree_mobile.png).

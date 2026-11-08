@@ -13,6 +13,7 @@ from compiler_workbench import COLORS, COMPONENTS, SRC, TASK, REPO, owner, slots
 from cells import REVISION
 from compiler_journey import add_sources, lesson as journey_lesson, panel as journey_panel
 from compiler_toolchain import add_toolchain_sources, render_toolchain_text, portable_frames, transcript_html
+from compiler_addition_calltrees import SOURCES as CALLTREE_SOURCES
 
 EXAMPLES = [
     dict(id="addition", number="01", level="Simple", title="Add one. Follow every boundary.",
@@ -125,6 +126,8 @@ def load_example(example):
         r["sha256"]=hashlib.sha256(code.encode()).hexdigest()
     add_sources(refs, files, REPO, TASK, REVISION)
     add_toolchain_sources(refs, files, REPO, TASK, REVISION)
+    if example["id"] == "addition":
+        add_toolchain_sources(refs, files, REPO, TASK, REVISION, sources=CALLTREE_SOURCES)
     return refs,files
 
 
@@ -268,7 +271,7 @@ def build_compiler_examples():
             reading_link='<button type="button" class="qa-step-link" data-read-current data-interactive hidden>Read this step</button>' if l['id']=='toolchain' else ''
             content=f'''<p class="intro">{html.escape(l['detail'])}</p><div class="visual" tabindex="0" aria-label="{html.escape(l['title'])}; scroll inside on narrow screens">{scene(l['id'],example)}</div><div class="playback" data-interactive hidden><button class="play" data-action="play" aria-pressed="false">▶ Play</button><button data-action="back">Back</button><button data-action="step">Step</button><button data-action="reset">↺ Reset</button><label>Speed <select data-speed><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label><input data-seek type="range" min="0" max="1" value="0" aria-label="{html.escape(l['title'])} step"><output data-progress>Ready</output></div><div class="state-strip" data-state-strip></div><div class="event" role="status" aria-live="polite"><strong data-event-title>Ready to explore</strong><span data-event-detail>{html.escape(l['detail'])}</span>{reading_link}</div><div class="ir-diff"><div><span>Original source · selected current definition</span><pre data-code-preview></pre></div><div><span>Schematic state / numerical work · not a generated dump</span><pre data-state-preview></pre></div></div><div class="event-sources" data-event-sources>{' · '.join(link(r) for r in l['refs'])}</div><details class="transcript"><summary>Portable flow · step-by-step transcript · evidence</summary><pre>{html.escape(l['ascii'])}</pre><ol data-transcript>{transcript}</ol></details>'''
             if l['id']=='toolchain':
-                tabs='''<div class="view-switch" role="tablist" aria-label="Lesson 01 reading mode" data-interactive hidden><button type="button" role="tab" id="toolchain-animation-tab" data-mode="animation" aria-controls="toolchain-animation" aria-selected="true">Animation</button><button type="button" role="tab" id="toolchain-text-tab" data-mode="text" aria-controls="toolchain-text" aria-selected="false" tabindex="-1">Text · answers 1–7</button></div>'''
+                tabs='''<div class="view-switch" role="tablist" aria-label="Lesson 01 reading mode" data-interactive hidden><button type="button" role="tab" id="toolchain-animation-tab" data-mode="animation" aria-controls="toolchain-animation" aria-selected="true">Animation</button><button type="button" role="tab" id="toolchain-text-tab" data-mode="text" aria-controls="toolchain-text" aria-selected="false" tabindex="-1">Text · <span class="qna-color qna-color--compile">answers 1–7</span></button></div>'''
                 content=tabs+'<div id="toolchain-animation" data-mode-panel="animation" role="tabpanel" aria-labelledby="toolchain-animation-tab">'+content+'</div><div class="toolchain-reading" id="toolchain-text" data-mode-panel="text" role="tabpanel" aria-labelledby="toolchain-text-tab">'+qna_html+'</div>'
             sections.append(f'''<section class="lesson" id="{l['id']}" data-lesson="{l['id']}" aria-labelledby="heading-{l['id']}"><div class="experiment"><div class="experiment-top"><button class="lesson-badge" data-card="{l['id']}" aria-label="Explain {l['number']}: {html.escape(l['title'])}">{l['number']}</button><h2 id="heading-{l['id']}">{html.escape(l['title'])}</h2><span>{html.escape(l['evidence'])}</span></div>{content}</div></section>''')
             if l["id"]=="commands":
@@ -313,7 +316,10 @@ def build_compiler_examples():
         if tokens!=replacements.keys():raise ValueError(f"Example template tokens differ: {tokens^replacements.keys()}")
         page=re.sub(r"\{\{([a-z-]+)\}\}",lambda m:replacements[m[1]],template)
         (TASK/"link_htmls"/example["page"]).write_text(page)
-        manifests.append(dict(page="link_htmls/"+example["page"],example=example,references=refs,lessons=lessons,toolchain=dict(point1_sha256=qna_meta['point1_sha256'],sections=7,steps=len(toolchain_frames)),files=[{k:v for k,v in f.items() if k!='text'} for f in files.values()]))
+        toolchain_manifest=dict(point1_sha256=qna_meta['point1_sha256'],sections=7,steps=len(toolchain_frames))
+        if 'calltrees' in qna_meta:
+            toolchain_manifest['calltrees']=qna_meta['calltrees']
+        manifests.append(dict(page="link_htmls/"+example["page"],example=example,references=refs,lessons=lessons,toolchain=toolchain_manifest,files=[{k:v for k,v in f.items() if k!='text'} for f in files.values()]))
         print(f"Built {example['page']}: build-to-target flow + journey + 5 focused sections / {len(refs)} source targets")
     (TASK/"compiler_examples_manifest.json").write_text(json.dumps(dict(revision=REVISION,examples=manifests),indent=2)+"\n")
 

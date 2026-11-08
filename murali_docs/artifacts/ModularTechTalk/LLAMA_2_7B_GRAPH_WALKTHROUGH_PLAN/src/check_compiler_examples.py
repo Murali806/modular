@@ -72,6 +72,22 @@ def check_examples():
         assert payload['toolchain']['originals']==originals,page
         assert payload['toolchain']['point1_sha256']==hashlib.sha256(point1.encode()).hexdigest()==e['toolchain']['point1_sha256']
         assert all(original in payload['toolchain']['text'] for original in originals.values())
+        if e['example']['id']=='addition':
+            calltrees=payload['toolchain']['calltrees']
+            assert calltrees==e['toolchain']['calltrees']
+            assert calltrees['stages']==['graph','session','compile','init']
+            assert calltrees['branches']==9
+            tree_text=payload['toolchain']['text'].split('\n\n---\n\n',1)[0]
+            assert hashlib.sha256(tree_text.encode()).hexdigest()==calltrees['text_sha256']
+            for stage in calltrees['stages']:
+                assert f'toolchain-call-{stage}' in p.ids
+                assert f'data-call-stage="{stage}"' in text
+            assert 'toolchain-reference' in p.ids
+            assert set(calltrees['references'])<=set(payload['references'])
+            assert '[SOURCE:' not in presentation
+            assert 'MPKG V2' in presentation and 'waitForModelSetup' in presentation
+        else:
+            assert 'calltrees' not in payload['toolchain']
         assert all(f'toolchain-q{n}' in p.ids for n in range(1,8))
         for anchor in ('toolchain-q3-3-1','toolchain-q3-5-2','toolchain-q4-2-2','toolchain-q5-3-1','toolchain-q5-3-2'):
             assert anchor in p.ids,(page,anchor)
@@ -102,7 +118,7 @@ def check_examples():
                     parser=Parser();parser.feed(target.read_text());parsers[target]=parser
                 assert fragment in parsers[target].ids,href
             links+=1
-    return dict(result='PASS',revision=manifest['revision'],pages=4,animations=sum(len(e['lessons']) for e in manifest['examples']),questions=7,toolchain_steps=manifest['examples'][0]['toolchain']['steps'],previous_answers_preserved=True,rendered_diagrams_per_page=5,visible_mermaid_source=False,source_files=len(file_checks),source_spans=spans,local_links=links,external_runtime_dependencies=0,evidence='Source/document checks only; no MAX execution')
+    return dict(result='PASS',revision=manifest['revision'],pages=4,animations=sum(len(e['lessons']) for e in manifest['examples']),questions=7,toolchain_steps=manifest['examples'][0]['toolchain']['steps'],addition_call_trees=4,addition_expanded_branches=9,previous_answers_preserved=True,rendered_diagrams_per_page=5,visible_mermaid_source=False,source_files=len(file_checks),source_spans=spans,local_links=links,external_runtime_dependencies=0,evidence='Source/document checks only; no MAX execution')
 
 
 if __name__=='__main__':
