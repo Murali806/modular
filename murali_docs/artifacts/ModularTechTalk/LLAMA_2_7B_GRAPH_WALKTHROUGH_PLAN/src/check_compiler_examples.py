@@ -76,7 +76,7 @@ def check_examples():
             calltrees=payload['toolchain']['calltrees']
             assert calltrees==e['toolchain']['calltrees']
             assert calltrees['stages']==['graph','session','compile','init']
-            assert calltrees['branches']==9
+            assert calltrees['branches']==10
             tree_text=payload['toolchain']['text'].split('\n\n---\n\n',1)[0]
             assert hashlib.sha256(tree_text.encode()).hexdigest()==calltrees['text_sha256']
             for stage in calltrees['stages']:
@@ -118,7 +118,7 @@ def check_examples():
                     parser=Parser();parser.feed(target.read_text());parsers[target]=parser
                 assert fragment in parsers[target].ids,href
             links+=1
-    return dict(result='PASS',revision=manifest['revision'],pages=4,animations=sum(len(e['lessons']) for e in manifest['examples']),questions=7,toolchain_steps=manifest['examples'][0]['toolchain']['steps'],addition_call_trees=4,addition_expanded_branches=9,previous_answers_preserved=True,rendered_diagrams_per_page=5,visible_mermaid_source=False,source_files=len(file_checks),source_spans=spans,local_links=links,external_runtime_dependencies=0,evidence='Source/document checks only; no MAX execution')
+    return dict(result='PASS',revision=manifest['revision'],pages=4,animations=sum(len(e['lessons']) for e in manifest['examples']),questions=7,toolchain_steps=manifest['examples'][0]['toolchain']['steps'],addition_call_trees=4,addition_expanded_branches=10,previous_answers_preserved=True,rendered_diagrams_per_page=5,visible_mermaid_source=False,source_files=len(file_checks),source_spans=spans,local_links=links,external_runtime_dependencies=0,evidence='Source/document checks only; no MAX execution')
 
 
 if __name__=='__main__':

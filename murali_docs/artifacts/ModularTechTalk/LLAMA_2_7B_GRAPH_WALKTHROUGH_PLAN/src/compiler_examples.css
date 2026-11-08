@@ -70,6 +70,15 @@
 .call-tree strong { font-weight:800; }
 .call-source { font-weight:700; }
 .call-source small { font-size:13px; color:#455a68; font-weight:600; }
+.call-note-link { color:#5b21b6; font-weight:800; text-decoration:underline; text-underline-offset:3px; }
+.call-note-link:focus-visible { outline:3px solid #ad682e; outline-offset:3px; }
+.call-explanation { min-width:0; margin:0 14px 16px; color:#233e4e; font-size:16px; line-height:1.8; overflow-wrap:anywhere; }
+.call-explanation p { margin:12px 0; }
+.call-explanation strong { font-weight:800; color:#153f53; }
+.call-explanation code { color:#5b21b6; font-size:.94em; font-weight:750; }
+.call-explanation pre { max-width:100%; overflow:auto; padding:14px; border:1px solid #bbcdd8; border-radius:8px; background:#f4f8fa; font:16px/1.85 ui-monospace,SFMono-Regular,Consolas,monospace; }
+.call-explanation pre code { color:#233e4e; font:inherit; }
+.call-explanation .qna-source-path { color:#0057a8; font-weight:750; }
 .call-branch { margin:14px 0 0; border:1px solid #c4d2dc; border-radius:8px; }
 .call-branch > summary,.qna-reference > summary { padding:12px 14px; color:#214756; font-size:16px; font-weight:750; cursor:pointer; line-height:1.6; }
 .call-branch .call-tree-scroll { margin:0 12px 12px; }

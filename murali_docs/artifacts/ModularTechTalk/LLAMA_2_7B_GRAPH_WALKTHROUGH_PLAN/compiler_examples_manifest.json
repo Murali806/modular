@@ -1444,6 +1444,18 @@
           "alias": "PY",
           "sha256": "e305f13604c30a10738786ad45aaddbdc433fd1e5fb08d14dc7f4c3ece677a08"
         },
+        "ct_graph_context_state": {
+          "id": "ct_graph_context_state",
+          "file": "max/python/max/_mlir_context.py",
+          "start": 26,
+          "end": 67,
+          "line": 26,
+          "symbol": "",
+          "label": "Shared default MLIR context and thread-local active-context guard",
+          "language": "python",
+          "alias": "PY",
+          "sha256": "1649f7aee65fd6504e474be3837be9d387085648e192de2ea47bb96559c7fbdd"
+        },
         "ct_graph_device": {
           "id": "ct_graph_device",
           "file": "max/python/max/graph/graph.py",
@@ -2187,7 +2199,7 @@
             "compile",
             "init"
           ],
-          "branches": 9,
+          "branches": 10,
           "references": [
             "amdgpu_backend",
             "artifact",
@@ -2217,6 +2229,7 @@
             "ct_global_context",
             "ct_global_create",
             "ct_graph_context",
+            "ct_graph_context_state",
             "ct_graph_device",
             "ct_graph_extensions",
             "ct_graph_import",
@@ -2283,7 +2296,7 @@
             "runtime_calls",
             "serialize"
           ],
-          "text_sha256": "fd35421be33bc8d342f3275131b90f4ea88fdee3b72ad363037b0b32cd2c60d5"
+          "text_sha256": "4bd96c35a6ef1d002a1decba6e8a8bc4bc99f46a5bcf865c9677d1c4feded817"
         }
       },
       "files": [

@@ -12,7 +12,9 @@ EXAMPLE: forward records custom("add_one", [X]) → symbolic Y: float32[5,10]
 
 ```text
 Graph.__init__(name, forward, input_types, custom_extensions) [max/python/max/graph/graph.py:L819]
-├─ in_default_mlir_context [max/python/max/_mlir_context.py:L70] → enter the default MLIR context
+├─ in_default_mlir_context [max/python/max/_mlir_context.py:L70] → ensure this thread has an active MLIR context
+│  └─ Full explanation · is this a global variable? → A.0
+│
 ├─ create builtin.ModuleOp + mo.GraphOp("addition") → G1
 │  ├─ input TensorType → MLIR block argument: X: float32[5,10]
 │  ├─ _params = {} → this shape has no symbolic dimensions
@@ -35,6 +37,47 @@ Graph.__init__(name, forward, input_types, custom_extensions) [max/python/max/gr
 ├─ Graph.output(Y) [max/python/max/graph/graph.py:L1396] → mo.output + signature + whole-graph verification
 └─ return G1 → recorded computation; P1 available for later specialization
 ```
+
+### A.0 · What is the default MLIR context? Is it a global variable?
+
+**Yes. `_DEFAULT_MLIR_CONTEXT` is a module-level global variable holding an `mlir.Context` object.** MAX creates it when this module is imported:
+
+```python
+_DEFAULT_MLIR_CONTEXT = mlir.Context()
+```
+
+The same default object is reused within that Python interpreter. See [_mlir_context.py:26](sources/max/python/max/_mlir_context.py#L26).
+
+An **MLIR context** provides the shared infrastructure for representing compiler IR:
+
+- **Dialects:** definitions of operations and their types.
+- **Types:** shared representations such as `f32` and tensor types.
+- **Attributes:** metadata attached to operations and types.
+
+Multiple graphs can use the same context while keeping their own operations and graph structure. ([mlir.llvm.org](https://mlir.llvm.org/doxygen/classmlir_1_1MLIRContext.html))
+
+There are **two distinct pieces of state**:
+
+| Name | Scope | Purpose |
+|---|---|---|
+| `_DEFAULT_MLIR_CONTEXT` | Module global | Holds the shared default context object. |
+| `mlir.Context.current` | Thread local | Identifies the context currently active on this thread. |
+
+The source explicitly documents this distinction in [_mlir_context.py:27](sources/max/python/max/_mlir_context.py#L27).
+
+Your call-tree line is more precisely:
+
+```text
+Graph(...)
+└─ @in_default_mlir_context
+   ├─ This thread already has an active context
+   │  └─ Keep that context; call Graph.__init__
+   └─ This thread has no active context
+      └─ Temporarily enter _DEFAULT_MLIR_CONTEXT
+         └─ Call Graph.__init__
+```
+
+That conditional behavior is implemented in [ensure_default_mlir_context:55](sources/max/python/max/_mlir_context.py#L55). **“Enter” makes a context active for IR-building APIs; entering alone does not compile or execute the graph.** ([mlir.llvm.org](https://mlir.llvm.org/docs/Bindings/Python/))
 
 ### A.1 · Expand the .mojo → .mojoc compiler subprocess
 

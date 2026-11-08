@@ -9,6 +9,8 @@ import hashlib
 import html
 import re
 
+import markdown
+
 GRAPH = "max/python/max/graph/graph.py"
 API = "max/python/max/engine/api.py"
 CORE = "max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp"
@@ -20,6 +22,7 @@ MODEL = "GraphCompiler/lib/MEFModel/MEFModel.cpp"
 # the same revision as the animation. Existing compiler/kernel refs are reused.
 SOURCES = [
     ("ct_graph_context", "max/python/max/_mlir_context.py", "in_default_mlir_context", "python", 0, "Graph constructor's MLIR-context decorator"),
+    ("ct_graph_context_state", "max/python/max/_mlir_context.py", "26:67", "lines", 0, "Shared default MLIR context and thread-local active-context guard"),
     ("ct_graph_device", GRAPH, "Graph._populate_device_info_mapping", "python", 0, "Graph's device-to-target metadata"),
     ("ct_graph_extensions", GRAPH, "_resolved_custom_extensions", "python", 0, "Explicit extensions and default overlays"),
     ("ct_graph_library", GRAPH, "KernelLibrary.__init__", "python", 0, "KernelLibrary creates native analysis"),
@@ -71,6 +74,47 @@ SOURCES = [
 ]
 
 
+DEFAULT_CONTEXT_EXPLANATION = """**Yes. `_DEFAULT_MLIR_CONTEXT` is a module-level global variable holding an `mlir.Context` object.** MAX creates it when this module is imported:
+
+```python
+_DEFAULT_MLIR_CONTEXT = mlir.Context()
+```
+
+The same default object is reused within that Python interpreter. See [_mlir_context.py:26](sources/max/python/max/_mlir_context.py#L26).
+
+An **MLIR context** provides the shared infrastructure for representing compiler IR:
+
+- **Dialects:** definitions of operations and their types.
+- **Types:** shared representations such as `f32` and tensor types.
+- **Attributes:** metadata attached to operations and types.
+
+Multiple graphs can use the same context while keeping their own operations and graph structure. ([mlir.llvm.org](https://mlir.llvm.org/doxygen/classmlir_1_1MLIRContext.html))
+
+There are **two distinct pieces of state**:
+
+| Name | Scope | Purpose |
+|---|---|---|
+| `_DEFAULT_MLIR_CONTEXT` | Module global | Holds the shared default context object. |
+| `mlir.Context.current` | Thread local | Identifies the context currently active on this thread. |
+
+The source explicitly documents this distinction in [_mlir_context.py:27](sources/max/python/max/_mlir_context.py#L27).
+
+Your call-tree line is more precisely:
+
+```text
+Graph(...)
+└─ @in_default_mlir_context
+   ├─ This thread already has an active context
+   │  └─ Keep that context; call Graph.__init__
+   └─ This thread has no active context
+      └─ Temporarily enter _DEFAULT_MLIR_CONTEXT
+         └─ Call Graph.__init__
+```
+
+That conditional behavior is implemented in [ensure_default_mlir_context:55](sources/max/python/max/_mlir_context.py#L55). **“Enter” makes a context active for IR-building APIs; entering alone does not compile or execute the graph.** ([mlir.llvm.org](https://mlir.llvm.org/docs/Bindings/Python/))
+"""
+
+
 STAGES = [
     dict(
         id="graph", letter="A", title="Graph(...) → G1 + package P1", short="Graph(...) → G1 + P1",
@@ -82,7 +126,9 @@ STAGES = [
             ("Example", 'forward records custom("add_one", [X]) → symbolic Y: float32[5,10]'),
         ],
         tree="""[SOURCE:graph_init|Graph.__init__(name, forward, input_types, custom_extensions)]
-├─ [SOURCE:ct_graph_context|in_default_mlir_context] → enter the default MLIR context
+├─ [SOURCE:ct_graph_context|in_default_mlir_context] → ensure this thread has an active MLIR context
+│  └─ [EXPLANATION:context]
+│
 ├─ create builtin.ModuleOp + mo.GraphOp("addition") → **G1**
 │  ├─ input TensorType → MLIR block argument: **X: float32[5,10]**
 │  ├─ _params = {} → this shape has no symbolic dimensions
@@ -106,6 +152,8 @@ STAGES = [
 └─ return **G1** → recorded computation; **P1** available for later specialization
 """,
         details=[
+            dict(id="context", title="A.0 · What is the default MLIR context? Is it a global variable?",
+                 explanation=DEFAULT_CONTEXT_EXPLANATION),
             dict(id="package", title="A.1 · Expand the .mojo → .mojoc compiler subprocess", tree="""[SOURCE:package_builder|_build_mojo_source_package(kernels_dir)]  [parent Python process]
 ├─ input: absolute directory with [SOURCE:kernel_package_root|kernels/__init__.mojo]
 ├─ hash = MD5(absolute path string) → a stable filename, not a source-content hash
@@ -424,7 +472,42 @@ def render_addition_calltrees(refs, revision):
             result.append(link(match[1], label))
             last = match.end()
         result.append(html.escape(text[last:]))
-        return re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", "".join(result))
+        rendered = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", "".join(result))
+        return rendered.replace(
+            "[EXPLANATION:context]",
+            '<a class="call-note-link" href="#toolchain-call-graph-context">'
+            'Full explanation · is this a global variable?</a>',
+        )
+
+    def explanation(text):
+        anchors = {}
+
+        def source_anchor(match):
+            key = "ct_graph_context_state"
+            line = int(match[2])
+            r = refs[key]
+            if not r["start"] <= line <= r["end"]:
+                raise ValueError(f"Context explanation line outside source span: {line}")
+            used_refs.add(key)
+            token = f"CONTEXT_SOURCE_{len(anchors)}_TOKEN"
+            anchors[token] = (
+                f'<a class="qna-source-path" data-ref="{key}" data-line="{line}" '
+                f'href="../sources/{html.escape(r["file"])}#L{line}">'
+                f'{html.escape(match[1])}</a>'
+            )
+            return token
+
+        text = re.sub(
+            r"\[([^\]]+)\]\(sources/max/python/max/_mlir_context\.py#L(\d+)\)",
+            source_anchor, text,
+        )
+        rendered = markdown.markdown(text, extensions=["tables", "fenced_code"])
+        for token, anchor in anchors.items():
+            rendered = rendered.replace(token, anchor)
+        rendered = re.sub(r"(<table>.*?</table>)",
+                          r'<div class="qna-table-scroll" tabindex="0">\1</div>',
+                          rendered, flags=re.S)
+        return '<div class="call-explanation">' + rendered + '</div>'
 
     def tree(text, label):
         return (f'<div class="call-tree-scroll" tabindex="0" role="region" '
@@ -435,7 +518,9 @@ def render_addition_calltrees(refs, revision):
         def reference(match):
             r = refs[match[1]]
             return f'{match[2].replace("**", "")} [{r["file"]}:L{r["line"]}]'
-        return MARKER.sub(reference, text).replace("**", "").rstrip()
+        return (MARKER.sub(reference, text).replace("**", "")
+                .replace("[EXPLANATION:context]", "Full explanation · is this a global variable? → A.0")
+                .rstrip())
 
     body = ['<div class="addition-calltrees" data-calltrees="addition">',
             '<p class="calltree-scope"><strong>SOURCE</strong> · '
@@ -461,10 +546,16 @@ def render_addition_calltrees(refs, revision):
         body.append('</dl>' + tree(stage["tree"], title))
         companion.extend(["", "```text", portable(stage["tree"]), "```", ""])
         for detail in stage["details"]:
+            content = (explanation(detail["explanation"]) if "explanation" in detail
+                       else tree(detail["tree"], detail["title"]))
             body.append(f'<details class="call-branch" id="toolchain-call-{stage["id"]}-{detail["id"]}">'
                         f'<summary>{html.escape(detail["title"])}</summary>'
-                        + tree(detail["tree"], detail["title"]) + '</details>')
-            companion.extend(["### " + detail["title"], "", "```text", portable(detail["tree"]), "```", ""])
+                        + content + '</details>')
+            companion.extend(["### " + detail["title"], ""])
+            if "explanation" in detail:
+                companion.extend([detail["explanation"].rstrip(), ""])
+            else:
+                companion.extend(["```text", portable(detail["tree"]), "```", ""])
         body.append('</article>')
     body.append('<details class="call-branch call-example" id="toolchain-call-example"><summary>'
                 'E · Connect the prepared objects to an input and a result</summary>'

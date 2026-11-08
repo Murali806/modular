@@ -1,0 +1,33 @@
+{
+  "result": "PASS",
+  "evidence": "Browser documentation checks; no MAX or Mojo execution",
+  "checks": [
+    {
+      "width": 1600,
+      "exact_answer": true,
+      "copy_download": true,
+      "context_deep_link": true,
+      "no_document_overflow": true,
+      "source_links": "passed"
+    },
+    {
+      "width": 390,
+      "exact_answer": true,
+      "copy_download": true,
+      "context_deep_link": true,
+      "no_document_overflow": true,
+      "source_links": "present"
+    },
+    {
+      "width": 320,
+      "exact_answer": true,
+      "copy_download": true,
+      "context_deep_link": true,
+      "no_document_overflow": true,
+      "source_links": "present"
+    }
+  ],
+  "no_javascript": true,
+  "print": true,
+  "page_errors": []
+}
