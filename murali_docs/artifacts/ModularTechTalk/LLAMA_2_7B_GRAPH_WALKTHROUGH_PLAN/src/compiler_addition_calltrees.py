@@ -475,7 +475,8 @@ def render_addition_calltrees(refs, revision):
         rendered = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", "".join(result))
         return rendered.replace(
             "[EXPLANATION:context]",
-            '<a class="call-note-link" href="#toolchain-call-graph-context">'
+            '<a class="call-note-link" href="#toolchain-call-graph-context" '
+            'data-call-explanation="toolchain-call-graph-context">'
             'Full explanation · is this a global variable?</a>',
         )
 
@@ -560,6 +561,12 @@ def render_addition_calltrees(refs, revision):
     body.append('<details class="call-branch call-example" id="toolchain-call-example"><summary>'
                 'E · Connect the prepared objects to an input and a result</summary>'
                 + tree(EXAMPLE, "Add-one execution and illustrative values") + '</details></div>')
+    body.append('<aside class="call-explanation-card" id="call-explanation-card" hidden '
+                'role="dialog" aria-modal="false" aria-labelledby="call-explanation-title">'
+                '<div class="call-explanation-card-header"><h2 id="call-explanation-title">'
+                'Default MLIR context</h2><button type="button" data-close-call-explanation '
+                'aria-label="Close the MLIR context explanation">Close ×</button></div>'
+                '<div class="call-explanation-card-body"></div></aside>')
     companion.extend(["## E · Input and output example", "", "```text", portable(EXAMPLE), "```", ""])
     text = "\n".join(companion)
     return "".join(body), text, dict(

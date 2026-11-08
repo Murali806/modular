@@ -39,7 +39,7 @@
   class Lesson {
     constructor(node){this.node=node;this.kind=node.dataset.lesson;this.speed=1;this.playing=false;this.model=new ExampleModel(this.kind,data.example,options());this.visual=new window.CompilerExamplesVisual(node,reduced);
       node.addEventListener('click',e=>{const mode=e.target.closest('button[data-mode]')?.dataset.mode;if(mode)this.setMode(mode);if(e.target.closest('[data-return-animation]')){this.setMode('animation');this.node.scrollIntoView({block:'start',behavior:'instant'});this.node.querySelector('#toolchain-animation-tab').focus({preventScroll:true});}const qa=e.target.closest('[data-read-qa]')?.dataset.readQa;if(qa||e.target.closest('[data-read-current]')){this.setMode('text');const target=questionNode(qa||this.model.snapshot().qa);if(target){target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:'start',behavior:'instant'});}}const action=e.target.closest('[data-action]')?.dataset.action;if(action==='play')this.setPlaying(!this.playing);else if(action){this.setPlaying(false);if(action==='reset')this.model.configure(options());else this.model[action]();this.render(action==='step');}const index=e.target.closest('button[data-index]')?.dataset.index;if(index!==undefined){this.setPlaying(false);this.model.seek(Number(index));this.render(false);}});
-      if(this.kind==='toolchain')node.addEventListener('click',e=>{const anchor=e.target.closest('a[href^="#toolchain-"]');if(!anchor||!isTextHash(anchor.hash))return;const target=document.getElementById(anchor.hash.slice(1));if(target){this.setMode('text');revealReadingTarget(target);}});
+      if(this.kind==='toolchain')node.addEventListener('click',e=>{const anchor=e.target.closest('a[href^="#toolchain-"]');if(!anchor||anchor.hasAttribute('data-call-explanation')||!isTextHash(anchor.hash))return;const target=document.getElementById(anchor.hash.slice(1));if(target){this.setMode('text');revealReadingTarget(target);}});
       node.querySelector('[role="tablist"]')?.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const tabs=[...node.querySelectorAll('[data-mode]')],current=tabs.indexOf(document.activeElement),next=e.key==='Home'?0:e.key==='End'?tabs.length-1:(current+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;this.setMode(tabs[next].dataset.mode);tabs[next].focus();});
       node.querySelector('[data-seek]').addEventListener('input',e=>{this.setPlaying(false);this.model.seek(Number(e.target.value));this.render(false);});
       node.querySelector('[data-speed]').addEventListener('change',e=>{this.speed=Number(e.target.value);if(this.playing)this.nextAt=performance.now()+1650/this.speed;});this.render(false);if(this.kind==='toolchain')this.setMode(isTextHash(location.hash)?'text':'animation');
@@ -68,12 +68,74 @@
   document.querySelector('[data-qna-copy]').addEventListener('click',async()=>{const status=document.querySelector('[data-qna-copy-status]');try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(data.toolchain.text);else{const field=document.createElement('textarea');field.value=data.toolchain.text;field.className='copy-fallback';document.body.append(field);field.select();const copied=document.execCommand('copy');field.remove();if(!copied)throw Error('Clipboard unavailable');}status.textContent=data.toolchain.calltrees?'Copied call trees and complete answers 1–7.':'Copied complete answers 1–7.';}catch{status.textContent='Use Download the full text to save the complete text.';}});
   function syncTextHash(){if(isTextHash(location.hash)){controllers.find(c=>c.kind==='toolchain').setMode('text');const target=document.getElementById(location.hash.slice(1));if(target){revealReadingTarget(target);target.scrollIntoView({block:'start',behavior:'instant'});}}}
   window.addEventListener('hashchange',syncTextHash);
+  function setupCallExplanationCard(){
+    const card=document.getElementById('call-explanation-card');
+    if(!card)return;
+    document.body.append(card);
+    const body=card.querySelector('.call-explanation-card-body'),closeButton=card.querySelector('[data-close-call-explanation]');
+    let trigger=null;
+    const sourceOpen=()=>document.getElementById('source-dialog').open;
+    function close(restore=false){
+      if(card.hidden)return;
+      card.hidden=true;
+      const previous=trigger;trigger=null;
+      previous?.setAttribute('aria-expanded','false');
+      body.replaceChildren();
+      if(restore)previous?.focus({preventScroll:true});
+    }
+    function position(){
+      if(card.hidden||!trigger)return;
+      card.style.maxHeight='calc(100dvh - 82px)';
+      const bounds=trigger.getBoundingClientRect(),gap=14;
+      const below=Math.max(68,bounds.bottom+10),belowSpace=innerHeight-below-gap,aboveSpace=bounds.top-68-gap;
+      const useBelow=belowSpace>=240||belowSpace>=aboveSpace;
+      const top=useBelow?below:Math.max(68,bounds.top-card.offsetHeight-gap);
+      card.style.left=Math.max(gap,Math.min(innerWidth-card.offsetWidth-gap,bounds.left))+'px';
+      card.style.top=top+'px';
+      card.style.maxHeight=Math.max(80,useBelow?belowSpace:bounds.top-top-gap)+'px';
+    }
+    function open(link){
+      const content=document.getElementById(link.dataset.callExplanation)?.querySelector('.call-explanation');
+      if(!content)return;
+      if(!card.hidden&&trigger===link){close(true);return;}
+      close();trigger=link;
+      body.replaceChildren(content.cloneNode(true));body.scrollTop=0;
+      controllers.forEach(controller=>controller.setPlaying(false));
+      card.hidden=false;link.setAttribute('aria-expanded','true');position();
+      closeButton.focus({preventScroll:true});
+    }
+    document.querySelectorAll('[data-call-explanation]').forEach(link=>{
+      link.setAttribute('aria-haspopup','dialog');link.setAttribute('aria-controls',card.id);link.setAttribute('aria-expanded','false');
+    });
+    document.addEventListener('click',event=>{
+      const link=event.target.closest('[data-call-explanation]');
+      if(link){event.preventDefault();open(link);return;}
+      if(!card.hidden&&!sourceOpen()&&!card.contains(event.target))close();
+    });
+    closeButton.addEventListener('click',()=>close(true));
+    document.addEventListener('pointerdown',event=>{
+      if(!card.hidden&&!sourceOpen()&&!card.contains(event.target)&&!trigger.contains(event.target))close();
+    });
+    document.addEventListener('focusin',event=>{
+      if(!card.hidden&&!sourceOpen()&&!card.contains(event.target)&&!trigger.contains(event.target))close();
+    });
+    document.addEventListener('keydown',event=>{
+      if(event.key==='Escape'&&!card.hidden&&!sourceOpen()){event.preventDefault();close(true);}
+    });
+    addEventListener('resize',position);
+    addEventListener('scroll',()=>{
+      if(card.hidden||sourceOpen())return;
+      const bounds=trigger.getBoundingClientRect();
+      if(bounds.bottom<68||bounds.top>innerHeight-14)close();else position();
+    },{passive:true});
+    addEventListener('beforeprint',()=>close());
+  }
   let printClosed=[];
   window.addEventListener('beforeprint',()=>{printClosed=[...document.querySelectorAll('.addition-calltrees details:not([open]),#toolchain-reference:not([open])')];printClosed.forEach(detail=>detail.open=true);});
   window.addEventListener('afterprint',()=>{printClosed.forEach(detail=>detail.open=false);printClosed=[];});
   const observer=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)controllers.find(c=>c.node===e.target)?.setPlaying(false);}),{threshold:.1});controllers.forEach(c=>observer.observe(c.node));
   document.addEventListener('visibilitychange',()=>{if(document.hidden)controllers.forEach(c=>c.setPlaying(false));});reduced.addEventListener('change',()=>controllers.forEach(c=>c.render(false)));document.querySelector('[data-print]').addEventListener('click',()=>print());
   const journey=window.CompilerJourney.attach(data);
-  window.CompilerReaderUI(data,[journey,...controllers]);window.compilerExampleSnapshot=key=>key==='journey'?journey.model.snapshot():controllers.find(c=>c.kind===key)?.model.snapshot();
+  window.CompilerReaderUI(data,[journey,...controllers]);setupCallExplanationCard();window.compilerExampleSnapshot=key=>key==='journey'?journey.model.snapshot():controllers.find(c=>c.kind===key)?.model.snapshot();
   syncTextHash();
 })();

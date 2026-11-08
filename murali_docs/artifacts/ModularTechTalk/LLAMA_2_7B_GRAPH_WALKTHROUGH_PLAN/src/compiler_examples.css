@@ -79,6 +79,15 @@
 .call-explanation pre { max-width:100%; overflow:auto; padding:14px; border:1px solid #bbcdd8; border-radius:8px; background:#f4f8fa; font:16px/1.85 ui-monospace,SFMono-Regular,Consolas,monospace; }
 .call-explanation pre code { color:#233e4e; font:inherit; }
 .call-explanation .qna-source-path { color:#0057a8; font-weight:750; }
+.call-explanation-card { position:fixed; z-index:90; display:flex; flex-direction:column; width:min(820px,calc(100vw - 28px)); max-height:calc(100dvh - 82px); margin:0; border:1px solid #819dac; border-radius:12px; background:#fffefa; box-shadow:0 18px 55px #193b5140; overflow:hidden; }
+.call-explanation-card-header { display:flex; align-items:center; justify-content:space-between; flex:none; gap:14px; padding:14px 18px; border-bottom:1px solid #c4d2dc; }
+.call-explanation-card-header h2 { margin:0; color:#153f53; font:750 19px/1.4 ui-sans-serif,system-ui,sans-serif; }
+.call-explanation-card-header button { flex:none; font-size:14px; }
+.call-explanation-card-body { min-height:0; overflow:auto; overscroll-behavior:contain; }
+.call-explanation-card .call-explanation { margin:0; padding:4px 18px 16px; }
+.call-explanation-card td:first-child code { white-space:nowrap; }
+@media(max-width:600px) { .call-explanation-card-header { padding:12px; gap:8px; }.call-explanation-card-header h2 { font-size:17px; }.call-explanation-card .call-explanation { padding:0 12px 12px; } }
+@media print { .call-explanation-card { display:none!important; } }
 .call-branch { margin:14px 0 0; border:1px solid #c4d2dc; border-radius:8px; }
 .call-branch > summary,.qna-reference > summary { padding:12px 14px; color:#214756; font-size:16px; font-weight:750; cursor:pointer; line-height:1.6; }
 .call-branch .call-tree-scroll { margin:0 12px 12px; }

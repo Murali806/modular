@@ -4,30 +4,46 @@
   "checks": [
     {
       "width": 1600,
+      "click_opens_card": true,
       "exact_answer": true,
-      "copy_download": true,
-      "context_deep_link": true,
-      "no_document_overflow": true,
-      "source_links": "passed"
+      "no_page_jump": true,
+      "close_escape_outside_toggle": true,
+      "keyboard_and_focus": true,
+      "card_scrolling": true,
+      "viewport_fit": true,
+      "source_links": "passed",
+      "touch": false,
+      "timeline_preserved": true
     },
     {
       "width": 390,
+      "click_opens_card": true,
       "exact_answer": true,
-      "copy_download": true,
-      "context_deep_link": true,
-      "no_document_overflow": true,
-      "source_links": "present"
+      "no_page_jump": true,
+      "close_escape_outside_toggle": true,
+      "keyboard_and_focus": true,
+      "card_scrolling": true,
+      "viewport_fit": true,
+      "source_links": "present",
+      "touch": true,
+      "timeline_preserved": true
     },
     {
       "width": 320,
+      "click_opens_card": true,
       "exact_answer": true,
-      "copy_download": true,
-      "context_deep_link": true,
-      "no_document_overflow": true,
-      "source_links": "present"
+      "no_page_jump": true,
+      "close_escape_outside_toggle": true,
+      "keyboard_and_focus": true,
+      "card_scrolling": true,
+      "viewport_fit": true,
+      "source_links": "present",
+      "touch": true,
+      "timeline_preserved": true
     }
   ],
-  "no_javascript": true,
+  "no_javascript_fallback": true,
   "print": true,
+  "other_examples": true,
   "page_errors": []
 }
