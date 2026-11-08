@@ -59,11 +59,12 @@
   function jumpMatch(delta){if(!matches.length)return;matchIndex=(matchIndex+delta+matches.length)%matches.length;matches[matchIndex].classList.add('search-hit');matches[matchIndex].scrollIntoView({block:'center'});document.getElementById('source-count').textContent=(matchIndex+1)+' / '+matches.length;}
   function openSource(link) {
     const r=data.references[link.dataset.ref];if(!r)return;
+    const targetLine=Number(link.dataset.line)||r.line;
     launch=link;currentFile=data.files[r.file];const lines=currentFile.text.split('\n');definition=lines.slice(r.start-1,r.end).join('\n');
     document.getElementById('source-title').textContent=r.label;document.getElementById('source-location').textContent=r.file+' · lines '+r.start+'–'+r.end+' · '+data.revision;
-    sourceFile.querySelector('code').innerHTML=lines.map((line,i)=>'<span class="source-line'+(i+1>=r.start&&i+1<=r.end?' selected':'')+(i+1===r.line?' exact':'')+'" data-line="'+(i+1)+'"><span>'+(i+1)+'</span>'+escape(line)+'</span>').join('');
+    sourceFile.querySelector('code').innerHTML=lines.map((line,i)=>'<span class="source-line'+(i+1>=r.start&&i+1<=r.end?' selected':'')+(i+1===targetLine?' exact':'')+'" data-line="'+(i+1)+'"><span>'+(i+1)+'</span>'+escape(line)+'</span>').join('');
     if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(new Blob([currentFile.text],{type:'text/plain'}));const download=document.getElementById('source-download');download.href=url;download.download=r.file.split('/').pop();
-    document.getElementById('source-search').value='';searchSource();dialog.showModal();requestAnimationFrame(()=>sourceFile.querySelector('[data-line="'+r.line+'"]')?.scrollIntoView({block:'center'}));
+    document.getElementById('source-search').value='';searchSource();dialog.showModal();requestAnimationFrame(()=>sourceFile.querySelector('[data-line="'+targetLine+'"]')?.scrollIntoView({block:'center'}));
   }
   document.addEventListener('click',e=>{const link=e.target.closest('a[data-ref]');if(link){e.preventDefault();openSource(link);}});
   document.getElementById('source-close').addEventListener('click',()=>dialog.close());dialog.addEventListener('close',()=>{launch?.focus({preventScroll:true});});

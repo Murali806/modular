@@ -38,6 +38,7 @@
 .qna-original { margin:16px 0 25px; padding:12px; border:1px solid #c5d4dc; border-radius:9px; background:#f6f8fa; min-width:0; }
 .qna-original > strong { font-size:14px; color:#426174; }
 .qna-original pre { margin:10px 0 0; background:#fff; white-space:pre; overflow:auto; }
+.qna-source-path { color:#1d5670; text-decoration:underline; text-decoration-style:dotted; text-underline-offset:2px; cursor:pointer; }.qna-source-path code { color:inherit; }.qna-source-path:hover { color:#123d52; text-decoration-style:solid; }.qna-source-path:focus-visible { outline:3px solid #ad682e; outline-offset:2px; border-radius:2px; }
 .qna-original-anchor { font-weight:750; scroll-margin-top:125px; }
 .qna-table-scroll { max-width:100%; overflow:auto; margin:16px 0; border:1px solid #c6d5de; border-radius:8px; }
 .qna-table-scroll table { width:100%; min-width:620px; border-collapse:collapse; font-size:16px; }

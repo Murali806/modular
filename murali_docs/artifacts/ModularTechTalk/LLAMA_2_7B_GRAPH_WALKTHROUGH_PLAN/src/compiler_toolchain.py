@@ -195,7 +195,64 @@ def render_toolchain_text(refs, example, task, src):
         r = refs[key]
         return f'<a data-ref="{key}" href="../sources/{r["file"]}#L{r["line"]}">{html.escape(r["label"])} <small>[{r["alias"]}:L{r["line"]}]</small></a>'
 
+    # Link literal repository paths to the files already bundled in each page.
+    # Prefer the most focused reference for duplicate entries to that file.
+    file_ref = {}
+    for key, ref in refs.items():
+        path = ref["file"]
+        rank = (ref["end"] - ref["start"], ref["start"])
+        if path not in file_ref or rank < file_ref[path][0]:
+            file_ref[path] = (rank, key)
+    path_ref = {}
+
+    def add_path_alias(alias, path):
+        if alias in path_ref and path_ref[alias] != path:
+            path_ref[alias] = None
+        else:
+            path_ref[alias] = path
+
+    for path in file_ref:
+        components = path.split("/")
+        add_path_alias(path, path)
+        for start in range(1, len(components)):
+            add_path_alias("/".join(components[start:]), path)
+    path_alternation = "|".join(
+        re.escape(alias).replace("/", r"/[ \t\r\n]*")
+        for alias, path in sorted(path_ref.items(), key=lambda item: len(item[0]), reverse=True)
+        if path is not None
+    )
+    source_path_pattern = re.compile(
+        r"(?<![\w./-])(?P<path>" + path_alternation +
+        r")(?::(?P<line>\d+))?(?![\w./-])"
+    )
+
+    def path_placeholders(text, links):
+        def replace(match):
+            path = re.sub(r"/[ \t\r\n]+", "/", match["path"])
+            key = file_ref[path_ref[path]][1]
+            ref = refs[key]
+            line = int(match["line"]) if match["line"] else ref["line"]
+            if not match["line"]:
+                call = re.search(r"([A-Za-z_]\w*)\(\)\s+in\s*$", text[max(0, match.start() - 100):match.start()])
+                if call:
+                    source_lines = (task / "sources" / ref["file"]).read_text().splitlines()
+                    hits = [i for i, source_line in enumerate(source_lines, 1)
+                            if re.search(r"\b" + re.escape(call[1]) + r"\s*\(", source_line)]
+                    if len(hits) == 1:
+                        line = hits[0]
+            shown = html.escape(match.group(0))
+            token = f"QNA_SOURCE_PATH_{len(links)}_TOKEN"
+            title = html.escape(f"Open {ref['file']} in the Source Explorer at line {line}", quote=True)
+            href = html.escape(f"../sources/{ref['file']}#L{line}", quote=True)
+            links[token] = (
+                f'<a class="qna-source-path" data-ref="{key}" data-line="{line}" '
+                f'href="{href}" title="{title}"><code>{shown}</code></a>'
+            )
+            return token
+        return source_path_pattern.sub(replace, text)
+
     def render(block):
+        path_links = {}
         # The adjacent marker supplies a static SVG; retain Mermaid only in the
         # authoring/download text, never as a second visible diagram listing.
         block = re.sub(
@@ -207,10 +264,20 @@ def render_toolchain_text(refs, example, task, src):
             raise ValueError("A Mermaid block needs a matching offline diagram marker")
         # Markdown must not treat source notation such as load[width](idx) as a link.
         block = re.sub(r'<code>(.*?)</code>', lambda m: '`' + html.unescape(m[1]) + '`', block, flags=re.S)
+        block = path_placeholders(block, path_links)
         block = re.sub(r"\[SOURCE:([a-z_]+)\]", link, block)
         result = markdown.markdown(block, extensions=["tables", "fenced_code", "attr_list"])
         result = re.sub(r"<p>\{\{diagram:([a-z]+)\}\}</p>", lambda m: diagrams[m[1]], result)
+        for token, anchor in path_links.items():
+            result = result.replace(token, anchor)
         return re.sub(r"(<table>.*?</table>)", r'<div class="qna-table-scroll" tabindex="0">\1</div>', result, flags=re.S)
+
+    def render_original(answer):
+        path_links = {}
+        rendered = path_placeholders(html.escape(answer), path_links)
+        for token, anchor in path_links.items():
+            rendered = rendered.replace(token, anchor)
+        return rendered
 
     # Point 1 is an immutable pasted answer with two unfenced Mermaid blocks.
     # Split its presentation around those blocks without changing the original
@@ -224,11 +291,15 @@ def render_toolchain_text(refs, example, task, src):
         raise ValueError("Expected the build and macro diagrams in the preserved point 1")
     point1_html = []
     for i, fragment in enumerate(point1_parts):
+        path_links = {}
+        escaped_fragment = path_placeholders(html.escape(fragment), path_links)
         prose = re.sub(
             r'(?m)^(\s*#{3,4}\s+(1(?:\.\d+)+)[^\n]*)$',
             lambda m: '<span class="qna-original-anchor" id="toolchain-q' + m[2].replace('.', '-') + '">' + m[1] + '</span>',
-            html.escape(fragment),
+            escaped_fragment,
         )
+        for token, anchor in path_links.items():
+            prose = prose.replace(token, anchor)
         point1_html.append(f'<pre data-original-fragment="{i}">{prose}</pre>')
         if i < 2:
             point1_html.append(diagrams[("build", "macro")[i]])
@@ -243,7 +314,7 @@ def render_toolchain_text(refs, example, task, src):
     for n in range(1, len(parts), 2):
         number, block = parts[n], parts[n+1].strip()
         heading, _, expansion = block.partition("\n")
-        body.append(f'<section class="qna-section" id="toolchain-q{number}">' + render(heading) + '<div class="qna-original"><strong>Previous answer · unchanged</strong><pre data-original-point="' + number + '">' + html.escape(originals[number]) + '</pre></div>' + render(expansion) + '</section>')
+        body.append(f'<section class="qna-section" id="toolchain-q{number}">' + render(heading) + '<div class="qna-original"><strong>Previous answer · unchanged</strong><pre data-original-point="' + number + '">' + render_original(originals[number]) + '</pre></div>' + render(expansion) + '</section>')
         companion.append(originals[number] + "\n\n" + expansion)
     full = "\n\n".join(companion) + "\n"
     def markdown_link(match):
