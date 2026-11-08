@@ -6,6 +6,8 @@
   "questions": 7,
   "toolchain_steps": 34,
   "previous_answers_preserved": true,
+  "rendered_diagrams_per_page": 5,
+  "visible_mermaid_source": false,
   "source_files": 58,
   "source_spans": 364,
   "local_links": 1592,

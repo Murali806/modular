@@ -81,7 +81,7 @@ def add_toolchain_sources(refs, files, repo, task, revision):
 
 
 def diagram(key, title, nodes, edges, height=420):
-    """Offline SVG; accompanying Mermaid text remains copyable and portable."""
+    """Offline SVG displayed in place of the authored Mermaid source."""
     body = []
     for path, label, x, y in edges:
         body.append(f'<g class="wire"><path d="{path}" marker-end="url(#qna-arrow-{key})"/></g>')
@@ -92,7 +92,7 @@ def diagram(key, title, nodes, edges, height=420):
         body.append(f'<text class="qna-node-title" x="{x+14}" y="{y+26}">{html.escape(label)}</text>')
         body.extend(f'<text class="qna-node-line" x="{x+14}" y="{y+49+i*19}">{html.escape(line)}</text>' for i, line in enumerate(lines))
         body.append('</g>')
-    return f'<figure class="qna-figure"><figcaption>{html.escape(title)}</figcaption><div class="qna-diagram-frame" tabindex="0"><svg viewBox="0 0 1060 {height}" role="img" aria-label="{html.escape(title)}" xmlns="http://www.w3.org/2000/svg"><defs><marker id="qna-arrow-{key}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#596e79"/></marker></defs>{"".join(body)}</svg></div></figure>'
+    return f'<figure class="qna-figure" data-diagram="{key}"><figcaption>{html.escape(title)}</figcaption><div class="qna-diagram-frame" tabindex="0"><svg viewBox="0 0 1060 {height}" role="img" aria-label="{html.escape(title)}" xmlns="http://www.w3.org/2000/svg"><defs><marker id="qna-arrow-{key}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#596e79"/></marker></defs>{"".join(body)}</svg></div></figure>'
 
 
 def reading_diagrams():
@@ -196,6 +196,15 @@ def render_toolchain_text(refs, example, task, src):
         return f'<a data-ref="{key}" href="../sources/{r["file"]}#L{r["line"]}">{html.escape(r["label"])} <small>[{r["alias"]}:L{r["line"]}]</small></a>'
 
     def render(block):
+        # The adjacent marker supplies a static SVG; retain Mermaid only in the
+        # authoring/download text, never as a second visible diagram listing.
+        block = re.sub(
+            r'(?ms)^(\{\{diagram:[a-z]+\}\})[ \t]*\n(?:[ \t]*\n)*'
+            r'(?P<fence>```|~~~)mermaid[ \t]*\n.*?^(?P=fence)[ \t]*$',
+            r'\1', block,
+        )
+        if re.search(r'(?m)^(?:```|~~~)mermaid\b', block):
+            raise ValueError("A Mermaid block needs a matching offline diagram marker")
         # Markdown must not treat source notation such as load[width](idx) as a link.
         block = re.sub(r'<code>(.*?)</code>', lambda m: '`' + html.unescape(m[1]) + '`', block, flags=re.S)
         block = re.sub(r"\[SOURCE:([a-z_]+)\]", link, block)
@@ -203,15 +212,30 @@ def render_toolchain_text(refs, example, task, src):
         result = re.sub(r"<p>\{\{diagram:([a-z]+)\}\}</p>", lambda m: diagrams[m[1]], result)
         return re.sub(r"(<table>.*?</table>)", r'<div class="qna-table-scroll" tabindex="0">\1</div>', result, flags=re.S)
 
-    point1_html = re.sub(
-        r'(?m)^(\s*#{3,4}\s+(1(?:\.\d+)+)[^\n]*)$',
-        lambda m: '<span class="qna-original-anchor" id="toolchain-q' + m[2].replace('.', '-') + '">' + m[1] + '</span>',
-        html.escape(point1),
+    # Point 1 is an immutable pasted answer with two unfenced Mermaid blocks.
+    # Split its presentation around those blocks without changing the original
+    # payload, copy text, or download. Only indented diagram lines are consumed.
+    point1_parts = re.split(
+        r"(?m)^[ \t]*This Mermaid diagram exceeds the terminal renderer's size limits\.\n"
+        r"[ \t]*flowchart (?:LR|TD)\n(?:[ \t]{4,}[^\n]*\n|[ \t]*\n)+",
+        point1,
     )
+    if len(point1_parts) != 3:
+        raise ValueError("Expected the build and macro diagrams in the preserved point 1")
+    point1_html = []
+    for i, fragment in enumerate(point1_parts):
+        prose = re.sub(
+            r'(?m)^(\s*#{3,4}\s+(1(?:\.\d+)+)[^\n]*)$',
+            lambda m: '<span class="qna-original-anchor" id="toolchain-q' + m[2].replace('.', '-') + '">' + m[1] + '</span>',
+            html.escape(fragment),
+        )
+        point1_html.append(f'<pre data-original-fragment="{i}">{prose}</pre>')
+        if i < 2:
+            point1_html.append(diagrams[("build", "macro")[i]])
 
     nav = '<nav class="qna-nav" aria-label="Compiler questions">' + ''.join(f'<a href="#toolchain-q{i}">{i} · {label}</a>' for i, label in enumerate(["Build", "Package", "MAX IR", "Mojo / JIT", "Backend", "Execution", "Tools"], 1)) + '</nav>'
-    body = [nav, '<p class="qna-scope">Complete previous answer, followed by finer numbered explanations. The preserved answer uses <code>addition.py</code>; this page’s animation follows <code>' + html.escape(example["filename"]) + '</code>. Compiler stages run on the host. Evidence is pinned source; the diagrams are teaching views.</p>',
-            '<section class="qna-section" id="toolchain-q1"><h3>1. Bazel build, dependencies and macros</h3><div class="qna-original"><strong>Previous answer · unchanged</strong><pre data-original-point="1">' + point1_html + '</pre></div>', diagrams["build"], diagrams["macro"],
+    body = [nav, '<p class="qna-scope">Complete previous answer with rendered diagrams, followed by finer numbered explanations. The preserved answer uses <code>addition.py</code>; this page’s animation follows <code>' + html.escape(example["filename"]) + '</code>. Compiler stages run on the host. Evidence is pinned source; the diagrams are teaching views.</p>',
+            '<section class="qna-section" id="toolchain-q1"><h3>1. Bazel build, dependencies and macros</h3><div class="qna-original" data-original-point="1"><strong>Previous answer · diagrams rendered</strong>' + "".join(point1_html) + '</div>',
             '<details><summary>Portable build and macro diagrams</summary><pre>' + html.escape(build_flow) + '</pre></details>',
             '<p>' + re.sub(r"\[SOURCE:([a-z_]+)\]", link, '[SOURCE:bazel_build_file] · [SOURCE:bazel_macro] · [SOURCE:bazel_aliases] · [SOURCE:bazel_binary_test]') + '</p></section>']
     companion = ["# From Bazel’s build graph to a selected device backend\n\n## 1. Previous answer — unchanged\n\n" + point1 + '\n\n### Portable build and macro diagrams\n\n```text\n' + build_flow + '\n```']

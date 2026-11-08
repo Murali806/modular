@@ -13,18 +13,27 @@ REPO=TASK.parents[3]
 class Parser(HTMLParser):
     def __init__(self):
         super().__init__();self.ids=[];self.links=[];self.dependencies=[];self.refs=[];self.originals={};self.original_point=None
+        self.original_points=[];self.original_fragments=[];self.original_fragment=None;self.diagrams=[];self.presentation=[];self.suppressed_tag=None
     def handle_starttag(self,tag,attrs):
         a=dict(attrs)
         if 'id' in a:self.ids.append(a['id'])
         if tag=='a' and 'href' in a:self.links.append(a['href'])
         if 'data-ref' in a:self.refs.append(a['data-ref'])
+        if 'data-original-point' in a:self.original_points.append(a['data-original-point'])
         if tag=='pre' and 'data-original-point' in a:
             self.original_point=a['data-original-point'];self.originals[self.original_point]=''
+        if tag=='pre' and 'data-original-fragment' in a:
+            self.original_fragment=len(self.original_fragments);self.original_fragments.append('')
+        if tag=='figure' and 'data-diagram' in a:self.diagrams.append(a['data-diagram'])
+        if tag in ('script','style'):self.suppressed_tag=tag
         if tag in ('script','img','link') and ('src' in a or 'href' in a):self.dependencies.append(a.get('src',a.get('href')))
     def handle_data(self,data):
         if self.original_point is not None:self.originals[self.original_point]+=data
+        if self.original_fragment is not None:self.original_fragments[self.original_fragment]+=data
+        if self.suppressed_tag is None:self.presentation.append(data)
     def handle_endtag(self,tag):
-        if tag=='pre':self.original_point=None
+        if tag=='pre':self.original_point=None;self.original_fragment=None
+        if tag==self.suppressed_tag:self.suppressed_tag=None
 
 
 def check_examples():
@@ -52,7 +61,14 @@ def check_examples():
         assert 'kernels/*.mojo is data' in toolchain['ascii'] and 'TargetBackendRegistry lookup' in toolchain['ascii']
         point1=(TASK/'src/compiler_toolchain_point_1.txt').read_text().rstrip('\n')
         originals={'1':point1,**json.loads((TASK/'src/compiler_toolchain_originals.json').read_text())}
-        assert p.originals==originals,page
+        assert p.original_points==list('1234567'),page
+        assert p.originals=={n:answer for n,answer in originals.items() if n!='1'},page
+        assert len(p.original_fragments)==3,page
+        assert p.diagrams==['build','macro','ir','kernel','offload'],page
+        presentation='\n'.join(p.presentation)
+        assert "This Mermaid diagram exceeds the terminal renderer's size limits" not in presentation,page
+        assert not re.search(r'(?m)^\s*flowchart (?:LR|TD)\b',presentation),page
+        assert 'language-mermaid' not in text,page
         assert payload['toolchain']['originals']==originals,page
         assert payload['toolchain']['point1_sha256']==hashlib.sha256(point1.encode()).hexdigest()==e['toolchain']['point1_sha256']
         assert all(original in payload['toolchain']['text'] for original in originals.values())
@@ -86,7 +102,7 @@ def check_examples():
                     parser=Parser();parser.feed(target.read_text());parsers[target]=parser
                 assert fragment in parsers[target].ids,href
             links+=1
-    return dict(result='PASS',revision=manifest['revision'],pages=4,animations=sum(len(e['lessons']) for e in manifest['examples']),questions=7,toolchain_steps=manifest['examples'][0]['toolchain']['steps'],previous_answers_preserved=True,source_files=len(file_checks),source_spans=spans,local_links=links,external_runtime_dependencies=0,evidence='Source/document checks only; no MAX execution')
+    return dict(result='PASS',revision=manifest['revision'],pages=4,animations=sum(len(e['lessons']) for e in manifest['examples']),questions=7,toolchain_steps=manifest['examples'][0]['toolchain']['steps'],previous_answers_preserved=True,rendered_diagrams_per_page=5,visible_mermaid_source=False,source_files=len(file_checks),source_spans=spans,local_links=links,external_runtime_dependencies=0,evidence='Source/document checks only; no MAX execution')
 
 
 if __name__=='__main__':

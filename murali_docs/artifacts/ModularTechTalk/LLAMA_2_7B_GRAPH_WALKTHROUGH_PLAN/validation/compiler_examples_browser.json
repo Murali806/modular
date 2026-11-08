@@ -6,7 +6,7 @@
     "Fused/separate epilogue changes intermediate allocations; tiled/naive matmul changes visible execution",
     "Result cells agree with the model; source-specific host-copy behavior and CPU placement remain visible",
     "Hover/focus cards dismiss, L opens only on click, eleven colors match, original source/search/copy/download work",
-    "Text/Animation keyboard tabs, exact seven previous answers, complete copy, five offline diagrams and step-to-QnA links preserve the paused timeline",
+    "Text/Animation tabs preserve the paused timeline; five offline diagrams replace Mermaid source in place; exact previous answers remain in complete copy/download",
     "Persistent shared-tile actors move; Pause freezes pose and steps; Resume/offscreen/reset behave correctly",
     "Entering Text freezes a moving OP1 and semantic step; returning to Animation resumes the same actor",
     "All four readers at 320/390px contain diagram scrolling and fit touch cards/legends",
@@ -20,7 +20,7 @@
     },
     {
       "label": "addition complete text",
-      "samples": 1407,
+      "samples": 1406,
       "minimum": 5.232
     },
     {
@@ -955,7 +955,7 @@
     },
     {
       "label": "epilogue complete text",
-      "samples": 1412,
+      "samples": 1411,
       "minimum": 5.232
     },
     {
@@ -2055,7 +2055,7 @@
     },
     {
       "label": "matmul complete text",
-      "samples": 1409,
+      "samples": 1408,
       "minimum": 5.232
     },
     {
@@ -3210,7 +3210,7 @@
     },
     {
       "label": "attention complete text",
-      "samples": 1425,
+      "samples": 1424,
       "minimum": 5.232
     },
     {
@@ -4290,7 +4290,7 @@
     },
     {
       "label": "addition narrow text 320",
-      "samples": 1420,
+      "samples": 1419,
       "minimum": 5.232
     },
     {
@@ -4310,7 +4310,7 @@
     },
     {
       "label": "epilogue narrow text 320",
-      "samples": 1438,
+      "samples": 1437,
       "minimum": 5.232
     },
     {
@@ -4330,7 +4330,7 @@
     },
     {
       "label": "matmul narrow text 320",
-      "samples": 1428,
+      "samples": 1427,
       "minimum": 5.232
     },
     {
@@ -4350,7 +4350,7 @@
     },
     {
       "label": "attention narrow text 320",
-      "samples": 1457,
+      "samples": 1456,
       "minimum": 5.232
     },
     {
@@ -4370,7 +4370,7 @@
     },
     {
       "label": "addition narrow text 390",
-      "samples": 1420,
+      "samples": 1419,
       "minimum": 5.232
     },
     {
@@ -4390,7 +4390,7 @@
     },
     {
       "label": "epilogue narrow text 390",
-      "samples": 1438,
+      "samples": 1437,
       "minimum": 5.232
     },
     {
@@ -4410,7 +4410,7 @@
     },
     {
       "label": "matmul narrow text 390",
-      "samples": 1428,
+      "samples": 1427,
       "minimum": 5.232
     },
     {
@@ -4430,11 +4430,13 @@
     },
     {
       "label": "attention narrow text 390",
-      "samples": 1457,
+      "samples": 1456,
       "minimum": 5.232
     }
   ],
   "screenshots": [
+    "compiler_example_addition_build_diagram.png",
+    "compiler_example_addition_macro_diagram.png",
     "compiler_example_addition_toolchain.png",
     "compiler_example_addition_build.png",
     "compiler_example_addition_compile.png",
@@ -4455,7 +4457,9 @@
     "compiler_example_attention_compile.png",
     "compiler_example_attention_run.png",
     "compiler_example_attention_mechanism.png",
-    "compiler_example_attention_score_storage.png"
+    "compiler_example_attention_score_storage.png",
+    "compiler_example_addition_build_diagram_mobile.png",
+    "compiler_example_addition_build_diagram_print.png"
   ],
   "errors": [],
   "network": []
