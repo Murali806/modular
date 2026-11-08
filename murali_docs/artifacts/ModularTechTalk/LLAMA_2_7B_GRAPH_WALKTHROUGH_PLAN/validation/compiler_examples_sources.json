@@ -2,10 +2,13 @@
   "result": "PASS",
   "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
   "pages": 4,
-  "animations": 16,
-  "source_files": 22,
-  "source_spans": 160,
-  "local_links": 276,
+  "animations": 24,
+  "questions": 7,
+  "toolchain_steps": 34,
+  "previous_answers_preserved": true,
+  "source_files": 58,
+  "source_spans": 364,
+  "local_links": 1592,
   "external_runtime_dependencies": 0,
   "evidence": "Source/document checks only; no MAX execution"
 }

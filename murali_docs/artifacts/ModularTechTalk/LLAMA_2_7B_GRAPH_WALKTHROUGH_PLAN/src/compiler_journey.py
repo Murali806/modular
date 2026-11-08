@@ -79,12 +79,12 @@ def scene():
     return '<svg viewBox="0 0 1200 635" role="group" aria-label="Operation ancestry, compiler representations and repeated execution" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="journey-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#dfe7ed" stroke-width=".7"/></pattern></defs><rect class="canvas-backing" width="1200" height="635"/><rect width="1200" height="635" fill="url(#journey-grid)"/><text class="scene-label" x="25" y="31">FOLLOW SOURCE ANCESTRY · THEN FOLLOW RUNTIME VALUES</text>'+body+'<g data-actors></g></svg>'
 
 
-def panel(zoom="runtime"):
+def panel(zoom="runtime", number="01"):
     l = lesson()
     stages = [("source", "Package"), ("graph", "Graph / plan"), ("mojo", "Specialize"), ("target", "Target code"), ("artifact", "Artifact / init"), ("runtime", "Execute twice")]
     steps = ''.join(f'<button data-stage="{key}" aria-label="Jump to {label}">{i+1} · {label}</button>' for i,(key,label) in enumerate(stages))
     return f'''<section class="journey lesson" id="journey" data-journey aria-labelledby="heading-journey"><div class="experiment">
-<div class="experiment-top"><button class="lesson-badge" data-card="journey" aria-label="Explain 01: operation journey">01</button><h2 id="heading-journey">{l['title']}</h2><span>SOURCE route · schematic IR</span></div>
+<div class="experiment-top"><button class="lesson-badge" data-card="journey" aria-label="Explain {number}: operation journey">{number}</button><h2 id="heading-journey">{l['title']}</h2><span>SOURCE route · schematic IR</span></div>
 <div class="journey-toolbar" data-interactive hidden><label>Follow <select data-follow><option value="operation">Source operation</option><option value="load">Its input loads</option><option value="store">Its output stores</option><option value="plan">Graph / readiness plan</option></select></label><label>Cache route <select data-cache><option value="cold">Cold preparation</option><option value="kernel-hit">Compiled kernel hit</option><option value="artifact-hit">Compiled graph artifact hit</option></select></label><span class="journey-clock" data-clock>PREPARATION · runtime calls 0</span></div>
 <nav class="journey-map" aria-label="Operation lifecycle" data-interactive hidden>{steps}</nav>
 <div class="visual" tabindex="0" aria-label="Scroll inside the operation journey on narrow screens">{scene()}</div>

@@ -7,7 +7,68 @@
   class ExampleVisual extends root.CompilerWorkbenchVisual {
     targets(s) {
       const list=[],add=(...args)=>list.push(actor(...args)),lines=m=>m.map(row=>'['+row.map(fmt).join(', ')+']');
-      if(this.kind==='build') {
+      if(this.kind==='toolchain') {
+        add('build-command','tool','./bazelw build',42,122,185,69,'backend',{tag:'BUILD GRAPH',place:'repository root'});
+        if(s.libraries)add('mojo-dependencies','crate','shared .mojoc packages',282,197,218,29,'mojo',{origin:point(134,151),place:'Bazel library dependencies'});
+        if(s.built) {
+          add('python-binary','binary',':'+s.task,282,122,218,69,'artifact',{tag:'PYTHON LAUNCHER / RUNFILES',origin:point(215,151),place:'Bazel output'});
+          add('raw-kernel-sources','file','kernels/*.mojo',836,122,154,69,'mojo',{tag:'.MOJO · RUNTIME DATA',origin:point(496,151),place:'Python source runfiles'});
+        }
+        if(s.runfiles) {
+          add('mojo-compiler-tool','tool','Mojo compiler',559,122,129,69,'backend',{tag:'RUNFILE / DRIVER',origin:point(501,216),place:'runtime compiler'});
+          add('lld-tool','tool','LLD',702,122,77,69,'backend',{tag:'LINK TOOL',origin:point(500,216),place:'configured runtime linker'});
+        }
+        if(s.package)add('compiled-source-package','file','P1 · .mojoc',1002,122,151,69,'artifact',{tag:'POST-PARSE MLIR BYTECODE',origin:point(918,153),place:'KernelLibrary package'});
+        if(s.registered)add('registered-kernel','handle',s.name,836,199,154,29,'mojo',{origin:point(1076,153),place:'registered implementation'});
+        if(s.g1Retained)add('G1','handle','G1 · retained',1002,199,151,29,'python',{origin:point(1067,153),place:'caller-owned original graph'});
+        if(s.clone) {
+          add('C1','file','C1 · '+s.graphIR,43,334,310,140,'mlir',{tag:s.runtimeCalls?'RUNTIME CALL INTERFACE':'COMPILER GRAPH / PLAN',origin:point(1076,215),via:[point(1080,248),point(197,248)],place:'compiler-owned graph clone'});
+          if(s.plan) ['X ref','dep','Y slot'].forEach((label,i)=>add('plan-slot-'+i,'tile',label,58+i*97,438,89,29,'buffer',{origin:point(198,423),place:'C1 MGP plan resource'}));
+          const inKernel=s.emitted;
+          const map=s.graphIR==='MAP',opX=inKernel?439:map?82:58,opY=inKernel?405:s.plan?397:map?414:405,opW=inKernel?283:map?239:283,opH=s.plan&&!inKernel?29:37;
+          const kernelBody=s.kernelIR==='LLVM dialect / MLIR'?'native loads / arithmetic':s.specialized?'concrete kernel':s.kernelIR==='parametric KGEN'?'execute[target]':'registered body';
+          add('OP1','tile',inKernel?'OP1 · '+kernelBody:s.plan?'OP1 · primitive call':map?'OP1 · load / compute / store':s.graphIR==='MOGG'?'OP1 · generator call':'OP1 · '+s.name,opX,opY,opW,opH,'mojo',{origin:point(914,216),via:inKernel?[point(386,474)]:[],place:inKernel?'KIR1 implementation ancestry':s.plan?'C1 primitive-call reference':'C1 graph operation'});
+          if(s.emitted){add('OP1-ref','tile','call → ref(OP1)',58,397,283,29,'mojo',{place:'C1 call references OP1 implementation'});add('plan-retained','handle','MGP plan retained in C1',43,478,310,22,'mlir',{place:'retained graph resources'});}
+        }
+        if(s.emitted) {
+          const label=s.kernelIR==='LLVM dialect / MLIR'?'KIR1 · LLVM dialect':s.specialized?'KIR1 · concrete KGEN':s.kernelIR==='parametric KGEN'?'KIR1 · parametric KGEN':'KIR1 · generated Mojo';
+          add('KIR1','file',label,419,334,321,125,'mojo',{tag:s.kernelIR==='LLVM dialect / MLIR'?'MLIR MODULE · LLVM DIALECT':s.kernelIR==='parametric KGEN'?'KERNEL JIT · CACHE MISS':'SEPARATE IMPLEMENTATION IR',origin:point(199,422),place:'separate Mojo kernel representation'});
+          // Draw the source-ancestry tile over its own file backing.
+          const op=list.findIndex(a=>a.id==='OP1');if(op>=0)list.push(list.splice(op,1)[0]);
+          add('mojo-params','handle',s.specialized?'target · dtype · rank · parameters':'parameters retained for specialization',419,467,321,29,'mojo',{origin:point(581,397),place:'compile-time parameter values'});
+        }
+        if(s.finalization&&!s.emitted)add('finalize-gate','stamp','DEVICE-GRAPH GUARD',419,391,321,61,'sync',{tag:'AUDIT ONLY WHEN PRESENT',origin:point(198,422),place:'conditional finalization pass'});
+        if(s.targetInfo)add('target-info','descriptor',s.cpu?'host CPU record':s.target==='cuda'?'nvptx64 · sm_90a':'amdgcn · gfx942',801,334,170,67,'backend',{tag:'TRIPLE / ARCH / FEATURES',origin:point(581,424),place:'TargetInfoAttr'});
+        if(s.targetInfo)add('backend-registry','tool',s.selectedBackend||'Backend registry',991,334,176,67,'backend',{tag:s.selectedBackend?'SELECTED C++ BACKEND':'HOST · NVPTX · AMDGPU',origin:point(967,367),place:'TargetBackendRegistry lookup'});
+        if(s.selectedBackend)add('target-machine','tool','LLVM TargetMachine',991,414,176,73,'backend',{tag:s.cpu?'HOST CPU / FEATURES':s.arch,origin:point(1071,366),place:'LLVM target-specific code generation'});
+        if(s.llvmModule) {
+          add('LLVM1','file','LLVM1 · llvm::Module',801,414,170,73,'artifact',{tag:'LLVM IR · DISTINCT MODULE',origin:point(581,424),place:'translated LLVM module'});
+        }
+        if(s.hostRuntime)add('host-process','chip','Python + MAX',43,594,170,100,'engine',{tag:'CPU PROCESS',lines:['graph / driver control','native compiler APIs'],origin:point(387,153),place:'host application process'});
+        if(s.clone)add('S1','handle','S1 · context',402,594,139,43,'engine',{origin:point(1077,215),place:'session runtime/compilation context'});
+        if(s.hostSource)add('host-module','descriptor','Host routine IR',402,652,139,42,'mlir',{origin:point(581,424),place:'host launch/native routine module'});
+        if(s.deviceIR&&!s.deviceIntermediate)add('device-module','descriptor','DIR1 · device kernel module',604,594,548,100,'mlir',{tag:'OFFLOAD GENERATORS / TARGET SLICE',lines:[s.triple+' / '+s.arch,'separate from host control routines'],origin:point(581,424),place:'target-specific offload IR'});
+        if(s.hostCode)add('host-code','binary','Host native code',233,594,153,100,'artifact',{tag:'LINKED ROUTINES',lines:['.o / JIT archive','HostBackend'],origin:point(483,672),place:'resident compiled host code'});
+        if(s.deviceIntermediate&&!s.cpu) {
+          add('device-intermediate','file',s.target==='cuda'?'PTX text':'AMDGPU .o',604,594,166,100,'artifact',{tag:s.target==='cuda'?'.TARGET '+s.arch.toUpperCase():'DEVICE OBJECT',lines:['in-memory code bytes',s.target==='cuda'?'LLVM NVPTX':'LLVM AMDGPU'],origin:point(886,450),place:'target code intermediate'});
+          add('device-code-tool','tool',s.target==='cuda'?'CUDA compiler API':'Device ELF link',794,594,190,100,'driver',{tag:s.target==='cuda'?'COMPILATIONDEVICE':'CONFIGURED LINK TOOLS',lines:[s.target==='cuda'?'PTX → same-SM image':'required symbols resolved'],origin:point(687,643),place:'device artifact preparation'});
+        }
+        if(s.targetCode&&!s.cpu)add('target-code','binary',s.target==='cuda'?'cubin bytes':'ELF / hsaco',1006,594,149,100,'artifact',{tag:'DEVICE IMAGE',lines:[s.arch,'prepared for loading'],origin:point(888,643),place:'compiled device code'});
+        if(s.targetInfo&&s.cpu)add('empty-gpu-rack','stamp','CPU route · GPU image rack stays empty',604,626,548,41,'driver',{place:'CPU target has no device offload'});
+        if(s.inputs&&!s.cpu) {
+          add('driver-submit','handle',s.ready?'host observes result readiness':'host driver submits handles',604,707,274,28,'driver',{origin:point(671,870),place:'host device API'});
+          add('device-kernel','chip',s.target==='cuda'?'NVIDIA GPU · '+(s.ready?'completed':'executes'):'AMD GPU · '+(s.ready?'completed':'executes'),895,707,260,28,'hardware',{origin:point(1078,644),place:'physical device execution · timing schematic'});
+        }
+        if(s.runtimeCalls&&!s.mef)add('runtime-call-plan','descriptor','ModuleLoad → ExecuteGeneric',43,834,411,74,'runtime',{tag:'OUTLINED RUNTIME CALLABLES',origin:point(198,422),place:'runtime interface prepared'});
+        if(s.mef)add('CM1','crate','CM1 · prepared artifact',43,834,199,74,'artifact',{tag:'MEF BYTES / CODE + PLAN',origin:point(307,644),via:[point(562,757),point(143,757)],place:'compiled artifact resources'});
+        if(s.initialized)add('M1','chip','M1 · executable',270,834,188,74,'engine',{tag:'LOADED CALLABLE HANDLES',origin:point(143,870),place:'initialized model'});
+        if(s.inputs) {
+          add('B1','crate',s.cpu?'CPU inputs · B1':'Device inputs · B1',486,834,202,74,'buffer',{tag:'NUMERICAL BUFFER DATA',origin:point(128,644),place:s.cpu?'CPU input storage':'accelerator input storage'});
+          add('JOB1','descriptor',s.ready?'JOB1 · complete':'JOB1 · execute(refs)',716,834,208,74,'runtime',{tag:s.ready?'DEPENDENCIES RESOLVED':'READY INPUTS / DISPATCH',origin:point(587,870),place:'per-call native execution'});
+        }
+        if(s.ready)add('O1','handle','O1 · ready Buffer',952,834,203,74,'buffer',{tag:s.hostRead?'EXPLICIT CPU READ':'PRINT OUTPUT BUFFER',origin:point(s.cpu?311:1025,s.cpu?644:721),place:'returned result buffer'});
+        if(s.evidenceReady)add('evidence-stamp','handle','SOURCE · compiler route / browser illustration',43,707,498,28,'sync',{place:'pinned source; no hardware timing claimed'});
+      } else if(this.kind==='build') {
         add('python','file',s.filename,45,139,240,207,'python',{tag:'ORIGINAL SOURCE',lines:[s.id==='epilogue'?'(A @ B + 1) × 2':s.id==='addition'?'X + 1':s.id==='matmul'?'A @ B; algorithm param':'softmax(Q Kᵀ) V','Graph + custom_extensions','out_types supplied']});
         if(s.graph) add('G1','file','G1 · '+(s.verified?'verified':'recording'),351,139,450,267,'mlir',{tag:'SYMBOLIC · NOT EXECUTABLE',lines:s.signature,origin:point(165,236),place:'caller graph'});
         if(s.ops) {
@@ -27,7 +88,7 @@
         add('mojo-source','file','Original custom Mojo',45,380,207,69,'mojo',{tag:'REGISTERED SOURCE',place:'caller source'});
         add('S1','handle','S1 · retained context',506,407,196,43,'engine',{place:'session'});
         if(s.clone) {
-          const levels=['MO · symbolic op','MAP · bodies','MOGG · kernel calls','MGP · buffer plan','MGP · finalized graph'];
+          const levels=['MO · symbolic op','MAP · bodies','MOGG · kernel calls','MGP · buffer plan','MGP · device-graph guard'];
           if(s.level<5) {
             add('C1','file','C1 · '+levels[Math.min(4,s.level)],326,140,376,243,'mlir',{tag:'COMPILER-OWNED CLONE',lines:[s.level<3?'types / def-use preserved':'buffers + dependency operands'],origin:point(149,241),place:'compiler'});
             if(s.id==='epilogue'&&s.level===0) {
@@ -57,6 +118,17 @@
         if(s.mef)add('CM1','crate','CM1 · MEF bytes',1023,142,136,166,'artifact',{tag:'PREPARED ARTIFACT',lines:['code + plan','in memory','no disk export'],origin:point(862,306),via:[point(991,315)],place:'compiled artifact'});
         if(s.loading&&!s.initialized)add('H1','handle','H1 · callable refs',1023,343,136,85,'runtime',{tag:'LOADING MODULES',origin:point(1090,272),place:'initialization gate'});
         if(s.initialized)add('M1','chip','M1 · executable',1023,347,136,107,'engine',{tag:'INITIALIZED',lines:['S1 retained'],origin:point(1090,272),place:'initialized model'});
+      } else if(this.kind==='commands') {
+        add('repo-root','file','modular/ checkout',45,144,231,91,'python',{tag:'REPOSITORY ROOT',lines:['contains bazelw','max/examples/custom_ops/'],place:'working directory'});
+        if(['prerequisites','bazel_build','bazel_test'].includes(s.phase))add('bazel-wrapper','tool','./bazelw',369,143,304,72,'backend',{tag:'PINNED BAZELISK BOOTSTRAP',lines:['run from repository root'],origin:point(159,190),place:'repository build wrapper'});
+        if(['bazel_build','bazel_test'].includes(s.phase))add('bazel-target','binary',':'+s.task,369,249,304,83,'artifact',{tag:'PYTHON BINARY TARGET',lines:['//max/examples/custom_ops'],origin:point(520,180),place:'BUILD.bazel target'});
+        if(s.phase==='bazel_test')add('test-target','descriptor',s.task+'.example-test',369,365,304,58,'runtime',{tag:'GENERATED TEST',lines:['runs the binary · checks exit status'],origin:point(520,291),place:'modular_run_binary_test'});
+        if(['pixi_setup','pixi_run'].includes(s.phase)) {
+          add('pixi-cli','tool','Pixi CLI',774,143,142,72,'backend',{tag:'PROJECT ENVIRONMENT',lines:['pixi install / run'],origin:point(159,190),place:'Pixi'});
+          add('pixi-lock','file','pixi.lock',948,143,193,83,'artifact',{tag:'LOCKED DEPENDENCIES',lines:['Python + MAX'],origin:point(842,178),place:'resolved environment'});
+          if(s.phase==='pixi_run')add('python-task','file','python '+s.filename,774,275,367,88,'python',{tag:'PIXI TASK · '+s.task.toUpperCase(),lines:['MAX graph + Mojo kernel'],origin:point(844,186),place:'direct example process'});
+          if(s.pixiRun)add('script-result','handle','Example process exits',774,392,367,50,'sync',{tag:'SCRIPT RUN',origin:point(952,323),place:'terminal result'});
+        }
       } else {
         if(s.id==='epilogue')this.node.querySelector('[data-temporary-edges]').toggleAttribute('hidden',s.fusion||!s.traffic);
         add('M1','chip','M1 / S1',369,142,225,89,'engine',{tag:'INITIALIZED / RETAINED',lines:['same compiled code'],place:'resident model'});

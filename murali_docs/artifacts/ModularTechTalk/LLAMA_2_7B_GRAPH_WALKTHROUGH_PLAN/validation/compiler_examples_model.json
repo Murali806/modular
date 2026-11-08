@@ -5,6 +5,8 @@
     "Graph, compiled artifact and initialized executable are distinct; readiness/host copying follows each source",
     "CPU routes omit GPU transfers/coordination; NVIDIA/AMD tile parameters follow source",
     "Async copy completion precedes block consumption; shared reuse closes the gate",
+    "Bazel build inputs stay distinct from runtime graph packaging; TargetInfo selects CPU/NVIDIA/AMD LLVM backend routes",
+    "Thirty-four source-linked toolchain steps preserve G1 and the MGP plan while kernel/LLVM modules, code, artifact, handles and data become ready separately",
     "Online-softmax second-tile rescaling preserves agreement with independent full softmax",
     "Deterministic seek/back/reset and immutable snapshots; all source references resolve"
   ],
@@ -14,10 +16,12 @@
       "target": "cuda",
       "variant": "default",
       "frames": [
+        34,
         7,
         14,
         11
       ],
+      "backend": "NVPTXBackend",
       "result": [
         1,
         1.25,
@@ -30,10 +34,12 @@
       "target": "rocm",
       "variant": "default",
       "frames": [
+        34,
         7,
         14,
         11
       ],
+      "backend": "AMDGPUBackend",
       "result": [
         1,
         1.25,
@@ -46,10 +52,12 @@
       "target": "cpu",
       "variant": "default",
       "frames": [
+        34,
         7,
         14,
         11
       ],
+      "backend": "HostBackend",
       "result": [
         1,
         1.25,
@@ -62,10 +70,12 @@
       "target": "cuda",
       "variant": "fused",
       "frames": [
+        34,
         8,
         15,
         16
       ],
+      "backend": "NVPTXBackend",
       "result": [
         10,
         10,
@@ -78,10 +88,12 @@
       "target": "cuda",
       "variant": "separate",
       "frames": [
+        34,
         8,
         15,
         13
       ],
+      "backend": "NVPTXBackend",
       "result": [
         10,
         10,
@@ -94,10 +106,12 @@
       "target": "rocm",
       "variant": "fused",
       "frames": [
+        34,
         8,
         15,
         16
       ],
+      "backend": "AMDGPUBackend",
       "result": [
         10,
         10,
@@ -110,10 +124,12 @@
       "target": "rocm",
       "variant": "separate",
       "frames": [
+        34,
         8,
         15,
         13
       ],
+      "backend": "AMDGPUBackend",
       "result": [
         10,
         10,
@@ -126,10 +142,12 @@
       "target": "cpu",
       "variant": "fused",
       "frames": [
+        34,
         8,
         15,
         16
       ],
+      "backend": "HostBackend",
       "result": [
         10,
         10,
@@ -142,10 +160,12 @@
       "target": "cpu",
       "variant": "separate",
       "frames": [
+        34,
         8,
         15,
         13
       ],
+      "backend": "HostBackend",
       "result": [
         10,
         10,
@@ -158,10 +178,12 @@
       "target": "cuda",
       "variant": "tiled",
       "frames": [
+        34,
         8,
         14,
         24
       ],
+      "backend": "NVPTXBackend",
       "result": [
         11,
         8,
@@ -174,10 +196,12 @@
       "target": "cuda",
       "variant": "naive",
       "frames": [
+        34,
         8,
         14,
         28
       ],
+      "backend": "NVPTXBackend",
       "result": [
         11,
         8,
@@ -190,10 +214,12 @@
       "target": "rocm",
       "variant": "tiled",
       "frames": [
+        34,
         8,
         14,
         24
       ],
+      "backend": "AMDGPUBackend",
       "result": [
         11,
         8,
@@ -206,10 +232,12 @@
       "target": "rocm",
       "variant": "naive",
       "frames": [
+        34,
         8,
         14,
         28
       ],
+      "backend": "AMDGPUBackend",
       "result": [
         11,
         8,
@@ -222,10 +250,12 @@
       "target": "cpu",
       "variant": "tiled",
       "frames": [
+        34,
         8,
         14,
         27
       ],
+      "backend": "HostBackend",
       "result": [
         11,
         8,
@@ -238,10 +268,12 @@
       "target": "cpu",
       "variant": "naive",
       "frames": [
+        34,
         8,
         14,
         27
       ],
+      "backend": "HostBackend",
       "result": [
         11,
         8,
@@ -254,10 +286,12 @@
       "target": "cuda",
       "variant": "default",
       "frames": [
+        34,
         7,
         14,
         20
       ],
+      "backend": "NVPTXBackend",
       "result": [
         1.6118556566078874,
         1.4186799207178729
@@ -268,10 +302,12 @@
       "target": "rocm",
       "variant": "default",
       "frames": [
+        34,
         7,
         14,
         20
       ],
+      "backend": "AMDGPUBackend",
       "result": [
         1.6118556566078874,
         1.4186799207178729
@@ -282,10 +318,12 @@
       "target": "cpu",
       "variant": "default",
       "frames": [
+        34,
         7,
         14,
         20
       ],
+      "backend": "HostBackend",
       "result": [
         1.6118556566078874,
         1.4186799207178729

@@ -1,2350 +1,4456 @@
 {
   "evidence": "CPU-RUN · Chromium teaching animation only; no MAX/GPU execution",
   "checks": [
-    "Four actual workbench links; each standalone reader starts a connected journey and three focused scenes paused",
+    "Four actual workbench links; each standalone reader starts a connected journey, target-code walkthrough and focused scenes paused",
     "Every default, CPU and AMD intermediate frame: contrast, actor bounds, label occlusion and document fit",
     "Fused/separate epilogue changes intermediate allocations; tiled/naive matmul changes visible execution",
     "Result cells agree with the model; source-specific host-copy behavior and CPU placement remain visible",
     "Hover/focus cards dismiss, L opens only on click, eleven colors match, original source/search/copy/download work",
+    "Text/Animation keyboard tabs, exact seven previous answers, complete copy, five offline diagrams and step-to-QnA links preserve the paused timeline",
     "Persistent shared-tile actors move; Pause freezes pose and steps; Resume/offscreen/reset behave correctly",
+    "Entering Text freezes a moving OP1 and semantic step; returning to Animation resumes the same actor",
     "All four readers at 320/390px contain diagram scrolling and fit touch cards/legends",
     "Offline network-free readers retain complete original sources and portable flows with JavaScript disabled and in print"
   ],
   "audits": [
     {
       "label": "addition initial",
-      "samples": 257,
+      "samples": 396,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition complete text",
+      "samples": 1407,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 0",
+      "samples": 396,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 1",
+      "samples": 402,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 2",
+      "samples": 402,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 3",
+      "samples": 410,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 4",
+      "samples": 408,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 5",
+      "samples": 412,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 6",
+      "samples": 413,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 7",
+      "samples": 416,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 8",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 9",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 10",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 11",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 12",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 13",
+      "samples": 416,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 14",
+      "samples": 419,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 15",
+      "samples": 421,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 16",
+      "samples": 426,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 17",
+      "samples": 426,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 18",
+      "samples": 431,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 19",
+      "samples": 435,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 20",
+      "samples": 439,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 21",
+      "samples": 439,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 22",
+      "samples": 435,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 23",
+      "samples": 437,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 24",
+      "samples": 437,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 25",
+      "samples": 440,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 26",
+      "samples": 444,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 27",
+      "samples": 450,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 28",
+      "samples": 450,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 29",
+      "samples": 452,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 30",
+      "samples": 454,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 31",
+      "samples": 462,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 32",
+      "samples": 462,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition toolchain 33",
+      "samples": 466,
       "minimum": 5.232
     },
     {
       "label": "addition build 0",
-      "samples": 257,
+      "samples": 466,
       "minimum": 5.232
     },
     {
       "label": "addition build 1",
-      "samples": 261,
+      "samples": 470,
       "minimum": 5.232
     },
     {
       "label": "addition build 2",
-      "samples": 266,
+      "samples": 475,
       "minimum": 5.232
     },
     {
       "label": "addition build 3",
-      "samples": 269,
+      "samples": 478,
       "minimum": 5.232
     },
     {
       "label": "addition build 4",
-      "samples": 268,
+      "samples": 477,
       "minimum": 5.232
     },
     {
       "label": "addition build 5",
-      "samples": 271,
+      "samples": 480,
       "minimum": 5.232
     },
     {
       "label": "addition build 6",
-      "samples": 268,
+      "samples": 477,
       "minimum": 5.232
     },
     {
       "label": "addition compile 0",
-      "samples": 268,
+      "samples": 477,
       "minimum": 5.232
     },
     {
       "label": "addition compile 1",
-      "samples": 273,
+      "samples": 482,
       "minimum": 5.232
     },
     {
       "label": "addition compile 2",
-      "samples": 275,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "addition compile 3",
-      "samples": 270,
+      "samples": 479,
       "minimum": 5.232
     },
     {
       "label": "addition compile 4",
-      "samples": 271,
+      "samples": 480,
       "minimum": 5.232
     },
     {
       "label": "addition compile 5",
-      "samples": 274,
+      "samples": 485,
       "minimum": 5.232
     },
     {
       "label": "addition compile 6",
-      "samples": 281,
+      "samples": 490,
       "minimum": 5.232
     },
     {
       "label": "addition compile 7",
-      "samples": 281,
+      "samples": 490,
       "minimum": 5.232
     },
     {
       "label": "addition compile 8",
-      "samples": 284,
+      "samples": 493,
       "minimum": 5.232
     },
     {
       "label": "addition compile 9",
-      "samples": 284,
+      "samples": 493,
       "minimum": 5.232
     },
     {
       "label": "addition compile 10",
-      "samples": 291,
+      "samples": 500,
       "minimum": 5.232
     },
     {
       "label": "addition compile 11",
-      "samples": 291,
+      "samples": 500,
       "minimum": 5.232
     },
     {
       "label": "addition compile 12",
-      "samples": 292,
+      "samples": 501,
       "minimum": 5.232
     },
     {
       "label": "addition compile 13",
-      "samples": 288,
+      "samples": 497,
       "minimum": 5.232
     },
     {
       "label": "addition run 0",
-      "samples": 288,
+      "samples": 497,
       "minimum": 5.232
     },
     {
       "label": "addition run 1",
-      "samples": 293,
+      "samples": 502,
       "minimum": 5.232
     },
     {
       "label": "addition run 2",
-      "samples": 297,
+      "samples": 506,
       "minimum": 5.232
     },
     {
       "label": "addition run 3",
-      "samples": 307,
+      "samples": 516,
       "minimum": 5.232
     },
     {
       "label": "addition run 4",
-      "samples": 304,
+      "samples": 513,
       "minimum": 5.232
     },
     {
       "label": "addition run 5",
-      "samples": 304,
+      "samples": 513,
       "minimum": 5.232
     },
     {
       "label": "addition run 6",
-      "samples": 304,
+      "samples": 513,
       "minimum": 5.232
     },
     {
       "label": "addition run 7",
-      "samples": 304,
+      "samples": 513,
       "minimum": 5.232
     },
     {
       "label": "addition run 8",
-      "samples": 306,
+      "samples": 515,
       "minimum": 5.232
     },
     {
       "label": "addition run 9",
-      "samples": 303,
+      "samples": 512,
       "minimum": 5.232
     },
     {
       "label": "addition run 10",
-      "samples": 302,
+      "samples": 511,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 0",
+      "samples": 395,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 1",
+      "samples": 401,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 2",
+      "samples": 401,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 3",
+      "samples": 409,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 4",
+      "samples": 407,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 5",
+      "samples": 411,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 6",
+      "samples": 412,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 7",
+      "samples": 415,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 8",
+      "samples": 417,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 9",
+      "samples": 417,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 10",
+      "samples": 417,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 11",
+      "samples": 417,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 12",
+      "samples": 417,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 13",
+      "samples": 415,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 14",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 15",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 16",
+      "samples": 425,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 17",
+      "samples": 425,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 18",
+      "samples": 426,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 19",
+      "samples": 431,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 20",
+      "samples": 435,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 21",
+      "samples": 435,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 22",
+      "samples": 431,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 23",
+      "samples": 433,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 24",
+      "samples": 433,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 25",
+      "samples": 433,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 26",
+      "samples": 437,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 27",
+      "samples": 439,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 28",
+      "samples": 439,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 29",
+      "samples": 441,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 30",
+      "samples": 443,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 31",
+      "samples": 449,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 32",
+      "samples": 449,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition cpu toolchain 33",
+      "samples": 453,
       "minimum": 5.232
     },
     {
       "label": "addition cpu compile 0",
-      "samples": 256,
+      "samples": 453,
       "minimum": 5.232
     },
     {
       "label": "addition cpu compile 1",
-      "samples": 261,
+      "samples": 458,
       "minimum": 5.232
     },
     {
       "label": "addition cpu compile 2",
-      "samples": 263,
+      "samples": 460,
       "minimum": 5.232
     },
     {
       "label": "addition cpu compile 3",
-      "samples": 258,
+      "samples": 455,
       "minimum": 5.232
     },
     {
       "label": "addition cpu compile 4",
-      "samples": 259,
+      "samples": 456,
       "minimum": 5.232
     },
     {
       "label": "addition cpu compile 5",
-      "samples": 262,
+      "samples": 461,
       "minimum": 5.232
     },
     {
       "label": "addition cpu compile 6",
-      "samples": 269,
+      "samples": 466,
       "minimum": 5.232
     },
     {
       "label": "addition cpu compile 7",
-      "samples": 269,
+      "samples": 466,
       "minimum": 5.232
     },
     {
       "label": "addition cpu compile 8",
-      "samples": 272,
+      "samples": 469,
       "minimum": 5.232
     },
     {
       "label": "addition cpu compile 9",
-      "samples": 272,
+      "samples": 469,
       "minimum": 5.232
     },
     {
       "label": "addition cpu compile 10",
-      "samples": 279,
+      "samples": 476,
       "minimum": 5.232
     },
     {
       "label": "addition cpu compile 11",
-      "samples": 279,
+      "samples": 476,
       "minimum": 5.232
     },
     {
       "label": "addition cpu compile 12",
-      "samples": 280,
+      "samples": 477,
       "minimum": 5.232
     },
     {
       "label": "addition cpu compile 13",
-      "samples": 276,
+      "samples": 473,
       "minimum": 5.232
     },
     {
       "label": "addition cpu run 0",
-      "samples": 276,
+      "samples": 473,
       "minimum": 5.232
     },
     {
       "label": "addition cpu run 1",
-      "samples": 281,
+      "samples": 478,
       "minimum": 5.232
     },
     {
       "label": "addition cpu run 2",
-      "samples": 285,
+      "samples": 482,
       "minimum": 5.232
     },
     {
       "label": "addition cpu run 3",
-      "samples": 295,
+      "samples": 492,
       "minimum": 5.232
     },
     {
       "label": "addition cpu run 4",
-      "samples": 292,
+      "samples": 489,
       "minimum": 5.232
     },
     {
       "label": "addition cpu run 5",
-      "samples": 292,
+      "samples": 489,
       "minimum": 5.232
     },
     {
       "label": "addition cpu run 6",
-      "samples": 292,
+      "samples": 489,
       "minimum": 5.232
     },
     {
       "label": "addition cpu run 7",
-      "samples": 292,
+      "samples": 489,
       "minimum": 5.232
     },
     {
       "label": "addition cpu run 8",
-      "samples": 294,
+      "samples": 491,
       "minimum": 5.232
     },
     {
       "label": "addition cpu run 9",
-      "samples": 291,
+      "samples": 488,
       "minimum": 5.232
     },
     {
       "label": "addition cpu run 10",
-      "samples": 290,
+      "samples": 487,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 0",
+      "samples": 396,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 1",
+      "samples": 402,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 2",
+      "samples": 402,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 3",
+      "samples": 410,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 4",
+      "samples": 408,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 5",
+      "samples": 412,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 6",
+      "samples": 413,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 7",
+      "samples": 416,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 8",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 9",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 10",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 11",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 12",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 13",
+      "samples": 416,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 14",
+      "samples": 419,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 15",
+      "samples": 421,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 16",
+      "samples": 426,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 17",
+      "samples": 426,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 18",
+      "samples": 431,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 19",
+      "samples": 435,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 20",
+      "samples": 439,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 21",
+      "samples": 439,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 22",
+      "samples": 435,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 23",
+      "samples": 437,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 24",
+      "samples": 437,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 25",
+      "samples": 440,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 26",
+      "samples": 444,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 27",
+      "samples": 450,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 28",
+      "samples": 450,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 29",
+      "samples": 452,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 30",
+      "samples": 454,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 31",
+      "samples": 462,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 32",
+      "samples": 462,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition rocm toolchain 33",
+      "samples": 466,
       "minimum": 5.232
     },
     {
       "label": "addition rocm compile 0",
-      "samples": 257,
+      "samples": 466,
       "minimum": 5.232
     },
     {
       "label": "addition rocm compile 1",
-      "samples": 262,
+      "samples": 471,
       "minimum": 5.232
     },
     {
       "label": "addition rocm compile 2",
-      "samples": 264,
+      "samples": 473,
       "minimum": 5.232
     },
     {
       "label": "addition rocm compile 3",
-      "samples": 259,
+      "samples": 468,
       "minimum": 5.232
     },
     {
       "label": "addition rocm compile 4",
-      "samples": 260,
+      "samples": 469,
       "minimum": 5.232
     },
     {
       "label": "addition rocm compile 5",
-      "samples": 263,
+      "samples": 474,
       "minimum": 5.232
     },
     {
       "label": "addition rocm compile 6",
-      "samples": 270,
+      "samples": 479,
       "minimum": 5.232
     },
     {
       "label": "addition rocm compile 7",
-      "samples": 270,
+      "samples": 479,
       "minimum": 5.232
     },
     {
       "label": "addition rocm compile 8",
-      "samples": 273,
+      "samples": 482,
       "minimum": 5.232
     },
     {
       "label": "addition rocm compile 9",
-      "samples": 273,
+      "samples": 482,
       "minimum": 5.232
     },
     {
       "label": "addition rocm compile 10",
-      "samples": 280,
+      "samples": 489,
       "minimum": 5.232
     },
     {
       "label": "addition rocm compile 11",
-      "samples": 280,
+      "samples": 489,
       "minimum": 5.232
     },
     {
       "label": "addition rocm compile 12",
-      "samples": 281,
+      "samples": 490,
       "minimum": 5.232
     },
     {
       "label": "addition rocm compile 13",
-      "samples": 277,
+      "samples": 486,
       "minimum": 5.232
     },
     {
       "label": "addition rocm run 0",
-      "samples": 277,
+      "samples": 486,
       "minimum": 5.232
     },
     {
       "label": "addition rocm run 1",
-      "samples": 282,
+      "samples": 491,
       "minimum": 5.232
     },
     {
       "label": "addition rocm run 2",
-      "samples": 286,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "addition rocm run 3",
-      "samples": 296,
+      "samples": 505,
       "minimum": 5.232
     },
     {
       "label": "addition rocm run 4",
-      "samples": 293,
+      "samples": 502,
       "minimum": 5.232
     },
     {
       "label": "addition rocm run 5",
-      "samples": 293,
+      "samples": 502,
       "minimum": 5.232
     },
     {
       "label": "addition rocm run 6",
-      "samples": 293,
+      "samples": 502,
       "minimum": 5.232
     },
     {
       "label": "addition rocm run 7",
-      "samples": 293,
+      "samples": 502,
       "minimum": 5.232
     },
     {
       "label": "addition rocm run 8",
-      "samples": 295,
+      "samples": 504,
       "minimum": 5.232
     },
     {
       "label": "addition rocm run 9",
-      "samples": 292,
+      "samples": 501,
       "minimum": 5.232
     },
     {
       "label": "addition rocm run 10",
-      "samples": 291,
+      "samples": 500,
       "minimum": 5.232
     },
     {
       "label": "addition legend",
-      "samples": 343,
+      "samples": 482,
       "minimum": 5.232
     },
     {
       "label": "epilogue initial",
-      "samples": 262,
+      "samples": 401,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue complete text",
+      "samples": 1412,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 0",
+      "samples": 401,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 1",
+      "samples": 407,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 2",
+      "samples": 407,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 3",
+      "samples": 415,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 4",
+      "samples": 413,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 5",
+      "samples": 417,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 6",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 7",
+      "samples": 421,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 8",
+      "samples": 423,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 9",
+      "samples": 423,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 10",
+      "samples": 423,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 11",
+      "samples": 423,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 12",
+      "samples": 423,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 13",
+      "samples": 421,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 14",
+      "samples": 424,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 15",
+      "samples": 426,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 16",
+      "samples": 431,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 17",
+      "samples": 431,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 18",
+      "samples": 436,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 19",
+      "samples": 440,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 20",
+      "samples": 444,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 21",
+      "samples": 444,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 22",
+      "samples": 440,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 23",
+      "samples": 442,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 24",
+      "samples": 442,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 25",
+      "samples": 445,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 26",
+      "samples": 449,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 27",
+      "samples": 455,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 28",
+      "samples": 455,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 29",
+      "samples": 457,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 30",
+      "samples": 459,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 31",
+      "samples": 467,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 32",
+      "samples": 467,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue toolchain 33",
+      "samples": 471,
       "minimum": 5.232
     },
     {
       "label": "epilogue build 0",
-      "samples": 262,
+      "samples": 471,
       "minimum": 5.232
     },
     {
       "label": "epilogue build 1",
-      "samples": 266,
+      "samples": 475,
       "minimum": 5.232
     },
     {
       "label": "epilogue build 2",
-      "samples": 271,
+      "samples": 480,
       "minimum": 5.232
     },
     {
       "label": "epilogue build 3",
-      "samples": 274,
+      "samples": 483,
       "minimum": 5.232
     },
     {
       "label": "epilogue build 4",
-      "samples": 273,
+      "samples": 482,
       "minimum": 5.232
     },
     {
       "label": "epilogue build 5",
-      "samples": 275,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "epilogue build 6",
-      "samples": 278,
+      "samples": 487,
       "minimum": 5.232
     },
     {
       "label": "epilogue build 7",
-      "samples": 275,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "epilogue compile 0",
-      "samples": 275,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "epilogue compile 1",
-      "samples": 282,
+      "samples": 491,
       "minimum": 5.232
     },
     {
       "label": "epilogue compile 2",
-      "samples": 283,
+      "samples": 492,
       "minimum": 5.232
     },
     {
       "label": "epilogue compile 3",
-      "samples": 283,
+      "samples": 492,
       "minimum": 5.232
     },
     {
       "label": "epilogue compile 4",
-      "samples": 278,
+      "samples": 487,
       "minimum": 5.232
     },
     {
       "label": "epilogue compile 5",
-      "samples": 279,
+      "samples": 488,
       "minimum": 5.232
     },
     {
       "label": "epilogue compile 6",
-      "samples": 282,
+      "samples": 493,
       "minimum": 5.232
     },
     {
       "label": "epilogue compile 7",
-      "samples": 288,
+      "samples": 497,
       "minimum": 5.232
     },
     {
       "label": "epilogue compile 8",
-      "samples": 288,
+      "samples": 497,
       "minimum": 5.232
     },
     {
       "label": "epilogue compile 9",
-      "samples": 291,
+      "samples": 500,
       "minimum": 5.232
     },
     {
       "label": "epilogue compile 10",
-      "samples": 291,
+      "samples": 500,
       "minimum": 5.232
     },
     {
       "label": "epilogue compile 11",
-      "samples": 298,
+      "samples": 507,
       "minimum": 5.232
     },
     {
       "label": "epilogue compile 12",
-      "samples": 298,
+      "samples": 507,
       "minimum": 5.232
     },
     {
       "label": "epilogue compile 13",
-      "samples": 299,
+      "samples": 508,
       "minimum": 5.232
     },
     {
       "label": "epilogue compile 14",
-      "samples": 295,
+      "samples": 504,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 0",
-      "samples": 295,
+      "samples": 504,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 1",
-      "samples": 304,
+      "samples": 513,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 2",
-      "samples": 308,
+      "samples": 517,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 3",
-      "samples": 318,
+      "samples": 527,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 4",
-      "samples": 320,
+      "samples": 529,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 5",
-      "samples": 327,
+      "samples": 536,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 6",
-      "samples": 327,
+      "samples": 536,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 7",
-      "samples": 327,
+      "samples": 536,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 8",
-      "samples": 327,
+      "samples": 536,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 9",
-      "samples": 327,
+      "samples": 536,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 10",
-      "samples": 327,
+      "samples": 536,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 11",
-      "samples": 327,
+      "samples": 536,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 12",
-      "samples": 327,
+      "samples": 536,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 13",
-      "samples": 326,
+      "samples": 535,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 14",
-      "samples": 323,
+      "samples": 532,
       "minimum": 5.232
     },
     {
       "label": "epilogue run 15",
-      "samples": 322,
+      "samples": 531,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 0",
+      "samples": 400,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 1",
+      "samples": 406,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 2",
+      "samples": 406,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 3",
+      "samples": 414,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 4",
+      "samples": 412,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 5",
+      "samples": 416,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 6",
+      "samples": 417,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 7",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 8",
+      "samples": 422,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 9",
+      "samples": 422,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 10",
+      "samples": 422,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 11",
+      "samples": 422,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 12",
+      "samples": 422,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 13",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 14",
+      "samples": 423,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 15",
+      "samples": 425,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 16",
+      "samples": 430,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 17",
+      "samples": 430,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 18",
+      "samples": 431,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 19",
+      "samples": 436,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 20",
+      "samples": 440,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 21",
+      "samples": 440,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 22",
+      "samples": 436,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 23",
+      "samples": 438,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 24",
+      "samples": 438,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 25",
+      "samples": 438,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 26",
+      "samples": 442,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 27",
+      "samples": 444,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 28",
+      "samples": 444,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 29",
+      "samples": 446,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 30",
+      "samples": 448,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 31",
+      "samples": 454,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 32",
+      "samples": 454,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue cpu toolchain 33",
+      "samples": 458,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu compile 0",
-      "samples": 261,
+      "samples": 458,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu compile 1",
-      "samples": 268,
+      "samples": 465,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu compile 2",
-      "samples": 269,
+      "samples": 466,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu compile 3",
-      "samples": 269,
+      "samples": 466,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu compile 4",
-      "samples": 264,
+      "samples": 461,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu compile 5",
-      "samples": 265,
+      "samples": 462,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu compile 6",
-      "samples": 268,
+      "samples": 467,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu compile 7",
-      "samples": 274,
+      "samples": 471,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu compile 8",
-      "samples": 274,
+      "samples": 471,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu compile 9",
-      "samples": 277,
+      "samples": 474,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu compile 10",
-      "samples": 277,
+      "samples": 474,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu compile 11",
-      "samples": 284,
+      "samples": 481,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu compile 12",
-      "samples": 284,
+      "samples": 481,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu compile 13",
-      "samples": 285,
+      "samples": 482,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu compile 14",
-      "samples": 281,
+      "samples": 478,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 0",
-      "samples": 281,
+      "samples": 478,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 1",
-      "samples": 290,
+      "samples": 487,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 2",
-      "samples": 294,
+      "samples": 491,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 3",
-      "samples": 304,
+      "samples": 501,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 4",
-      "samples": 306,
+      "samples": 503,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 5",
-      "samples": 313,
+      "samples": 510,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 6",
-      "samples": 313,
+      "samples": 510,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 7",
-      "samples": 313,
+      "samples": 510,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 8",
-      "samples": 313,
+      "samples": 510,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 9",
-      "samples": 313,
+      "samples": 510,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 10",
-      "samples": 313,
+      "samples": 510,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 11",
-      "samples": 313,
+      "samples": 510,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 12",
-      "samples": 313,
+      "samples": 510,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 13",
-      "samples": 312,
+      "samples": 509,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 14",
-      "samples": 309,
+      "samples": 506,
       "minimum": 5.232
     },
     {
       "label": "epilogue cpu run 15",
-      "samples": 308,
+      "samples": 505,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 0",
+      "samples": 401,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 1",
+      "samples": 407,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 2",
+      "samples": 407,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 3",
+      "samples": 415,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 4",
+      "samples": 413,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 5",
+      "samples": 417,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 6",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 7",
+      "samples": 421,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 8",
+      "samples": 423,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 9",
+      "samples": 423,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 10",
+      "samples": 423,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 11",
+      "samples": 423,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 12",
+      "samples": 423,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 13",
+      "samples": 421,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 14",
+      "samples": 424,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 15",
+      "samples": 426,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 16",
+      "samples": 431,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 17",
+      "samples": 431,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 18",
+      "samples": 436,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 19",
+      "samples": 440,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 20",
+      "samples": 444,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 21",
+      "samples": 444,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 22",
+      "samples": 440,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 23",
+      "samples": 442,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 24",
+      "samples": 442,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 25",
+      "samples": 445,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 26",
+      "samples": 449,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 27",
+      "samples": 455,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 28",
+      "samples": 455,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 29",
+      "samples": 457,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 30",
+      "samples": 459,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 31",
+      "samples": 467,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 32",
+      "samples": 467,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue rocm toolchain 33",
+      "samples": 471,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm compile 0",
-      "samples": 262,
+      "samples": 471,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm compile 1",
-      "samples": 269,
+      "samples": 478,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm compile 2",
-      "samples": 270,
+      "samples": 479,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm compile 3",
-      "samples": 270,
+      "samples": 479,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm compile 4",
-      "samples": 265,
+      "samples": 474,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm compile 5",
-      "samples": 266,
+      "samples": 475,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm compile 6",
-      "samples": 269,
+      "samples": 480,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm compile 7",
-      "samples": 275,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm compile 8",
-      "samples": 275,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm compile 9",
-      "samples": 278,
+      "samples": 487,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm compile 10",
-      "samples": 278,
+      "samples": 487,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm compile 11",
-      "samples": 285,
+      "samples": 494,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm compile 12",
-      "samples": 285,
+      "samples": 494,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm compile 13",
-      "samples": 286,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm compile 14",
-      "samples": 282,
+      "samples": 491,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 0",
-      "samples": 282,
+      "samples": 491,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 1",
-      "samples": 291,
+      "samples": 500,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 2",
-      "samples": 295,
+      "samples": 504,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 3",
-      "samples": 305,
+      "samples": 514,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 4",
-      "samples": 307,
+      "samples": 516,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 5",
-      "samples": 314,
+      "samples": 523,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 6",
-      "samples": 314,
+      "samples": 523,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 7",
-      "samples": 314,
+      "samples": 523,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 8",
-      "samples": 314,
+      "samples": 523,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 9",
-      "samples": 314,
+      "samples": 523,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 10",
-      "samples": 314,
+      "samples": 523,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 11",
-      "samples": 314,
+      "samples": 523,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 12",
-      "samples": 314,
+      "samples": 523,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 13",
-      "samples": 313,
+      "samples": 522,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 14",
-      "samples": 310,
+      "samples": 519,
       "minimum": 5.232
     },
     {
       "label": "epilogue rocm run 15",
-      "samples": 309,
+      "samples": 518,
       "minimum": 5.232
     },
     {
       "label": "epilogue separate compilation",
-      "samples": 282,
+      "samples": 421,
       "minimum": 5.232
     },
     {
       "label": "epilogue separate 0",
-      "samples": 282,
+      "samples": 421,
       "minimum": 5.232
     },
     {
       "label": "epilogue separate 1",
-      "samples": 291,
+      "samples": 430,
       "minimum": 5.232
     },
     {
       "label": "epilogue separate 2",
-      "samples": 295,
+      "samples": 434,
       "minimum": 5.232
     },
     {
       "label": "epilogue separate 3",
-      "samples": 305,
+      "samples": 444,
       "minimum": 5.232
     },
     {
       "label": "epilogue separate 4",
-      "samples": 308,
+      "samples": 447,
       "minimum": 5.232
     },
     {
       "label": "epilogue separate 5",
-      "samples": 317,
+      "samples": 456,
       "minimum": 5.232
     },
     {
       "label": "epilogue separate 6",
-      "samples": 319,
+      "samples": 458,
       "minimum": 5.232
     },
     {
       "label": "epilogue separate 7",
-      "samples": 317,
+      "samples": 456,
       "minimum": 5.232
     },
     {
       "label": "epilogue separate 8",
-      "samples": 317,
+      "samples": 456,
       "minimum": 5.232
     },
     {
       "label": "epilogue separate 9",
-      "samples": 311,
+      "samples": 450,
       "minimum": 5.232
     },
     {
       "label": "epilogue separate 10",
-      "samples": 313,
+      "samples": 452,
       "minimum": 5.232
     },
     {
       "label": "epilogue separate 11",
-      "samples": 310,
+      "samples": 449,
       "minimum": 5.232
     },
     {
       "label": "epilogue separate 12",
-      "samples": 309,
+      "samples": 448,
       "minimum": 5.232
     },
     {
       "label": "epilogue legend",
-      "samples": 375,
+      "samples": 514,
       "minimum": 5.232
     },
     {
       "label": "matmul initial",
-      "samples": 259,
+      "samples": 398,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul complete text",
+      "samples": 1409,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 0",
+      "samples": 398,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 1",
+      "samples": 404,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 2",
+      "samples": 404,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 3",
+      "samples": 412,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 4",
+      "samples": 410,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 5",
+      "samples": 414,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 6",
+      "samples": 415,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 7",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 8",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 9",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 10",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 11",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 12",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 13",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 14",
+      "samples": 421,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 15",
+      "samples": 423,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 16",
+      "samples": 428,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 17",
+      "samples": 428,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 18",
+      "samples": 433,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 19",
+      "samples": 437,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 20",
+      "samples": 441,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 21",
+      "samples": 441,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 22",
+      "samples": 437,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 23",
+      "samples": 439,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 24",
+      "samples": 439,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 25",
+      "samples": 442,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 26",
+      "samples": 446,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 27",
+      "samples": 452,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 28",
+      "samples": 452,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 29",
+      "samples": 454,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 30",
+      "samples": 456,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 31",
+      "samples": 464,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 32",
+      "samples": 464,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul toolchain 33",
+      "samples": 468,
       "minimum": 5.232
     },
     {
       "label": "matmul build 0",
-      "samples": 259,
+      "samples": 468,
       "minimum": 5.232
     },
     {
       "label": "matmul build 1",
-      "samples": 262,
+      "samples": 471,
       "minimum": 5.232
     },
     {
       "label": "matmul build 2",
-      "samples": 265,
+      "samples": 474,
       "minimum": 5.232
     },
     {
       "label": "matmul build 3",
-      "samples": 270,
+      "samples": 479,
       "minimum": 5.232
     },
     {
       "label": "matmul build 4",
-      "samples": 273,
+      "samples": 482,
       "minimum": 5.232
     },
     {
       "label": "matmul build 5",
-      "samples": 272,
+      "samples": 481,
       "minimum": 5.232
     },
     {
       "label": "matmul build 6",
-      "samples": 275,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "matmul build 7",
-      "samples": 272,
+      "samples": 481,
       "minimum": 5.232
     },
     {
       "label": "matmul compile 0",
-      "samples": 272,
+      "samples": 481,
       "minimum": 5.232
     },
     {
       "label": "matmul compile 1",
-      "samples": 277,
+      "samples": 486,
       "minimum": 5.232
     },
     {
       "label": "matmul compile 2",
-      "samples": 279,
+      "samples": 488,
       "minimum": 5.232
     },
     {
       "label": "matmul compile 3",
-      "samples": 274,
+      "samples": 483,
       "minimum": 5.232
     },
     {
       "label": "matmul compile 4",
-      "samples": 275,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "matmul compile 5",
-      "samples": 278,
+      "samples": 489,
       "minimum": 5.232
     },
     {
       "label": "matmul compile 6",
-      "samples": 285,
+      "samples": 494,
       "minimum": 5.232
     },
     {
       "label": "matmul compile 7",
-      "samples": 285,
+      "samples": 494,
       "minimum": 5.232
     },
     {
       "label": "matmul compile 8",
-      "samples": 288,
+      "samples": 497,
       "minimum": 5.232
     },
     {
       "label": "matmul compile 9",
-      "samples": 288,
+      "samples": 497,
       "minimum": 5.232
     },
     {
       "label": "matmul compile 10",
-      "samples": 295,
+      "samples": 504,
       "minimum": 5.232
     },
     {
       "label": "matmul compile 11",
-      "samples": 295,
+      "samples": 504,
       "minimum": 5.232
     },
     {
       "label": "matmul compile 12",
-      "samples": 296,
+      "samples": 505,
       "minimum": 5.232
     },
     {
       "label": "matmul compile 13",
-      "samples": 292,
+      "samples": 501,
       "minimum": 5.232
     },
     {
       "label": "matmul run 0",
-      "samples": 292,
+      "samples": 501,
       "minimum": 5.232
     },
     {
       "label": "matmul run 1",
-      "samples": 301,
+      "samples": 510,
       "minimum": 5.232
     },
     {
       "label": "matmul run 2",
-      "samples": 305,
+      "samples": 514,
       "minimum": 5.232
     },
     {
       "label": "matmul run 3",
-      "samples": 315,
+      "samples": 524,
       "minimum": 5.232
     },
     {
       "label": "matmul run 4",
-      "samples": 308,
+      "samples": 517,
       "minimum": 5.232
     },
     {
       "label": "matmul run 5",
-      "samples": 313,
+      "samples": 522,
       "minimum": 5.232
     },
     {
       "label": "matmul run 6",
-      "samples": 325,
+      "samples": 534,
       "minimum": 5.232
     },
     {
       "label": "matmul run 7",
-      "samples": 325,
+      "samples": 534,
       "minimum": 5.232
     },
     {
       "label": "matmul run 8",
-      "samples": 325,
+      "samples": 534,
       "minimum": 5.232
     },
     {
       "label": "matmul run 9",
-      "samples": 325,
+      "samples": 534,
       "minimum": 5.232
     },
     {
       "label": "matmul run 10",
-      "samples": 325,
+      "samples": 534,
       "minimum": 5.232
     },
     {
       "label": "matmul run 11",
-      "samples": 325,
+      "samples": 534,
       "minimum": 5.232
     },
     {
       "label": "matmul run 12",
-      "samples": 314,
+      "samples": 523,
       "minimum": 5.232
     },
     {
       "label": "matmul run 13",
-      "samples": 325,
+      "samples": 534,
       "minimum": 5.232
     },
     {
       "label": "matmul run 14",
-      "samples": 325,
+      "samples": 534,
       "minimum": 5.232
     },
     {
       "label": "matmul run 15",
-      "samples": 325,
+      "samples": 534,
       "minimum": 5.232
     },
     {
       "label": "matmul run 16",
-      "samples": 325,
+      "samples": 534,
       "minimum": 5.232
     },
     {
       "label": "matmul run 17",
-      "samples": 325,
+      "samples": 534,
       "minimum": 5.232
     },
     {
       "label": "matmul run 18",
-      "samples": 325,
+      "samples": 534,
       "minimum": 5.232
     },
     {
       "label": "matmul run 19",
-      "samples": 314,
+      "samples": 523,
       "minimum": 5.232
     },
     {
       "label": "matmul run 20",
-      "samples": 317,
+      "samples": 526,
       "minimum": 5.232
     },
     {
       "label": "matmul run 21",
-      "samples": 316,
+      "samples": 525,
       "minimum": 5.232
     },
     {
       "label": "matmul run 22",
-      "samples": 313,
+      "samples": 522,
       "minimum": 5.232
     },
     {
       "label": "matmul run 23",
-      "samples": 312,
+      "samples": 521,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 0",
+      "samples": 397,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 1",
+      "samples": 403,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 2",
+      "samples": 403,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 3",
+      "samples": 411,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 4",
+      "samples": 409,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 5",
+      "samples": 413,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 6",
+      "samples": 414,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 7",
+      "samples": 417,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 8",
+      "samples": 419,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 9",
+      "samples": 419,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 10",
+      "samples": 419,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 11",
+      "samples": 419,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 12",
+      "samples": 419,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 13",
+      "samples": 417,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 14",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 15",
+      "samples": 422,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 16",
+      "samples": 427,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 17",
+      "samples": 427,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 18",
+      "samples": 428,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 19",
+      "samples": 433,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 20",
+      "samples": 437,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 21",
+      "samples": 437,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 22",
+      "samples": 433,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 23",
+      "samples": 435,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 24",
+      "samples": 435,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 25",
+      "samples": 435,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 26",
+      "samples": 439,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 27",
+      "samples": 441,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 28",
+      "samples": 441,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 29",
+      "samples": 443,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 30",
+      "samples": 445,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 31",
+      "samples": 451,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 32",
+      "samples": 451,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul cpu toolchain 33",
+      "samples": 455,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu compile 0",
-      "samples": 258,
+      "samples": 455,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu compile 1",
-      "samples": 263,
+      "samples": 460,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu compile 2",
-      "samples": 265,
+      "samples": 462,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu compile 3",
-      "samples": 260,
+      "samples": 457,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu compile 4",
-      "samples": 261,
+      "samples": 458,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu compile 5",
-      "samples": 264,
+      "samples": 463,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu compile 6",
-      "samples": 271,
+      "samples": 468,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu compile 7",
-      "samples": 271,
+      "samples": 468,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu compile 8",
-      "samples": 274,
+      "samples": 471,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu compile 9",
-      "samples": 274,
+      "samples": 471,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu compile 10",
-      "samples": 281,
+      "samples": 478,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu compile 11",
-      "samples": 281,
+      "samples": 478,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu compile 12",
-      "samples": 282,
+      "samples": 479,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu compile 13",
-      "samples": 278,
+      "samples": 475,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 0",
-      "samples": 278,
+      "samples": 475,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 1",
-      "samples": 287,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 2",
-      "samples": 291,
+      "samples": 488,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 3",
-      "samples": 301,
+      "samples": 498,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 4",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 5",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 6",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 7",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 8",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 9",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 10",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 11",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 12",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 13",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 14",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 15",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 16",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 17",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 18",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 19",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 20",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 21",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 22",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 23",
-      "samples": 298,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 24",
-      "samples": 300,
+      "samples": 497,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 25",
-      "samples": 297,
+      "samples": 494,
       "minimum": 5.232
     },
     {
       "label": "matmul cpu run 26",
-      "samples": 296,
+      "samples": 493,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 0",
+      "samples": 398,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 1",
+      "samples": 404,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 2",
+      "samples": 404,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 3",
+      "samples": 412,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 4",
+      "samples": 410,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 5",
+      "samples": 414,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 6",
+      "samples": 415,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 7",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 8",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 9",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 10",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 11",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 12",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 13",
+      "samples": 418,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 14",
+      "samples": 421,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 15",
+      "samples": 423,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 16",
+      "samples": 428,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 17",
+      "samples": 428,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 18",
+      "samples": 433,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 19",
+      "samples": 437,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 20",
+      "samples": 441,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 21",
+      "samples": 441,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 22",
+      "samples": 437,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 23",
+      "samples": 439,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 24",
+      "samples": 439,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 25",
+      "samples": 442,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 26",
+      "samples": 446,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 27",
+      "samples": 452,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 28",
+      "samples": 452,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 29",
+      "samples": 454,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 30",
+      "samples": 456,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 31",
+      "samples": 464,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 32",
+      "samples": 464,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul rocm toolchain 33",
+      "samples": 468,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm compile 0",
-      "samples": 259,
+      "samples": 468,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm compile 1",
-      "samples": 264,
+      "samples": 473,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm compile 2",
-      "samples": 266,
+      "samples": 475,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm compile 3",
-      "samples": 261,
+      "samples": 470,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm compile 4",
-      "samples": 262,
+      "samples": 471,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm compile 5",
-      "samples": 265,
+      "samples": 476,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm compile 6",
-      "samples": 272,
+      "samples": 481,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm compile 7",
-      "samples": 272,
+      "samples": 481,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm compile 8",
-      "samples": 275,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm compile 9",
-      "samples": 275,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm compile 10",
-      "samples": 282,
+      "samples": 491,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm compile 11",
-      "samples": 282,
+      "samples": 491,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm compile 12",
-      "samples": 283,
+      "samples": 492,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm compile 13",
-      "samples": 279,
+      "samples": 488,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 0",
-      "samples": 279,
+      "samples": 488,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 1",
-      "samples": 288,
+      "samples": 497,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 2",
-      "samples": 292,
+      "samples": 501,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 3",
-      "samples": 302,
+      "samples": 511,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 4",
-      "samples": 295,
+      "samples": 504,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 5",
-      "samples": 300,
+      "samples": 509,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 6",
-      "samples": 312,
+      "samples": 521,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 7",
-      "samples": 312,
+      "samples": 521,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 8",
-      "samples": 312,
+      "samples": 521,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 9",
-      "samples": 312,
+      "samples": 521,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 10",
-      "samples": 312,
+      "samples": 521,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 11",
-      "samples": 312,
+      "samples": 521,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 12",
-      "samples": 301,
+      "samples": 510,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 13",
-      "samples": 312,
+      "samples": 521,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 14",
-      "samples": 312,
+      "samples": 521,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 15",
-      "samples": 312,
+      "samples": 521,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 16",
-      "samples": 312,
+      "samples": 521,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 17",
-      "samples": 312,
+      "samples": 521,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 18",
-      "samples": 312,
+      "samples": 521,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 19",
-      "samples": 301,
+      "samples": 510,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 20",
-      "samples": 304,
+      "samples": 513,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 21",
-      "samples": 303,
+      "samples": 512,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 22",
-      "samples": 300,
+      "samples": 509,
       "minimum": 5.232
     },
     {
       "label": "matmul rocm run 23",
-      "samples": 299,
+      "samples": 508,
       "minimum": 5.232
     },
     {
       "label": "matmul naive GPU",
-      "samples": 297,
+      "samples": 436,
       "minimum": 5.232
     },
     {
       "label": "matmul legend",
-      "samples": 345,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "attention initial",
-      "samples": 273,
+      "samples": 414,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention complete text",
+      "samples": 1425,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 0",
+      "samples": 414,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 1",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 2",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 3",
+      "samples": 428,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 4",
+      "samples": 426,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 5",
+      "samples": 430,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 6",
+      "samples": 431,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 7",
+      "samples": 434,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 8",
+      "samples": 436,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 9",
+      "samples": 436,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 10",
+      "samples": 436,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 11",
+      "samples": 436,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 12",
+      "samples": 436,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 13",
+      "samples": 434,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 14",
+      "samples": 437,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 15",
+      "samples": 439,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 16",
+      "samples": 444,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 17",
+      "samples": 444,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 18",
+      "samples": 449,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 19",
+      "samples": 453,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 20",
+      "samples": 457,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 21",
+      "samples": 457,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 22",
+      "samples": 453,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 23",
+      "samples": 455,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 24",
+      "samples": 455,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 25",
+      "samples": 458,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 26",
+      "samples": 462,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 27",
+      "samples": 468,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 28",
+      "samples": 468,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 29",
+      "samples": 470,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 30",
+      "samples": 472,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 31",
+      "samples": 480,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 32",
+      "samples": 480,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention toolchain 33",
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "attention build 0",
-      "samples": 273,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "attention build 1",
-      "samples": 277,
+      "samples": 488,
       "minimum": 5.232
     },
     {
       "label": "attention build 2",
-      "samples": 282,
+      "samples": 493,
       "minimum": 5.232
     },
     {
       "label": "attention build 3",
-      "samples": 285,
+      "samples": 496,
       "minimum": 5.232
     },
     {
       "label": "attention build 4",
-      "samples": 284,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "attention build 5",
-      "samples": 287,
+      "samples": 498,
       "minimum": 5.232
     },
     {
       "label": "attention build 6",
-      "samples": 284,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "attention compile 0",
-      "samples": 284,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "attention compile 1",
-      "samples": 289,
+      "samples": 500,
       "minimum": 5.232
     },
     {
       "label": "attention compile 2",
-      "samples": 291,
+      "samples": 502,
       "minimum": 5.232
     },
     {
       "label": "attention compile 3",
-      "samples": 286,
+      "samples": 497,
       "minimum": 5.232
     },
     {
       "label": "attention compile 4",
-      "samples": 287,
+      "samples": 498,
       "minimum": 5.232
     },
     {
       "label": "attention compile 5",
-      "samples": 290,
+      "samples": 503,
       "minimum": 5.232
     },
     {
       "label": "attention compile 6",
-      "samples": 297,
+      "samples": 508,
       "minimum": 5.232
     },
     {
       "label": "attention compile 7",
-      "samples": 297,
+      "samples": 508,
       "minimum": 5.232
     },
     {
       "label": "attention compile 8",
-      "samples": 300,
+      "samples": 511,
       "minimum": 5.232
     },
     {
       "label": "attention compile 9",
-      "samples": 300,
+      "samples": 511,
       "minimum": 5.232
     },
     {
       "label": "attention compile 10",
-      "samples": 307,
+      "samples": 518,
       "minimum": 5.232
     },
     {
       "label": "attention compile 11",
-      "samples": 307,
+      "samples": 518,
       "minimum": 5.232
     },
     {
       "label": "attention compile 12",
-      "samples": 308,
+      "samples": 519,
       "minimum": 5.232
     },
     {
       "label": "attention compile 13",
-      "samples": 304,
+      "samples": 515,
       "minimum": 5.232
     },
     {
       "label": "attention run 0",
-      "samples": 304,
+      "samples": 515,
       "minimum": 5.232
     },
     {
       "label": "attention run 1",
-      "samples": 315,
+      "samples": 526,
       "minimum": 5.232
     },
     {
       "label": "attention run 2",
-      "samples": 319,
+      "samples": 530,
       "minimum": 5.232
     },
     {
       "label": "attention run 3",
-      "samples": 329,
+      "samples": 540,
       "minimum": 5.232
     },
     {
       "label": "attention run 4",
-      "samples": 337,
+      "samples": 548,
       "minimum": 5.232
     },
     {
       "label": "attention run 5",
-      "samples": 340,
+      "samples": 551,
       "minimum": 5.232
     },
     {
       "label": "attention run 6",
-      "samples": 341,
+      "samples": 552,
       "minimum": 5.232
     },
     {
       "label": "attention run 7",
-      "samples": 344,
+      "samples": 555,
       "minimum": 5.232
     },
     {
       "label": "attention run 8",
-      "samples": 344,
+      "samples": 555,
       "minimum": 5.232
     },
     {
       "label": "attention run 9",
-      "samples": 344,
+      "samples": 555,
       "minimum": 5.232
     },
     {
       "label": "attention run 10",
-      "samples": 338,
+      "samples": 549,
       "minimum": 5.232
     },
     {
       "label": "attention run 11",
-      "samples": 340,
+      "samples": 551,
       "minimum": 5.232
     },
     {
       "label": "attention run 12",
-      "samples": 341,
+      "samples": 552,
       "minimum": 5.232
     },
     {
       "label": "attention run 13",
-      "samples": 344,
+      "samples": 555,
       "minimum": 5.232
     },
     {
       "label": "attention run 14",
-      "samples": 344,
+      "samples": 555,
       "minimum": 5.232
     },
     {
       "label": "attention run 15",
-      "samples": 344,
+      "samples": 555,
       "minimum": 5.232
     },
     {
       "label": "attention run 16",
-      "samples": 338,
+      "samples": 549,
       "minimum": 5.232
     },
     {
       "label": "attention run 17",
-      "samples": 338,
+      "samples": 549,
       "minimum": 5.232
     },
     {
       "label": "attention run 18",
-      "samples": 341,
+      "samples": 552,
       "minimum": 5.232
     },
     {
       "label": "attention run 19",
-      "samples": 337,
+      "samples": 548,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 0",
+      "samples": 413,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 1",
+      "samples": 419,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 2",
+      "samples": 419,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 3",
+      "samples": 427,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 4",
+      "samples": 425,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 5",
+      "samples": 429,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 6",
+      "samples": 430,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 7",
+      "samples": 433,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 8",
+      "samples": 435,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 9",
+      "samples": 435,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 10",
+      "samples": 435,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 11",
+      "samples": 435,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 12",
+      "samples": 435,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 13",
+      "samples": 433,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 14",
+      "samples": 436,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 15",
+      "samples": 438,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 16",
+      "samples": 443,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 17",
+      "samples": 443,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 18",
+      "samples": 444,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 19",
+      "samples": 449,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 20",
+      "samples": 453,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 21",
+      "samples": 453,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 22",
+      "samples": 449,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 23",
+      "samples": 451,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 24",
+      "samples": 451,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 25",
+      "samples": 451,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 26",
+      "samples": 455,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 27",
+      "samples": 457,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 28",
+      "samples": 457,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 29",
+      "samples": 459,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 30",
+      "samples": 461,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 31",
+      "samples": 467,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 32",
+      "samples": 467,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention cpu toolchain 33",
+      "samples": 471,
       "minimum": 5.232
     },
     {
       "label": "attention cpu compile 0",
-      "samples": 272,
+      "samples": 471,
       "minimum": 5.232
     },
     {
       "label": "attention cpu compile 1",
-      "samples": 277,
+      "samples": 476,
       "minimum": 5.232
     },
     {
       "label": "attention cpu compile 2",
-      "samples": 279,
+      "samples": 478,
       "minimum": 5.232
     },
     {
       "label": "attention cpu compile 3",
-      "samples": 274,
+      "samples": 473,
       "minimum": 5.232
     },
     {
       "label": "attention cpu compile 4",
-      "samples": 275,
+      "samples": 474,
       "minimum": 5.232
     },
     {
       "label": "attention cpu compile 5",
-      "samples": 278,
+      "samples": 479,
       "minimum": 5.232
     },
     {
       "label": "attention cpu compile 6",
-      "samples": 285,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "attention cpu compile 7",
-      "samples": 285,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "attention cpu compile 8",
-      "samples": 288,
+      "samples": 487,
       "minimum": 5.232
     },
     {
       "label": "attention cpu compile 9",
-      "samples": 288,
+      "samples": 487,
       "minimum": 5.232
     },
     {
       "label": "attention cpu compile 10",
-      "samples": 295,
+      "samples": 494,
       "minimum": 5.232
     },
     {
       "label": "attention cpu compile 11",
-      "samples": 295,
+      "samples": 494,
       "minimum": 5.232
     },
     {
       "label": "attention cpu compile 12",
-      "samples": 296,
+      "samples": 495,
       "minimum": 5.232
     },
     {
       "label": "attention cpu compile 13",
-      "samples": 292,
+      "samples": 491,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 0",
-      "samples": 292,
+      "samples": 491,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 1",
-      "samples": 303,
+      "samples": 502,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 2",
-      "samples": 307,
+      "samples": 506,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 3",
-      "samples": 317,
+      "samples": 516,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 4",
-      "samples": 325,
+      "samples": 524,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 5",
-      "samples": 328,
+      "samples": 527,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 6",
-      "samples": 329,
+      "samples": 528,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 7",
-      "samples": 332,
+      "samples": 531,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 8",
-      "samples": 332,
+      "samples": 531,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 9",
-      "samples": 332,
+      "samples": 531,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 10",
-      "samples": 326,
+      "samples": 525,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 11",
-      "samples": 328,
+      "samples": 527,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 12",
-      "samples": 329,
+      "samples": 528,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 13",
-      "samples": 332,
+      "samples": 531,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 14",
-      "samples": 332,
+      "samples": 531,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 15",
-      "samples": 332,
+      "samples": 531,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 16",
-      "samples": 326,
+      "samples": 525,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 17",
-      "samples": 326,
+      "samples": 525,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 18",
-      "samples": 329,
+      "samples": 528,
       "minimum": 5.232
     },
     {
       "label": "attention cpu run 19",
-      "samples": 325,
+      "samples": 524,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 0",
+      "samples": 414,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 1",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 2",
+      "samples": 420,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 3",
+      "samples": 428,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 4",
+      "samples": 426,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 5",
+      "samples": 430,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 6",
+      "samples": 431,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 7",
+      "samples": 434,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 8",
+      "samples": 436,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 9",
+      "samples": 436,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 10",
+      "samples": 436,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 11",
+      "samples": 436,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 12",
+      "samples": 436,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 13",
+      "samples": 434,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 14",
+      "samples": 437,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 15",
+      "samples": 439,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 16",
+      "samples": 444,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 17",
+      "samples": 444,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 18",
+      "samples": 449,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 19",
+      "samples": 453,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 20",
+      "samples": 457,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 21",
+      "samples": 457,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 22",
+      "samples": 453,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 23",
+      "samples": 455,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 24",
+      "samples": 455,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 25",
+      "samples": 458,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 26",
+      "samples": 462,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 27",
+      "samples": 468,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 28",
+      "samples": 468,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 29",
+      "samples": 470,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 30",
+      "samples": 472,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 31",
+      "samples": 480,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 32",
+      "samples": 480,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention rocm toolchain 33",
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "attention rocm compile 0",
-      "samples": 273,
+      "samples": 484,
       "minimum": 5.232
     },
     {
       "label": "attention rocm compile 1",
-      "samples": 278,
+      "samples": 489,
       "minimum": 5.232
     },
     {
       "label": "attention rocm compile 2",
-      "samples": 280,
+      "samples": 491,
       "minimum": 5.232
     },
     {
       "label": "attention rocm compile 3",
-      "samples": 275,
+      "samples": 486,
       "minimum": 5.232
     },
     {
       "label": "attention rocm compile 4",
-      "samples": 276,
+      "samples": 487,
       "minimum": 5.232
     },
     {
       "label": "attention rocm compile 5",
-      "samples": 279,
+      "samples": 492,
       "minimum": 5.232
     },
     {
       "label": "attention rocm compile 6",
-      "samples": 286,
+      "samples": 497,
       "minimum": 5.232
     },
     {
       "label": "attention rocm compile 7",
-      "samples": 286,
+      "samples": 497,
       "minimum": 5.232
     },
     {
       "label": "attention rocm compile 8",
-      "samples": 289,
+      "samples": 500,
       "minimum": 5.232
     },
     {
       "label": "attention rocm compile 9",
-      "samples": 289,
+      "samples": 500,
       "minimum": 5.232
     },
     {
       "label": "attention rocm compile 10",
-      "samples": 296,
+      "samples": 507,
       "minimum": 5.232
     },
     {
       "label": "attention rocm compile 11",
-      "samples": 296,
+      "samples": 507,
       "minimum": 5.232
     },
     {
       "label": "attention rocm compile 12",
-      "samples": 297,
+      "samples": 508,
       "minimum": 5.232
     },
     {
       "label": "attention rocm compile 13",
-      "samples": 293,
+      "samples": 504,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 0",
-      "samples": 293,
+      "samples": 504,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 1",
-      "samples": 304,
+      "samples": 515,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 2",
-      "samples": 308,
+      "samples": 519,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 3",
-      "samples": 318,
+      "samples": 529,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 4",
-      "samples": 326,
+      "samples": 537,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 5",
-      "samples": 329,
+      "samples": 540,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 6",
-      "samples": 330,
+      "samples": 541,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 7",
-      "samples": 333,
+      "samples": 544,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 8",
-      "samples": 333,
+      "samples": 544,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 9",
-      "samples": 333,
+      "samples": 544,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 10",
-      "samples": 327,
+      "samples": 538,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 11",
-      "samples": 329,
+      "samples": 540,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 12",
-      "samples": 330,
+      "samples": 541,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 13",
-      "samples": 333,
+      "samples": 544,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 14",
-      "samples": 333,
+      "samples": 544,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 15",
-      "samples": 333,
+      "samples": 544,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 16",
-      "samples": 327,
+      "samples": 538,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 17",
-      "samples": 327,
+      "samples": 538,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 18",
-      "samples": 330,
+      "samples": 541,
       "minimum": 5.232
     },
     {
       "label": "attention rocm run 19",
-      "samples": 326,
+      "samples": 537,
       "minimum": 5.232
     },
     {
       "label": "attention legend",
-      "samples": 392,
+      "samples": 533,
       "minimum": 5.232
     },
     {
       "label": "addition narrow 320",
-      "samples": 271,
+      "samples": 410,
       "minimum": 5.232
     },
     {
       "label": "addition touch card 320",
-      "samples": 284,
+      "samples": 423,
       "minimum": 5.232
     },
     {
       "label": "addition touch legend 320",
-      "samples": 357,
+      "samples": 496,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition narrow text 320",
+      "samples": 1420,
       "minimum": 5.232
     },
     {
       "label": "epilogue narrow 320",
-      "samples": 289,
+      "samples": 428,
       "minimum": 5.232
     },
     {
       "label": "epilogue touch card 320",
-      "samples": 302,
+      "samples": 441,
       "minimum": 5.232
     },
     {
       "label": "epilogue touch legend 320",
-      "samples": 375,
+      "samples": 514,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue narrow text 320",
+      "samples": 1438,
       "minimum": 5.232
     },
     {
       "label": "matmul narrow 320",
-      "samples": 279,
+      "samples": 418,
       "minimum": 5.232
     },
     {
       "label": "matmul touch card 320",
-      "samples": 292,
+      "samples": 431,
       "minimum": 5.232
     },
     {
       "label": "matmul touch legend 320",
-      "samples": 365,
+      "samples": 504,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul narrow text 320",
+      "samples": 1428,
       "minimum": 5.232
     },
     {
       "label": "attention narrow 320",
-      "samples": 306,
+      "samples": 447,
       "minimum": 5.232
     },
     {
       "label": "attention touch card 320",
-      "samples": 319,
+      "samples": 460,
       "minimum": 5.232
     },
     {
       "label": "attention touch legend 320",
-      "samples": 392,
+      "samples": 533,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention narrow text 320",
+      "samples": 1457,
       "minimum": 5.232
     },
     {
       "label": "addition narrow 390",
-      "samples": 271,
+      "samples": 410,
       "minimum": 5.232
     },
     {
       "label": "addition touch card 390",
-      "samples": 284,
+      "samples": 423,
       "minimum": 5.232
     },
     {
       "label": "addition touch legend 390",
-      "samples": 357,
+      "samples": 496,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition narrow text 390",
+      "samples": 1420,
       "minimum": 5.232
     },
     {
       "label": "epilogue narrow 390",
-      "samples": 289,
+      "samples": 428,
       "minimum": 5.232
     },
     {
       "label": "epilogue touch card 390",
-      "samples": 302,
+      "samples": 441,
       "minimum": 5.232
     },
     {
       "label": "epilogue touch legend 390",
-      "samples": 375,
+      "samples": 514,
+      "minimum": 5.232
+    },
+    {
+      "label": "epilogue narrow text 390",
+      "samples": 1438,
       "minimum": 5.232
     },
     {
       "label": "matmul narrow 390",
-      "samples": 279,
+      "samples": 418,
       "minimum": 5.232
     },
     {
       "label": "matmul touch card 390",
-      "samples": 292,
+      "samples": 431,
       "minimum": 5.232
     },
     {
       "label": "matmul touch legend 390",
-      "samples": 365,
+      "samples": 504,
+      "minimum": 5.232
+    },
+    {
+      "label": "matmul narrow text 390",
+      "samples": 1428,
       "minimum": 5.232
     },
     {
       "label": "attention narrow 390",
-      "samples": 306,
+      "samples": 447,
       "minimum": 5.232
     },
     {
       "label": "attention touch card 390",
-      "samples": 319,
+      "samples": 460,
       "minimum": 5.232
     },
     {
       "label": "attention touch legend 390",
-      "samples": 392,
+      "samples": 533,
+      "minimum": 5.232
+    },
+    {
+      "label": "attention narrow text 390",
+      "samples": 1457,
       "minimum": 5.232
     }
   ],
   "screenshots": [
+    "compiler_example_addition_toolchain.png",
     "compiler_example_addition_build.png",
     "compiler_example_addition_compile.png",
     "compiler_example_addition_run.png",
+    "compiler_example_epilogue_toolchain.png",
     "compiler_example_epilogue_build.png",
     "compiler_example_epilogue_compile.png",
     "compiler_example_epilogue_run.png",
     "compiler_example_epilogue_mechanism.png",
     "compiler_example_epilogue_intermediates.png",
+    "compiler_example_matmul_toolchain.png",
     "compiler_example_matmul_build.png",
     "compiler_example_matmul_compile.png",
     "compiler_example_matmul_run.png",
     "compiler_example_matmul_mechanism.png",
+    "compiler_example_attention_toolchain.png",
     "compiler_example_attention_build.png",
     "compiler_example_attention_compile.png",
     "compiler_example_attention_run.png",

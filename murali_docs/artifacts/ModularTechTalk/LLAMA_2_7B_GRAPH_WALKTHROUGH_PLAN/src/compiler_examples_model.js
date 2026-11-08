@@ -44,7 +44,7 @@
         if(id==='epilogue')add('fusion',o.fusion==='fused'?'Group the eligible epilogue':'Compare a separate-body route',o.fusion==='fused'?'Illustrative optimized case: keep matmul accumulators live while applying +1 and ×2. No intermediate matrix store is needed in this sketch.':'Illustrative comparison: materialize the matmul result, then add one, then multiply. This selector is a teaching comparison, not a MAX compiler flag.',{level:1},['entry','registration','map_pipeline']);
         add('mogg','MAP → MOGG: express kernel calls','The surrounding graph and custom implementation remain different levels. Actual dialect spellings and chosen passes are not a compiler dump from this example.',{level:2},['mogg_pipeline']);
         add('mgp','MOGG → MGP: buffer/dependency plan','The execution plan describes input/output resources and dependencies; it does not contain the random input values.',{level:3},['mgp_pipeline']);
-        add('finalize','Finalize the device graph and emit routines','This later compiler finalization is distinct from Python Graph.output. Emitted routines and custom Mojo enter kernel compilation.',{level:4},['mgp_pipeline','gc_pipeline']);
+        add('finalize','Check device-graph finalization, then emit routines','The scheduled pass audits collectives only when getIsDeviceGraph() is true. Ordinary models skip that audit. This later compiler preparation is distinct from Python Graph.output; emitted routines and custom Mojo enter kernel compilation.',{level:4},['mgp_pipeline','gc_pipeline','device_finalization']);
         add('mojo','Mojo specializes the implementation',id==='matmul'?`Compile-time target=${cpu?'cpu':'gpu'}, algorithm=${algorithm}. ${cpu?'CPU uses the naive function.':p.grid+'.'}`:id==='attention'?`BN=${p.BN}, BD=${p.BD}; ${routine}. ${cpu?'CPU key tile BN=4.':'GPU key tile BN_1=8, distinct from BN=16.'}`:'Types, SIMD width and target become concrete native code; the elementwise body does not call Python for every value.',{level:5},['registration','dispatch','mojo_semantics','mojo_elaboration']);
         add('llvm','Mojo MLIR → LLVM dialect → LLVM IR','LIT/KGEN/POP lowering and LLVM-module translation are separate transformations. File sheets represent in-memory views.',{level:6},['mojo_llvm','llvm_translation']);
         add('target',cpu?'Host backend emits and links native code':o.target==='cuda'?'LLVM NVPTX → PTX → cubin':'LLVM AMDGPU → object → linked ELF',cpu?'The host backend can emit an object directly and link native code. Assembly is an optional textual output.':o.target==='cuda'?'The pinned backend passes PTX through CUDA CompilationDevice to produce same-SM code. This is host compilation targeting a GPU.':'The AMDGPU backend emits target object code and links an ELF code object. This is host compilation targeting a GPU.',{level:7,code:true},['backend_select',cpu?'host_object':o.target==='cuda'?'nvptx_object':'amdgpu_backend']);
@@ -53,6 +53,130 @@
         add('load_modules','Load modules and resolve executable handles','Initialization uses the prepared module-load and callable plan. Compiled bytes alone are not an initialized executable.',{loading:true},['runtime_calls','init_all']);
         add('init','session.init(compiled) creates executable M1','All four examples take their tensors as call inputs. No model-weight registry is required by these calls.',{initialized:true},['entry','init_all']);
         add('ready','M1 is ready; numerical inputs are separate',id==='matmul'?'The helper already created its buffers. Each new helper invocation compiles and initializes a model, while main reuses S1.':'Random arrays and Buffer arguments are supplied after initialization. Compilation did not compute their results.',{},['entry']);
+      } else if(this.kind==='toolchain') {
+        const targetName=cpu?'CPU host':o.target==='cuda'?'NVIDIA GPU':'AMD GPU';
+        const backend=cpu?'HostBackend':o.target==='cuda'?'NVPTXBackend':'AMDGPUBackend';
+        const artifact=cpu?'host object → native code':o.target==='cuda'?'PTX → cubin':'AMDGPU object → ELF / hsaco';
+        const commandTarget=`//max/examples/custom_ops:${this.example.task}`;
+        const triple=cpu?'x86_64-unknown-linux-gnu':o.target==='cuda'?'nvptx64-nvidia-cuda':'amdgcn-amd-amdhsa';
+        const arch=cpu?'compatible host CPU':o.target==='cuda'?'sm_90a':'gfx942';
+        state={...state,task:this.example.task,commandTarget,targetName,backend,artifact,triple,arch,
+          qa:'1.1',stage:'build',built:false,hostRuntime:false,sourceRef:'bazel_binary',sourceNeedle:'name =',
+          graphIR:'absent',kernelIR:'absent',views:[],g1Retained:false,libraries:false,runfiles:false,
+          package:false,hostSource:false,deviceIR:false,llvmModule:false,deviceIntermediate:false,
+          targetCode:false,hostCode:false,runtimeCalls:false,representation:'Bazel target graph'};
+        const f=(qa,phase,title,detail,patch={},refs=['entry'])=>add(phase,title,detail,
+          {qa,sourceRef:refs[0],sourceNeedle:'',...patch},refs);
+        f('1.1','bazel_target','Resolve the Python example target',
+          `./bazelw build ${commandTarget} resolves the macro, Python binary and declared dependencies. This frame is a build-graph illustration; the earlier interrupted build remains the recorded result.`,
+          {command:`./bazelw build ${commandTarget}`,representation:'BUILD.bazel → Python binary target',sourceRef:'bazel_binary',sourceNeedle:'name ='},['bazel_wrapper','bazel_binary','bazel_build_file']);
+        f('1.2','bazel_libraries','Precompile the shared Mojo dependencies',
+          'The layout, extensibility and std labels resolve to Mojo source-package targets. mojo_library invokes the configured Mojo compiler to create separate .mojoc packages containing post-parse MLIR bytecode.',
+          {libraries:true,representation:'Mojo library sources → layout / extensibility / std .mojoc',sourceNeedle:'Precompiles sources'},['mojo_library_rule','bazel_aliases','bazel_layout_package','bazel_extensibility_package','bazel_std_package']);
+        f('1.1','bazel_outputs','Stage the launcher and raw kernel data',
+          `The ${this.example.task} Python target provides a launcher and runfiles containing ${this.example.filename}, Python dependencies and kernels/*.mojo data. The independently declared :kernels library belongs to a separate dependency route used by :benchmarks.`,
+          {built:true,representation:'Python launcher + .py runfiles + raw .mojo data',sourceNeedle:'data ='},['bazel_macro','bazel_kernel_sources','bazel_build_file']);
+        f('1.3.2','toolchain_runfiles','Make compiler and linker tools available at runtime',
+          'modular_py_binary creates mojo_test_environment. It stages the source-built Mojo driver, LLD, native libraries and import/link settings. The example-test is a sibling target that runs the launcher with its runfiles.',
+          {runfiles:true,representation:'runfiles + MODULAR_MOJO_MAX_* environment',sourceNeedle:'extra_env ='},['bazel_py_binary','mojo_runtime_exports','bazel_mojo_toolchain','bazel_run_test','bazel_binary_test']);
+        f('2.1','python_process','Run the Python application on the host CPU',
+          `./bazelw run ${commandTarget}, or its .example-test, starts ${this.example.filename}. The CPU process owns graph construction, compilation requests, driver interaction and later Buffer arguments.`,
+          {stage:'package',hostRuntime:true,command:`./bazelw run ${commandTarget}`,representation:'CPU Python process → Graph(custom_extensions=kernels/)'},['entry','bazel_binary_test']);
+        f('2.2','package_source','Precompile kernels/ into a private staging package',
+          'KernelLibrary.load_paths calls mojo.paths._build_mojo_source_package. It invokes mojo precompile <kernels directory> -o <staging path>. The helper atomically publishes mojo_pkg_<path_hash>.mojoc under the temporary per-user package directory.',
+          {package:true,representation:'kernels/*.mojo → staging .mojoc → atomically published P1',sourceNeedle:'args ='},['package_builder','package_load','kernel_package_root']);
+        f('2.3','package_import','Import declarations and bodies from P1',
+          'P1 is a lit.package serialized as MLIR bytecode. It retains implementation bodies for concrete instantiation. The registration string connects the Python custom operation to its Mojo definition; the Python entry-point file remains separate.',
+          {registered:true,representation:'P1 post-parse MLIR → registered Mojo implementations'},['mojo_package','registration','custom_api']);
+        f('2.4','graph_record','Record G1 with shapes, dtype and device',
+          `${this.example.expression}. The original graph contract is ${state.signature.join(' → ')}. Graph.output completes its symbolic contract; numerical execution is a later phase. Kernel declarations can be seeded for the native compiler.`,
+          {graph:true,verified:true,g1Retained:true,representation:'G1 · verified symbolic graph; values not supplied',sourceNeedle:'Graph('},['entry','graph_init','graph_output','compile_async']);
+        f('3.1','clone','Clone G1 into compiler-owned C1',
+          'InferenceSession.compile reaches MOFContext::compileToBinary. The native frontend clones the MLIR module, registers context and gathers GCPipelineOptions. G1 stays with its caller while C1 is transformed by MLIR pass managers.',
+          {stage:'graph',clone:true,graphIR:'MO',views:['MO'],representation:'G1 retained → clone C1 / MO',sourceNeedle:'.clone()'},['frontend','compile_async','gc_pipeline']);
+        f('3.2','mo_opt','MO: refine graph-level information',
+          'MO means Modular Operations. buildMoPipeline schedules symbolic optimization, shape/layout work, kernel verification, device validation and cleanup. C1 still carries graph operations and tensor contracts.',
+          {representation:'C1 · MO / typed tensor operations',sourceNeedle:'void M::MO::buildMoPipeline'},['mo_pipeline','mo_dialect','graph_compiler_design']);
+        f('3.3.1','mo_to_map','MOToMAPPass exposes implementation accesses',
+          'createMOToMAP constructs MOToMAPPass. Its runOnOperation creates MojoRegistry, collects lowerable operations and invokes lowerOp. The resulting MAP representation exposes supported kernel/access structure.',
+          {graphIR:'MAP',views:['MO','MAP'],representation:'C1 · MO → MAP / load · compute · store',sourceNeedle:'void runOnOperation'},['mo_to_map','gc_pipeline','map_dialect']);
+        f('3.3.2','map_fusion','MAP: optimize accesses and eligible fusion',
+          id==='epilogue'?'AddOneElementwise exposes x+1 beside matmul and ×2. buildMapPipeline can fuse eligible bodies, allocate accumulation buffers and outline structured kernels. The drawn fusion structure is schematic.':'MAP exposes opaque or explicit elementwise accesses. buildMapPipeline applies eligible fusion, accumulation-buffer allocation and outlining. The selected example retains its authored kernel algorithm; this is a representation illustration.',
+          {representation:'C1 · MAP / accesses + implementation fusion interfaces',sourceNeedle:'MAP::createFuseKernels'},['map_pipeline','map_dialect','registration']);
+        f('3.4','map_to_mogg','MAPToMOGGPass builds generator-oriented calls',
+          'MAPToMOGGPass uses MojoRegistry and MAPToMOGGState to lower outlined kernels and shape-function invocations. buildMoggPipeline conforms call operands and outlines routines. C1 now expresses code-generation-oriented implementation boundaries.',
+          {graphIR:'MOGG',views:['MO','MAP','MOGG'],representation:'C1 · MAP → MOGG / generator calls',sourceNeedle:'MAPToMOGGState state'},['map_to_mogg','mogg_pipeline','mogg_dialect']);
+        f('3.5','mogg_to_mgp','MOGGToMGPPass builds model/runtime glue',
+          'The conversion orders MO graphs by call dependencies, uses SymbolTableAnalysis and runs MOGraphLowering. MGP expresses model init/execute, buffers, contexts and dependencies around the selected routines.',
+          {graphIR:'MGP',views:['MO','MAP','MOGG','MGP'],representation:'C1 · MOGG → MGP / init · execute · buffers',sourceNeedle:'MOGraphLowering('},['mogg_to_mgp','mgp_dialect']);
+        f('3.5.2','mgp_plan','MGP: assign reusable resources and dependencies',
+          'buildMgpPipeline plans/reuses buffers, defers allocations, validates arguments, simplifies chains, globalizes state slots and lowers primitives. Drawn X / dependency / Y slots represent the runtime plan rather than actual numerical data.',
+          {plan:true,representation:'C1 · MGP / input ref → dependency → output resource',sourceNeedle:'createDynamicMemoryPlanningPass'},['mgp_pipeline','mgp_dialect']);
+        f('3.6','finalize','Run the conditional device-graph finalization pass',
+          'The pipeline stages graphs and computes device dependencies before FinalizeDeviceGraphsPass. Its getIsDeviceGraph guard skips ordinary models; device-graph models finalize their collectives. The guard is shown without claiming a captured device graph for this example.',
+          {finalization:true,representation:'C1 · MGP / device-graph pass: audit only if present',sourceNeedle:'getIsDeviceGraph'},['device_finalization','mgp_pipeline']);
+        f('3.7','emit_mojo','Emit routine source; keep the MGP plan in C1',
+          'EmitMojo imports standard/custom packages and generates routine scaffolding. Kernel preparation creates a separate parsed implementation module KIR1. C1 retains its buffer/dependency plan throughout later kernel lowering.',
+          {emitted:true,kernelIR:'generated Mojo / imported bodies',representation:'C1 MGP retained → emitted Mojo + separate KIR1',sourceNeedle:'Import mojo packages'},['emit_mojo','gc_pipeline','jit_entry']);
+        f('4.1','jit_lookup','Enter MAX kernel JIT and the cold-cache route',
+          'compileMojoToBinary parses generated source, runs LIT-to-KGEN and creates KGENCompiler, ObjectCompiler and CompilationState. This lesson follows a cache-miss illustration; compatible compiled archives can skip fresh kernel preparation.',
+          {stage:'mojo',kernelIR:'parametric KGEN',representation:'KIR1 · LIT → parametric KGEN; cache miss selected',sourceNeedle:'KGEN::KGENCompiler compiler'},['jit_entry','kernel_misses','kernel_hits']);
+        f('6.2','offload_split',cpu?'Keep the native operation on its CPU target':'Separate host routine IR from device offload IR',
+          cpu?'The selected operation uses native CPU iteration. There is a host routine and no GPU image in this target route.':'During elaboration, compileOffloads groups selected generators by TargetInfoAttr and slices a separate device module. The host module retains launch/control routines and references to the device image.',
+          {hostSource:true,deviceIR:!cpu,representation:cpu?'host native routine / CPU placement':'host launch module + separate device kernel module',sourceNeedle:'targetOffloadInfos'},['offload_targets','registration','target_info']);
+        f('5.2','target_info','Resolve the selected target record',
+          `The focused target record is ${triple}, architecture ${arch}, plus features/ABI/layout. The NVIDIA sm_90a and AMD gfx942 examples are taken from the cross-codegen source test, not detected hardware. Host compilation keeps its own host target.`,
+          {stage:'target',targetInfo:true,representation:`TargetInfo: ${triple} / ${arch} / features`,sourceNeedle:'targetTriple ='},['target_info','offload_targets','cross_target_example']);
+        f('5.1','select_backend',`Select ${backend} and its LLVM target machine`,
+          'ObjectCompiler::create resolves the triple through TargetBackendRegistry. Its owned C++ backend implementations register during static initialization. LLVM TargetRegistry separately supplies a TargetMachine using the triple, CPU, features and ABI.',
+          {selectedBackend:backend,representation:`TargetBackendRegistry → ${backend} → LLVM TargetMachine`,sourceNeedle:'TargetBackendRegistry::get().lookup'},['backend_select','backend_registry_declaration','backend_registry','llvm_target_machine']);
+        f('4.2.2','mojo_specialize','Instantiate concrete kernel parameters',
+          `${routine}. KGENCompiler::runElaborationPipeline supplies the target to the elaborator. Function/type generators acquire concrete dtype, rank, compile-time parameters and implementation choices; the small vector grouping is illustrative.`,
+          {stage:'mojo',kernelIR:'concrete KGEN / POP',specialized:true,representation:'KIR1 · parametric generators → concrete functions / types',sourceNeedle:'populateElaborateModulePasses'},['kgen_elaboration','kgen_elaborate_build','registration','mojo_elaboration']);
+        f('4.3','post_elaboration','Optimize and lower the concrete implementation',
+          'buildPostElaborationPipeline applies floating-point policy, verifies concrete IR, updates compile-time materialization and invokes its optimization pipelines. Runtime tensor contents remain separate inputs.',
+          {postOptimized:true,representation:'KIR1 · concrete native operations / conventions',sourceNeedle:'buildFirstOptPipeline'},['kgen_post_elaboration','mojo_elaboration']);
+        f('4.4','llvm_dialect','Lower KGEN / POP / control flow to LLVM dialect',
+          'ObjectCompiler::lowerAllFuncsToLLVM invokes buildLowerToLLVMPipeline. LowerKGENToLLVM, POP lowering, control-flow/closure lowering and target-specific MLIR passes finish an LLVM-compatible MLIR module.',
+          {kernelIR:'LLVM dialect / MLIR',representation:'KIR1 · LLVM dialect, still an MLIR module',sourceNeedle:'createLowerKGENToLLVM'},['kgen_llvm_passes','object_lower_to_llvm','mojo_llvm']);
+        f('4.5','llvm_translate','Create a separate LLVM IR module',
+          'The ObjectCompiler helper calls mlir::translateModuleToLLVMIR and returns an llvm::Module in an LLVM context. LLVM1 is a distinct representation; optional .ll/.bc exports are views of it.',
+          {llvmModule:true,representation:'KIR1 MLIR → LLVM1 / llvm::Module',sourceNeedle:'mlir::translateModuleToLLVMIR'},['llvm_translation','object_lower_to_llvm']);
+        f(cpu?'5.5':o.target==='cuda'?'5.3.1':'5.4','llvm_codegen',cpu?'LLVM emits host object bytes':o.target==='cuda'?'LLVM NVPTX emits PTX text':'LLVM AMDGPU emits device object bytes',
+          cpu?'HostBackend runs the LLVM machine-code passes with object output enabled. The native object can then be linked for loading.':o.target==='cuda'?'NVPTXBackend runs LLVM code generation with textual output, producing PTX in a byte buffer for the selected SM.':'AMDGPU supplies device-library/link hooks and uses LLVM target object emission. Required bitcode is prepared before the final object/link route.',
+          {stage:'target',deviceIntermediate:true,representation:cpu?'LLVM1 → host .o bytes':o.target==='cuda'?'LLVM1 → PTX byte buffer':'LLVM1 → AMDGPU .o byte buffer',sourceNeedle:cpu?'createObjectFile=*/true':'emitObject'},['llvm_code_gen',cpu?'host_object':o.target==='cuda'?'nvptx_object':'amdgpu_backend']);
+        f(cpu?'5.5':o.target==='cuda'?'5.3.2':'5.4','emit_target',cpu?'Link native CPU code':o.target==='cuda'?'CUDA CompilationDevice prepares the cubin':'Link AMD device ELF / hsaco',
+          cpu?'The host object is linked into loadable native code. The JIT archive flow can also use its MC linking path.':o.target==='cuda'?'NVPTXBackend verifies an sm_ target and creates CUDA CompilationDevice for that same architecture. compileFunction converts PTX into cubin bytes through the configured compiler API.':'AMDGPU target object bytes are linked into a loadable ELF device code object. The backend adds --no-undefined; ROCm bitcode requirements depend on the selected code and configuration.',
+          {targetCode:true,hostCode:cpu,code:true,representation:cpu?'host .o → loadable native code':o.target==='cuda'?'PTX → same-SM cubin bytes':'AMDGPU .o → linked ELF / hsaco',sourceNeedle:cpu?'ctx.linkObject':o.target==='cuda'?'compileFunction':'appendLinkArgs'},[cpu?'host_object':o.target==='cuda'?'nvptx_object':'amdgpu_backend','backend_select']);
+        f('6.2','host_device','Retain the host code and device image in their own roles',
+          cpu?'The Python process and this native operation use CPU resources. The GPU image rack stays empty for the CPU route.':'The compiled host routine retains the selected GPU image and launch logic. Python, MAX runtime and driver calls stay in the host process; the device image contains selected native kernels.',
+          {hostCode:true,hostDispatch:true,representation:cpu?'host CPU process + native routine':'HostBackend control code + selected GPU image',sourceNeedle:'for (auto [target, info]'},['offload_targets','host_object','entry']);
+        f('6.3','runtime_calls','Lower compiled placeholders into runtime calls',
+          'LowerCompiledRoutines converts compiled-load/call placeholders to module-load and execution operations. buildJitPipeline finishes chains and outlines model callables. C1 now describes how to initialize and invoke the compiled routines.',
+          {stage:'runtime',runtimeCalls:true,representation:'C1 · module-load / ExecuteGeneric / outlined callables',sourceNeedle:'void LowerCompiledRoutinesPass::runOnOperation'},['runtime_calls','jit_pipeline']);
+        f('6.4','mef','Prepare CM1: runtime plan and compiled resources',
+          'The compiled artifact combines prepared runtime-call resources with compiled code. The example receives a CompiledModel; it does not export a .mef disk file. G1, C1, KIR1, LLVM1 and CM1 keep distinct identities.',
+          {mef:true,representation:'CM1 · prepared MEF / compiled artifact bytes'},['artifact','serialize','entry']);
+        f('6.5','init','Initialize executable M1 from CM1',
+          'session.init(compiled) loads/resolves runtime modules and callable handles using S1. These tensor-input examples do not require a model-weight registry. M1 becomes executable only after this initialization.',
+          {initialized:true,representation:'CM1 + S1 → loaded modules / callable handles → M1',sourceRef:'entry',sourceNeedle:'session.init'},['entry','init_all','runtime_calls']);
+        f('6.6','execute','Supply numerical Buffers and execute M1',
+          cpu?'The application supplies CPU Buffers to model.execute. Native runtime dependencies coordinate the operation using resident host code.':'The application supplies accelerator Buffers to model.execute. Host routines submit resident device kernels with those Buffer references; native runtime dependencies coordinate the work.',
+          {inputs:true,job:true,representation:cpu?'M1.execute(CPU Buffer inputs)':'host launch(device kernel handle, device Buffer inputs)',sourceNeedle:'model.execute'},['entry','execute','native_execute','driver_execute']);
+        f('6.7','result_ready','Resolve O1 readiness and the source-specific read',
+          id==='attention'?'Result Buffer readiness is coordinated by the runtime. This attention source prints output Buffers; it has no explicit CPU copy/parity assertion.':cpu?'The result already has CPU placement. The source reads its result through the explicit result/NumPy path; the compiler did not compute input values during preparation.':'The runtime coordinates the result Buffer; the example explicitly copies it to CPU before reading NumPy values. Returning a handle and copying numerical storage are different events.',
+          {ready:true,job:false,hostRead:id!=='attention',representation:id==='attention'?'O1 · ready Buffer → print(output)':'O1 · ready Buffer → explicit CPU read',sourceRef:'driver_results'},['driver_results','ready_counts','entry']);
+        f('7.1','evidence','Keep each tool boundary and evidence visible',
+          'Bazel builds the dependency graph; mojo precompile prepares source packages; MAX/Mojo APIs run native compiler pipelines; LLVM libraries and target/link hooks prepare code. The source tests specify optional diagnostic dumps. This browser scene illustrates the route without claiming a completed Bazel or GPU run.',
+          {stage:'evidence',evidenceReady:true,representation:'SOURCE: pinned code / optional dumps · browser teaching model',sourceNeedle:'buildStage'},['gc_pipeline','package_builder','llvm_code_gen','cross_target_example','graph_stage_dumps']);
+      } else if(this.kind==='commands') {
+        const target=`//max/examples/custom_ops:${this.example.task}`;
+        state={...state,graph:true,verified:true,registered:true,task:this.example.task,commandTarget:target,built:false,testCommandSelected:false,pixiInstalled:false,pixiRun:false};
+        add('prerequisites','Start from the repository root','The Bazel commands run in modular/, the checkout directory that contains bazelw. Bazel uses the checked-in wrapper; Pixi is a separate direct-script route.',{command:'# From the modular/ repository root\n# ./bazelw bootstraps its pinned Bazelisk when needed',route:'Choose Bazel or Pixi'},['bazel_wrapper']);
+        add('bazel_build','Build this example binary',`Build the exact Python binary target: ${target}.`,{command:`# From the modular/ repository root\n./bazelw build ${target}`,route:'Bazel',built:true},['bazel_wrapper','bazel_binary']);
+        add('bazel_test','Run the generated example test',`This is the test rule generated for ${target}. It runs the binary and fails on a non-zero exit.`,{command:`# From the modular/ repository root\n./bazelw test ${target}.example-test`,route:'Bazel test',testCommandSelected:true},['bazel_test_macro','bazel_binary']);
+        add('pixi_setup','Install the Pixi environment once','Pixi is an alternative route for running the Python script directly. Run this from max/examples/custom_ops/; pixi install reads the environment definition and lockfile.',{command:'cd max/examples/custom_ops\npixi install  # first setup only',route:'Pixi setup',pixiInstalled:true},['pixi_dependencies','pixi_task']);
+        add('pixi_run','Run the exact Python example task',`The task ${this.example.task} maps to python ${this.example.filename}.`,{command:`cd max/examples/custom_ops\npixi run ${this.example.task}`,route:'Pixi run',pixiRun:true},['pixi_task','pixi_run_docs','entry']);
       } else {
         state={...state,graph:true,verified:true,registered:true,code:true,mef:true,initialized:true};
         add('resident','Begin with the compiled model M1',`This independent scene starts after initialization. ${this.example.tiny}. Values below are a reduced numerical illustration.`,{},['entry']);

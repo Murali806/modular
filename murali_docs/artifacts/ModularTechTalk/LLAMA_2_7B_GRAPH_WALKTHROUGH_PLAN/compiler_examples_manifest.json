@@ -11,6 +11,7 @@
         "short": "Add one to a tensor",
         "filename": "addition.py",
         "kernel": "add_one.mojo",
+        "task": "addition",
         "page": "max_example_01_add_one_compilation_and_execution.html",
         "expression": "Y = X + 1",
         "subtitle": "One custom op connects Python, a registered Mojo body and native execution.",
@@ -663,6 +664,186 @@
           "alias": "MOJO",
           "sha256": "dabd4d30f44599be01c1cfdda5cd67a8a1d01380d7ddfc0f3dcbfbd5b70e114a"
         },
+        "bazel_binary": {
+          "id": "bazel_binary",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "start": 15,
+          "end": 16,
+          "line": 15,
+          "label": "Bazel example binary target",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "695a0cee9af269b6b52de16074dd61e70063378bbdb2d25b1bcdf94670058b5a"
+        },
+        "bazel_test_macro": {
+          "id": "bazel_test_macro",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "start": 42,
+          "end": 50,
+          "line": 42,
+          "label": "Generated .example-test rule",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "6bdaba937282eae39b2813102bc14256e533e919e698df7f3a37337e2dd4a75b"
+        },
+        "pixi_task": {
+          "id": "pixi_task",
+          "file": "max/examples/custom_ops/pixi.toml",
+          "start": 10,
+          "end": 10,
+          "line": 10,
+          "label": "Pixi task mapped to the Python script",
+          "symbol": "",
+          "language": "text",
+          "alias": "PIXI",
+          "sha256": "9ee97da72c48e459ed2fb3e4ca7bd18c82017ee5a76083f56a5821b86ced8ee2"
+        },
+        "pixi_dependencies": {
+          "id": "pixi_dependencies",
+          "file": "max/examples/custom_ops/pixi.toml",
+          "start": 32,
+          "end": 34,
+          "line": 32,
+          "label": "Pixi channels and runtime dependencies",
+          "symbol": "",
+          "language": "text",
+          "alias": "PIXI",
+          "sha256": "7b326e79784b35131b635134debfed56e4666c661f1d68c2b48998bd2fe661af"
+        },
+        "pixi_run_docs": {
+          "id": "pixi_run_docs",
+          "file": "max/examples/custom_ops/README.md",
+          "start": 55,
+          "end": 72,
+          "line": 55,
+          "label": "Documented Pixi setup and run path",
+          "symbol": "",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "003126356262292858616fcf1277d5e133355d0fff31318f759c0ac96543c5d3"
+        },
+        "bazel_wrapper": {
+          "id": "bazel_wrapper",
+          "file": "bazelw",
+          "start": 1,
+          "end": 34,
+          "line": 1,
+          "label": "Repository Bazel bootstrap wrapper",
+          "symbol": "",
+          "language": "text",
+          "alias": "SH",
+          "sha256": "dd6c6a40fcba72bfd75317de9bfd40ad2078860b6553f258aa91ce74d01f3e39"
+        },
+        "bazel_macro": {
+          "id": "bazel_macro",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "start": 12,
+          "end": 40,
+          "line": 12,
+          "label": "Custom-op binary: source data, Mojo libraries and Python dependencies",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "eab8c16f891bef488b0399c269ff7b26c03cab207449154fefad2644b5a6da13"
+        },
+        "bazel_kernel_sources": {
+          "id": "bazel_kernel_sources",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "start": 9,
+          "end": 12,
+          "line": 9,
+          "label": "Raw custom-kernel .mojo sources passed as Bazel data",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "2049be93183147834eb164050944a9c97d5a83c5d81469acd5fdd0a40a7b48e1"
+        },
+        "bazel_py_binary": {
+          "id": "bazel_py_binary",
+          "file": "bazel/internal/modular_py_binary.bzl",
+          "start": 53,
+          "end": 100,
+          "line": 53,
+          "label": "Python binary rule stages the Mojo runtime environment",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "e3a053a80e8645f6cc9850189edf3a8274c52a8059aad6d44b8a0fd56a8b2b49"
+        },
+        "mojo_library_rule": {
+          "id": "mojo_library_rule",
+          "file": "bazel/internal/mojo_library.bzl",
+          "start": 35,
+          "end": 58,
+          "line": 35,
+          "label": "Bazel Mojo library precompiles source into a .mojoc package",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "992c48072743a9c33c0bed78306ac3097c9f688707da8d33daf0088d0608b171"
+        },
+        "mojo_runtime_toolchain": {
+          "id": "mojo_runtime_toolchain",
+          "file": "bazel/internal/mojo_test_environment.bzl",
+          "start": 78,
+          "end": 120,
+          "line": 78,
+          "label": "Mojo toolchain and native runtime files collected for execution",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "28f577be50794b9c099cbf719a97829fa15e4bc426b7887ed2ed08bca41df201"
+        },
+        "mojo_runtime_exports": {
+          "id": "mojo_runtime_exports",
+          "file": "bazel/internal/mojo_test_environment.bzl",
+          "start": 178,
+          "end": 198,
+          "line": 178,
+          "label": "Mojo compiler, LLD and C++ linker settings exposed to the process",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "74938527438b07b3278ce7e9bca12e72dbd08d51c2ebd8c3f3ddfadfbf0f1463"
+        },
+        "target_info": {
+          "id": "target_info",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 213,
+          "end": 275,
+          "line": 213,
+          "label": "Per-target triple, architecture and backend lookup",
+          "symbol": "",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "017354521b5c2bdbd3b0e5dcac4b76244d05a6be0f2fa4a1ac4d5a8d69388544"
+        },
+        "offload_targets": {
+          "id": "offload_targets",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 516,
+          "end": 568,
+          "line": 516,
+          "label": "Compile each offload for its selected target triple",
+          "symbol": "",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "9d44d39dc0aa049b48a8faf523a10aa96919241fce3f4a1c66ad6ae6635e1189"
+        },
+        "backend_registry": {
+          "id": "backend_registry",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp",
+          "start": 114,
+          "end": 138,
+          "line": 114,
+          "label": "TargetBackendRegistry resolves the LLVM triple",
+          "symbol": "",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "11baf7547042c05cbb83af1f9599fc161d071961c8de38c85c617244407d4bd7"
+        },
         "registration": {
           "id": "registration",
           "file": "max/examples/custom_ops/kernels/add_one.mojo",
@@ -818,12 +999,444 @@
           "language": "cpp",
           "alias": "C++",
           "sha256": "673d90f54ff1b88d968a1ceaeeda87de72fc36dc419db7cf35f224b677547866"
+        },
+        "bazel_build_file": {
+          "id": "bazel_build_file",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "start": 1,
+          "end": 124,
+          "line": 1,
+          "symbol": "",
+          "label": "Complete custom-op BUILD graph",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "fd76f32f14256dca172d5033747849880f0952565fd4a99ad76042c18ef885b4"
+        },
+        "bazel_aliases": {
+          "id": "bazel_aliases",
+          "file": "bazel/mojo_aliases.bzl",
+          "start": 1,
+          "end": 157,
+          "line": 1,
+          "symbol": "",
+          "label": "Mojo source-package alias mappings",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "3b91db6cf9f3ab666c96de0a065269d1cea40f78926230fb269e76ee3d35d747"
+        },
+        "bazel_max_aliases": {
+          "id": "bazel_max_aliases",
+          "file": "max/BUILD.bazel",
+          "start": 1,
+          "end": 73,
+          "line": 1,
+          "symbol": "",
+          "label": "MAX aliases enter the BUILD graph",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "d156781d99ac676ae9361d809d9913efee4fc98e9e03cabf0d274c893effe18e"
+        },
+        "bazel_layout_package": {
+          "id": "bazel_layout_package",
+          "file": "max/kernels/src/layout/BUILD.bazel",
+          "start": 1,
+          "end": 23,
+          "line": 1,
+          "symbol": "",
+          "label": "Layout source package",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "3f28eac4ed03815dfac672c142db383bcfaf836086a9b849fddb7898b8f363ad"
+        },
+        "bazel_extensibility_package": {
+          "id": "bazel_extensibility_package",
+          "file": "max/kernels/src/graph_compiler/extensibility/BUILD.bazel",
+          "start": 1,
+          "end": 20,
+          "line": 1,
+          "symbol": "",
+          "label": "Extensibility source package",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "451467590d1d1c7e760508d1a4c57c5fd2d34b3106e3b77d1593b32fcff589b1"
+        },
+        "bazel_std_package": {
+          "id": "bazel_std_package",
+          "file": "Mojo/stdlib/std/BUILD.bazel",
+          "start": 1,
+          "end": 58,
+          "line": 1,
+          "symbol": "",
+          "label": "Mojo standard-library source package",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "be26bccf96d118b84bde5746d49329bfa76a22e93037a8988fb2094300cf10e2"
+        },
+        "bazel_mojo_toolchain": {
+          "id": "bazel_mojo_toolchain",
+          "file": "bazel/internal/BUILD.bazel",
+          "start": 185,
+          "end": 203,
+          "line": 185,
+          "symbol": "",
+          "label": "Source-built Mojo compiler and LLVM LLD toolchain",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "dadac08255de7379f906e212de0c8db7500045796be416b33475615c6f26ff94"
+        },
+        "bazel_binary_test": {
+          "id": "bazel_binary_test",
+          "file": "bazel/internal/binary_test.bzl",
+          "start": 1,
+          "end": 52,
+          "line": 1,
+          "symbol": "",
+          "label": "Example test executable and runfiles",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "eeae2173c6218649b31fda594719b4ccb7d0578573a3527e073c612140cc86e8"
+        },
+        "bazel_run_test": {
+          "id": "bazel_run_test",
+          "file": "bazel/internal/modular_run_binary_test.bzl",
+          "start": 1,
+          "end": 45,
+          "line": 1,
+          "symbol": "",
+          "label": "Example test environment macro",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "151c7e7e76fceb0d39822aa64dab0de7ee98e95e687ada4725b3cc492ab8673b"
+        },
+        "package_builder": {
+          "id": "package_builder",
+          "file": "Mojo/python/mojo/paths.py",
+          "start": 141,
+          "end": 191,
+          "line": 141,
+          "symbol": "_build_mojo_source_package",
+          "label": "Actual mojo precompile command and atomic package publication",
+          "language": "python",
+          "alias": "PY",
+          "sha256": "53f44a43f59bbe55f87f6579ea26538c4d36a5f6caa7075a1b3618859b059d6a"
+        },
+        "kernel_package_root": {
+          "id": "kernel_package_root",
+          "file": "max/examples/custom_ops/kernels/__init__.mojo",
+          "start": 1,
+          "end": 12,
+          "line": 1,
+          "symbol": "",
+          "label": "Custom kernel package root",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "8f74f8d22bbf966cbebda3ff4d32bfd82242abc372fe3416f899a99817774307"
+        },
+        "reference_addition": {
+          "id": "reference_addition",
+          "file": "max/examples/custom_ops/addition.py",
+          "start": 1,
+          "end": 88,
+          "line": 1,
+          "symbol": "",
+          "label": "Add-one Python example used in the QnA",
+          "language": "python",
+          "alias": "PY",
+          "sha256": "b6b5cac6c78273563cdbf4e837953ffe2dd9c6527481717f521d46a7e5656042"
+        },
+        "reference_add_one": {
+          "id": "reference_add_one",
+          "file": "max/examples/custom_ops/kernels/add_one.mojo",
+          "start": 1,
+          "end": 70,
+          "line": 1,
+          "symbol": "",
+          "label": "Original AddOne and AddOneElementwise definitions",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "dabd4d30f44599be01c1cfdda5cd67a8a1d01380d7ddfc0f3dcbfbd5b70e114a"
+        },
+        "mo_dialect": {
+          "id": "mo_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MODialect/MODialect.td",
+          "start": 1,
+          "end": 53,
+          "line": 1,
+          "symbol": "",
+          "label": "MO dialect definition",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "9d259cd4b15baa4e40c9c1000537fb2ff8cb98d7bbb22d647ce329f23d9cba92"
+        },
+        "map_dialect": {
+          "id": "map_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPDialect.td",
+          "start": 1,
+          "end": 52,
+          "line": 1,
+          "symbol": "",
+          "label": "MAP dialect and access-operation families",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "ce47854394679c122f5a944f4b1173fc5abb7a300dd2a26ba9200c31eee4bfbf"
+        },
+        "mogg_dialect": {
+          "id": "mogg_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MOGGDialect/MOGGDialect.td",
+          "start": 1,
+          "end": 49,
+          "line": 1,
+          "symbol": "",
+          "label": "MOGG dialect definition",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "41622517860c1697bef77f2e3bbe3aec66003d021a7d12168ecbafec8f5712f3"
+        },
+        "mgp_dialect": {
+          "id": "mgp_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MGPDialect/Dialect/MGPDialect.td",
+          "start": 1,
+          "end": 82,
+          "line": 1,
+          "symbol": "",
+          "label": "MGP model, context, buffers and state slots",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "868400ca84431f209943e898821139230f8c3c571be9b6656644623c0de0723e"
+        },
+        "graph_compiler_design": {
+          "id": "graph_compiler_design",
+          "file": "GraphCompiler/docs/GraphCompiler.md",
+          "start": 1,
+          "end": 239,
+          "line": 1,
+          "symbol": "",
+          "label": "Dialect names and current MAP fusion design",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "c721101471915757ef096f677ff19ebe854e5ba5a542fe78efc0953745191c20"
+        },
+        "mo_to_map": {
+          "id": "mo_to_map",
+          "file": "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp",
+          "start": 764,
+          "end": 791,
+          "line": 764,
+          "symbol": "struct MOToMAPPass",
+          "label": "MOToMAPPass walks and lowers graph operations",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "dbf24cc0ff0651aa6193a3191095d50f2538e5eacda71f3fa48592d9cc1e1d95"
+        },
+        "map_to_mogg": {
+          "id": "map_to_mogg",
+          "file": "GraphCompiler/lib/Conversion/MAPToMOGG/MAPToMOGG.cpp",
+          "start": 53,
+          "end": 83,
+          "line": 53,
+          "symbol": "struct MAPToMOGGPass",
+          "label": "MAPToMOGGPass uses MojoRegistry and MAPToMOGGState",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "d4a6057b5927d43339669a606d83ec8d1e967e83b462cc5591d6addc1588dc20"
+        },
+        "mogg_to_mgp": {
+          "id": "mogg_to_mgp",
+          "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
+          "start": 2406,
+          "end": 2470,
+          "line": 2406,
+          "symbol": "void MOGGToMGPPass::runOnOperation()",
+          "label": "MOGGToMGPPass and dependency-ordered MOGraphLowering",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "f8a959aeea9213672f6e29404c7a4045d0d1787d7bb2a39f3e67bd6b15364569"
+        },
+        "device_finalization": {
+          "id": "device_finalization",
+          "file": "GraphCompiler/lib/MGPDialect/Transforms/FinalizeDeviceGraphsPass.cpp",
+          "start": 375,
+          "end": 389,
+          "line": 375,
+          "symbol": "class FinalizeDeviceGraphsPass",
+          "label": "Device-graph finalization guard and collective audit",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "11f052f02b9abdc9209082750d5dc9b0b72f22e35ce95698b3d1056b10ff2e49"
+        },
+        "emit_mojo": {
+          "id": "emit_mojo",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/EmitMojo.cpp",
+          "start": 147,
+          "end": 190,
+          "line": 147,
+          "symbol": "",
+          "label": "EmitMojo imports packages and generates routine source",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "95ca5c5adce7ef0873efb7d8112592d61cf53f92fd9103e6cab8ab8ee5cf7b97"
+        },
+        "jit_entry": {
+          "id": "jit_entry",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 529,
+          "end": 609,
+          "line": 529,
+          "symbol": "compileMojoToBinary(ModuleOp module,",
+          "label": "MAX kernel JIT entry: parse, LIT lowering, compiler objects and cache routes",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "ab11d1606a9106a8c7097dd3869470d648f3836ee80f90b5819b3a90b6a2f942"
+        },
+        "kgen_elaboration": {
+          "id": "kgen_elaboration",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 1140,
+          "end": 1175,
+          "line": 1140,
+          "symbol": "ErrorOrSuccess KGENCompiler::runElaborationPipeline(",
+          "label": "KGENCompiler runs the elaboration pass manager",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "a293e774bb41c62580816dabdc9c19c67d9b16718136c61332c88e591e539bac"
+        },
+        "kgen_elaborate_build": {
+          "id": "kgen_elaborate_build",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 967,
+          "end": 973,
+          "line": 967,
+          "symbol": "void KGEN::populateElaborateModulePasses(",
+          "label": "Elaboration and post-elaboration pipeline builders",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "24e894af05eaaebf94fb508a3da9a0e6c2a9a9059877064cd1b88d396b09511c"
+        },
+        "kgen_post_elaboration": {
+          "id": "kgen_post_elaboration",
+          "file": "Mojo/lib/Compiler/Pipeline/Pipeline.cpp",
+          "start": 154,
+          "end": 173,
+          "line": 154,
+          "symbol": "void KGEN::buildPostElaborationPipeline(",
+          "label": "Concrete-IR verification, materialization and optimization",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "d985fbe450b118b621cbd3ee1b4e9d2b092ff9dbbf74a4b187109e54b178b6bb"
+        },
+        "kgen_llvm_passes": {
+          "id": "kgen_llvm_passes",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/KGENToLLVMPipeline.cpp",
+          "start": 26,
+          "end": 57,
+          "line": 26,
+          "symbol": "void KGEN::buildLowerToLLVMPipeline(",
+          "label": "Exact KGEN / POP / control-flow to LLVM-dialect passes",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "0748812e49f2573e52ce8e89d1ed50d7628f7dd8087f0a97c4cc46ff32065ae4"
+        },
+        "object_lower_to_llvm": {
+          "id": "object_lower_to_llvm",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp",
+          "start": 816,
+          "end": 856,
+          "line": 816,
+          "symbol": "ObjectCompiler::lowerAllFuncsToLLVM(llvm::LLVMContext &ctx, ModuleOp module)",
+          "label": "MLIR lowering, optional dumps and LLVM-module translation",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "c17e6b391ba1932779995eec879aa7b1f15e2b47310ab610d79c9fb54d973b67"
+        },
+        "backend_registry_declaration": {
+          "id": "backend_registry_declaration",
+          "file": "Mojo/include/Mojo/Compiler/Target/TargetBackend.h",
+          "start": 339,
+          "end": 357,
+          "line": 339,
+          "symbol": "class TargetBackendRegistry {",
+          "label": "Owned backend vector and static registration helper",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "95f8598df433f60b4c2bcc4895dbb0ad46c03d0cbf7cec719e8bf9319f29b538"
+        },
+        "llvm_target_machine": {
+          "id": "llvm_target_machine",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp",
+          "start": 63,
+          "end": 92,
+          "line": 63,
+          "symbol": "defaultCreateTargetMachine(",
+          "label": "LLVM TargetRegistry and triple / CPU / features / ABI",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "875d32ab217be82227e34c20c511234eff221e570b4d9878a874de5fb9058432"
+        },
+        "llvm_code_gen": {
+          "id": "llvm_code_gen",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp",
+          "start": 277,
+          "end": 356,
+          "line": 277,
+          "symbol": "runLlcPasses(llvm::Module &module, CompilationOptions &options,",
+          "label": "In-process LLVM machine-code pass manager",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "4b391532ea134e9c5bcc93d5dd09c07da9d43aae319ece39824c13a889f83137"
+        },
+        "nvptx_backend": {
+          "id": "nvptx_backend",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/max_license/NVPTX/NVPTXBackend.cpp",
+          "start": 1,
+          "end": 218,
+          "line": 1,
+          "symbol": "",
+          "label": "NVIDIA backend registration, PTX and CUDA compilation",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "a71c5c8f5a4f03a35229466a2ec586418f617c220405a02ea11afe7b86da3bc9"
+        },
+        "host_backend": {
+          "id": "host_backend",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.h",
+          "start": 1,
+          "end": 53,
+          "line": 1,
+          "symbol": "",
+          "label": "Host backend interface and target resolution",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "dd830c7131a748df6024815044f376e34729cfa377a2a2cb1d58064e88b62be1"
+        },
+        "cross_target_example": {
+          "id": "cross_target_example",
+          "file": "GraphCompiler/test/mo-opt/cross-compile-gpu-arch.mlir",
+          "start": 1,
+          "end": 23,
+          "line": 1,
+          "symbol": "",
+          "label": "Source test: NVIDIA sm_90a and AMD gfx942 cross-codegen",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "cd7f362a32706dd84649d77623c6d58ceb6ab76a103491266f97f0c11c54494d"
+        },
+        "graph_stage_dumps": {
+          "id": "graph_stage_dumps",
+          "file": "GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir",
+          "start": 1,
+          "end": 33,
+          "line": 1,
+          "symbol": "",
+          "label": "Source test for graph-stage diagnostic dumps",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "c575db9f2bd7a8651818bb7095f0edf37e19f044cb13625148815dc9e4843ee7"
         }
       },
       "lessons": [
         {
           "id": "journey",
-          "number": "01",
+          "number": "02",
           "title": "Follow one operation all the way through",
           "detail": "Select an operation or its loads/stores. Follow its source ancestry, changing representations, cache route, compiled code and two calls to the retained model.",
           "evidence": "SOURCE lifecycle \u00b7 schematic transformations / calls",
@@ -836,8 +1449,94 @@
           "ascii": "Python builder + Mojo package \u2192 verified G1\nG1 retained \u2192 compiler clone C1 \u2192 artifact lookup\nmiss: MO \u2192 MAP \u2192 MOGG \u2192 MGP \u2192 kernel lookup\nkernel miss: specialize Mojo \u2192 LLVM \u2192 target code\ncompiled routines \u2192 runtime callables \u2192 CM1 / MEF bytes\nartifact hit: reuse CM1; kernel hit: reuse code, prepare graph\nS1.init(CM1) \u2192 M1 \u2192 execute(B1) \u2192 O1 ready\nSame S1 / M1 / code \u2192 execute(B2) \u2192 O2 ready"
         },
         {
+          "id": "toolchain",
+          "number": "01",
+          "title": "From Bazel's build graph to a selected device backend",
+          "detail": "Follow the build/run boundary, each MAX dialect conversion, concrete Mojo specialization, target selection and initialized execution. Text retains the complete previous answers 1\u20137 and expands their numbered details; each animation step links to its explanation.",
+          "ascii": "1 \u00b7 ./bazelw build //max/examples/custom_ops:addition\n    Python launcher + runfiles; kernels/*.mojo is data\n    Mojo library dependencies \u2192 separate .mojoc packages\n2 \u00b7 ./bazelw run //max/examples/custom_ops:addition\n    Graph(custom_extensions=kernels/) \u2192 mojo precompile subprocess\n    private staging .mojoc \u2192 atomic publication \u2192 package P1\n    Python entry point stays separate; G1 records shape/dtype/device\n3 \u00b7 InferenceSession.compile(G1); caller retains G1\n    C1 / MO: Modular Operations \u00b7 typed tensor graph\n      MOToMAPPass + MojoRegistry \u2192 access/kernel structure\n    C1 / MAP: Modular Access Primitives \u00b7 load/compute/store + fusion\n      MAPToMOGGPass + MAPToMOGGState \u2192 generator/routine calls\n    C1 / MOGG: Modular Operation Generator Graph\n      MOGGToMGPPass + MOGraphLowering \u2192 init/execute resources\n    C1 / MGP: Modular Glue Primitives \u00b7 buffers/dependencies/state\n    Device-graph finalization: audit only when getIsDeviceGraph()\n4 \u00b7 EmitMojo \u2192 separate KIR1; C1 retains the MGP plan\n    kernel JIT miss \u2192 KGENCompiler.runElaborationPipeline\n    generators + target/dtype/parameters \u2192 concrete KGEN / POP\n    ObjectCompiler + buildLowerToLLVMPipeline \u2192 LLVM dialect (MLIR)\n    mlir::translateModuleToLLVMIR \u2192 LLVM1 / llvm::Module\n5 \u00b7 TargetInfo triple/arch/features \u2192 TargetBackendRegistry lookup\n    LLVM TargetRegistry \u2192 LLVM TargetMachine\n    CPU: HostBackend \u2192 host object \u2192 linked native code\n    NVIDIA: nvptx64-nvidia-cuda / sm_90a \u2192 PTX\n      CUDA CompilationDevice.compileFunction \u2192 same-SM cubin\n    AMD: amdgcn-amd-amdhsa / gfx942 + required device bitcode\n      AMDGPU object \u2192 device ELF link \u2192 hsaco\n6 \u00b7 Host Python/MAX/driver stays on CPU; device kernels have their own target\n    LowerCompiledRoutines \u2192 ModuleLoad / ExecuteGeneric\n    prepared CM1 / MEF bytes \u2192 session.init \u2192 executable M1\n    M1 + numerical Buffers \u2192 native execution \u2192 result readiness\n7 \u00b7 Native MLIR/LLVM APIs run compiler passes in the process\n    No standalone mlir-opt command is part of these example targets\n    IR/dump names are teaching views; GPU architectures are source-test examples",
+          "refs": [
+            "bazel_wrapper",
+            "bazel_binary",
+            "bazel_macro",
+            "bazel_kernel_sources",
+            "bazel_py_binary",
+            "mojo_library_rule",
+            "mojo_runtime_toolchain",
+            "mojo_runtime_exports",
+            "package_load",
+            "entry",
+            "compile_async",
+            "gc_pipeline",
+            "mo_pipeline",
+            "map_pipeline",
+            "mogg_pipeline",
+            "mgp_pipeline",
+            "mojo_semantics",
+            "mojo_elaboration",
+            "mojo_llvm",
+            "llvm_translation",
+            "target_info",
+            "offload_targets",
+            "backend_registry",
+            "backend_select",
+            "host_object",
+            "nvptx_object",
+            "amdgpu_backend",
+            "bazel_build_file",
+            "bazel_aliases",
+            "bazel_layout_package",
+            "bazel_extensibility_package",
+            "bazel_std_package",
+            "bazel_mojo_toolchain",
+            "bazel_run_test",
+            "bazel_binary_test",
+            "package_builder",
+            "kernel_package_root",
+            "mojo_package",
+            "registration",
+            "custom_api",
+            "graph_init",
+            "graph_output",
+            "frontend",
+            "mo_dialect",
+            "graph_compiler_design",
+            "mo_to_map",
+            "map_dialect",
+            "map_to_mogg",
+            "mogg_dialect",
+            "mogg_to_mgp",
+            "mgp_dialect",
+            "device_finalization",
+            "emit_mojo",
+            "jit_entry",
+            "kernel_misses",
+            "kernel_hits",
+            "cross_target_example",
+            "backend_registry_declaration",
+            "llvm_target_machine",
+            "kgen_elaboration",
+            "kgen_elaborate_build",
+            "kgen_post_elaboration",
+            "kgen_llvm_passes",
+            "object_lower_to_llvm",
+            "llvm_code_gen",
+            "runtime_calls",
+            "jit_pipeline",
+            "artifact",
+            "serialize",
+            "init_all",
+            "execute",
+            "native_execute",
+            "driver_execute",
+            "driver_results",
+            "ready_counts",
+            "graph_stage_dumps"
+          ],
+          "evidence": "SOURCE \u00b7 Bazel rules / MAX and Mojo compiler / target backends"
+        },
+        {
           "id": "build",
-          "number": "02",
+          "number": "03",
           "title": "Record this example's graph",
           "detail": "Follow the unchanged Python source, typed graph inputs and its Mojo registration.",
           "ascii": "Python example + Mojo package \u2192 registered implementation\nGraph imports custom_extensions before invoking builder\nTensorType + ops.custom(name, out_types) \u2192 Graph.output\nVerified G1; numerical execution has not happened",
@@ -849,9 +1548,9 @@
         },
         {
           "id": "compile",
-          "number": "03",
+          "number": "04",
           "title": "Compile it into an executable model",
-          "detail": "This focused view expands the cold route. Use 01 for graph-artifact and compiled-kernel cache comparisons.",
+          "detail": "This focused view expands the cold route. Use the operation journey in 02 for graph-artifact and compiled-kernel cache comparisons.",
           "ascii": "S1.compile(G1) \u2192 clone C1 \u2192 MO / MAP / MOGG / MGP\ndevice-graph finalization \u2192 emitted/custom Mojo \u2192 kernel JIT\nMojo specialization \u2192 LLVM dialect \u2192 LLVM IR \u2192 target code\nfinal runtime-call lowering \u2192 prepared MEF byte buffer\nload modules / resolve callables \u2192 initialized M1\nThese examples need no weight registry",
           "refs": [
             "entry",
@@ -862,7 +1561,7 @@
         },
         {
           "id": "run",
-          "number": "04",
+          "number": "05",
           "title": "Watch the kernel's values and decisions",
           "detail": "Tiny view: X [2,2]; original: X [5,10] float32. Arithmetic is a small deterministic illustration of the original operation.",
           "ascii": "M1 + Buffer inputs \u2192 native execution \u2192 kernel arithmetic\nRuntime readiness \u2192 result Buffer\nexplicit result.to(CPU()) \u2192 to_numpy() \u2192 print/check\nSame resident code/session, separate per-call data",
@@ -871,8 +1570,29 @@
             "math"
           ],
           "evidence": "SOURCE kernel logic \u00b7 browser math illustration \u00b7 BOUNDARY device timing"
+        },
+        {
+          "id": "commands",
+          "number": "00",
+          "title": "Set up, build and run this exact example",
+          "detail": "The steps show the repository-root Bazel build and generated example-test, plus the separate Pixi setup and task for running the Python script directly.",
+          "ascii": "From the modular/ repository root:\n./bazelw build //max/examples/custom_ops:addition\n./bazelw test //max/examples/custom_ops:addition.example-test\n\nDirect script route (Pixi CLI required; setup once):\ncd max/examples/custom_ops\npixi install\npixi run addition",
+          "refs": [
+            "bazel_wrapper",
+            "bazel_binary",
+            "bazel_test_macro",
+            "pixi_task",
+            "pixi_dependencies",
+            "pixi_run_docs"
+          ],
+          "evidence": "SOURCE \u00b7 repository build rule / locked Pixi environment"
         }
       ],
+      "toolchain": {
+        "point1_sha256": "53028c61d6b720b635c5007224788235403dc240e39ac08072799096acf2c0d7",
+        "sections": 7,
+        "steps": 34
+      },
       "files": [
         {
           "path": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
@@ -891,12 +1611,20 @@
           "sha256": "fb6e4624fdfdb8b382822d1cac558e8bc8cb788a2c6702bb8db8f8addaa9f92d"
         },
         {
+          "path": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "sha256": "41a712e1e96412021118ca232cb6da562717cdda98eb0c9671352994ae0d59bc"
+        },
+        {
           "path": "Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp",
           "sha256": "1e4fc345a6c5466343cb996078fa7fe67c9476e4a2f1336304fc380d73e22668"
         },
         {
           "path": "Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.cpp",
           "sha256": "538a0a3c07879153fbe2976f3ad89681f6eda601bfc2b3893ff54559c4f2d0e3"
+        },
+        {
+          "path": "Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp",
+          "sha256": "dc948081fb5c4086c76257d7bc64d3843e8b4d9fc394f03cdea3f50a9dab4710"
         },
         {
           "path": "Mojo/lib/Compiler/ObjectCompiler/Target/max_license/AMDGPU/AMDGPUBackend.cpp",
@@ -907,12 +1635,44 @@
           "sha256": "a71c5c8f5a4f03a35229466a2ec586418f617c220405a02ea11afe7b86da3bc9"
         },
         {
+          "path": "bazel/internal/modular_py_binary.bzl",
+          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
+        },
+        {
+          "path": "bazel/internal/mojo_library.bzl",
+          "sha256": "775157e64b5bb6e5a6881b3c20d8fb200feaa5987f20c5ca3993e2a2b8386e0d"
+        },
+        {
+          "path": "bazel/internal/mojo_test_environment.bzl",
+          "sha256": "bffc55e31ff09f52b7136fb97c97aee7fb2e4d8ecf98a344fb1a59b1242d137c"
+        },
+        {
+          "path": "bazelw",
+          "sha256": "b08ee9381524e0254669a64c781796cd1c3ca037fd80998ce828dec99c9ab6f6"
+        },
+        {
+          "path": "max/examples/custom_ops/BUILD.bazel",
+          "sha256": "fd76f32f14256dca172d5033747849880f0952565fd4a99ad76042c18ef885b4"
+        },
+        {
+          "path": "max/examples/custom_ops/README.md",
+          "sha256": "e63e0aab0c80daed5df869a2e2c0dd3b3d0e40728262de92dc3a7a7604f87af5"
+        },
+        {
           "path": "max/examples/custom_ops/addition.py",
           "sha256": "b6b5cac6c78273563cdbf4e837953ffe2dd9c6527481717f521d46a7e5656042"
         },
         {
+          "path": "max/examples/custom_ops/custom_op_example.bzl",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        {
           "path": "max/examples/custom_ops/kernels/add_one.mojo",
           "sha256": "dabd4d30f44599be01c1cfdda5cd67a8a1d01380d7ddfc0f3dcbfbd5b70e114a"
+        },
+        {
+          "path": "max/examples/custom_ops/pixi.toml",
+          "sha256": "0b42832b204e1891d59e53ec2c0112103dc4028a042b933d2b6f09093c2d1a5f"
         },
         {
           "path": "max/lib/max_license/API/c/ModelExecution.cpp",
@@ -941,6 +1701,110 @@
         {
           "path": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
           "sha256": "4c743a6615b991738892556c42b90d26bba83bfd85a33b3130d02bfab321527b"
+        },
+        {
+          "path": "bazel/mojo_aliases.bzl",
+          "sha256": "3b91db6cf9f3ab666c96de0a065269d1cea40f78926230fb269e76ee3d35d747"
+        },
+        {
+          "path": "max/BUILD.bazel",
+          "sha256": "d156781d99ac676ae9361d809d9913efee4fc98e9e03cabf0d274c893effe18e"
+        },
+        {
+          "path": "max/kernels/src/layout/BUILD.bazel",
+          "sha256": "3f28eac4ed03815dfac672c142db383bcfaf836086a9b849fddb7898b8f363ad"
+        },
+        {
+          "path": "max/kernels/src/graph_compiler/extensibility/BUILD.bazel",
+          "sha256": "451467590d1d1c7e760508d1a4c57c5fd2d34b3106e3b77d1593b32fcff589b1"
+        },
+        {
+          "path": "Mojo/stdlib/std/BUILD.bazel",
+          "sha256": "be26bccf96d118b84bde5746d49329bfa76a22e93037a8988fb2094300cf10e2"
+        },
+        {
+          "path": "bazel/internal/BUILD.bazel",
+          "sha256": "2529a6f63d035179c07849bded4b7ed74d8c1a2d236995aab1083ee915c61acb"
+        },
+        {
+          "path": "bazel/internal/binary_test.bzl",
+          "sha256": "eeae2173c6218649b31fda594719b4ccb7d0578573a3527e073c612140cc86e8"
+        },
+        {
+          "path": "bazel/internal/modular_run_binary_test.bzl",
+          "sha256": "151c7e7e76fceb0d39822aa64dab0de7ee98e95e687ada4725b3cc492ab8673b"
+        },
+        {
+          "path": "Mojo/python/mojo/paths.py",
+          "sha256": "d6d4e532fe4ede43c69b297b781cfbf46030dd8746d8883a159bc2af8d72f7e7"
+        },
+        {
+          "path": "max/examples/custom_ops/kernels/__init__.mojo",
+          "sha256": "8f74f8d22bbf966cbebda3ff4d32bfd82242abc372fe3416f899a99817774307"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MODialect/MODialect.td",
+          "sha256": "9d259cd4b15baa4e40c9c1000537fb2ff8cb98d7bbb22d647ce329f23d9cba92"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPDialect.td",
+          "sha256": "ce47854394679c122f5a944f4b1173fc5abb7a300dd2a26ba9200c31eee4bfbf"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MOGGDialect/MOGGDialect.td",
+          "sha256": "41622517860c1697bef77f2e3bbe3aec66003d021a7d12168ecbafec8f5712f3"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MGPDialect/Dialect/MGPDialect.td",
+          "sha256": "868400ca84431f209943e898821139230f8c3c571be9b6656644623c0de0723e"
+        },
+        {
+          "path": "GraphCompiler/docs/GraphCompiler.md",
+          "sha256": "c721101471915757ef096f677ff19ebe854e5ba5a542fe78efc0953745191c20"
+        },
+        {
+          "path": "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp",
+          "sha256": "600a4d99e45a854a92d4da99455bae4daaffae87a36ff621918d53aa5f892034"
+        },
+        {
+          "path": "GraphCompiler/lib/Conversion/MAPToMOGG/MAPToMOGG.cpp",
+          "sha256": "164008fc603070ff5b1a3153ec318942fceb2dbf9c048d7bc2a5b3d4a7fb3d66"
+        },
+        {
+          "path": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
+          "sha256": "1e9cf7fbdcf2f0cee8f011dc57a13d029ad932ffb159658be351e5828870fb23"
+        },
+        {
+          "path": "GraphCompiler/lib/MGPDialect/Transforms/FinalizeDeviceGraphsPass.cpp",
+          "sha256": "44fb2800eea3cc95e94a1dd29c7fdb07d2de60fd1bfa60d3eef24f7d5ceb4c06"
+        },
+        {
+          "path": "GraphCompiler/lib/MOGGDialect/Transforms/EmitMojo.cpp",
+          "sha256": "b981b0a673c3a1db199d0b832d2cc7678f75063c8b53c20865a23f15317f5bda"
+        },
+        {
+          "path": "Mojo/lib/Compiler/Pipeline/Pipeline.cpp",
+          "sha256": "0db2d58a580944c31933df0d834e849d23f955173cdba6664052e09f55c55a1c"
+        },
+        {
+          "path": "Mojo/lib/Compiler/ObjectCompiler/KGENToLLVMPipeline.cpp",
+          "sha256": "e9096eb5a85e46907765d9f5b55a55f005a7e9f5826164c5b6f631db59017871"
+        },
+        {
+          "path": "Mojo/include/Mojo/Compiler/Target/TargetBackend.h",
+          "sha256": "181fcfc50046256845edd57a80dd9fd58973e0af31e84872e21ece517d2f23ae"
+        },
+        {
+          "path": "Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.h",
+          "sha256": "dd830c7131a748df6024815044f376e34729cfa377a2a2cb1d58064e88b62be1"
+        },
+        {
+          "path": "GraphCompiler/test/mo-opt/cross-compile-gpu-arch.mlir",
+          "sha256": "cd7f362a32706dd84649d77623c6d58ceb6ab76a103491266f97f0c11c54494d"
+        },
+        {
+          "path": "GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir",
+          "sha256": "c575db9f2bd7a8651818bb7095f0edf37e19f044cb13625148815dc9e4843ee7"
         }
       ]
     },
@@ -954,6 +1818,7 @@
         "short": "Matmul + fusible epilogue",
         "filename": "elementwise_addition.py",
         "kernel": "add_one.mojo",
+        "task": "elementwise_addition",
         "page": "max_example_02_matmul_fusible_epilogue.html",
         "expression": "Y = (A @ B + 1) \u00d7 2",
         "subtitle": "Three mathematical operations expose an eligible fusion opportunity.",
@@ -1600,6 +2465,186 @@
           "alias": "MOJO",
           "sha256": "dabd4d30f44599be01c1cfdda5cd67a8a1d01380d7ddfc0f3dcbfbd5b70e114a"
         },
+        "bazel_binary": {
+          "id": "bazel_binary",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "start": 20,
+          "end": 21,
+          "line": 20,
+          "label": "Bazel example binary target",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "4897d1981b3358796e6ce4e38f198e423a04d6413a2ffaf1ba6ddcb9f02d3bf3"
+        },
+        "bazel_test_macro": {
+          "id": "bazel_test_macro",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "start": 42,
+          "end": 50,
+          "line": 42,
+          "label": "Generated .example-test rule",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "6bdaba937282eae39b2813102bc14256e533e919e698df7f3a37337e2dd4a75b"
+        },
+        "pixi_task": {
+          "id": "pixi_task",
+          "file": "max/examples/custom_ops/pixi.toml",
+          "start": 11,
+          "end": 11,
+          "line": 11,
+          "label": "Pixi task mapped to the Python script",
+          "symbol": "",
+          "language": "text",
+          "alias": "PIXI",
+          "sha256": "e04a0f44bbe129462359b33411950bceb368e5ffe2d9c5995e49f291b9ed9178"
+        },
+        "pixi_dependencies": {
+          "id": "pixi_dependencies",
+          "file": "max/examples/custom_ops/pixi.toml",
+          "start": 32,
+          "end": 34,
+          "line": 32,
+          "label": "Pixi channels and runtime dependencies",
+          "symbol": "",
+          "language": "text",
+          "alias": "PIXI",
+          "sha256": "7b326e79784b35131b635134debfed56e4666c661f1d68c2b48998bd2fe661af"
+        },
+        "pixi_run_docs": {
+          "id": "pixi_run_docs",
+          "file": "max/examples/custom_ops/README.md",
+          "start": 55,
+          "end": 72,
+          "line": 55,
+          "label": "Documented Pixi setup and run path",
+          "symbol": "",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "003126356262292858616fcf1277d5e133355d0fff31318f759c0ac96543c5d3"
+        },
+        "bazel_wrapper": {
+          "id": "bazel_wrapper",
+          "file": "bazelw",
+          "start": 1,
+          "end": 34,
+          "line": 1,
+          "label": "Repository Bazel bootstrap wrapper",
+          "symbol": "",
+          "language": "text",
+          "alias": "SH",
+          "sha256": "dd6c6a40fcba72bfd75317de9bfd40ad2078860b6553f258aa91ce74d01f3e39"
+        },
+        "bazel_macro": {
+          "id": "bazel_macro",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "start": 12,
+          "end": 40,
+          "line": 12,
+          "label": "Custom-op binary: source data, Mojo libraries and Python dependencies",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "eab8c16f891bef488b0399c269ff7b26c03cab207449154fefad2644b5a6da13"
+        },
+        "bazel_kernel_sources": {
+          "id": "bazel_kernel_sources",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "start": 9,
+          "end": 12,
+          "line": 9,
+          "label": "Raw custom-kernel .mojo sources passed as Bazel data",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "2049be93183147834eb164050944a9c97d5a83c5d81469acd5fdd0a40a7b48e1"
+        },
+        "bazel_py_binary": {
+          "id": "bazel_py_binary",
+          "file": "bazel/internal/modular_py_binary.bzl",
+          "start": 53,
+          "end": 100,
+          "line": 53,
+          "label": "Python binary rule stages the Mojo runtime environment",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "e3a053a80e8645f6cc9850189edf3a8274c52a8059aad6d44b8a0fd56a8b2b49"
+        },
+        "mojo_library_rule": {
+          "id": "mojo_library_rule",
+          "file": "bazel/internal/mojo_library.bzl",
+          "start": 35,
+          "end": 58,
+          "line": 35,
+          "label": "Bazel Mojo library precompiles source into a .mojoc package",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "992c48072743a9c33c0bed78306ac3097c9f688707da8d33daf0088d0608b171"
+        },
+        "mojo_runtime_toolchain": {
+          "id": "mojo_runtime_toolchain",
+          "file": "bazel/internal/mojo_test_environment.bzl",
+          "start": 78,
+          "end": 120,
+          "line": 78,
+          "label": "Mojo toolchain and native runtime files collected for execution",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "28f577be50794b9c099cbf719a97829fa15e4bc426b7887ed2ed08bca41df201"
+        },
+        "mojo_runtime_exports": {
+          "id": "mojo_runtime_exports",
+          "file": "bazel/internal/mojo_test_environment.bzl",
+          "start": 178,
+          "end": 198,
+          "line": 178,
+          "label": "Mojo compiler, LLD and C++ linker settings exposed to the process",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "74938527438b07b3278ce7e9bca12e72dbd08d51c2ebd8c3f3ddfadfbf0f1463"
+        },
+        "target_info": {
+          "id": "target_info",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 213,
+          "end": 275,
+          "line": 213,
+          "label": "Per-target triple, architecture and backend lookup",
+          "symbol": "",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "017354521b5c2bdbd3b0e5dcac4b76244d05a6be0f2fa4a1ac4d5a8d69388544"
+        },
+        "offload_targets": {
+          "id": "offload_targets",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 516,
+          "end": 568,
+          "line": 516,
+          "label": "Compile each offload for its selected target triple",
+          "symbol": "",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "9d44d39dc0aa049b48a8faf523a10aa96919241fce3f4a1c66ad6ae6635e1189"
+        },
+        "backend_registry": {
+          "id": "backend_registry",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp",
+          "start": 114,
+          "end": 138,
+          "line": 114,
+          "label": "TargetBackendRegistry resolves the LLVM triple",
+          "symbol": "",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "11baf7547042c05cbb83af1f9599fc161d071961c8de38c85c617244407d4bd7"
+        },
         "registration": {
           "id": "registration",
           "file": "max/examples/custom_ops/kernels/add_one.mojo",
@@ -1743,12 +2788,444 @@
           "language": "cpp",
           "alias": "C++",
           "sha256": "673d90f54ff1b88d968a1ceaeeda87de72fc36dc419db7cf35f224b677547866"
+        },
+        "bazel_build_file": {
+          "id": "bazel_build_file",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "start": 1,
+          "end": 124,
+          "line": 1,
+          "symbol": "",
+          "label": "Complete custom-op BUILD graph",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "fd76f32f14256dca172d5033747849880f0952565fd4a99ad76042c18ef885b4"
+        },
+        "bazel_aliases": {
+          "id": "bazel_aliases",
+          "file": "bazel/mojo_aliases.bzl",
+          "start": 1,
+          "end": 157,
+          "line": 1,
+          "symbol": "",
+          "label": "Mojo source-package alias mappings",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "3b91db6cf9f3ab666c96de0a065269d1cea40f78926230fb269e76ee3d35d747"
+        },
+        "bazel_max_aliases": {
+          "id": "bazel_max_aliases",
+          "file": "max/BUILD.bazel",
+          "start": 1,
+          "end": 73,
+          "line": 1,
+          "symbol": "",
+          "label": "MAX aliases enter the BUILD graph",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "d156781d99ac676ae9361d809d9913efee4fc98e9e03cabf0d274c893effe18e"
+        },
+        "bazel_layout_package": {
+          "id": "bazel_layout_package",
+          "file": "max/kernels/src/layout/BUILD.bazel",
+          "start": 1,
+          "end": 23,
+          "line": 1,
+          "symbol": "",
+          "label": "Layout source package",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "3f28eac4ed03815dfac672c142db383bcfaf836086a9b849fddb7898b8f363ad"
+        },
+        "bazel_extensibility_package": {
+          "id": "bazel_extensibility_package",
+          "file": "max/kernels/src/graph_compiler/extensibility/BUILD.bazel",
+          "start": 1,
+          "end": 20,
+          "line": 1,
+          "symbol": "",
+          "label": "Extensibility source package",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "451467590d1d1c7e760508d1a4c57c5fd2d34b3106e3b77d1593b32fcff589b1"
+        },
+        "bazel_std_package": {
+          "id": "bazel_std_package",
+          "file": "Mojo/stdlib/std/BUILD.bazel",
+          "start": 1,
+          "end": 58,
+          "line": 1,
+          "symbol": "",
+          "label": "Mojo standard-library source package",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "be26bccf96d118b84bde5746d49329bfa76a22e93037a8988fb2094300cf10e2"
+        },
+        "bazel_mojo_toolchain": {
+          "id": "bazel_mojo_toolchain",
+          "file": "bazel/internal/BUILD.bazel",
+          "start": 185,
+          "end": 203,
+          "line": 185,
+          "symbol": "",
+          "label": "Source-built Mojo compiler and LLVM LLD toolchain",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "dadac08255de7379f906e212de0c8db7500045796be416b33475615c6f26ff94"
+        },
+        "bazel_binary_test": {
+          "id": "bazel_binary_test",
+          "file": "bazel/internal/binary_test.bzl",
+          "start": 1,
+          "end": 52,
+          "line": 1,
+          "symbol": "",
+          "label": "Example test executable and runfiles",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "eeae2173c6218649b31fda594719b4ccb7d0578573a3527e073c612140cc86e8"
+        },
+        "bazel_run_test": {
+          "id": "bazel_run_test",
+          "file": "bazel/internal/modular_run_binary_test.bzl",
+          "start": 1,
+          "end": 45,
+          "line": 1,
+          "symbol": "",
+          "label": "Example test environment macro",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "151c7e7e76fceb0d39822aa64dab0de7ee98e95e687ada4725b3cc492ab8673b"
+        },
+        "package_builder": {
+          "id": "package_builder",
+          "file": "Mojo/python/mojo/paths.py",
+          "start": 141,
+          "end": 191,
+          "line": 141,
+          "symbol": "_build_mojo_source_package",
+          "label": "Actual mojo precompile command and atomic package publication",
+          "language": "python",
+          "alias": "PY",
+          "sha256": "53f44a43f59bbe55f87f6579ea26538c4d36a5f6caa7075a1b3618859b059d6a"
+        },
+        "kernel_package_root": {
+          "id": "kernel_package_root",
+          "file": "max/examples/custom_ops/kernels/__init__.mojo",
+          "start": 1,
+          "end": 12,
+          "line": 1,
+          "symbol": "",
+          "label": "Custom kernel package root",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "8f74f8d22bbf966cbebda3ff4d32bfd82242abc372fe3416f899a99817774307"
+        },
+        "reference_addition": {
+          "id": "reference_addition",
+          "file": "max/examples/custom_ops/addition.py",
+          "start": 1,
+          "end": 88,
+          "line": 1,
+          "symbol": "",
+          "label": "Add-one Python example used in the QnA",
+          "language": "python",
+          "alias": "PY",
+          "sha256": "b6b5cac6c78273563cdbf4e837953ffe2dd9c6527481717f521d46a7e5656042"
+        },
+        "reference_add_one": {
+          "id": "reference_add_one",
+          "file": "max/examples/custom_ops/kernels/add_one.mojo",
+          "start": 1,
+          "end": 70,
+          "line": 1,
+          "symbol": "",
+          "label": "Original AddOne and AddOneElementwise definitions",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "dabd4d30f44599be01c1cfdda5cd67a8a1d01380d7ddfc0f3dcbfbd5b70e114a"
+        },
+        "mo_dialect": {
+          "id": "mo_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MODialect/MODialect.td",
+          "start": 1,
+          "end": 53,
+          "line": 1,
+          "symbol": "",
+          "label": "MO dialect definition",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "9d259cd4b15baa4e40c9c1000537fb2ff8cb98d7bbb22d647ce329f23d9cba92"
+        },
+        "map_dialect": {
+          "id": "map_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPDialect.td",
+          "start": 1,
+          "end": 52,
+          "line": 1,
+          "symbol": "",
+          "label": "MAP dialect and access-operation families",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "ce47854394679c122f5a944f4b1173fc5abb7a300dd2a26ba9200c31eee4bfbf"
+        },
+        "mogg_dialect": {
+          "id": "mogg_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MOGGDialect/MOGGDialect.td",
+          "start": 1,
+          "end": 49,
+          "line": 1,
+          "symbol": "",
+          "label": "MOGG dialect definition",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "41622517860c1697bef77f2e3bbe3aec66003d021a7d12168ecbafec8f5712f3"
+        },
+        "mgp_dialect": {
+          "id": "mgp_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MGPDialect/Dialect/MGPDialect.td",
+          "start": 1,
+          "end": 82,
+          "line": 1,
+          "symbol": "",
+          "label": "MGP model, context, buffers and state slots",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "868400ca84431f209943e898821139230f8c3c571be9b6656644623c0de0723e"
+        },
+        "graph_compiler_design": {
+          "id": "graph_compiler_design",
+          "file": "GraphCompiler/docs/GraphCompiler.md",
+          "start": 1,
+          "end": 239,
+          "line": 1,
+          "symbol": "",
+          "label": "Dialect names and current MAP fusion design",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "c721101471915757ef096f677ff19ebe854e5ba5a542fe78efc0953745191c20"
+        },
+        "mo_to_map": {
+          "id": "mo_to_map",
+          "file": "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp",
+          "start": 764,
+          "end": 791,
+          "line": 764,
+          "symbol": "struct MOToMAPPass",
+          "label": "MOToMAPPass walks and lowers graph operations",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "dbf24cc0ff0651aa6193a3191095d50f2538e5eacda71f3fa48592d9cc1e1d95"
+        },
+        "map_to_mogg": {
+          "id": "map_to_mogg",
+          "file": "GraphCompiler/lib/Conversion/MAPToMOGG/MAPToMOGG.cpp",
+          "start": 53,
+          "end": 83,
+          "line": 53,
+          "symbol": "struct MAPToMOGGPass",
+          "label": "MAPToMOGGPass uses MojoRegistry and MAPToMOGGState",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "d4a6057b5927d43339669a606d83ec8d1e967e83b462cc5591d6addc1588dc20"
+        },
+        "mogg_to_mgp": {
+          "id": "mogg_to_mgp",
+          "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
+          "start": 2406,
+          "end": 2470,
+          "line": 2406,
+          "symbol": "void MOGGToMGPPass::runOnOperation()",
+          "label": "MOGGToMGPPass and dependency-ordered MOGraphLowering",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "f8a959aeea9213672f6e29404c7a4045d0d1787d7bb2a39f3e67bd6b15364569"
+        },
+        "device_finalization": {
+          "id": "device_finalization",
+          "file": "GraphCompiler/lib/MGPDialect/Transforms/FinalizeDeviceGraphsPass.cpp",
+          "start": 375,
+          "end": 389,
+          "line": 375,
+          "symbol": "class FinalizeDeviceGraphsPass",
+          "label": "Device-graph finalization guard and collective audit",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "11f052f02b9abdc9209082750d5dc9b0b72f22e35ce95698b3d1056b10ff2e49"
+        },
+        "emit_mojo": {
+          "id": "emit_mojo",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/EmitMojo.cpp",
+          "start": 147,
+          "end": 190,
+          "line": 147,
+          "symbol": "",
+          "label": "EmitMojo imports packages and generates routine source",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "95ca5c5adce7ef0873efb7d8112592d61cf53f92fd9103e6cab8ab8ee5cf7b97"
+        },
+        "jit_entry": {
+          "id": "jit_entry",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 529,
+          "end": 609,
+          "line": 529,
+          "symbol": "compileMojoToBinary(ModuleOp module,",
+          "label": "MAX kernel JIT entry: parse, LIT lowering, compiler objects and cache routes",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "ab11d1606a9106a8c7097dd3869470d648f3836ee80f90b5819b3a90b6a2f942"
+        },
+        "kgen_elaboration": {
+          "id": "kgen_elaboration",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 1140,
+          "end": 1175,
+          "line": 1140,
+          "symbol": "ErrorOrSuccess KGENCompiler::runElaborationPipeline(",
+          "label": "KGENCompiler runs the elaboration pass manager",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "a293e774bb41c62580816dabdc9c19c67d9b16718136c61332c88e591e539bac"
+        },
+        "kgen_elaborate_build": {
+          "id": "kgen_elaborate_build",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 967,
+          "end": 973,
+          "line": 967,
+          "symbol": "void KGEN::populateElaborateModulePasses(",
+          "label": "Elaboration and post-elaboration pipeline builders",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "24e894af05eaaebf94fb508a3da9a0e6c2a9a9059877064cd1b88d396b09511c"
+        },
+        "kgen_post_elaboration": {
+          "id": "kgen_post_elaboration",
+          "file": "Mojo/lib/Compiler/Pipeline/Pipeline.cpp",
+          "start": 154,
+          "end": 173,
+          "line": 154,
+          "symbol": "void KGEN::buildPostElaborationPipeline(",
+          "label": "Concrete-IR verification, materialization and optimization",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "d985fbe450b118b621cbd3ee1b4e9d2b092ff9dbbf74a4b187109e54b178b6bb"
+        },
+        "kgen_llvm_passes": {
+          "id": "kgen_llvm_passes",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/KGENToLLVMPipeline.cpp",
+          "start": 26,
+          "end": 57,
+          "line": 26,
+          "symbol": "void KGEN::buildLowerToLLVMPipeline(",
+          "label": "Exact KGEN / POP / control-flow to LLVM-dialect passes",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "0748812e49f2573e52ce8e89d1ed50d7628f7dd8087f0a97c4cc46ff32065ae4"
+        },
+        "object_lower_to_llvm": {
+          "id": "object_lower_to_llvm",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp",
+          "start": 816,
+          "end": 856,
+          "line": 816,
+          "symbol": "ObjectCompiler::lowerAllFuncsToLLVM(llvm::LLVMContext &ctx, ModuleOp module)",
+          "label": "MLIR lowering, optional dumps and LLVM-module translation",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "c17e6b391ba1932779995eec879aa7b1f15e2b47310ab610d79c9fb54d973b67"
+        },
+        "backend_registry_declaration": {
+          "id": "backend_registry_declaration",
+          "file": "Mojo/include/Mojo/Compiler/Target/TargetBackend.h",
+          "start": 339,
+          "end": 357,
+          "line": 339,
+          "symbol": "class TargetBackendRegistry {",
+          "label": "Owned backend vector and static registration helper",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "95f8598df433f60b4c2bcc4895dbb0ad46c03d0cbf7cec719e8bf9319f29b538"
+        },
+        "llvm_target_machine": {
+          "id": "llvm_target_machine",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp",
+          "start": 63,
+          "end": 92,
+          "line": 63,
+          "symbol": "defaultCreateTargetMachine(",
+          "label": "LLVM TargetRegistry and triple / CPU / features / ABI",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "875d32ab217be82227e34c20c511234eff221e570b4d9878a874de5fb9058432"
+        },
+        "llvm_code_gen": {
+          "id": "llvm_code_gen",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp",
+          "start": 277,
+          "end": 356,
+          "line": 277,
+          "symbol": "runLlcPasses(llvm::Module &module, CompilationOptions &options,",
+          "label": "In-process LLVM machine-code pass manager",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "4b391532ea134e9c5bcc93d5dd09c07da9d43aae319ece39824c13a889f83137"
+        },
+        "nvptx_backend": {
+          "id": "nvptx_backend",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/max_license/NVPTX/NVPTXBackend.cpp",
+          "start": 1,
+          "end": 218,
+          "line": 1,
+          "symbol": "",
+          "label": "NVIDIA backend registration, PTX and CUDA compilation",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "a71c5c8f5a4f03a35229466a2ec586418f617c220405a02ea11afe7b86da3bc9"
+        },
+        "host_backend": {
+          "id": "host_backend",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.h",
+          "start": 1,
+          "end": 53,
+          "line": 1,
+          "symbol": "",
+          "label": "Host backend interface and target resolution",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "dd830c7131a748df6024815044f376e34729cfa377a2a2cb1d58064e88b62be1"
+        },
+        "cross_target_example": {
+          "id": "cross_target_example",
+          "file": "GraphCompiler/test/mo-opt/cross-compile-gpu-arch.mlir",
+          "start": 1,
+          "end": 23,
+          "line": 1,
+          "symbol": "",
+          "label": "Source test: NVIDIA sm_90a and AMD gfx942 cross-codegen",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "cd7f362a32706dd84649d77623c6d58ceb6ab76a103491266f97f0c11c54494d"
+        },
+        "graph_stage_dumps": {
+          "id": "graph_stage_dumps",
+          "file": "GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir",
+          "start": 1,
+          "end": 33,
+          "line": 1,
+          "symbol": "",
+          "label": "Source test for graph-stage diagnostic dumps",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "c575db9f2bd7a8651818bb7095f0edf37e19f044cb13625148815dc9e4843ee7"
         }
       },
       "lessons": [
         {
           "id": "journey",
-          "number": "01",
+          "number": "02",
           "title": "Follow one operation all the way through",
           "detail": "Select an operation or its loads/stores. Follow its source ancestry, changing representations, cache route, compiled code and two calls to the retained model.",
           "evidence": "SOURCE lifecycle \u00b7 schematic transformations / calls",
@@ -1761,8 +3238,94 @@
           "ascii": "Python builder + Mojo package \u2192 verified G1\nG1 retained \u2192 compiler clone C1 \u2192 artifact lookup\nmiss: MO \u2192 MAP \u2192 MOGG \u2192 MGP \u2192 kernel lookup\nkernel miss: specialize Mojo \u2192 LLVM \u2192 target code\ncompiled routines \u2192 runtime callables \u2192 CM1 / MEF bytes\nartifact hit: reuse CM1; kernel hit: reuse code, prepare graph\nS1.init(CM1) \u2192 M1 \u2192 execute(B1) \u2192 O1 ready\nSame S1 / M1 / code \u2192 execute(B2) \u2192 O2 ready"
         },
         {
+          "id": "toolchain",
+          "number": "01",
+          "title": "From Bazel's build graph to a selected device backend",
+          "detail": "Follow the build/run boundary, each MAX dialect conversion, concrete Mojo specialization, target selection and initialized execution. Text retains the complete previous answers 1\u20137 and expands their numbered details; each animation step links to its explanation.",
+          "ascii": "1 \u00b7 ./bazelw build //max/examples/custom_ops:elementwise_addition\n    Python launcher + runfiles; kernels/*.mojo is data\n    Mojo library dependencies \u2192 separate .mojoc packages\n2 \u00b7 ./bazelw run //max/examples/custom_ops:elementwise_addition\n    Graph(custom_extensions=kernels/) \u2192 mojo precompile subprocess\n    private staging .mojoc \u2192 atomic publication \u2192 package P1\n    Python entry point stays separate; G1 records shape/dtype/device\n3 \u00b7 InferenceSession.compile(G1); caller retains G1\n    C1 / MO: Modular Operations \u00b7 typed tensor graph\n      MOToMAPPass + MojoRegistry \u2192 access/kernel structure\n    C1 / MAP: Modular Access Primitives \u00b7 load/compute/store + fusion\n      MAPToMOGGPass + MAPToMOGGState \u2192 generator/routine calls\n    C1 / MOGG: Modular Operation Generator Graph\n      MOGGToMGPPass + MOGraphLowering \u2192 init/execute resources\n    C1 / MGP: Modular Glue Primitives \u00b7 buffers/dependencies/state\n    Device-graph finalization: audit only when getIsDeviceGraph()\n4 \u00b7 EmitMojo \u2192 separate KIR1; C1 retains the MGP plan\n    kernel JIT miss \u2192 KGENCompiler.runElaborationPipeline\n    generators + target/dtype/parameters \u2192 concrete KGEN / POP\n    ObjectCompiler + buildLowerToLLVMPipeline \u2192 LLVM dialect (MLIR)\n    mlir::translateModuleToLLVMIR \u2192 LLVM1 / llvm::Module\n5 \u00b7 TargetInfo triple/arch/features \u2192 TargetBackendRegistry lookup\n    LLVM TargetRegistry \u2192 LLVM TargetMachine\n    CPU: HostBackend \u2192 host object \u2192 linked native code\n    NVIDIA: nvptx64-nvidia-cuda / sm_90a \u2192 PTX\n      CUDA CompilationDevice.compileFunction \u2192 same-SM cubin\n    AMD: amdgcn-amd-amdhsa / gfx942 + required device bitcode\n      AMDGPU object \u2192 device ELF link \u2192 hsaco\n6 \u00b7 Host Python/MAX/driver stays on CPU; device kernels have their own target\n    LowerCompiledRoutines \u2192 ModuleLoad / ExecuteGeneric\n    prepared CM1 / MEF bytes \u2192 session.init \u2192 executable M1\n    M1 + numerical Buffers \u2192 native execution \u2192 result readiness\n7 \u00b7 Native MLIR/LLVM APIs run compiler passes in the process\n    No standalone mlir-opt command is part of these example targets\n    IR/dump names are teaching views; GPU architectures are source-test examples",
+          "refs": [
+            "bazel_wrapper",
+            "bazel_binary",
+            "bazel_macro",
+            "bazel_kernel_sources",
+            "bazel_py_binary",
+            "mojo_library_rule",
+            "mojo_runtime_toolchain",
+            "mojo_runtime_exports",
+            "package_load",
+            "entry",
+            "compile_async",
+            "gc_pipeline",
+            "mo_pipeline",
+            "map_pipeline",
+            "mogg_pipeline",
+            "mgp_pipeline",
+            "mojo_semantics",
+            "mojo_elaboration",
+            "mojo_llvm",
+            "llvm_translation",
+            "target_info",
+            "offload_targets",
+            "backend_registry",
+            "backend_select",
+            "host_object",
+            "nvptx_object",
+            "amdgpu_backend",
+            "bazel_build_file",
+            "bazel_aliases",
+            "bazel_layout_package",
+            "bazel_extensibility_package",
+            "bazel_std_package",
+            "bazel_mojo_toolchain",
+            "bazel_run_test",
+            "bazel_binary_test",
+            "package_builder",
+            "kernel_package_root",
+            "mojo_package",
+            "registration",
+            "custom_api",
+            "graph_init",
+            "graph_output",
+            "frontend",
+            "mo_dialect",
+            "graph_compiler_design",
+            "mo_to_map",
+            "map_dialect",
+            "map_to_mogg",
+            "mogg_dialect",
+            "mogg_to_mgp",
+            "mgp_dialect",
+            "device_finalization",
+            "emit_mojo",
+            "jit_entry",
+            "kernel_misses",
+            "kernel_hits",
+            "cross_target_example",
+            "backend_registry_declaration",
+            "llvm_target_machine",
+            "kgen_elaboration",
+            "kgen_elaborate_build",
+            "kgen_post_elaboration",
+            "kgen_llvm_passes",
+            "object_lower_to_llvm",
+            "llvm_code_gen",
+            "runtime_calls",
+            "jit_pipeline",
+            "artifact",
+            "serialize",
+            "init_all",
+            "execute",
+            "native_execute",
+            "driver_execute",
+            "driver_results",
+            "ready_counts",
+            "graph_stage_dumps"
+          ],
+          "evidence": "SOURCE \u00b7 Bazel rules / MAX and Mojo compiler / target backends"
+        },
+        {
           "id": "build",
-          "number": "02",
+          "number": "03",
           "title": "Record this example's graph",
           "detail": "Follow the unchanged Python source, typed graph inputs and its Mojo registration.",
           "ascii": "Python example + Mojo package \u2192 registered implementation\nGraph imports custom_extensions before invoking builder\nTensorType + ops.custom(name, out_types) \u2192 Graph.output\nVerified G1; numerical execution has not happened",
@@ -1774,9 +3337,9 @@
         },
         {
           "id": "compile",
-          "number": "03",
+          "number": "04",
           "title": "Compile it into an executable model",
-          "detail": "This focused view expands the cold route. Use 01 for graph-artifact and compiled-kernel cache comparisons.",
+          "detail": "This focused view expands the cold route. Use the operation journey in 02 for graph-artifact and compiled-kernel cache comparisons.",
           "ascii": "S1.compile(G1) \u2192 clone C1 \u2192 MO / MAP / MOGG / MGP\ndevice-graph finalization \u2192 emitted/custom Mojo \u2192 kernel JIT\nMojo specialization \u2192 LLVM dialect \u2192 LLVM IR \u2192 target code\nfinal runtime-call lowering \u2192 prepared MEF byte buffer\nload modules / resolve callables \u2192 initialized M1\nThese examples need no weight registry",
           "refs": [
             "entry",
@@ -1787,7 +3350,7 @@
         },
         {
           "id": "run",
-          "number": "04",
+          "number": "05",
           "title": "Watch the kernel's values and decisions",
           "detail": "Tiny view: A/B [2,2]; original: A [5,8], B [8,10]. Arithmetic is a small deterministic illustration of the original operation.",
           "ascii": "M1 + Buffer inputs \u2192 native execution \u2192 kernel arithmetic\nRuntime readiness \u2192 result Buffer\nexplicit result.to(CPU()) \u2192 to_numpy() \u2192 print/check\nSame resident code/session, separate per-call data\nFused illustration: intermediate reads / writes 0 / 0; final writes 4\nSeparate: TMP1 \u2192 TMP2 \u2192 Y; intermediate reads / writes 8 / 8\nBoth produce [10, 10; 22, 18]; intermediate lifetimes then end",
@@ -1796,8 +3359,29 @@
             "math"
           ],
           "evidence": "SOURCE kernel logic \u00b7 browser math illustration \u00b7 BOUNDARY device timing"
+        },
+        {
+          "id": "commands",
+          "number": "00",
+          "title": "Set up, build and run this exact example",
+          "detail": "The steps show the repository-root Bazel build and generated example-test, plus the separate Pixi setup and task for running the Python script directly.",
+          "ascii": "From the modular/ repository root:\n./bazelw build //max/examples/custom_ops:elementwise_addition\n./bazelw test //max/examples/custom_ops:elementwise_addition.example-test\n\nDirect script route (Pixi CLI required; setup once):\ncd max/examples/custom_ops\npixi install\npixi run elementwise_addition",
+          "refs": [
+            "bazel_wrapper",
+            "bazel_binary",
+            "bazel_test_macro",
+            "pixi_task",
+            "pixi_dependencies",
+            "pixi_run_docs"
+          ],
+          "evidence": "SOURCE \u00b7 repository build rule / locked Pixi environment"
         }
       ],
+      "toolchain": {
+        "point1_sha256": "53028c61d6b720b635c5007224788235403dc240e39ac08072799096acf2c0d7",
+        "sections": 7,
+        "steps": 34
+      },
       "files": [
         {
           "path": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
@@ -1816,12 +3400,20 @@
           "sha256": "fb6e4624fdfdb8b382822d1cac558e8bc8cb788a2c6702bb8db8f8addaa9f92d"
         },
         {
+          "path": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "sha256": "41a712e1e96412021118ca232cb6da562717cdda98eb0c9671352994ae0d59bc"
+        },
+        {
           "path": "Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp",
           "sha256": "1e4fc345a6c5466343cb996078fa7fe67c9476e4a2f1336304fc380d73e22668"
         },
         {
           "path": "Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.cpp",
           "sha256": "538a0a3c07879153fbe2976f3ad89681f6eda601bfc2b3893ff54559c4f2d0e3"
+        },
+        {
+          "path": "Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp",
+          "sha256": "dc948081fb5c4086c76257d7bc64d3843e8b4d9fc394f03cdea3f50a9dab4710"
         },
         {
           "path": "Mojo/lib/Compiler/ObjectCompiler/Target/max_license/AMDGPU/AMDGPUBackend.cpp",
@@ -1832,12 +3424,44 @@
           "sha256": "a71c5c8f5a4f03a35229466a2ec586418f617c220405a02ea11afe7b86da3bc9"
         },
         {
+          "path": "bazel/internal/modular_py_binary.bzl",
+          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
+        },
+        {
+          "path": "bazel/internal/mojo_library.bzl",
+          "sha256": "775157e64b5bb6e5a6881b3c20d8fb200feaa5987f20c5ca3993e2a2b8386e0d"
+        },
+        {
+          "path": "bazel/internal/mojo_test_environment.bzl",
+          "sha256": "bffc55e31ff09f52b7136fb97c97aee7fb2e4d8ecf98a344fb1a59b1242d137c"
+        },
+        {
+          "path": "bazelw",
+          "sha256": "b08ee9381524e0254669a64c781796cd1c3ca037fd80998ce828dec99c9ab6f6"
+        },
+        {
+          "path": "max/examples/custom_ops/BUILD.bazel",
+          "sha256": "fd76f32f14256dca172d5033747849880f0952565fd4a99ad76042c18ef885b4"
+        },
+        {
+          "path": "max/examples/custom_ops/README.md",
+          "sha256": "e63e0aab0c80daed5df869a2e2c0dd3b3d0e40728262de92dc3a7a7604f87af5"
+        },
+        {
+          "path": "max/examples/custom_ops/custom_op_example.bzl",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        {
           "path": "max/examples/custom_ops/elementwise_addition.py",
           "sha256": "34d47ec5d1e5d4ba2d1f4e0831de19729f0603be32766930136e75ccb30caf1d"
         },
         {
           "path": "max/examples/custom_ops/kernels/add_one.mojo",
           "sha256": "dabd4d30f44599be01c1cfdda5cd67a8a1d01380d7ddfc0f3dcbfbd5b70e114a"
+        },
+        {
+          "path": "max/examples/custom_ops/pixi.toml",
+          "sha256": "0b42832b204e1891d59e53ec2c0112103dc4028a042b933d2b6f09093c2d1a5f"
         },
         {
           "path": "max/lib/max_license/API/c/ModelExecution.cpp",
@@ -1866,6 +3490,114 @@
         {
           "path": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
           "sha256": "4c743a6615b991738892556c42b90d26bba83bfd85a33b3130d02bfab321527b"
+        },
+        {
+          "path": "bazel/mojo_aliases.bzl",
+          "sha256": "3b91db6cf9f3ab666c96de0a065269d1cea40f78926230fb269e76ee3d35d747"
+        },
+        {
+          "path": "max/BUILD.bazel",
+          "sha256": "d156781d99ac676ae9361d809d9913efee4fc98e9e03cabf0d274c893effe18e"
+        },
+        {
+          "path": "max/kernels/src/layout/BUILD.bazel",
+          "sha256": "3f28eac4ed03815dfac672c142db383bcfaf836086a9b849fddb7898b8f363ad"
+        },
+        {
+          "path": "max/kernels/src/graph_compiler/extensibility/BUILD.bazel",
+          "sha256": "451467590d1d1c7e760508d1a4c57c5fd2d34b3106e3b77d1593b32fcff589b1"
+        },
+        {
+          "path": "Mojo/stdlib/std/BUILD.bazel",
+          "sha256": "be26bccf96d118b84bde5746d49329bfa76a22e93037a8988fb2094300cf10e2"
+        },
+        {
+          "path": "bazel/internal/BUILD.bazel",
+          "sha256": "2529a6f63d035179c07849bded4b7ed74d8c1a2d236995aab1083ee915c61acb"
+        },
+        {
+          "path": "bazel/internal/binary_test.bzl",
+          "sha256": "eeae2173c6218649b31fda594719b4ccb7d0578573a3527e073c612140cc86e8"
+        },
+        {
+          "path": "bazel/internal/modular_run_binary_test.bzl",
+          "sha256": "151c7e7e76fceb0d39822aa64dab0de7ee98e95e687ada4725b3cc492ab8673b"
+        },
+        {
+          "path": "Mojo/python/mojo/paths.py",
+          "sha256": "d6d4e532fe4ede43c69b297b781cfbf46030dd8746d8883a159bc2af8d72f7e7"
+        },
+        {
+          "path": "max/examples/custom_ops/kernels/__init__.mojo",
+          "sha256": "8f74f8d22bbf966cbebda3ff4d32bfd82242abc372fe3416f899a99817774307"
+        },
+        {
+          "path": "max/examples/custom_ops/addition.py",
+          "sha256": "b6b5cac6c78273563cdbf4e837953ffe2dd9c6527481717f521d46a7e5656042"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MODialect/MODialect.td",
+          "sha256": "9d259cd4b15baa4e40c9c1000537fb2ff8cb98d7bbb22d647ce329f23d9cba92"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPDialect.td",
+          "sha256": "ce47854394679c122f5a944f4b1173fc5abb7a300dd2a26ba9200c31eee4bfbf"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MOGGDialect/MOGGDialect.td",
+          "sha256": "41622517860c1697bef77f2e3bbe3aec66003d021a7d12168ecbafec8f5712f3"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MGPDialect/Dialect/MGPDialect.td",
+          "sha256": "868400ca84431f209943e898821139230f8c3c571be9b6656644623c0de0723e"
+        },
+        {
+          "path": "GraphCompiler/docs/GraphCompiler.md",
+          "sha256": "c721101471915757ef096f677ff19ebe854e5ba5a542fe78efc0953745191c20"
+        },
+        {
+          "path": "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp",
+          "sha256": "600a4d99e45a854a92d4da99455bae4daaffae87a36ff621918d53aa5f892034"
+        },
+        {
+          "path": "GraphCompiler/lib/Conversion/MAPToMOGG/MAPToMOGG.cpp",
+          "sha256": "164008fc603070ff5b1a3153ec318942fceb2dbf9c048d7bc2a5b3d4a7fb3d66"
+        },
+        {
+          "path": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
+          "sha256": "1e9cf7fbdcf2f0cee8f011dc57a13d029ad932ffb159658be351e5828870fb23"
+        },
+        {
+          "path": "GraphCompiler/lib/MGPDialect/Transforms/FinalizeDeviceGraphsPass.cpp",
+          "sha256": "44fb2800eea3cc95e94a1dd29c7fdb07d2de60fd1bfa60d3eef24f7d5ceb4c06"
+        },
+        {
+          "path": "GraphCompiler/lib/MOGGDialect/Transforms/EmitMojo.cpp",
+          "sha256": "b981b0a673c3a1db199d0b832d2cc7678f75063c8b53c20865a23f15317f5bda"
+        },
+        {
+          "path": "Mojo/lib/Compiler/Pipeline/Pipeline.cpp",
+          "sha256": "0db2d58a580944c31933df0d834e849d23f955173cdba6664052e09f55c55a1c"
+        },
+        {
+          "path": "Mojo/lib/Compiler/ObjectCompiler/KGENToLLVMPipeline.cpp",
+          "sha256": "e9096eb5a85e46907765d9f5b55a55f005a7e9f5826164c5b6f631db59017871"
+        },
+        {
+          "path": "Mojo/include/Mojo/Compiler/Target/TargetBackend.h",
+          "sha256": "181fcfc50046256845edd57a80dd9fd58973e0af31e84872e21ece517d2f23ae"
+        },
+        {
+          "path": "Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.h",
+          "sha256": "dd830c7131a748df6024815044f376e34729cfa377a2a2cb1d58064e88b62be1"
+        },
+        {
+          "path": "GraphCompiler/test/mo-opt/cross-compile-gpu-arch.mlir",
+          "sha256": "cd7f362a32706dd84649d77623c6d58ceb6ab76a103491266f97f0c11c54494d"
+        },
+        {
+          "path": "GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir",
+          "sha256": "c575db9f2bd7a8651818bb7095f0edf37e19f044cb13625148815dc9e4843ee7"
         }
       ]
     },
@@ -1879,6 +3611,7 @@
         "short": "Custom tiled matrix multiplication",
         "filename": "matrix_multiplication.py",
         "kernel": "matrix_multiplication.mojo",
+        "task": "matrix_multiplication",
         "page": "max_example_03_tiled_matmul_compiler_and_memory.html",
         "expression": "C = A @ B; algorithm is a compile-time parameter",
         "subtitle": "Follow target specialization, global/shared storage and two different readiness gates.",
@@ -2536,6 +4269,186 @@
           "alias": "MOJO",
           "sha256": "e429aad5c89cd8ce7ed1f1be498eee19398fce06a8e71ea3d126e59871b44c98"
         },
+        "bazel_binary": {
+          "id": "bazel_binary",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "start": 85,
+          "end": 86,
+          "line": 85,
+          "label": "Bazel example binary target",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "65a9153a32dae31df6d65f92399ebfe5ae7190db55c6fc69c743aa61111fca52"
+        },
+        "bazel_test_macro": {
+          "id": "bazel_test_macro",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "start": 42,
+          "end": 50,
+          "line": 42,
+          "label": "Generated .example-test rule",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "6bdaba937282eae39b2813102bc14256e533e919e698df7f3a37337e2dd4a75b"
+        },
+        "pixi_task": {
+          "id": "pixi_task",
+          "file": "max/examples/custom_ops/pixi.toml",
+          "start": 17,
+          "end": 17,
+          "line": 17,
+          "label": "Pixi task mapped to the Python script",
+          "symbol": "",
+          "language": "text",
+          "alias": "PIXI",
+          "sha256": "5628bc8ef95b851e533b5948da270adb3ac54ce72bda17f9e164465818acfcda"
+        },
+        "pixi_dependencies": {
+          "id": "pixi_dependencies",
+          "file": "max/examples/custom_ops/pixi.toml",
+          "start": 32,
+          "end": 34,
+          "line": 32,
+          "label": "Pixi channels and runtime dependencies",
+          "symbol": "",
+          "language": "text",
+          "alias": "PIXI",
+          "sha256": "7b326e79784b35131b635134debfed56e4666c661f1d68c2b48998bd2fe661af"
+        },
+        "pixi_run_docs": {
+          "id": "pixi_run_docs",
+          "file": "max/examples/custom_ops/README.md",
+          "start": 55,
+          "end": 72,
+          "line": 55,
+          "label": "Documented Pixi setup and run path",
+          "symbol": "",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "003126356262292858616fcf1277d5e133355d0fff31318f759c0ac96543c5d3"
+        },
+        "bazel_wrapper": {
+          "id": "bazel_wrapper",
+          "file": "bazelw",
+          "start": 1,
+          "end": 34,
+          "line": 1,
+          "label": "Repository Bazel bootstrap wrapper",
+          "symbol": "",
+          "language": "text",
+          "alias": "SH",
+          "sha256": "dd6c6a40fcba72bfd75317de9bfd40ad2078860b6553f258aa91ce74d01f3e39"
+        },
+        "bazel_macro": {
+          "id": "bazel_macro",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "start": 12,
+          "end": 40,
+          "line": 12,
+          "label": "Custom-op binary: source data, Mojo libraries and Python dependencies",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "eab8c16f891bef488b0399c269ff7b26c03cab207449154fefad2644b5a6da13"
+        },
+        "bazel_kernel_sources": {
+          "id": "bazel_kernel_sources",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "start": 9,
+          "end": 12,
+          "line": 9,
+          "label": "Raw custom-kernel .mojo sources passed as Bazel data",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "2049be93183147834eb164050944a9c97d5a83c5d81469acd5fdd0a40a7b48e1"
+        },
+        "bazel_py_binary": {
+          "id": "bazel_py_binary",
+          "file": "bazel/internal/modular_py_binary.bzl",
+          "start": 53,
+          "end": 100,
+          "line": 53,
+          "label": "Python binary rule stages the Mojo runtime environment",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "e3a053a80e8645f6cc9850189edf3a8274c52a8059aad6d44b8a0fd56a8b2b49"
+        },
+        "mojo_library_rule": {
+          "id": "mojo_library_rule",
+          "file": "bazel/internal/mojo_library.bzl",
+          "start": 35,
+          "end": 58,
+          "line": 35,
+          "label": "Bazel Mojo library precompiles source into a .mojoc package",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "992c48072743a9c33c0bed78306ac3097c9f688707da8d33daf0088d0608b171"
+        },
+        "mojo_runtime_toolchain": {
+          "id": "mojo_runtime_toolchain",
+          "file": "bazel/internal/mojo_test_environment.bzl",
+          "start": 78,
+          "end": 120,
+          "line": 78,
+          "label": "Mojo toolchain and native runtime files collected for execution",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "28f577be50794b9c099cbf719a97829fa15e4bc426b7887ed2ed08bca41df201"
+        },
+        "mojo_runtime_exports": {
+          "id": "mojo_runtime_exports",
+          "file": "bazel/internal/mojo_test_environment.bzl",
+          "start": 178,
+          "end": 198,
+          "line": 178,
+          "label": "Mojo compiler, LLD and C++ linker settings exposed to the process",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "74938527438b07b3278ce7e9bca12e72dbd08d51c2ebd8c3f3ddfadfbf0f1463"
+        },
+        "target_info": {
+          "id": "target_info",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 213,
+          "end": 275,
+          "line": 213,
+          "label": "Per-target triple, architecture and backend lookup",
+          "symbol": "",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "017354521b5c2bdbd3b0e5dcac4b76244d05a6be0f2fa4a1ac4d5a8d69388544"
+        },
+        "offload_targets": {
+          "id": "offload_targets",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 516,
+          "end": 568,
+          "line": 516,
+          "label": "Compile each offload for its selected target triple",
+          "symbol": "",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "9d44d39dc0aa049b48a8faf523a10aa96919241fce3f4a1c66ad6ae6635e1189"
+        },
+        "backend_registry": {
+          "id": "backend_registry",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp",
+          "start": 114,
+          "end": 138,
+          "line": 114,
+          "label": "TargetBackendRegistry resolves the LLVM triple",
+          "symbol": "",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "11baf7547042c05cbb83af1f9599fc161d071961c8de38c85c617244407d4bd7"
+        },
         "registration": {
           "id": "registration",
           "file": "max/examples/custom_ops/kernels/matrix_multiplication.mojo",
@@ -2703,12 +4616,444 @@
           "language": "cpp",
           "alias": "C++",
           "sha256": "673d90f54ff1b88d968a1ceaeeda87de72fc36dc419db7cf35f224b677547866"
+        },
+        "bazel_build_file": {
+          "id": "bazel_build_file",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "start": 1,
+          "end": 124,
+          "line": 1,
+          "symbol": "",
+          "label": "Complete custom-op BUILD graph",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "fd76f32f14256dca172d5033747849880f0952565fd4a99ad76042c18ef885b4"
+        },
+        "bazel_aliases": {
+          "id": "bazel_aliases",
+          "file": "bazel/mojo_aliases.bzl",
+          "start": 1,
+          "end": 157,
+          "line": 1,
+          "symbol": "",
+          "label": "Mojo source-package alias mappings",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "3b91db6cf9f3ab666c96de0a065269d1cea40f78926230fb269e76ee3d35d747"
+        },
+        "bazel_max_aliases": {
+          "id": "bazel_max_aliases",
+          "file": "max/BUILD.bazel",
+          "start": 1,
+          "end": 73,
+          "line": 1,
+          "symbol": "",
+          "label": "MAX aliases enter the BUILD graph",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "d156781d99ac676ae9361d809d9913efee4fc98e9e03cabf0d274c893effe18e"
+        },
+        "bazel_layout_package": {
+          "id": "bazel_layout_package",
+          "file": "max/kernels/src/layout/BUILD.bazel",
+          "start": 1,
+          "end": 23,
+          "line": 1,
+          "symbol": "",
+          "label": "Layout source package",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "3f28eac4ed03815dfac672c142db383bcfaf836086a9b849fddb7898b8f363ad"
+        },
+        "bazel_extensibility_package": {
+          "id": "bazel_extensibility_package",
+          "file": "max/kernels/src/graph_compiler/extensibility/BUILD.bazel",
+          "start": 1,
+          "end": 20,
+          "line": 1,
+          "symbol": "",
+          "label": "Extensibility source package",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "451467590d1d1c7e760508d1a4c57c5fd2d34b3106e3b77d1593b32fcff589b1"
+        },
+        "bazel_std_package": {
+          "id": "bazel_std_package",
+          "file": "Mojo/stdlib/std/BUILD.bazel",
+          "start": 1,
+          "end": 58,
+          "line": 1,
+          "symbol": "",
+          "label": "Mojo standard-library source package",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "be26bccf96d118b84bde5746d49329bfa76a22e93037a8988fb2094300cf10e2"
+        },
+        "bazel_mojo_toolchain": {
+          "id": "bazel_mojo_toolchain",
+          "file": "bazel/internal/BUILD.bazel",
+          "start": 185,
+          "end": 203,
+          "line": 185,
+          "symbol": "",
+          "label": "Source-built Mojo compiler and LLVM LLD toolchain",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "dadac08255de7379f906e212de0c8db7500045796be416b33475615c6f26ff94"
+        },
+        "bazel_binary_test": {
+          "id": "bazel_binary_test",
+          "file": "bazel/internal/binary_test.bzl",
+          "start": 1,
+          "end": 52,
+          "line": 1,
+          "symbol": "",
+          "label": "Example test executable and runfiles",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "eeae2173c6218649b31fda594719b4ccb7d0578573a3527e073c612140cc86e8"
+        },
+        "bazel_run_test": {
+          "id": "bazel_run_test",
+          "file": "bazel/internal/modular_run_binary_test.bzl",
+          "start": 1,
+          "end": 45,
+          "line": 1,
+          "symbol": "",
+          "label": "Example test environment macro",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "151c7e7e76fceb0d39822aa64dab0de7ee98e95e687ada4725b3cc492ab8673b"
+        },
+        "package_builder": {
+          "id": "package_builder",
+          "file": "Mojo/python/mojo/paths.py",
+          "start": 141,
+          "end": 191,
+          "line": 141,
+          "symbol": "_build_mojo_source_package",
+          "label": "Actual mojo precompile command and atomic package publication",
+          "language": "python",
+          "alias": "PY",
+          "sha256": "53f44a43f59bbe55f87f6579ea26538c4d36a5f6caa7075a1b3618859b059d6a"
+        },
+        "kernel_package_root": {
+          "id": "kernel_package_root",
+          "file": "max/examples/custom_ops/kernels/__init__.mojo",
+          "start": 1,
+          "end": 12,
+          "line": 1,
+          "symbol": "",
+          "label": "Custom kernel package root",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "8f74f8d22bbf966cbebda3ff4d32bfd82242abc372fe3416f899a99817774307"
+        },
+        "reference_addition": {
+          "id": "reference_addition",
+          "file": "max/examples/custom_ops/addition.py",
+          "start": 1,
+          "end": 88,
+          "line": 1,
+          "symbol": "",
+          "label": "Add-one Python example used in the QnA",
+          "language": "python",
+          "alias": "PY",
+          "sha256": "b6b5cac6c78273563cdbf4e837953ffe2dd9c6527481717f521d46a7e5656042"
+        },
+        "reference_add_one": {
+          "id": "reference_add_one",
+          "file": "max/examples/custom_ops/kernels/add_one.mojo",
+          "start": 1,
+          "end": 70,
+          "line": 1,
+          "symbol": "",
+          "label": "Original AddOne and AddOneElementwise definitions",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "dabd4d30f44599be01c1cfdda5cd67a8a1d01380d7ddfc0f3dcbfbd5b70e114a"
+        },
+        "mo_dialect": {
+          "id": "mo_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MODialect/MODialect.td",
+          "start": 1,
+          "end": 53,
+          "line": 1,
+          "symbol": "",
+          "label": "MO dialect definition",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "9d259cd4b15baa4e40c9c1000537fb2ff8cb98d7bbb22d647ce329f23d9cba92"
+        },
+        "map_dialect": {
+          "id": "map_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPDialect.td",
+          "start": 1,
+          "end": 52,
+          "line": 1,
+          "symbol": "",
+          "label": "MAP dialect and access-operation families",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "ce47854394679c122f5a944f4b1173fc5abb7a300dd2a26ba9200c31eee4bfbf"
+        },
+        "mogg_dialect": {
+          "id": "mogg_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MOGGDialect/MOGGDialect.td",
+          "start": 1,
+          "end": 49,
+          "line": 1,
+          "symbol": "",
+          "label": "MOGG dialect definition",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "41622517860c1697bef77f2e3bbe3aec66003d021a7d12168ecbafec8f5712f3"
+        },
+        "mgp_dialect": {
+          "id": "mgp_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MGPDialect/Dialect/MGPDialect.td",
+          "start": 1,
+          "end": 82,
+          "line": 1,
+          "symbol": "",
+          "label": "MGP model, context, buffers and state slots",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "868400ca84431f209943e898821139230f8c3c571be9b6656644623c0de0723e"
+        },
+        "graph_compiler_design": {
+          "id": "graph_compiler_design",
+          "file": "GraphCompiler/docs/GraphCompiler.md",
+          "start": 1,
+          "end": 239,
+          "line": 1,
+          "symbol": "",
+          "label": "Dialect names and current MAP fusion design",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "c721101471915757ef096f677ff19ebe854e5ba5a542fe78efc0953745191c20"
+        },
+        "mo_to_map": {
+          "id": "mo_to_map",
+          "file": "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp",
+          "start": 764,
+          "end": 791,
+          "line": 764,
+          "symbol": "struct MOToMAPPass",
+          "label": "MOToMAPPass walks and lowers graph operations",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "dbf24cc0ff0651aa6193a3191095d50f2538e5eacda71f3fa48592d9cc1e1d95"
+        },
+        "map_to_mogg": {
+          "id": "map_to_mogg",
+          "file": "GraphCompiler/lib/Conversion/MAPToMOGG/MAPToMOGG.cpp",
+          "start": 53,
+          "end": 83,
+          "line": 53,
+          "symbol": "struct MAPToMOGGPass",
+          "label": "MAPToMOGGPass uses MojoRegistry and MAPToMOGGState",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "d4a6057b5927d43339669a606d83ec8d1e967e83b462cc5591d6addc1588dc20"
+        },
+        "mogg_to_mgp": {
+          "id": "mogg_to_mgp",
+          "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
+          "start": 2406,
+          "end": 2470,
+          "line": 2406,
+          "symbol": "void MOGGToMGPPass::runOnOperation()",
+          "label": "MOGGToMGPPass and dependency-ordered MOGraphLowering",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "f8a959aeea9213672f6e29404c7a4045d0d1787d7bb2a39f3e67bd6b15364569"
+        },
+        "device_finalization": {
+          "id": "device_finalization",
+          "file": "GraphCompiler/lib/MGPDialect/Transforms/FinalizeDeviceGraphsPass.cpp",
+          "start": 375,
+          "end": 389,
+          "line": 375,
+          "symbol": "class FinalizeDeviceGraphsPass",
+          "label": "Device-graph finalization guard and collective audit",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "11f052f02b9abdc9209082750d5dc9b0b72f22e35ce95698b3d1056b10ff2e49"
+        },
+        "emit_mojo": {
+          "id": "emit_mojo",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/EmitMojo.cpp",
+          "start": 147,
+          "end": 190,
+          "line": 147,
+          "symbol": "",
+          "label": "EmitMojo imports packages and generates routine source",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "95ca5c5adce7ef0873efb7d8112592d61cf53f92fd9103e6cab8ab8ee5cf7b97"
+        },
+        "jit_entry": {
+          "id": "jit_entry",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 529,
+          "end": 609,
+          "line": 529,
+          "symbol": "compileMojoToBinary(ModuleOp module,",
+          "label": "MAX kernel JIT entry: parse, LIT lowering, compiler objects and cache routes",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "ab11d1606a9106a8c7097dd3869470d648f3836ee80f90b5819b3a90b6a2f942"
+        },
+        "kgen_elaboration": {
+          "id": "kgen_elaboration",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 1140,
+          "end": 1175,
+          "line": 1140,
+          "symbol": "ErrorOrSuccess KGENCompiler::runElaborationPipeline(",
+          "label": "KGENCompiler runs the elaboration pass manager",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "a293e774bb41c62580816dabdc9c19c67d9b16718136c61332c88e591e539bac"
+        },
+        "kgen_elaborate_build": {
+          "id": "kgen_elaborate_build",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 967,
+          "end": 973,
+          "line": 967,
+          "symbol": "void KGEN::populateElaborateModulePasses(",
+          "label": "Elaboration and post-elaboration pipeline builders",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "24e894af05eaaebf94fb508a3da9a0e6c2a9a9059877064cd1b88d396b09511c"
+        },
+        "kgen_post_elaboration": {
+          "id": "kgen_post_elaboration",
+          "file": "Mojo/lib/Compiler/Pipeline/Pipeline.cpp",
+          "start": 154,
+          "end": 173,
+          "line": 154,
+          "symbol": "void KGEN::buildPostElaborationPipeline(",
+          "label": "Concrete-IR verification, materialization and optimization",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "d985fbe450b118b621cbd3ee1b4e9d2b092ff9dbbf74a4b187109e54b178b6bb"
+        },
+        "kgen_llvm_passes": {
+          "id": "kgen_llvm_passes",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/KGENToLLVMPipeline.cpp",
+          "start": 26,
+          "end": 57,
+          "line": 26,
+          "symbol": "void KGEN::buildLowerToLLVMPipeline(",
+          "label": "Exact KGEN / POP / control-flow to LLVM-dialect passes",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "0748812e49f2573e52ce8e89d1ed50d7628f7dd8087f0a97c4cc46ff32065ae4"
+        },
+        "object_lower_to_llvm": {
+          "id": "object_lower_to_llvm",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp",
+          "start": 816,
+          "end": 856,
+          "line": 816,
+          "symbol": "ObjectCompiler::lowerAllFuncsToLLVM(llvm::LLVMContext &ctx, ModuleOp module)",
+          "label": "MLIR lowering, optional dumps and LLVM-module translation",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "c17e6b391ba1932779995eec879aa7b1f15e2b47310ab610d79c9fb54d973b67"
+        },
+        "backend_registry_declaration": {
+          "id": "backend_registry_declaration",
+          "file": "Mojo/include/Mojo/Compiler/Target/TargetBackend.h",
+          "start": 339,
+          "end": 357,
+          "line": 339,
+          "symbol": "class TargetBackendRegistry {",
+          "label": "Owned backend vector and static registration helper",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "95f8598df433f60b4c2bcc4895dbb0ad46c03d0cbf7cec719e8bf9319f29b538"
+        },
+        "llvm_target_machine": {
+          "id": "llvm_target_machine",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp",
+          "start": 63,
+          "end": 92,
+          "line": 63,
+          "symbol": "defaultCreateTargetMachine(",
+          "label": "LLVM TargetRegistry and triple / CPU / features / ABI",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "875d32ab217be82227e34c20c511234eff221e570b4d9878a874de5fb9058432"
+        },
+        "llvm_code_gen": {
+          "id": "llvm_code_gen",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp",
+          "start": 277,
+          "end": 356,
+          "line": 277,
+          "symbol": "runLlcPasses(llvm::Module &module, CompilationOptions &options,",
+          "label": "In-process LLVM machine-code pass manager",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "4b391532ea134e9c5bcc93d5dd09c07da9d43aae319ece39824c13a889f83137"
+        },
+        "nvptx_backend": {
+          "id": "nvptx_backend",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/max_license/NVPTX/NVPTXBackend.cpp",
+          "start": 1,
+          "end": 218,
+          "line": 1,
+          "symbol": "",
+          "label": "NVIDIA backend registration, PTX and CUDA compilation",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "a71c5c8f5a4f03a35229466a2ec586418f617c220405a02ea11afe7b86da3bc9"
+        },
+        "host_backend": {
+          "id": "host_backend",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.h",
+          "start": 1,
+          "end": 53,
+          "line": 1,
+          "symbol": "",
+          "label": "Host backend interface and target resolution",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "dd830c7131a748df6024815044f376e34729cfa377a2a2cb1d58064e88b62be1"
+        },
+        "cross_target_example": {
+          "id": "cross_target_example",
+          "file": "GraphCompiler/test/mo-opt/cross-compile-gpu-arch.mlir",
+          "start": 1,
+          "end": 23,
+          "line": 1,
+          "symbol": "",
+          "label": "Source test: NVIDIA sm_90a and AMD gfx942 cross-codegen",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "cd7f362a32706dd84649d77623c6d58ceb6ab76a103491266f97f0c11c54494d"
+        },
+        "graph_stage_dumps": {
+          "id": "graph_stage_dumps",
+          "file": "GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir",
+          "start": 1,
+          "end": 33,
+          "line": 1,
+          "symbol": "",
+          "label": "Source test for graph-stage diagnostic dumps",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "c575db9f2bd7a8651818bb7095f0edf37e19f044cb13625148815dc9e4843ee7"
         }
       },
       "lessons": [
         {
           "id": "journey",
-          "number": "01",
+          "number": "02",
           "title": "Follow one operation all the way through",
           "detail": "Select an operation or its loads/stores. Follow its source ancestry, changing representations, cache route, compiled code and two calls to the retained model.",
           "evidence": "SOURCE lifecycle \u00b7 schematic transformations / calls",
@@ -2721,8 +5066,94 @@
           "ascii": "Python builder + Mojo package \u2192 verified G1\nG1 retained \u2192 compiler clone C1 \u2192 artifact lookup\nmiss: MO \u2192 MAP \u2192 MOGG \u2192 MGP \u2192 kernel lookup\nkernel miss: specialize Mojo \u2192 LLVM \u2192 target code\ncompiled routines \u2192 runtime callables \u2192 CM1 / MEF bytes\nartifact hit: reuse CM1; kernel hit: reuse code, prepare graph\nS1.init(CM1) \u2192 M1 \u2192 execute(B1) \u2192 O1 ready\nSame S1 / M1 / code \u2192 execute(B2) \u2192 O2 ready"
         },
         {
+          "id": "toolchain",
+          "number": "01",
+          "title": "From Bazel's build graph to a selected device backend",
+          "detail": "Follow the build/run boundary, each MAX dialect conversion, concrete Mojo specialization, target selection and initialized execution. Text retains the complete previous answers 1\u20137 and expands their numbered details; each animation step links to its explanation.",
+          "ascii": "1 \u00b7 ./bazelw build //max/examples/custom_ops:matrix_multiplication\n    Python launcher + runfiles; kernels/*.mojo is data\n    Mojo library dependencies \u2192 separate .mojoc packages\n2 \u00b7 ./bazelw run //max/examples/custom_ops:matrix_multiplication\n    Graph(custom_extensions=kernels/) \u2192 mojo precompile subprocess\n    private staging .mojoc \u2192 atomic publication \u2192 package P1\n    Python entry point stays separate; G1 records shape/dtype/device\n3 \u00b7 InferenceSession.compile(G1); caller retains G1\n    C1 / MO: Modular Operations \u00b7 typed tensor graph\n      MOToMAPPass + MojoRegistry \u2192 access/kernel structure\n    C1 / MAP: Modular Access Primitives \u00b7 load/compute/store + fusion\n      MAPToMOGGPass + MAPToMOGGState \u2192 generator/routine calls\n    C1 / MOGG: Modular Operation Generator Graph\n      MOGGToMGPPass + MOGraphLowering \u2192 init/execute resources\n    C1 / MGP: Modular Glue Primitives \u00b7 buffers/dependencies/state\n    Device-graph finalization: audit only when getIsDeviceGraph()\n4 \u00b7 EmitMojo \u2192 separate KIR1; C1 retains the MGP plan\n    kernel JIT miss \u2192 KGENCompiler.runElaborationPipeline\n    generators + target/dtype/parameters \u2192 concrete KGEN / POP\n    ObjectCompiler + buildLowerToLLVMPipeline \u2192 LLVM dialect (MLIR)\n    mlir::translateModuleToLLVMIR \u2192 LLVM1 / llvm::Module\n5 \u00b7 TargetInfo triple/arch/features \u2192 TargetBackendRegistry lookup\n    LLVM TargetRegistry \u2192 LLVM TargetMachine\n    CPU: HostBackend \u2192 host object \u2192 linked native code\n    NVIDIA: nvptx64-nvidia-cuda / sm_90a \u2192 PTX\n      CUDA CompilationDevice.compileFunction \u2192 same-SM cubin\n    AMD: amdgcn-amd-amdhsa / gfx942 + required device bitcode\n      AMDGPU object \u2192 device ELF link \u2192 hsaco\n6 \u00b7 Host Python/MAX/driver stays on CPU; device kernels have their own target\n    LowerCompiledRoutines \u2192 ModuleLoad / ExecuteGeneric\n    prepared CM1 / MEF bytes \u2192 session.init \u2192 executable M1\n    M1 + numerical Buffers \u2192 native execution \u2192 result readiness\n7 \u00b7 Native MLIR/LLVM APIs run compiler passes in the process\n    No standalone mlir-opt command is part of these example targets\n    IR/dump names are teaching views; GPU architectures are source-test examples",
+          "refs": [
+            "bazel_wrapper",
+            "bazel_binary",
+            "bazel_macro",
+            "bazel_kernel_sources",
+            "bazel_py_binary",
+            "mojo_library_rule",
+            "mojo_runtime_toolchain",
+            "mojo_runtime_exports",
+            "package_load",
+            "entry",
+            "compile_async",
+            "gc_pipeline",
+            "mo_pipeline",
+            "map_pipeline",
+            "mogg_pipeline",
+            "mgp_pipeline",
+            "mojo_semantics",
+            "mojo_elaboration",
+            "mojo_llvm",
+            "llvm_translation",
+            "target_info",
+            "offload_targets",
+            "backend_registry",
+            "backend_select",
+            "host_object",
+            "nvptx_object",
+            "amdgpu_backend",
+            "bazel_build_file",
+            "bazel_aliases",
+            "bazel_layout_package",
+            "bazel_extensibility_package",
+            "bazel_std_package",
+            "bazel_mojo_toolchain",
+            "bazel_run_test",
+            "bazel_binary_test",
+            "package_builder",
+            "kernel_package_root",
+            "mojo_package",
+            "registration",
+            "custom_api",
+            "graph_init",
+            "graph_output",
+            "frontend",
+            "mo_dialect",
+            "graph_compiler_design",
+            "mo_to_map",
+            "map_dialect",
+            "map_to_mogg",
+            "mogg_dialect",
+            "mogg_to_mgp",
+            "mgp_dialect",
+            "device_finalization",
+            "emit_mojo",
+            "jit_entry",
+            "kernel_misses",
+            "kernel_hits",
+            "cross_target_example",
+            "backend_registry_declaration",
+            "llvm_target_machine",
+            "kgen_elaboration",
+            "kgen_elaborate_build",
+            "kgen_post_elaboration",
+            "kgen_llvm_passes",
+            "object_lower_to_llvm",
+            "llvm_code_gen",
+            "runtime_calls",
+            "jit_pipeline",
+            "artifact",
+            "serialize",
+            "init_all",
+            "execute",
+            "native_execute",
+            "driver_execute",
+            "driver_results",
+            "ready_counts",
+            "graph_stage_dumps"
+          ],
+          "evidence": "SOURCE \u00b7 Bazel rules / MAX and Mojo compiler / target backends"
+        },
+        {
           "id": "build",
-          "number": "02",
+          "number": "03",
           "title": "Record this example's graph",
           "detail": "Follow the unchanged Python source, typed graph inputs and its Mojo registration.",
           "ascii": "Python example + Mojo package \u2192 registered implementation\nGraph imports custom_extensions before invoking builder\nTensorType + ops.custom(name, out_types) \u2192 Graph.output\nVerified G1; numerical execution has not happened",
@@ -2734,9 +5165,9 @@
         },
         {
           "id": "compile",
-          "number": "03",
+          "number": "04",
           "title": "Compile it into an executable model",
-          "detail": "This focused view expands the cold route. Use 01 for graph-artifact and compiled-kernel cache comparisons.",
+          "detail": "This focused view expands the cold route. Use the operation journey in 02 for graph-artifact and compiled-kernel cache comparisons.",
           "ascii": "S1.compile(G1) \u2192 clone C1 \u2192 MO / MAP / MOGG / MGP\ndevice-graph finalization \u2192 emitted/custom Mojo \u2192 kernel JIT\nMojo specialization \u2192 LLVM dialect \u2192 LLVM IR \u2192 target code\nfinal runtime-call lowering \u2192 prepared MEF byte buffer\nload modules / resolve callables \u2192 initialized M1\nThese examples need no weight registry",
           "refs": [
             "entry",
@@ -2747,7 +5178,7 @@
         },
         {
           "id": "run",
-          "number": "04",
+          "number": "05",
           "title": "Watch the kernel's values and decisions",
           "detail": "Tiny view: A [2,4], B [4,2], BK=2; original: M=K=N=256. Arithmetic is a small deterministic illustration of the original operation.",
           "ascii": "M1 + Buffer inputs \u2192 native execution \u2192 kernel arithmetic\nRuntime readiness \u2192 result Buffer\nexplicit result.to(CPU()) \u2192 to_numpy() \u2192 print/check\nSame resident code/session, separate per-call data",
@@ -2756,8 +5187,29 @@
             "math"
           ],
           "evidence": "SOURCE kernel logic \u00b7 browser math illustration \u00b7 BOUNDARY device timing"
+        },
+        {
+          "id": "commands",
+          "number": "00",
+          "title": "Set up, build and run this exact example",
+          "detail": "The steps show the repository-root Bazel build and generated example-test, plus the separate Pixi setup and task for running the Python script directly.",
+          "ascii": "From the modular/ repository root:\n./bazelw build //max/examples/custom_ops:matrix_multiplication\n./bazelw test //max/examples/custom_ops:matrix_multiplication.example-test\n\nDirect script route (Pixi CLI required; setup once):\ncd max/examples/custom_ops\npixi install\npixi run matrix_multiplication",
+          "refs": [
+            "bazel_wrapper",
+            "bazel_binary",
+            "bazel_test_macro",
+            "pixi_task",
+            "pixi_dependencies",
+            "pixi_run_docs"
+          ],
+          "evidence": "SOURCE \u00b7 repository build rule / locked Pixi environment"
         }
       ],
+      "toolchain": {
+        "point1_sha256": "53028c61d6b720b635c5007224788235403dc240e39ac08072799096acf2c0d7",
+        "sections": 7,
+        "steps": 34
+      },
       "files": [
         {
           "path": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
@@ -2776,12 +5228,20 @@
           "sha256": "fb6e4624fdfdb8b382822d1cac558e8bc8cb788a2c6702bb8db8f8addaa9f92d"
         },
         {
+          "path": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "sha256": "41a712e1e96412021118ca232cb6da562717cdda98eb0c9671352994ae0d59bc"
+        },
+        {
           "path": "Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp",
           "sha256": "1e4fc345a6c5466343cb996078fa7fe67c9476e4a2f1336304fc380d73e22668"
         },
         {
           "path": "Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.cpp",
           "sha256": "538a0a3c07879153fbe2976f3ad89681f6eda601bfc2b3893ff54559c4f2d0e3"
+        },
+        {
+          "path": "Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp",
+          "sha256": "dc948081fb5c4086c76257d7bc64d3843e8b4d9fc394f03cdea3f50a9dab4710"
         },
         {
           "path": "Mojo/lib/Compiler/ObjectCompiler/Target/max_license/AMDGPU/AMDGPUBackend.cpp",
@@ -2792,12 +5252,44 @@
           "sha256": "a71c5c8f5a4f03a35229466a2ec586418f617c220405a02ea11afe7b86da3bc9"
         },
         {
+          "path": "bazel/internal/modular_py_binary.bzl",
+          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
+        },
+        {
+          "path": "bazel/internal/mojo_library.bzl",
+          "sha256": "775157e64b5bb6e5a6881b3c20d8fb200feaa5987f20c5ca3993e2a2b8386e0d"
+        },
+        {
+          "path": "bazel/internal/mojo_test_environment.bzl",
+          "sha256": "bffc55e31ff09f52b7136fb97c97aee7fb2e4d8ecf98a344fb1a59b1242d137c"
+        },
+        {
+          "path": "bazelw",
+          "sha256": "b08ee9381524e0254669a64c781796cd1c3ca037fd80998ce828dec99c9ab6f6"
+        },
+        {
+          "path": "max/examples/custom_ops/BUILD.bazel",
+          "sha256": "fd76f32f14256dca172d5033747849880f0952565fd4a99ad76042c18ef885b4"
+        },
+        {
+          "path": "max/examples/custom_ops/README.md",
+          "sha256": "e63e0aab0c80daed5df869a2e2c0dd3b3d0e40728262de92dc3a7a7604f87af5"
+        },
+        {
+          "path": "max/examples/custom_ops/custom_op_example.bzl",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        {
           "path": "max/examples/custom_ops/kernels/matrix_multiplication.mojo",
           "sha256": "e429aad5c89cd8ce7ed1f1be498eee19398fce06a8e71ea3d126e59871b44c98"
         },
         {
           "path": "max/examples/custom_ops/matrix_multiplication.py",
           "sha256": "e4ba811a01b88a550343edd65174c4c09afe1a061791c0008c1b932db5701682"
+        },
+        {
+          "path": "max/examples/custom_ops/pixi.toml",
+          "sha256": "0b42832b204e1891d59e53ec2c0112103dc4028a042b933d2b6f09093c2d1a5f"
         },
         {
           "path": "max/lib/max_license/API/c/ModelExecution.cpp",
@@ -2826,6 +5318,118 @@
         {
           "path": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
           "sha256": "4c743a6615b991738892556c42b90d26bba83bfd85a33b3130d02bfab321527b"
+        },
+        {
+          "path": "bazel/mojo_aliases.bzl",
+          "sha256": "3b91db6cf9f3ab666c96de0a065269d1cea40f78926230fb269e76ee3d35d747"
+        },
+        {
+          "path": "max/BUILD.bazel",
+          "sha256": "d156781d99ac676ae9361d809d9913efee4fc98e9e03cabf0d274c893effe18e"
+        },
+        {
+          "path": "max/kernels/src/layout/BUILD.bazel",
+          "sha256": "3f28eac4ed03815dfac672c142db383bcfaf836086a9b849fddb7898b8f363ad"
+        },
+        {
+          "path": "max/kernels/src/graph_compiler/extensibility/BUILD.bazel",
+          "sha256": "451467590d1d1c7e760508d1a4c57c5fd2d34b3106e3b77d1593b32fcff589b1"
+        },
+        {
+          "path": "Mojo/stdlib/std/BUILD.bazel",
+          "sha256": "be26bccf96d118b84bde5746d49329bfa76a22e93037a8988fb2094300cf10e2"
+        },
+        {
+          "path": "bazel/internal/BUILD.bazel",
+          "sha256": "2529a6f63d035179c07849bded4b7ed74d8c1a2d236995aab1083ee915c61acb"
+        },
+        {
+          "path": "bazel/internal/binary_test.bzl",
+          "sha256": "eeae2173c6218649b31fda594719b4ccb7d0578573a3527e073c612140cc86e8"
+        },
+        {
+          "path": "bazel/internal/modular_run_binary_test.bzl",
+          "sha256": "151c7e7e76fceb0d39822aa64dab0de7ee98e95e687ada4725b3cc492ab8673b"
+        },
+        {
+          "path": "Mojo/python/mojo/paths.py",
+          "sha256": "d6d4e532fe4ede43c69b297b781cfbf46030dd8746d8883a159bc2af8d72f7e7"
+        },
+        {
+          "path": "max/examples/custom_ops/kernels/__init__.mojo",
+          "sha256": "8f74f8d22bbf966cbebda3ff4d32bfd82242abc372fe3416f899a99817774307"
+        },
+        {
+          "path": "max/examples/custom_ops/addition.py",
+          "sha256": "b6b5cac6c78273563cdbf4e837953ffe2dd9c6527481717f521d46a7e5656042"
+        },
+        {
+          "path": "max/examples/custom_ops/kernels/add_one.mojo",
+          "sha256": "dabd4d30f44599be01c1cfdda5cd67a8a1d01380d7ddfc0f3dcbfbd5b70e114a"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MODialect/MODialect.td",
+          "sha256": "9d259cd4b15baa4e40c9c1000537fb2ff8cb98d7bbb22d647ce329f23d9cba92"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPDialect.td",
+          "sha256": "ce47854394679c122f5a944f4b1173fc5abb7a300dd2a26ba9200c31eee4bfbf"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MOGGDialect/MOGGDialect.td",
+          "sha256": "41622517860c1697bef77f2e3bbe3aec66003d021a7d12168ecbafec8f5712f3"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MGPDialect/Dialect/MGPDialect.td",
+          "sha256": "868400ca84431f209943e898821139230f8c3c571be9b6656644623c0de0723e"
+        },
+        {
+          "path": "GraphCompiler/docs/GraphCompiler.md",
+          "sha256": "c721101471915757ef096f677ff19ebe854e5ba5a542fe78efc0953745191c20"
+        },
+        {
+          "path": "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp",
+          "sha256": "600a4d99e45a854a92d4da99455bae4daaffae87a36ff621918d53aa5f892034"
+        },
+        {
+          "path": "GraphCompiler/lib/Conversion/MAPToMOGG/MAPToMOGG.cpp",
+          "sha256": "164008fc603070ff5b1a3153ec318942fceb2dbf9c048d7bc2a5b3d4a7fb3d66"
+        },
+        {
+          "path": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
+          "sha256": "1e9cf7fbdcf2f0cee8f011dc57a13d029ad932ffb159658be351e5828870fb23"
+        },
+        {
+          "path": "GraphCompiler/lib/MGPDialect/Transforms/FinalizeDeviceGraphsPass.cpp",
+          "sha256": "44fb2800eea3cc95e94a1dd29c7fdb07d2de60fd1bfa60d3eef24f7d5ceb4c06"
+        },
+        {
+          "path": "GraphCompiler/lib/MOGGDialect/Transforms/EmitMojo.cpp",
+          "sha256": "b981b0a673c3a1db199d0b832d2cc7678f75063c8b53c20865a23f15317f5bda"
+        },
+        {
+          "path": "Mojo/lib/Compiler/Pipeline/Pipeline.cpp",
+          "sha256": "0db2d58a580944c31933df0d834e849d23f955173cdba6664052e09f55c55a1c"
+        },
+        {
+          "path": "Mojo/lib/Compiler/ObjectCompiler/KGENToLLVMPipeline.cpp",
+          "sha256": "e9096eb5a85e46907765d9f5b55a55f005a7e9f5826164c5b6f631db59017871"
+        },
+        {
+          "path": "Mojo/include/Mojo/Compiler/Target/TargetBackend.h",
+          "sha256": "181fcfc50046256845edd57a80dd9fd58973e0af31e84872e21ece517d2f23ae"
+        },
+        {
+          "path": "Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.h",
+          "sha256": "dd830c7131a748df6024815044f376e34729cfa377a2a2cb1d58064e88b62be1"
+        },
+        {
+          "path": "GraphCompiler/test/mo-opt/cross-compile-gpu-arch.mlir",
+          "sha256": "cd7f362a32706dd84649d77623c6d58ceb6ab76a103491266f97f0c11c54494d"
+        },
+        {
+          "path": "GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir",
+          "sha256": "c575db9f2bd7a8651818bb7095f0edf37e19f044cb13625148815dc9e4843ee7"
         }
       ]
     },
@@ -2839,6 +5443,7 @@
         "short": "Fused attention / online softmax",
         "filename": "fused_attention.py",
         "kernel": "fused_attention.mojo",
+        "task": "fused_attention",
         "page": "max_example_04_fused_attention_online_softmax.html",
         "expression": "O = softmax(Q K\u1d40) V \u00b7 unscaled, rank 2",
         "subtitle": "See why a larger running maximum requires rescaling the previous output.",
@@ -3491,6 +6096,186 @@
           "alias": "MOJO",
           "sha256": "2cd136d39ce0240ef2a6fd4505f74e03e0f163047645d1c8c1b1056cb0b55aff"
         },
+        "bazel_binary": {
+          "id": "bazel_binary",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "start": 74,
+          "end": 75,
+          "line": 74,
+          "label": "Bazel example binary target",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "1772ce1ad5220f22050a51b8c6a0b86f69095747fbd9ffcc548cecab37744acf"
+        },
+        "bazel_test_macro": {
+          "id": "bazel_test_macro",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "start": 42,
+          "end": 50,
+          "line": 42,
+          "label": "Generated .example-test rule",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "6bdaba937282eae39b2813102bc14256e533e919e698df7f3a37337e2dd4a75b"
+        },
+        "pixi_task": {
+          "id": "pixi_task",
+          "file": "max/examples/custom_ops/pixi.toml",
+          "start": 16,
+          "end": 16,
+          "line": 16,
+          "label": "Pixi task mapped to the Python script",
+          "symbol": "",
+          "language": "text",
+          "alias": "PIXI",
+          "sha256": "4cbe683df374f131b428d7c9060c9bf5e37e29332e1e3313fffd36340d0d1a9f"
+        },
+        "pixi_dependencies": {
+          "id": "pixi_dependencies",
+          "file": "max/examples/custom_ops/pixi.toml",
+          "start": 32,
+          "end": 34,
+          "line": 32,
+          "label": "Pixi channels and runtime dependencies",
+          "symbol": "",
+          "language": "text",
+          "alias": "PIXI",
+          "sha256": "7b326e79784b35131b635134debfed56e4666c661f1d68c2b48998bd2fe661af"
+        },
+        "pixi_run_docs": {
+          "id": "pixi_run_docs",
+          "file": "max/examples/custom_ops/README.md",
+          "start": 55,
+          "end": 72,
+          "line": 55,
+          "label": "Documented Pixi setup and run path",
+          "symbol": "",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "003126356262292858616fcf1277d5e133355d0fff31318f759c0ac96543c5d3"
+        },
+        "bazel_wrapper": {
+          "id": "bazel_wrapper",
+          "file": "bazelw",
+          "start": 1,
+          "end": 34,
+          "line": 1,
+          "label": "Repository Bazel bootstrap wrapper",
+          "symbol": "",
+          "language": "text",
+          "alias": "SH",
+          "sha256": "dd6c6a40fcba72bfd75317de9bfd40ad2078860b6553f258aa91ce74d01f3e39"
+        },
+        "bazel_macro": {
+          "id": "bazel_macro",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "start": 12,
+          "end": 40,
+          "line": 12,
+          "label": "Custom-op binary: source data, Mojo libraries and Python dependencies",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "eab8c16f891bef488b0399c269ff7b26c03cab207449154fefad2644b5a6da13"
+        },
+        "bazel_kernel_sources": {
+          "id": "bazel_kernel_sources",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "start": 9,
+          "end": 12,
+          "line": 9,
+          "label": "Raw custom-kernel .mojo sources passed as Bazel data",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "2049be93183147834eb164050944a9c97d5a83c5d81469acd5fdd0a40a7b48e1"
+        },
+        "bazel_py_binary": {
+          "id": "bazel_py_binary",
+          "file": "bazel/internal/modular_py_binary.bzl",
+          "start": 53,
+          "end": 100,
+          "line": 53,
+          "label": "Python binary rule stages the Mojo runtime environment",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "e3a053a80e8645f6cc9850189edf3a8274c52a8059aad6d44b8a0fd56a8b2b49"
+        },
+        "mojo_library_rule": {
+          "id": "mojo_library_rule",
+          "file": "bazel/internal/mojo_library.bzl",
+          "start": 35,
+          "end": 58,
+          "line": 35,
+          "label": "Bazel Mojo library precompiles source into a .mojoc package",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "992c48072743a9c33c0bed78306ac3097c9f688707da8d33daf0088d0608b171"
+        },
+        "mojo_runtime_toolchain": {
+          "id": "mojo_runtime_toolchain",
+          "file": "bazel/internal/mojo_test_environment.bzl",
+          "start": 78,
+          "end": 120,
+          "line": 78,
+          "label": "Mojo toolchain and native runtime files collected for execution",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "28f577be50794b9c099cbf719a97829fa15e4bc426b7887ed2ed08bca41df201"
+        },
+        "mojo_runtime_exports": {
+          "id": "mojo_runtime_exports",
+          "file": "bazel/internal/mojo_test_environment.bzl",
+          "start": 178,
+          "end": 198,
+          "line": 178,
+          "label": "Mojo compiler, LLD and C++ linker settings exposed to the process",
+          "symbol": "",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "74938527438b07b3278ce7e9bca12e72dbd08d51c2ebd8c3f3ddfadfbf0f1463"
+        },
+        "target_info": {
+          "id": "target_info",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 213,
+          "end": 275,
+          "line": 213,
+          "label": "Per-target triple, architecture and backend lookup",
+          "symbol": "",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "017354521b5c2bdbd3b0e5dcac4b76244d05a6be0f2fa4a1ac4d5a8d69388544"
+        },
+        "offload_targets": {
+          "id": "offload_targets",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 516,
+          "end": 568,
+          "line": 516,
+          "label": "Compile each offload for its selected target triple",
+          "symbol": "",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "9d44d39dc0aa049b48a8faf523a10aa96919241fce3f4a1c66ad6ae6635e1189"
+        },
+        "backend_registry": {
+          "id": "backend_registry",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp",
+          "start": 114,
+          "end": 138,
+          "line": 114,
+          "label": "TargetBackendRegistry resolves the LLVM triple",
+          "symbol": "",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "11baf7547042c05cbb83af1f9599fc161d071961c8de38c85c617244407d4bd7"
+        },
         "registration": {
           "id": "registration",
           "file": "max/examples/custom_ops/kernels/fused_attention.mojo",
@@ -3646,12 +6431,444 @@
           "language": "cpp",
           "alias": "C++",
           "sha256": "673d90f54ff1b88d968a1ceaeeda87de72fc36dc419db7cf35f224b677547866"
+        },
+        "bazel_build_file": {
+          "id": "bazel_build_file",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "start": 1,
+          "end": 124,
+          "line": 1,
+          "symbol": "",
+          "label": "Complete custom-op BUILD graph",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "fd76f32f14256dca172d5033747849880f0952565fd4a99ad76042c18ef885b4"
+        },
+        "bazel_aliases": {
+          "id": "bazel_aliases",
+          "file": "bazel/mojo_aliases.bzl",
+          "start": 1,
+          "end": 157,
+          "line": 1,
+          "symbol": "",
+          "label": "Mojo source-package alias mappings",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "3b91db6cf9f3ab666c96de0a065269d1cea40f78926230fb269e76ee3d35d747"
+        },
+        "bazel_max_aliases": {
+          "id": "bazel_max_aliases",
+          "file": "max/BUILD.bazel",
+          "start": 1,
+          "end": 73,
+          "line": 1,
+          "symbol": "",
+          "label": "MAX aliases enter the BUILD graph",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "d156781d99ac676ae9361d809d9913efee4fc98e9e03cabf0d274c893effe18e"
+        },
+        "bazel_layout_package": {
+          "id": "bazel_layout_package",
+          "file": "max/kernels/src/layout/BUILD.bazel",
+          "start": 1,
+          "end": 23,
+          "line": 1,
+          "symbol": "",
+          "label": "Layout source package",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "3f28eac4ed03815dfac672c142db383bcfaf836086a9b849fddb7898b8f363ad"
+        },
+        "bazel_extensibility_package": {
+          "id": "bazel_extensibility_package",
+          "file": "max/kernels/src/graph_compiler/extensibility/BUILD.bazel",
+          "start": 1,
+          "end": 20,
+          "line": 1,
+          "symbol": "",
+          "label": "Extensibility source package",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "451467590d1d1c7e760508d1a4c57c5fd2d34b3106e3b77d1593b32fcff589b1"
+        },
+        "bazel_std_package": {
+          "id": "bazel_std_package",
+          "file": "Mojo/stdlib/std/BUILD.bazel",
+          "start": 1,
+          "end": 58,
+          "line": 1,
+          "symbol": "",
+          "label": "Mojo standard-library source package",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "be26bccf96d118b84bde5746d49329bfa76a22e93037a8988fb2094300cf10e2"
+        },
+        "bazel_mojo_toolchain": {
+          "id": "bazel_mojo_toolchain",
+          "file": "bazel/internal/BUILD.bazel",
+          "start": 185,
+          "end": 203,
+          "line": 185,
+          "symbol": "",
+          "label": "Source-built Mojo compiler and LLVM LLD toolchain",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "dadac08255de7379f906e212de0c8db7500045796be416b33475615c6f26ff94"
+        },
+        "bazel_binary_test": {
+          "id": "bazel_binary_test",
+          "file": "bazel/internal/binary_test.bzl",
+          "start": 1,
+          "end": 52,
+          "line": 1,
+          "symbol": "",
+          "label": "Example test executable and runfiles",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "eeae2173c6218649b31fda594719b4ccb7d0578573a3527e073c612140cc86e8"
+        },
+        "bazel_run_test": {
+          "id": "bazel_run_test",
+          "file": "bazel/internal/modular_run_binary_test.bzl",
+          "start": 1,
+          "end": 45,
+          "line": 1,
+          "symbol": "",
+          "label": "Example test environment macro",
+          "language": "text",
+          "alias": "BUILD",
+          "sha256": "151c7e7e76fceb0d39822aa64dab0de7ee98e95e687ada4725b3cc492ab8673b"
+        },
+        "package_builder": {
+          "id": "package_builder",
+          "file": "Mojo/python/mojo/paths.py",
+          "start": 141,
+          "end": 191,
+          "line": 141,
+          "symbol": "_build_mojo_source_package",
+          "label": "Actual mojo precompile command and atomic package publication",
+          "language": "python",
+          "alias": "PY",
+          "sha256": "53f44a43f59bbe55f87f6579ea26538c4d36a5f6caa7075a1b3618859b059d6a"
+        },
+        "kernel_package_root": {
+          "id": "kernel_package_root",
+          "file": "max/examples/custom_ops/kernels/__init__.mojo",
+          "start": 1,
+          "end": 12,
+          "line": 1,
+          "symbol": "",
+          "label": "Custom kernel package root",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "8f74f8d22bbf966cbebda3ff4d32bfd82242abc372fe3416f899a99817774307"
+        },
+        "reference_addition": {
+          "id": "reference_addition",
+          "file": "max/examples/custom_ops/addition.py",
+          "start": 1,
+          "end": 88,
+          "line": 1,
+          "symbol": "",
+          "label": "Add-one Python example used in the QnA",
+          "language": "python",
+          "alias": "PY",
+          "sha256": "b6b5cac6c78273563cdbf4e837953ffe2dd9c6527481717f521d46a7e5656042"
+        },
+        "reference_add_one": {
+          "id": "reference_add_one",
+          "file": "max/examples/custom_ops/kernels/add_one.mojo",
+          "start": 1,
+          "end": 70,
+          "line": 1,
+          "symbol": "",
+          "label": "Original AddOne and AddOneElementwise definitions",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "dabd4d30f44599be01c1cfdda5cd67a8a1d01380d7ddfc0f3dcbfbd5b70e114a"
+        },
+        "mo_dialect": {
+          "id": "mo_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MODialect/MODialect.td",
+          "start": 1,
+          "end": 53,
+          "line": 1,
+          "symbol": "",
+          "label": "MO dialect definition",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "9d259cd4b15baa4e40c9c1000537fb2ff8cb98d7bbb22d647ce329f23d9cba92"
+        },
+        "map_dialect": {
+          "id": "map_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPDialect.td",
+          "start": 1,
+          "end": 52,
+          "line": 1,
+          "symbol": "",
+          "label": "MAP dialect and access-operation families",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "ce47854394679c122f5a944f4b1173fc5abb7a300dd2a26ba9200c31eee4bfbf"
+        },
+        "mogg_dialect": {
+          "id": "mogg_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MOGGDialect/MOGGDialect.td",
+          "start": 1,
+          "end": 49,
+          "line": 1,
+          "symbol": "",
+          "label": "MOGG dialect definition",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "41622517860c1697bef77f2e3bbe3aec66003d021a7d12168ecbafec8f5712f3"
+        },
+        "mgp_dialect": {
+          "id": "mgp_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MGPDialect/Dialect/MGPDialect.td",
+          "start": 1,
+          "end": 82,
+          "line": 1,
+          "symbol": "",
+          "label": "MGP model, context, buffers and state slots",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "868400ca84431f209943e898821139230f8c3c571be9b6656644623c0de0723e"
+        },
+        "graph_compiler_design": {
+          "id": "graph_compiler_design",
+          "file": "GraphCompiler/docs/GraphCompiler.md",
+          "start": 1,
+          "end": 239,
+          "line": 1,
+          "symbol": "",
+          "label": "Dialect names and current MAP fusion design",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "c721101471915757ef096f677ff19ebe854e5ba5a542fe78efc0953745191c20"
+        },
+        "mo_to_map": {
+          "id": "mo_to_map",
+          "file": "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp",
+          "start": 764,
+          "end": 791,
+          "line": 764,
+          "symbol": "struct MOToMAPPass",
+          "label": "MOToMAPPass walks and lowers graph operations",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "dbf24cc0ff0651aa6193a3191095d50f2538e5eacda71f3fa48592d9cc1e1d95"
+        },
+        "map_to_mogg": {
+          "id": "map_to_mogg",
+          "file": "GraphCompiler/lib/Conversion/MAPToMOGG/MAPToMOGG.cpp",
+          "start": 53,
+          "end": 83,
+          "line": 53,
+          "symbol": "struct MAPToMOGGPass",
+          "label": "MAPToMOGGPass uses MojoRegistry and MAPToMOGGState",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "d4a6057b5927d43339669a606d83ec8d1e967e83b462cc5591d6addc1588dc20"
+        },
+        "mogg_to_mgp": {
+          "id": "mogg_to_mgp",
+          "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
+          "start": 2406,
+          "end": 2470,
+          "line": 2406,
+          "symbol": "void MOGGToMGPPass::runOnOperation()",
+          "label": "MOGGToMGPPass and dependency-ordered MOGraphLowering",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "f8a959aeea9213672f6e29404c7a4045d0d1787d7bb2a39f3e67bd6b15364569"
+        },
+        "device_finalization": {
+          "id": "device_finalization",
+          "file": "GraphCompiler/lib/MGPDialect/Transforms/FinalizeDeviceGraphsPass.cpp",
+          "start": 375,
+          "end": 389,
+          "line": 375,
+          "symbol": "class FinalizeDeviceGraphsPass",
+          "label": "Device-graph finalization guard and collective audit",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "11f052f02b9abdc9209082750d5dc9b0b72f22e35ce95698b3d1056b10ff2e49"
+        },
+        "emit_mojo": {
+          "id": "emit_mojo",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/EmitMojo.cpp",
+          "start": 147,
+          "end": 190,
+          "line": 147,
+          "symbol": "",
+          "label": "EmitMojo imports packages and generates routine source",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "95ca5c5adce7ef0873efb7d8112592d61cf53f92fd9103e6cab8ab8ee5cf7b97"
+        },
+        "jit_entry": {
+          "id": "jit_entry",
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "start": 529,
+          "end": 609,
+          "line": 529,
+          "symbol": "compileMojoToBinary(ModuleOp module,",
+          "label": "MAX kernel JIT entry: parse, LIT lowering, compiler objects and cache routes",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "ab11d1606a9106a8c7097dd3869470d648f3836ee80f90b5819b3a90b6a2f942"
+        },
+        "kgen_elaboration": {
+          "id": "kgen_elaboration",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 1140,
+          "end": 1175,
+          "line": 1140,
+          "symbol": "ErrorOrSuccess KGENCompiler::runElaborationPipeline(",
+          "label": "KGENCompiler runs the elaboration pass manager",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "a293e774bb41c62580816dabdc9c19c67d9b16718136c61332c88e591e539bac"
+        },
+        "kgen_elaborate_build": {
+          "id": "kgen_elaborate_build",
+          "file": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "start": 967,
+          "end": 973,
+          "line": 967,
+          "symbol": "void KGEN::populateElaborateModulePasses(",
+          "label": "Elaboration and post-elaboration pipeline builders",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "24e894af05eaaebf94fb508a3da9a0e6c2a9a9059877064cd1b88d396b09511c"
+        },
+        "kgen_post_elaboration": {
+          "id": "kgen_post_elaboration",
+          "file": "Mojo/lib/Compiler/Pipeline/Pipeline.cpp",
+          "start": 154,
+          "end": 173,
+          "line": 154,
+          "symbol": "void KGEN::buildPostElaborationPipeline(",
+          "label": "Concrete-IR verification, materialization and optimization",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "d985fbe450b118b621cbd3ee1b4e9d2b092ff9dbbf74a4b187109e54b178b6bb"
+        },
+        "kgen_llvm_passes": {
+          "id": "kgen_llvm_passes",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/KGENToLLVMPipeline.cpp",
+          "start": 26,
+          "end": 57,
+          "line": 26,
+          "symbol": "void KGEN::buildLowerToLLVMPipeline(",
+          "label": "Exact KGEN / POP / control-flow to LLVM-dialect passes",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "0748812e49f2573e52ce8e89d1ed50d7628f7dd8087f0a97c4cc46ff32065ae4"
+        },
+        "object_lower_to_llvm": {
+          "id": "object_lower_to_llvm",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp",
+          "start": 816,
+          "end": 856,
+          "line": 816,
+          "symbol": "ObjectCompiler::lowerAllFuncsToLLVM(llvm::LLVMContext &ctx, ModuleOp module)",
+          "label": "MLIR lowering, optional dumps and LLVM-module translation",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "c17e6b391ba1932779995eec879aa7b1f15e2b47310ab610d79c9fb54d973b67"
+        },
+        "backend_registry_declaration": {
+          "id": "backend_registry_declaration",
+          "file": "Mojo/include/Mojo/Compiler/Target/TargetBackend.h",
+          "start": 339,
+          "end": 357,
+          "line": 339,
+          "symbol": "class TargetBackendRegistry {",
+          "label": "Owned backend vector and static registration helper",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "95f8598df433f60b4c2bcc4895dbb0ad46c03d0cbf7cec719e8bf9319f29b538"
+        },
+        "llvm_target_machine": {
+          "id": "llvm_target_machine",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp",
+          "start": 63,
+          "end": 92,
+          "line": 63,
+          "symbol": "defaultCreateTargetMachine(",
+          "label": "LLVM TargetRegistry and triple / CPU / features / ABI",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "875d32ab217be82227e34c20c511234eff221e570b4d9878a874de5fb9058432"
+        },
+        "llvm_code_gen": {
+          "id": "llvm_code_gen",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp",
+          "start": 277,
+          "end": 356,
+          "line": 277,
+          "symbol": "runLlcPasses(llvm::Module &module, CompilationOptions &options,",
+          "label": "In-process LLVM machine-code pass manager",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "4b391532ea134e9c5bcc93d5dd09c07da9d43aae319ece39824c13a889f83137"
+        },
+        "nvptx_backend": {
+          "id": "nvptx_backend",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/max_license/NVPTX/NVPTXBackend.cpp",
+          "start": 1,
+          "end": 218,
+          "line": 1,
+          "symbol": "",
+          "label": "NVIDIA backend registration, PTX and CUDA compilation",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "a71c5c8f5a4f03a35229466a2ec586418f617c220405a02ea11afe7b86da3bc9"
+        },
+        "host_backend": {
+          "id": "host_backend",
+          "file": "Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.h",
+          "start": 1,
+          "end": 53,
+          "line": 1,
+          "symbol": "",
+          "label": "Host backend interface and target resolution",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "dd830c7131a748df6024815044f376e34729cfa377a2a2cb1d58064e88b62be1"
+        },
+        "cross_target_example": {
+          "id": "cross_target_example",
+          "file": "GraphCompiler/test/mo-opt/cross-compile-gpu-arch.mlir",
+          "start": 1,
+          "end": 23,
+          "line": 1,
+          "symbol": "",
+          "label": "Source test: NVIDIA sm_90a and AMD gfx942 cross-codegen",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "cd7f362a32706dd84649d77623c6d58ceb6ab76a103491266f97f0c11c54494d"
+        },
+        "graph_stage_dumps": {
+          "id": "graph_stage_dumps",
+          "file": "GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir",
+          "start": 1,
+          "end": 33,
+          "line": 1,
+          "symbol": "",
+          "label": "Source test for graph-stage diagnostic dumps",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "c575db9f2bd7a8651818bb7095f0edf37e19f044cb13625148815dc9e4843ee7"
         }
       },
       "lessons": [
         {
           "id": "journey",
-          "number": "01",
+          "number": "02",
           "title": "Follow one operation all the way through",
           "detail": "Select an operation or its loads/stores. Follow its source ancestry, changing representations, cache route, compiled code and two calls to the retained model.",
           "evidence": "SOURCE lifecycle \u00b7 schematic transformations / calls",
@@ -3664,8 +6881,94 @@
           "ascii": "Python builder + Mojo package \u2192 verified G1\nG1 retained \u2192 compiler clone C1 \u2192 artifact lookup\nmiss: MO \u2192 MAP \u2192 MOGG \u2192 MGP \u2192 kernel lookup\nkernel miss: specialize Mojo \u2192 LLVM \u2192 target code\ncompiled routines \u2192 runtime callables \u2192 CM1 / MEF bytes\nartifact hit: reuse CM1; kernel hit: reuse code, prepare graph\nS1.init(CM1) \u2192 M1 \u2192 execute(B1) \u2192 O1 ready\nSame S1 / M1 / code \u2192 execute(B2) \u2192 O2 ready"
         },
         {
+          "id": "toolchain",
+          "number": "01",
+          "title": "From Bazel's build graph to a selected device backend",
+          "detail": "Follow the build/run boundary, each MAX dialect conversion, concrete Mojo specialization, target selection and initialized execution. Text retains the complete previous answers 1\u20137 and expands their numbered details; each animation step links to its explanation.",
+          "ascii": "1 \u00b7 ./bazelw build //max/examples/custom_ops:fused_attention\n    Python launcher + runfiles; kernels/*.mojo is data\n    Mojo library dependencies \u2192 separate .mojoc packages\n2 \u00b7 ./bazelw run //max/examples/custom_ops:fused_attention\n    Graph(custom_extensions=kernels/) \u2192 mojo precompile subprocess\n    private staging .mojoc \u2192 atomic publication \u2192 package P1\n    Python entry point stays separate; G1 records shape/dtype/device\n3 \u00b7 InferenceSession.compile(G1); caller retains G1\n    C1 / MO: Modular Operations \u00b7 typed tensor graph\n      MOToMAPPass + MojoRegistry \u2192 access/kernel structure\n    C1 / MAP: Modular Access Primitives \u00b7 load/compute/store + fusion\n      MAPToMOGGPass + MAPToMOGGState \u2192 generator/routine calls\n    C1 / MOGG: Modular Operation Generator Graph\n      MOGGToMGPPass + MOGraphLowering \u2192 init/execute resources\n    C1 / MGP: Modular Glue Primitives \u00b7 buffers/dependencies/state\n    Device-graph finalization: audit only when getIsDeviceGraph()\n4 \u00b7 EmitMojo \u2192 separate KIR1; C1 retains the MGP plan\n    kernel JIT miss \u2192 KGENCompiler.runElaborationPipeline\n    generators + target/dtype/parameters \u2192 concrete KGEN / POP\n    ObjectCompiler + buildLowerToLLVMPipeline \u2192 LLVM dialect (MLIR)\n    mlir::translateModuleToLLVMIR \u2192 LLVM1 / llvm::Module\n5 \u00b7 TargetInfo triple/arch/features \u2192 TargetBackendRegistry lookup\n    LLVM TargetRegistry \u2192 LLVM TargetMachine\n    CPU: HostBackend \u2192 host object \u2192 linked native code\n    NVIDIA: nvptx64-nvidia-cuda / sm_90a \u2192 PTX\n      CUDA CompilationDevice.compileFunction \u2192 same-SM cubin\n    AMD: amdgcn-amd-amdhsa / gfx942 + required device bitcode\n      AMDGPU object \u2192 device ELF link \u2192 hsaco\n6 \u00b7 Host Python/MAX/driver stays on CPU; device kernels have their own target\n    LowerCompiledRoutines \u2192 ModuleLoad / ExecuteGeneric\n    prepared CM1 / MEF bytes \u2192 session.init \u2192 executable M1\n    M1 + numerical Buffers \u2192 native execution \u2192 result readiness\n7 \u00b7 Native MLIR/LLVM APIs run compiler passes in the process\n    No standalone mlir-opt command is part of these example targets\n    IR/dump names are teaching views; GPU architectures are source-test examples",
+          "refs": [
+            "bazel_wrapper",
+            "bazel_binary",
+            "bazel_macro",
+            "bazel_kernel_sources",
+            "bazel_py_binary",
+            "mojo_library_rule",
+            "mojo_runtime_toolchain",
+            "mojo_runtime_exports",
+            "package_load",
+            "entry",
+            "compile_async",
+            "gc_pipeline",
+            "mo_pipeline",
+            "map_pipeline",
+            "mogg_pipeline",
+            "mgp_pipeline",
+            "mojo_semantics",
+            "mojo_elaboration",
+            "mojo_llvm",
+            "llvm_translation",
+            "target_info",
+            "offload_targets",
+            "backend_registry",
+            "backend_select",
+            "host_object",
+            "nvptx_object",
+            "amdgpu_backend",
+            "bazel_build_file",
+            "bazel_aliases",
+            "bazel_layout_package",
+            "bazel_extensibility_package",
+            "bazel_std_package",
+            "bazel_mojo_toolchain",
+            "bazel_run_test",
+            "bazel_binary_test",
+            "package_builder",
+            "kernel_package_root",
+            "mojo_package",
+            "registration",
+            "custom_api",
+            "graph_init",
+            "graph_output",
+            "frontend",
+            "mo_dialect",
+            "graph_compiler_design",
+            "mo_to_map",
+            "map_dialect",
+            "map_to_mogg",
+            "mogg_dialect",
+            "mogg_to_mgp",
+            "mgp_dialect",
+            "device_finalization",
+            "emit_mojo",
+            "jit_entry",
+            "kernel_misses",
+            "kernel_hits",
+            "cross_target_example",
+            "backend_registry_declaration",
+            "llvm_target_machine",
+            "kgen_elaboration",
+            "kgen_elaborate_build",
+            "kgen_post_elaboration",
+            "kgen_llvm_passes",
+            "object_lower_to_llvm",
+            "llvm_code_gen",
+            "runtime_calls",
+            "jit_pipeline",
+            "artifact",
+            "serialize",
+            "init_all",
+            "execute",
+            "native_execute",
+            "driver_execute",
+            "driver_results",
+            "ready_counts",
+            "graph_stage_dumps"
+          ],
+          "evidence": "SOURCE \u00b7 Bazel rules / MAX and Mojo compiler / target backends"
+        },
+        {
           "id": "build",
-          "number": "02",
+          "number": "03",
           "title": "Record this example's graph",
           "detail": "Follow the unchanged Python source, typed graph inputs and its Mojo registration.",
           "ascii": "Python example + Mojo package \u2192 registered implementation\nGraph imports custom_extensions before invoking builder\nTensorType + ops.custom(name, out_types) \u2192 Graph.output\nVerified G1; numerical execution has not happened",
@@ -3677,9 +6980,9 @@
         },
         {
           "id": "compile",
-          "number": "03",
+          "number": "04",
           "title": "Compile it into an executable model",
-          "detail": "This focused view expands the cold route. Use 01 for graph-artifact and compiled-kernel cache comparisons.",
+          "detail": "This focused view expands the cold route. Use the operation journey in 02 for graph-artifact and compiled-kernel cache comparisons.",
           "ascii": "S1.compile(G1) \u2192 clone C1 \u2192 MO / MAP / MOGG / MGP\ndevice-graph finalization \u2192 emitted/custom Mojo \u2192 kernel JIT\nMojo specialization \u2192 LLVM dialect \u2192 LLVM IR \u2192 target code\nfinal runtime-call lowering \u2192 prepared MEF byte buffer\nload modules / resolve callables \u2192 initialized M1\nThese examples need no weight registry",
           "refs": [
             "entry",
@@ -3690,7 +6993,7 @@
         },
         {
           "id": "run",
-          "number": "04",
+          "number": "05",
           "title": "Watch the kernel's values and decisions",
           "detail": "Tiny view: one query, four keys, two features; original CPU N=D=8 / GPU N=D=32. Arithmetic is a small deterministic illustration of the original operation.",
           "ascii": "M1 + Buffer inputs \u2192 native execution \u2192 kernel arithmetic\nRuntime readiness \u2192 result Buffer\nprint(output); no explicit host copy in this source\nSame resident code/session, separate per-call data\nFull-score comparison: N\u00d7N score elements\nProvided tiled route: queryTile\u00d7keyTile local score elements\nTiny row: 4 retained scores versus 2 reused slots\nRetain m / l / normalized O; release local score and exponent tiles",
@@ -3699,8 +7002,29 @@
             "math"
           ],
           "evidence": "SOURCE kernel logic \u00b7 browser math illustration \u00b7 BOUNDARY device timing"
+        },
+        {
+          "id": "commands",
+          "number": "00",
+          "title": "Set up, build and run this exact example",
+          "detail": "The steps show the repository-root Bazel build and generated example-test, plus the separate Pixi setup and task for running the Python script directly.",
+          "ascii": "From the modular/ repository root:\n./bazelw build //max/examples/custom_ops:fused_attention\n./bazelw test //max/examples/custom_ops:fused_attention.example-test\n\nDirect script route (Pixi CLI required; setup once):\ncd max/examples/custom_ops\npixi install\npixi run fused_attention",
+          "refs": [
+            "bazel_wrapper",
+            "bazel_binary",
+            "bazel_test_macro",
+            "pixi_task",
+            "pixi_dependencies",
+            "pixi_run_docs"
+          ],
+          "evidence": "SOURCE \u00b7 repository build rule / locked Pixi environment"
         }
       ],
+      "toolchain": {
+        "point1_sha256": "53028c61d6b720b635c5007224788235403dc240e39ac08072799096acf2c0d7",
+        "sections": 7,
+        "steps": 34
+      },
       "files": [
         {
           "path": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
@@ -3719,12 +7043,20 @@
           "sha256": "fb6e4624fdfdb8b382822d1cac558e8bc8cb788a2c6702bb8db8f8addaa9f92d"
         },
         {
+          "path": "Mojo/lib/Compiler/KGENCompiler.cpp",
+          "sha256": "41a712e1e96412021118ca232cb6da562717cdda98eb0c9671352994ae0d59bc"
+        },
+        {
           "path": "Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp",
           "sha256": "1e4fc345a6c5466343cb996078fa7fe67c9476e4a2f1336304fc380d73e22668"
         },
         {
           "path": "Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.cpp",
           "sha256": "538a0a3c07879153fbe2976f3ad89681f6eda601bfc2b3893ff54559c4f2d0e3"
+        },
+        {
+          "path": "Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp",
+          "sha256": "dc948081fb5c4086c76257d7bc64d3843e8b4d9fc394f03cdea3f50a9dab4710"
         },
         {
           "path": "Mojo/lib/Compiler/ObjectCompiler/Target/max_license/AMDGPU/AMDGPUBackend.cpp",
@@ -3735,12 +7067,44 @@
           "sha256": "a71c5c8f5a4f03a35229466a2ec586418f617c220405a02ea11afe7b86da3bc9"
         },
         {
+          "path": "bazel/internal/modular_py_binary.bzl",
+          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
+        },
+        {
+          "path": "bazel/internal/mojo_library.bzl",
+          "sha256": "775157e64b5bb6e5a6881b3c20d8fb200feaa5987f20c5ca3993e2a2b8386e0d"
+        },
+        {
+          "path": "bazel/internal/mojo_test_environment.bzl",
+          "sha256": "bffc55e31ff09f52b7136fb97c97aee7fb2e4d8ecf98a344fb1a59b1242d137c"
+        },
+        {
+          "path": "bazelw",
+          "sha256": "b08ee9381524e0254669a64c781796cd1c3ca037fd80998ce828dec99c9ab6f6"
+        },
+        {
+          "path": "max/examples/custom_ops/BUILD.bazel",
+          "sha256": "fd76f32f14256dca172d5033747849880f0952565fd4a99ad76042c18ef885b4"
+        },
+        {
+          "path": "max/examples/custom_ops/README.md",
+          "sha256": "e63e0aab0c80daed5df869a2e2c0dd3b3d0e40728262de92dc3a7a7604f87af5"
+        },
+        {
+          "path": "max/examples/custom_ops/custom_op_example.bzl",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        {
           "path": "max/examples/custom_ops/fused_attention.py",
           "sha256": "e5874ab1b10e723df30f868d8c73dd3a272eee49fee0bc35bc4620aa52ba7b69"
         },
         {
           "path": "max/examples/custom_ops/kernels/fused_attention.mojo",
           "sha256": "2cd136d39ce0240ef2a6fd4505f74e03e0f163047645d1c8c1b1056cb0b55aff"
+        },
+        {
+          "path": "max/examples/custom_ops/pixi.toml",
+          "sha256": "0b42832b204e1891d59e53ec2c0112103dc4028a042b933d2b6f09093c2d1a5f"
         },
         {
           "path": "max/lib/max_license/API/c/ModelExecution.cpp",
@@ -3769,6 +7133,118 @@
         {
           "path": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
           "sha256": "4c743a6615b991738892556c42b90d26bba83bfd85a33b3130d02bfab321527b"
+        },
+        {
+          "path": "bazel/mojo_aliases.bzl",
+          "sha256": "3b91db6cf9f3ab666c96de0a065269d1cea40f78926230fb269e76ee3d35d747"
+        },
+        {
+          "path": "max/BUILD.bazel",
+          "sha256": "d156781d99ac676ae9361d809d9913efee4fc98e9e03cabf0d274c893effe18e"
+        },
+        {
+          "path": "max/kernels/src/layout/BUILD.bazel",
+          "sha256": "3f28eac4ed03815dfac672c142db383bcfaf836086a9b849fddb7898b8f363ad"
+        },
+        {
+          "path": "max/kernels/src/graph_compiler/extensibility/BUILD.bazel",
+          "sha256": "451467590d1d1c7e760508d1a4c57c5fd2d34b3106e3b77d1593b32fcff589b1"
+        },
+        {
+          "path": "Mojo/stdlib/std/BUILD.bazel",
+          "sha256": "be26bccf96d118b84bde5746d49329bfa76a22e93037a8988fb2094300cf10e2"
+        },
+        {
+          "path": "bazel/internal/BUILD.bazel",
+          "sha256": "2529a6f63d035179c07849bded4b7ed74d8c1a2d236995aab1083ee915c61acb"
+        },
+        {
+          "path": "bazel/internal/binary_test.bzl",
+          "sha256": "eeae2173c6218649b31fda594719b4ccb7d0578573a3527e073c612140cc86e8"
+        },
+        {
+          "path": "bazel/internal/modular_run_binary_test.bzl",
+          "sha256": "151c7e7e76fceb0d39822aa64dab0de7ee98e95e687ada4725b3cc492ab8673b"
+        },
+        {
+          "path": "Mojo/python/mojo/paths.py",
+          "sha256": "d6d4e532fe4ede43c69b297b781cfbf46030dd8746d8883a159bc2af8d72f7e7"
+        },
+        {
+          "path": "max/examples/custom_ops/kernels/__init__.mojo",
+          "sha256": "8f74f8d22bbf966cbebda3ff4d32bfd82242abc372fe3416f899a99817774307"
+        },
+        {
+          "path": "max/examples/custom_ops/addition.py",
+          "sha256": "b6b5cac6c78273563cdbf4e837953ffe2dd9c6527481717f521d46a7e5656042"
+        },
+        {
+          "path": "max/examples/custom_ops/kernels/add_one.mojo",
+          "sha256": "dabd4d30f44599be01c1cfdda5cd67a8a1d01380d7ddfc0f3dcbfbd5b70e114a"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MODialect/MODialect.td",
+          "sha256": "9d259cd4b15baa4e40c9c1000537fb2ff8cb98d7bbb22d647ce329f23d9cba92"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPDialect.td",
+          "sha256": "ce47854394679c122f5a944f4b1173fc5abb7a300dd2a26ba9200c31eee4bfbf"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MOGGDialect/MOGGDialect.td",
+          "sha256": "41622517860c1697bef77f2e3bbe3aec66003d021a7d12168ecbafec8f5712f3"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MGPDialect/Dialect/MGPDialect.td",
+          "sha256": "868400ca84431f209943e898821139230f8c3c571be9b6656644623c0de0723e"
+        },
+        {
+          "path": "GraphCompiler/docs/GraphCompiler.md",
+          "sha256": "c721101471915757ef096f677ff19ebe854e5ba5a542fe78efc0953745191c20"
+        },
+        {
+          "path": "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp",
+          "sha256": "600a4d99e45a854a92d4da99455bae4daaffae87a36ff621918d53aa5f892034"
+        },
+        {
+          "path": "GraphCompiler/lib/Conversion/MAPToMOGG/MAPToMOGG.cpp",
+          "sha256": "164008fc603070ff5b1a3153ec318942fceb2dbf9c048d7bc2a5b3d4a7fb3d66"
+        },
+        {
+          "path": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
+          "sha256": "1e9cf7fbdcf2f0cee8f011dc57a13d029ad932ffb159658be351e5828870fb23"
+        },
+        {
+          "path": "GraphCompiler/lib/MGPDialect/Transforms/FinalizeDeviceGraphsPass.cpp",
+          "sha256": "44fb2800eea3cc95e94a1dd29c7fdb07d2de60fd1bfa60d3eef24f7d5ceb4c06"
+        },
+        {
+          "path": "GraphCompiler/lib/MOGGDialect/Transforms/EmitMojo.cpp",
+          "sha256": "b981b0a673c3a1db199d0b832d2cc7678f75063c8b53c20865a23f15317f5bda"
+        },
+        {
+          "path": "Mojo/lib/Compiler/Pipeline/Pipeline.cpp",
+          "sha256": "0db2d58a580944c31933df0d834e849d23f955173cdba6664052e09f55c55a1c"
+        },
+        {
+          "path": "Mojo/lib/Compiler/ObjectCompiler/KGENToLLVMPipeline.cpp",
+          "sha256": "e9096eb5a85e46907765d9f5b55a55f005a7e9f5826164c5b6f631db59017871"
+        },
+        {
+          "path": "Mojo/include/Mojo/Compiler/Target/TargetBackend.h",
+          "sha256": "181fcfc50046256845edd57a80dd9fd58973e0af31e84872e21ece517d2f23ae"
+        },
+        {
+          "path": "Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.h",
+          "sha256": "dd830c7131a748df6024815044f376e34729cfa377a2a2cb1d58064e88b62be1"
+        },
+        {
+          "path": "GraphCompiler/test/mo-opt/cross-compile-gpu-arch.mlir",
+          "sha256": "cd7f362a32706dd84649d77623c6d58ceb6ab76a103491266f97f0c11c54494d"
+        },
+        {
+          "path": "GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir",
+          "sha256": "c575db9f2bd7a8651818bb7095f0edf37e19f044cb13625148815dc9e4843ee7"
         }
       ]
     }

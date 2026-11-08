@@ -1,0 +1,145 @@
+For ./bazelw build //max/examples/custom_ops:addition, add_one.mojo is runtime source data. Bazel does not compile
+  that custom kernel into CPU or GPU machine code in this target. The Python example precompiles the kernel package
+  later, when it runs and constructs its Graph.
+
+  ### 1.1 What the addition build produces
+
+  Bazel analysis identifies the addition target as a py_binary. Its resolved files include:
+
+  • bazel-out/k8-dbg/bin/max/examples/custom_ops/addition — the Python launcher.
+  • max/examples/custom_ops/addition.py — the Python entry-point source, available through runfiles.
+  • bazel-out/k8-dbg/bin/max/examples/custom_ops/addition.mypy_stdout — an auxiliary output; I haven’t inspected its
+    contents.
+
+  The macro supplies :kernel_sources as data, so the matching kernels/*.mojo files are available at runtime. They are
+  not compiled into kernels.mojoc as part of the :addition target. A separate :kernels target produces that package;
+  shared Mojo dependencies such as layout, extensibility, and std have their own .mojoc outputs. See the BUILD file
+  (max/examples/custom_ops/BUILD.bazel:9) and example macro (max/examples/custom_ops/custom_op_example.bzl:12).
+
+  These paths came from Bazel analysis. I started the actual build, but interrupted its cold dependency build before
+  it finished, so I can’t report a successful build result.
+
+  ### 1.2 Where the Mojo dependencies come from
+
+  They are Bazel targets and generated package files, not Python classes or objects.
+
+   Label in the example macro    Target it aliases to                       Analyzed .mojoc output
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   //max:layout                  //max/kernels/src/layout:layout            bazel-out/k8-dbg/bin/max/kernels/src/
+                                                                            layout/layout.mojoc
+  ────────────────────────────  ─────────────────────────────────────────  ──────────────────────────────────────────
+   //max:extensibility           //max/kernels/src/graph_compiler/          bazel-out/k8-dbg/bin/max/kernels/src/
+                                 extensibility:extensibility                graph_compiler/extensibility/
+                                                                            extensibility.mojoc
+  ────────────────────────────  ─────────────────────────────────────────  ──────────────────────────────────────────
+   @mojo//:std                   //Mojo/stdlib/std:std                      bazel-out/k8-dbg/bin/Mojo/stdlib/std/
+                                                                            std.mojoc
+
+  The //max:* aliases are created by max_aliases() in max/BUILD.bazel (max/BUILD.bazel) using the mappings in
+  mojo_aliases.bzl (bazel/mojo_aliases.bzl:14). The source packages are declared in their respective BUILD files:
+  layout (max/kernels/src/layout/BUILD.bazel), extensibility (max/kernels/src/graph_compiler/extensibility/
+  BUILD.bazel), and stdlib (Mojo/stdlib/std/BUILD.bazel).
+
+  A .mojoc is a precompiled Mojo package: it stores a lit.package operation serialized as MLIR bytecode, including
+  declarations and bodies in the package’s post-parse IR. It has not yet been elaborated for concrete parameter
+  values or turned into target machine code. The repository’s Mojo compiler walkthrough (Mojo/docs/compiler/
+  MojoCompilerWalkthrough.md:599) describes this format; the official Mojo docs also describe .mojoc as a precompiled
+  package for importing into other Mojo code. (mojolang.org)
+
+  ### 1.3.1 How BUILD.bazel connects the targets
+
+  The :kernel_sources filegroup is used in two distinct ways:
+
+  This Mermaid diagram exceeds the terminal renderer's size limits.
+  flowchart LR
+      BUILD["BUILD.bazel"] --> MACRO["custom_op_example_py_binary(name = addition)"]
+      MACRO --> PY["py_binary :addition"]
+      ADDPY["addition.py · srcs"] --> PY
+      SOURCES["filegroup :kernel_sources<br/>glob kernels/*.mojo"] -->|"runtime data / runfiles"| PY
+      MOJODEPS["layout · extensibility · std<br/>mojo_deps"] --> ENV["Mojo runtime environment"]
+      ENV --> PY
+
+      MACRO --> TESTMACRO["modular_run_binary_test"]
+      TESTMACRO --> TEST["binary_test :addition.example-test"]
+      TEST -->|"runs this binary when tested"| PY
+
+      SOURCES -->|"srcs"| LIB["mojo_library :kernels"]
+      LIB -->|"dependency"| BENCH["mojo_binary :benchmarks"]
+
+  There is no :addition → :kernels dependency edge. The Python target receives the Mojo sources as runtime data.
+  Separately, :kernels precompiles them, and :benchmarks depends on that library. The rules and edges are in
+  BUILD.bazel (max/examples/custom_ops/BUILD.bazel:9).
+
+  #### 1.3.1.1 What each BUILD construct means
+
+   Construct                      What it is and how this file uses it
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   mojo_binary                    A Bazel rule for a Mojo executable. Here, :benchmarks is a Mojo program that
+                                  depends on :kernels. The local wrapper forwards to the upstream Mojo rule.
+  ─────────────────────────────  ────────────────────────────────────────────────────────────────────────────────────
+   mojo_library                   A Bazel rule that precompiles Mojo sources into a .mojoc package. Here, :kernels
+                                  uses :kernel_sources as srcs. The local wrapper also adds documentation targets.
+  ─────────────────────────────  ────────────────────────────────────────────────────────────────────────────────────
+   custom_op_example_py_binary    A local Starlark macro, not a Bazel rule. It expands an example declaration into a
+                                  Python binary and its automatic example test.
+  ─────────────────────────────  ────────────────────────────────────────────────────────────────────────────────────
+   filegroup                      A Bazel target that groups files. :kernel_sources collects kernels/*.mojo; the
+                                  filegroup itself does not compile them.
+  ─────────────────────────────  ────────────────────────────────────────────────────────────────────────────────────
+   load(...)                      A Starlark directive that imports symbols from a .bzl file into the BUILD file’s
+                                  scope. It does not create a build target.
+  ─────────────────────────────  ────────────────────────────────────────────────────────────────────────────────────
+   package(...)                   Package-level metadata. Here, default_visibility makes targets private unless they
+                                  specify otherwise; it does not create a Python or Mojo package artifact.
+  ─────────────────────────────  ────────────────────────────────────────────────────────────────────────────────────
+   target_compatible_with         A rule attribute containing platform constraints. It can make a target
+                                  incompatible with selected OS or hardware configurations; it does not select a
+                                  compiler backend at runtime.
+
+  The request listed mojo_binary twice; it is covered once above.
+
+  #### 1.3.1.2 How they work together here
+
+  • load makes mojo_binary, mojo_library, requirement, and the local Python-example macro available to BUILD.bazel.
+  • filegroup(:kernel_sources) collects the .mojo files.
+  • custom_op_example_py_binary(name = "addition") creates :addition with addition.py as its source, the kernel
+    filegroup as run-time data, Python dependencies, and Mojo dependencies.
+
+  • mojo_library(:kernels) compiles the same source group into a separate .mojoc package.
+  • mojo_binary(:benchmarks) consumes :kernels.
+  • package(default_visibility = ...) supplies the package’s default visibility. target_compatible_with, when
+    provided, constrains the compatibility of the generated targets.
+
+  ### 1.3.2 How the macro expands
+
+  The custom_op_example_py_binary macro in custom_op_example.bzl (max/examples/custom_ops/custom_op_example.bzl:5)
+  calls two other macros:
+
+  This Mermaid diagram exceeds the terminal renderer's size limits.
+  flowchart TD
+      CALL["BUILD call:<br/>custom_op_example_py_binary(name = addition)"]
+      CALL -->|"creates"| MPY["modular_py_binary(name = addition)"]
+      MPY --> ENV["mojo_test_environment<br/>with layout, extensibility, std"]
+      MPY --> PY["py_binary :addition<br/>addition.py + Python deps<br/>kernel sources in data/runfiles"]
+      MPY --> HELPERS["Supporting targets<br/>Mojo deps, venv, debug, pydeps"]
+
+      CALL -->|"also creates"| RUNTEST["modular_run_binary_test<br/>name = addition.example-test"]
+      RUNTEST --> BT["binary_test :addition.example-test"]
+      BT -->|"symlinks executable and merges runfiles"| PY
+
+  modular_py_binary prepares the Mojo environment and then invokes py_binary; it also defines supporting targets such
+  as the virtual environment and debug entry point. See modular_py_binary.bzl (bazel/internal/
+  modular_py_binary.bzl:53).
+
+  modular_run_binary_test creates a sibling test target named :addition.example-test. It configures the test
+  environment and calls binary_test. That rule symlinks the binary’s executable and merges its runfiles. See
+  modular_run_binary_test.bzl (bazel/internal/modular_run_binary_test.bzl:6) and binary_test.bzl (bazel/internal/
+  binary_test.bzl:3).
+
+  So:
+
+  • ./bazelw build //max/examples/custom_ops:addition builds the Python target and its dependencies; it does not run
+    addition.py.
+
+  • ./bazelw run //max/examples/custom_ops:addition runs the Python example.
+  • ./bazelw test //max/examples/custom_ops:addition.example-test runs the generated test target.
