@@ -31,6 +31,7 @@ SOURCES = [
     ("ct_elementwise_builder", "max/python/max/graph/ops/elementwise.py", "", "file", 0, "Python add/mul record relaxed graph operations"),
     ("ct_rmo_dialect", "GraphCompiler/include/GraphCompiler/RMODialect/RMODialect.td", "", "file", 0, "Relaxed operations lower to strictly typed MO"),
     ("ct_mo_map_add_test", "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-add-static.mlir", "", "file", 0, "Compiler test: tensor addition becomes elementwise iteration, loads, call and store"),
+    ("ct_mo_map_opaque_test", "GraphCompiler/test/mo-opt/Conversion/MOToMAP/opaque-kernels.mlir", "", "file", 0, "Compiler test: registered custom ops lower to opaque MAP iteration and calls"),
     ("ct_graph_device", GRAPH, "Graph._populate_device_info_mapping", "python", 0, "Graph's device-to-target metadata"),
     ("ct_graph_extensions", GRAPH, "_resolved_custom_extensions", "python", 0, "Explicit extensions and default overlays"),
     ("ct_graph_library", GRAPH, "KernelLibrary.__init__", "python", 0, "KernelLibrary creates native analysis"),
@@ -125,6 +126,18 @@ That conditional behavior is implemented in [ensure_default_mlir_context:55](sou
 
 GRAPH_OBJECTS_EXPLANATION = """**`builtin.ModuleOp` is the outer MLIR container; `mo.GraphOp(\"addition\")` is the named computation inside it.** Python’s `Graph(...)` constructor creates and retains both. See the [construction code](sources/max/python/max/graph/graph.py#L851).
 
+**Source order inside this constructor:**
+
+```text
+@in_default_mlir_context
+→ create empty builtin.ModuleOp + mo.GraphOp scaffold
+→ import kernels/; prepare P1 (.mojoc)
+→ forward(symbolic X); record mo.custom("add_one")
+→ Graph.output(Y); return completed graph G1
+```
+
+The reader opens with the **package-preparation phase A.1**, then follows the completed **MO graph G1 in A.2/A.3**. The empty scaffold precedes package loading in the source; the custom operation is recorded after loading. See [kernel import](sources/max/python/max/graph/graph.py#L909) and [forward recording](sources/max/python/max/graph/graph.py#L918).
+
 `Op` means **operation**. `builtin` is MLIR’s builtin dialect; `mo` is MAX’s graph dialect, defined in [MODialect.td](sources/GraphCompiler/include/GraphCompiler/MODialect/MODialect.td#L25). ([MLIR builtin dialect](https://mlir.llvm.org/docs/Dialects/Builtin/))
 
 **1. `builtin.ModuleOp`: the container**
@@ -169,45 +182,15 @@ g_mul = Graph("mul", module=unit, input_types=[t, t],
 
 `unit` owns one IR module containing **two graph definitions**. `g_add` and `g_mul` retain their respective graph operations. Calls to `ops.add` and `ops.mul` first use **RMO builders** for relaxed shape handling; RMO later lowers to strict MO. See [add’s builder](sources/max/python/max/graph/ops/elementwise.py#L73), [mul’s builder](sources/max/python/max/graph/ops/elementwise.py#L353), and [the RMO dialect](sources/GraphCompiler/include/GraphCompiler/RMODialect/RMODialect.td#L27).
 
-**Schematic MO view after RMO → MO.** Extra chains and device metadata are omitted. The graph bodies use the spelling in the repository’s [two-graph compiler test](sources/GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir#L14):
+**Recorded module structure before compilation:**
 
-```mlir
-module {
-  mo.graph @add(%a: !mo.tensor<[4], f32>,
-                %b: !mo.tensor<[4], f32>)
-      -> !mo.tensor<[4], f32> {
-    %r = mo.add(%a, %b) : !mo.tensor<[4], f32>
-    mo.output %r : !mo.tensor<[4], f32>
-  }
-  mo.graph @mul(%a: !mo.tensor<[4], f32>,
-                %b: !mo.tensor<[4], f32>)
-      -> !mo.tensor<[4], f32> {
-    %r = mo.mul(%a, %b) : !mo.tensor<[4], f32>
-    mo.output %r : !mo.tensor<[4], f32>
-  }
-}
+```text
+unit.mlir_module → builtin.module
+├─ g_add → mo.graph @add → relaxed rmo.add computation
+└─ g_mul → mo.graph @mul → relaxed rmo.mul computation
 ```
 
-| Python / IR item | Meaning in this example |
-|---|---|
-| `unit` / outer `module { ... }` | Owns both definitions as one compilation unit. |
-| `g_add` / `mo.graph @add` | Describes elementwise `A + B`. |
-| `g_mul` / `mo.graph @mul` | Describes elementwise `A * B`. |
-| `%a`, `%b`, `%r` | Symbolic values connected by data dependencies. |
-| `!mo.tensor<[4], f32>` | Tensor type: four float32 elements; the numbers arrive at execution. |
-
-**1.2 Compile the unit; initialize its named models**
-
-```python
-from max.engine import InferenceSession
-
-session = InferenceSession(devices=[device])
-compiled = session.compile(unit)
-models = session.init_all(compiled)
-# models["add"] and models["mul"] are executable model handles.
-```
-
-`compile(unit)` produces one compiled artifact for the unit; `init_all` returns a model dictionary keyed by graph names. Each model’s `execute(A, B)` call selects its computation. See [compile’s Module input](sources/max/python/max/engine/api.py#L1062) and [init_all’s named results](sources/max/python/max/engine/api.py#L1160).
+The Python calls build symbolic definitions. **C.1** follows their compilation through strict MO and MAP; **D.1** initializes the resulting named models.
 
 **2. `mo.GraphOp(\"addition\")`: the computation definition**
 
@@ -290,7 +273,8 @@ The `_mlir_op` assignment wraps the existing operation through its C API pointer
 with Graph("addition", input_types=[Y_type],
            custom_extensions=[mojo_kernels]) as graph:
     X = graph.inputs[0]
-    y = ops.custom(name="add_one", device=device,
+    y = ops.custom(name="add_one",
+                   device=DeviceRef.from_device(device),
                    values=[X], out_types=[Y_type])[0].tensor
     graph.output(y)
 ```
@@ -318,74 +302,132 @@ module {
 
 The **Python builder runs to create IR nodes**; the kernel’s numerical work happens later. This does not translate the entire `addition.py` program into MLIR. See [custom-op construction](sources/max/python/max/graph/ops/custom.py#L114), [Graph.output](sources/max/python/max/graph/graph.py#L1458), and [the original example](sources/max/examples/custom_ops/addition.py#L33).
 
-**3.2 Later compilation · tensor operation → iteration and kernel call**
-
-For a **separate built-in-add compiler test**, shape `[8,16,128]`, the expected MO → MAP transformation is:
-
-```text
-BEFORE · MO
-  mo.add(X, Y) → one symbolic output tensor
-
-AFTER · MAP · schematic from FileCheck expectations
-  map.iter.elementwise<[8,16,128]>
-  ├─ map.load X[i] → x_i
-  ├─ map.load Y[i] → y_i
-  ├─ map.call.elementwise @...Add(i, x_i, y_i) → sum_i
-  └─ map.store Out[i] = sum_i
-```
-
-**TEST/source evidence:** the [test input and expected rewrite](sources/GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-add-static.mlir#L6) show a tensor-level operation becoming an elementwise iteration with loads, a kernel call, and a store. These are expected compiler representations; this documentation update does not run the compiler test.
-
-The enclosing module groups the definitions while compiler passes rewrite their contents. The [graph-stage test](sources/GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir#L28) later expects `mo.graph @add` and `mo.graph @mul` to become `mgp.model @add` and `mgp.model @mul` in the runtime-plan representation.
-
 **Actual numbers arrive later**, through `model.execute(x)`. For example, an input element `2.5` produces `3.5` in this example. Compilation, initialization, buffer creation, and execution occur after graph construction in [addition.py](sources/max/examples/custom_ops/addition.py#L67).
 
-The **`.mojoc` package is produced on a separate branch**: loading your custom-extension directory invokes Mojo package preparation. `ModuleOp` and `GraphOp` construct the graph’s in-memory IR; see [extension loading](sources/max/python/max/graph/graph.py#L269) and [Mojo precompilation](sources/Mojo/python/mojo/paths.py#L141).
+The prepared **P1 `.mojoc` package** supplies kernel implementation bodies. **G1** contains the symbolic MO graph. In **C.1**, compilation rewrites a clone **C1** through MO → MAP; G1 remains with the caller. See [package loading](sources/max/python/max/graph/graph.py#L269).
+"""
+
+
+MODULE_COMPILATION_EXPLANATION = """**Shared-module example · compilation belongs to C.1**
+
+After **B** has created `session` (S1), compile the `unit` built in A.2:
+
+```python
+compiled_unit = session.compile(unit)
+```
+
+This accepts a `Module` containing multiple graphs and returns one compiled artifact. See [compile’s Module input](sources/max/python/max/engine/api.py#L1062).
+
+**Schematic MO view after RMO → MO.** Extra chains and device metadata are omitted. The graph bodies use the spelling in the repository’s [two-graph compiler test](sources/GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir#L14):
+
+```mlir
+module {
+  mo.graph @add(%a: !mo.tensor<[4], f32>,
+                %b: !mo.tensor<[4], f32>)
+      -> !mo.tensor<[4], f32> {
+    %r = mo.add(%a, %b) : !mo.tensor<[4], f32>
+    mo.output %r : !mo.tensor<[4], f32>
+  }
+  mo.graph @mul(%a: !mo.tensor<[4], f32>,
+                %b: !mo.tensor<[4], f32>)
+      -> !mo.tensor<[4], f32> {
+    %r = mo.mul(%a, %b) : !mo.tensor<[4], f32>
+    mo.output %r : !mo.tensor<[4], f32>
+  }
+}
+```
+
+| Python / IR item | Meaning in this example |
+|---|---|
+| `unit` / outer `module { ... }` | Owns both definitions as one compilation unit. |
+| `g_add` / `mo.graph @add` | Describes elementwise `A + B`. |
+| `g_mul` / `mo.graph @mul` | Describes elementwise `A * B`. |
+| `%a`, `%b`, `%r` | Symbolic values connected by data dependencies. |
+| `!mo.tensor<[4], f32>` | Tensor type: four float32 elements; the numbers arrive at execution. |
+"""
+
+
+GRAPH_LOWERING_EXPLANATION = """**G1 → compiler clone C1 → MO → MAP**
+
+`G1` is the caller-owned Python `Graph`; its `builtin.module` contains the `mo.graph` operation. `session.compile(G1)` gives the compiler a working clone, **C1**. MAX runs graph passes on C1, leaving G1 available to the caller.
+
+```text
+G1 / C1 at the MO boundary
+module {
+  mo.graph @addition(%x: !mo.tensor<[5, 10], f32>) -> !mo.tensor<[5, 10], f32> {
+    %y = mo.custom [symbol = "add_one"](%x)
+         : (!mo.tensor<[5, 10], f32>) -> !mo.tensor<[5, 10], f32>
+    mo.output %y : !mo.tensor<[5, 10], f32>
+  }
+}
+
+MOToMAP · registered custom-op pattern · schematic for add_one
+map.iter.opaque
+├─ inputs (X); outputs (Y)
+└─ map.call.opaque @...AddOne
+   └─ kernelName = "add_one"
+```
+
+**Custom-op evidence:** the [MOToMAP custom-kernel test](sources/GraphCompiler/test/mo-opt/Conversion/MOToMAP/opaque-kernels.mlir#L30) shows the same registered opaque-op form: `mo.custom` becomes `map.iter.opaque`, which contains `map.call.opaque`. Its test-only symbol is `map_lower_one_fused_output`; the drawing applies that lowering pattern to `add_one` and is schematic, not a captured MAX dump. The package P1 supplies the registered `AddOne` implementation; its source uses `foreach` to define the elementwise work ([AddOne](sources/max/examples/custom_ops/kernels/add_one.mojo#L32)).
+
+**Built-in-op comparison:** Python `ops.add(A, B)` initially records relaxed RMO. After RMO → MO, the [elementwise-add test](sources/GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-add-static.mlir#L6) shows `mo.add` becoming `map.iter.elementwise` with indexed loads, `map.call.elementwise @...Add`, and a store. That is a distinct MAP lowering shape from the `add_one` opaque custom call.
+
+The enclosing module groups definitions while compiler passes rewrite C1's contents. The [graph-stage test](sources/GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir#L28) later expects `mo.graph @add` and `mo.graph @mul` to become `mgp.model @add` and `mgp.model @mul` in the runtime-plan representation.
+"""
+
+
+MODULE_INITIALIZATION_EXPLANATION = """**Shared-module example · runtime initialization belongs to D.1**
+
+Use the compiled artifact from C.1:
+
+```python
+models = session.init_all(compiled_unit)
+add_model = models["add"]
+mul_model = models["mul"]
+# Supply input buffers to add_model.execute(A, B) or mul_model.execute(A, B) later.
+```
+
+`init_all` returns a model dictionary keyed by each graph’s `sym_name`; the compiled artifact is ready for execution after successful runtime initialization. See [init_all’s named results](sources/max/python/max/engine/api.py#L1160). The single-graph addition example uses `session.init(CM1)` to obtain one M1.
 """
 
 
 STAGES = [
     dict(
-        id="graph", letter="A", title="Graph(...) → G1 + package P1", short="Graph(...) → G1 + P1",
+        id="graph", letter="A", title="kernels/ → package P1 → recorded graph G1 (MO)", short="kernels/ → P1 → G1 (MO)",
         call='graph = Graph("addition", forward=..., input_types=..., custom_extensions=[mojo_kernels])',
         source="entry", line=33,
         contracts=[
-            ("Input", 'name="addition"; symbolic X: float32[5,10] @ device; forward callback; kernels/'),
-            ("Output", 'G1: Python Graph + mo.graph module; P1: resolved .mojoc package path'),
-            ("Example", 'forward records custom("add_one", [X]) → symbolic Y: float32[5,10]'),
+            ("Input", 'kernels/__init__.mojo + referenced kernels/*.mojo; name="addition"; symbolic X: float32[5,10]'),
+            ("Output", 'P1: one precompiled .mojoc package; G1: verified caller-owned MO graph using P1'),
+            ("Example", 'parse/check package → P1; forward records custom("add_one", [X]) → symbolic Y; MO → MAP is in C'),
         ],
-        tree="""[SOURCE:graph_init|Graph.__init__(name, forward, input_types, custom_extensions)]
-├─ [SOURCE:ct_graph_context|in_default_mlir_context] → ensure this thread has an active MLIR context
-│  └─ [EXPLANATION:context]
-│
-├─ create [EXPLANATION:graph_objects] → **G1**
-│  ├─ input TensorType → MLIR block argument: **X: float32[5,10]**
-│  ├─ _params = {} → this shape has no symbolic dimensions
-│  ├─ [SOURCE:ct_graph_device|_populate_device_info_mapping()] → CPU/GPU target metadata
-│  └─ _weights = {}; device chains + always-ready chain → ordering tokens
-│
-├─ [SOURCE:ct_graph_library|KernelLibrary()] → native kernel Analysis
-├─ [SOURCE:ct_graph_extensions|_resolved_custom_extensions([kernels/])] → paths + default overlays
-├─ [SOURCE:ct_graph_import|_import_kernels(paths)]
-│  └─ [SOURCE:package_load|KernelLibrary.load_paths(paths)]
-│     ├─ source directory + __init__.mojo → [SOURCE:package_builder|_build_mojo_source_package(kernels/)]
-│     │  └─ **mojo precompile kernels/ -o staging.mojoc** → publish **P1**
-│     └─ existing .mojoc → add directly; skip the source-package subprocess
-│
-├─ with G1 → forward(*self.inputs) runs once with **symbolic X**
-│  ├─ [SOURCE:custom_api|ops.custom(name="add_one", device, values=[X], out_types=[...])]
-│  │  ├─ record mo.custom → registration name + target + result type
-│  │  └─ [SOURCE:ct_graph_verify|KernelLibrary.verify_custom_op(op)] → validate Mojo contract
-│  └─ callback returns the custom result's .tensor → **symbolic Y**
-├─ [SOURCE:graph_output|Graph.output(Y)] → mo.output + signature + whole-graph verification
-└─ return **G1** → recorded computation; **P1** available for later specialization
+        note="Package preparation is shown first. Graph.__init__ creates its empty scaffold earlier and records the custom operation after P1 is ready; A.2 shows that source order. C performs MO → MAP on clone C1.",
+        tree="""[SOURCE:ct_graph_import|1 · _import_kernels(...): prepare package P1]
+├─ [SOURCE:package_load|KernelLibrary.load_paths([kernels/])]
+│  └─ [SOURCE:package_builder|_build_mojo_source_package(kernels/)]
+│     ├─ [SOURCE:kernel_package_root|kernels/__init__.mojo] + referenced child modules, including add_one.mojo
+│     ├─ separate compiler process → **mojo precompile kernels/ -o staging.mojoc**
+│     │  └─ parse → resolve → semantic/lifetime checks → MLIR bytecode
+│     └─ atomic publication → **P1: one .mojoc package**
+├─ existing .mojoc path → load that package directly
+└─ package phase complete → [CARD:toolchain-call-graph-package|A.1 · parser, checks, file format and subprocess]
+
+[SOURCE:graph_init|2 · Record and finish G1 with P1 available]
+├─ active MLIR context → [EXPLANATION:context]
+├─ reuse the constructor's empty [EXPLANATION:graph_objects] scaffold
+│  └─ input **X: float32[5,10]** + device metadata + ordering chains
+├─ forward(symbolic X)
+│  └─ [SOURCE:custom_api|ops.custom(name="add_one", values=[X], out_types=[Y_type], device=DeviceRef.from_device(device))]
+│     ├─ insert **mo.custom** → symbolic Y
+│     └─ [SOURCE:ct_graph_verify|verify_custom_op] → verify against **P1**
+├─ [SOURCE:graph_output|Graph.output(Y)] → mo.output + output signature + graph verification
+└─ return **G1: caller-owned MO graph** → [CARD:toolchain-call-graph-validation|A.3 · registration and validation]
+   Next: create **S1** (B); compile a clone **C1: MO → MAP → MOGG → MGP** (C).
 """,
         details=[
             dict(id="context", title="A.0 · What is the default MLIR context? Is it a global variable?",
-                 card_title="Default MLIR context", explanation=DEFAULT_CONTEXT_EXPLANATION),
-            dict(id="objects", title='A.0.1 · builtin.ModuleOp + mo.GraphOp("addition")',
-                 card_title="ModuleOp + GraphOp", explanation=GRAPH_OBJECTS_EXPLANATION),
-            dict(id="package", title="A.1 · Expand the .mojo → .mojoc compiler subprocess", tree="""[SOURCE:package_builder|_build_mojo_source_package(kernels_dir)]  [parent Python process]
+                 explanation=DEFAULT_CONTEXT_EXPLANATION),
+            dict(id="package", title="A.1 · Parse kernels/*.mojo → package P1 (.mojoc)", tree="""[SOURCE:package_builder|_build_mojo_source_package(kernels_dir)]  [parent Python process]
 ├─ input: absolute directory with [SOURCE:kernel_package_root|kernels/__init__.mojo]
 ├─ hash = MD5(absolute path string) → a stable filename, not a source-content hash
 ├─ final: <tempdir>/.modular_<uid>/mojo_pkg/mojo_pkg_<hash>.mojoc
@@ -410,7 +452,9 @@ STAGES = [
 └─ return final Path → **P1**; **addition.py stays a separate Python program**
    The source-directory branch invokes precompile again; it has no exists() skip.
 """),
-            dict(id="validation", title="A.2 · Expand registration, validation and Graph.output", tree="""[SOURCE:custom_api|ops.custom("add_one", values=[X], out_types=[Y_type], device)]
+            dict(id="objects", title='A.2 · ModuleOp + GraphOp → record graph G1',
+                 explanation=GRAPH_OBJECTS_EXPLANATION),
+            dict(id="validation", title="A.3 · Custom-op registration → verified graph G1", tree="""[SOURCE:custom_api|ops.custom("add_one", values=[X], out_types=[Y_type], device)]
 ├─ explicit out_types → output dtype/shape/device is already supplied
 │  └─ this path bypasses AddOne's optional unimplemented shape function
 ├─ insert mo.custom with name="add_one" → link to [SOURCE:registration|@extensibility.register("add_one") / AddOne]
@@ -452,7 +496,7 @@ STAGES = [
          ├─ [SOURCE:ct_context_ctor|Engine::Context(config, maxContext)] → retain runtime references
          └─ native session owns this Engine::Context → **S1 ready for compile/init**
 """,
-        details=[dict(id="ownership", title="B.1 · Expand ownership, threads and constructor examples", tree="""[SOURCE:ct_session|Constructor input → normalized output]
+        details=[dict(id="ownership", title="B.1 · Devices → native context and host runtime → S1", tree="""[SOURCE:ct_session|Constructor input → normalized output]
 ├─ [CPU()]                  → [CPU()]
 ├─ [Accelerator()]          → [Accelerator(), CPU()]
 └─ [device, device, CPU()]  → [device, CPU()]  (if device is an accelerator)
@@ -469,7 +513,8 @@ STAGES = [
 
 Thread policy → [SOURCE:ct_cpu_options|num_threads=None becomes 0: automatic selection]
 └─ context/runtime can be reused → do not infer a new private pool per S1
-Constructor result → configuration + ownership; G1 is supplied later to compile.
+Constructor result → **S1** configuration + ownership; G1 and its prepared P1 are supplied later to compile.
+In this example, session custom_extensions=None → package preparation remains in A.
 """ )],
     ),
     dict(
@@ -498,7 +543,8 @@ Constructor result → configuration + ownership; G1 is supplied later to compil
 │  │  │                 └─ [SOURCE:frontend|MOFContext::compileToBinary(source, format)]
 │  │  │                    ├─ clone module → compiler working graph **C1**
 │  │  │                    ├─ graph-artifact cache hit → reuse prepared MEF bytes
-│  │  │                    └─ miss/disabled → **MO → MAP → MOGG → MGP → kernel JIT → MEF**
+│  │  │                    └─ miss/disabled → **MO → MAP → MOGG → MGP** → [CARD:toolchain-call-compile-passes|C.1]
+│  │  │                       → kernel JIT / LLVM / targets [CARD:toolchain-call-compile-kernels|C.2] → MEF [CARD:toolchain-call-compile-mef|C.3]
 │  │  └─ done callback → release compilation lock when the task resolves
 │  └─ wrap pending handle → [SOURCE:artifact|CompiledModel(handle, expected_weights={})] → **CM1**
 │
@@ -507,7 +553,7 @@ Constructor result → configuration + ownership; G1 is supplied later to compil
    **G1 remains with the caller**; native lowering transforms the clone **C1**.
 """,
         details=[
-            dict(id="passes", title="C.1 · Expand MO → MAP → MOGG → MGP and their actual owners", tree="""[SOURCE:frontend|MOFContext::compileToBinary] → owns the compilation route for **C1**
+            dict(id="passes", title="C.1 · Clone G1 → MO → MAP → MOGG → MGP", tree="""[SOURCE:frontend|MOFContext::compileToBinary] → owns the compilation route for **C1**
 └─ cache miss → [SOURCE:ct_convert_mef|convertMOToMEF(C1, options)]
    └─ [SOURCE:ct_run_gc|MO::runGCPipeline(C1, options)]
       ├─ create mlir::PassManager; gcPipelineImpl builds passes; pm.run(C1) executes them
@@ -534,8 +580,8 @@ Constructor result → configuration + ownership; G1 is supplied later to compil
 **Add-one ancestry** [schematic representation; not a captured compiler dump]
 └─ mo.custom("add_one", X) → implementation-oriented accesses/call
    → selected AddOne routine → buffer/state execution plan → compiled callable
-"""),
-            dict(id="kernels", title="C.2 · Expand specialization, LLVM translation, targets and JIT", tree="""[SOURCE:jit_entry|compileMojoToBinary(C1, emitted Mojo, ...)]
+""", explanation=MODULE_COMPILATION_EXPLANATION + "\n\n" + GRAPH_LOWERING_EXPLANATION),
+            dict(id="kernels", title="C.2 · Kernel specialization → LLVM → target code", tree="""[SOURCE:jit_entry|compileMojoToBinary(C1, emitted Mojo, ...)]
 ├─ emitted routine + **P1** → parser/checks/LIT lowering → separate kernel IR **KIR1**
 ├─ compiled-kernel lookup → [SOURCE:kernel_cache|checkCache(state, ...)]
 │  ├─ hit → [SOURCE:kernel_hits|handleCacheHits] → reuse compatible native archives
@@ -562,7 +608,7 @@ Constructor result → configuration + ownership; G1 is supplied later to compil
    → AddOne's dtype/layout/target specialize; compiled code can be reused for later inputs.
    **P1 precompilation is the earlier subprocess**; kernel JIT is a later compilation phase.
 """),
-            dict(id="mef", title="C.3 · Expand MEF preparation, compiled descriptors and cache boundaries", tree="""[SOURCE:ct_convert_mef|convertMOToMEF(C1)]  [after graph passes + native routine JIT]
+            dict(id="mef", title="C.3 · MEF preparation → compiled artifact CM1", tree="""[SOURCE:ct_convert_mef|convertMOToMEF(C1)]  [after graph passes + native routine JIT]
 └─ [SOURCE:serialize|MO::convertMGPToMEF(lowered_module)]
    ├─ clone for serialization → prepare device-specific runtime primitive names
    ├─ translateMLIRToMEF → serialized graph callables / attrs / native resources
@@ -619,7 +665,7 @@ On disk → [SOURCE:artifact|CM1.export_mef(path)] explicitly exports the compil
 └─ next source step → numeric input allocation, **model.execute(x)** (outside init)
 """,
         details=[
-            dict(id="resources", title="D.1 · Expand initialization resources, loading and readiness", tree="""[SOURCE:ct_model_setup|Model::setup] → compiled initFn.invoke(registry + devices)
+            dict(id="resources", title="D.1 · Load runtime resources → ready executable M1", tree="""[SOURCE:ct_model_setup|Model::setup] → compiled initFn.invoke(registry + devices)
 ├─ [SOURCE:ct_device_map|mapDeviceRefsToDevices]
 │  ├─ synchronize supplied driver contexts before first resource use
 │  ├─ CPU DeviceRef → create legacy runtime CPU context
@@ -640,8 +686,8 @@ Boundaries
 ├─ **.mojoc P1**: portable post-parse package for later specialization
 ├─ **CM1**: compiled bytes + descriptors; still needs runtime setup
 └─ **M1**: ready executable handle; numeric X arrives at execute, not at constructor/init
-"""),
-            dict(id="gates", title="D.2 · Expand initialization gates and retained ownership", tree="""[SOURCE:init_all|init_all initialization gates]
+""", explanation=MODULE_INITIALIZATION_EXPLANATION),
+            dict(id="gates", title="D.2 · Initialization gates, weights and retained ownership", tree="""[SOURCE:init_all|init_all initialization gates]
 ├─ add-one: expected weights {} + supplied registry {} → pass
 ├─ weighted graph: missing declared name → ValueError before native initialization
 ├─ supplied weight: device type must match; array must be contiguous
@@ -677,6 +723,7 @@ EXAMPLE = """[SOURCE:entry|addition.py: execution happens after all four prepara
 
 
 MARKER = re.compile(r"\[SOURCE:([a-z_]+)\|((?:[^\[\]]|\[[^\[\]]*\])+)\]")
+CARD_MARKER = re.compile(r"\[CARD:([a-z0-9_-]+)\|([^\]]+)\]")
 
 
 def render_addition_calltrees(refs, revision):
@@ -704,11 +751,15 @@ def render_addition_calltrees(refs, revision):
             last = match.end()
         result.append(html.escape(text[last:]))
         rendered = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", "".join(result))
+        rendered = CARD_MARKER.sub(
+            lambda m: f'<a class="call-note-link" href="#{m[1]}" '
+                      f'data-call-explanation="{m[1]}">{html.escape(m[2])}</a>', rendered,
+        )
         return rendered.replace(
             "[EXPLANATION:context]",
             '<a class="call-note-link" href="#toolchain-call-graph-context" '
             'data-call-explanation="toolchain-call-graph-context">'
-            'Full explanation · is this a global variable?</a>',
+            'A.0 · default MLIR context</a>',
         ).replace(
             "[EXPLANATION:graph_objects]",
             '<a class="call-note-link" href="#toolchain-call-graph-objects" '
@@ -759,7 +810,7 @@ def render_addition_calltrees(refs, revision):
         def reference(match):
             r = refs[match[1]]
             return f'{match[2].replace("**", "")} [{r["file"]}:L{r["line"]}]'
-        return (MARKER.sub(reference, text).replace("**", "")
+        return (CARD_MARKER.sub(lambda m: m[2], MARKER.sub(reference, text)).replace("**", "")
                 .replace("[EXPLANATION:context]", "Full explanation · is this a global variable? → A.0")
                 .replace("[EXPLANATION:graph_objects]", 'builtin.ModuleOp + mo.GraphOp("addition")')
                 .rstrip())
@@ -767,14 +818,28 @@ def render_addition_calltrees(refs, revision):
     body = ['<div class="addition-calltrees" data-calltrees="addition">',
             '<p class="calltree-scope"><strong>SOURCE</strong> · '
             f'Revision <code>{revision[:12]}</code> · '
-            'Click a function to open its unchanged source. Expand a branch for compiler internals.</p>',
+            'Follow P1 → G1, then S1 → CM1 → M1. Click numbered details to open a card; '
+            'functions open their unchanged source.</p>',
             '<nav class="calltree-nav" aria-label="Add-one call trees">']
     for stage in STAGES:
         body.append(f'<a href="#toolchain-call-{stage["id"]}"><span>{stage["letter"]}</span>'
                     f'<strong>{html.escape(stage["short"])}</strong></a>')
-    body.append('</nav>')
+    reading_order = (
+        "Reading order: A.1 kernels/*.mojo → P1 (.mojoc); "
+        "A.2 P1 + Graph(...) → G1 (MO); "
+        "B InferenceSession(...) → S1; "
+        "C compile(G1) → C1: MO → MAP → MOGG → MGP → CM1; "
+        "D init(CM1) → M1."
+    )
+    body.append('</nav><p class="call-lifecycle"><strong>Reading order</strong> · '
+                '<b>A.1</b> <code>kernels/*.mojo → P1 (.mojoc)</code> → '
+                '<b>A.2</b> <code>P1 + Graph(...) → G1 (MO)</code> → '
+                '<b>B</b> <code>InferenceSession(...) → S1</code> → '
+                '<b>C</b> <code>compile(G1) → C1: MO → MAP → MOGG → MGP → CM1</code> → '
+                '<b>D</b> <code>init(CM1) → M1</code>.</p>')
     companion = ["# Add-one: Graph, session, compile and init call trees", "",
-                 f"SOURCE · repository revision {revision}. Numerical values are illustrative; no MAX execution.", ""]
+                 f"SOURCE · repository revision {revision}. Numerical values are illustrative; no MAX execution.",
+                 "", reading_order, ""]
     for stage in STAGES:
         title = stage["letter"] + " · " + stage["title"]
         body.append(f'<article class="call-stage" id="toolchain-call-{stage["id"]}" data-call-stage="{stage["id"]}">'
@@ -785,25 +850,49 @@ def render_addition_calltrees(refs, revision):
         for label, value in stage["contracts"]:
             body.append(f'<div><dt>{label}</dt><dd>{html.escape(value)}</dd></div>')
             companion.append(label.upper() + ": " + value)
-        body.append('</dl>' + tree(stage["tree"], title))
+        body.append('</dl>')
+        if "note" in stage:
+            body.append('<p class="call-reading-note">' + html.escape(stage["note"]) + '</p>')
+            companion.extend(["", stage["note"]])
+        body.append(tree(stage["tree"], title))
         companion.extend(["", "```text", portable(stage["tree"]), "```", ""])
+        body.append('<div class="call-card-launchers" role="group" '
+                    f'aria-label="{stage["letter"]} details">')
         for detail in stage["details"]:
-            content = (explanation(detail["explanation"]) if "explanation" in detail
-                       else tree(detail["tree"], detail["title"]))
-            card_title = (f' data-explanation-title="{html.escape(detail["card_title"])}"'
-                          if "card_title" in detail else "")
-            body.append(f'<details class="call-branch" id="toolchain-call-{stage["id"]}-{detail["id"]}"{card_title}>'
+            target = f'toolchain-call-{stage["id"]}-{detail["id"]}'
+            number, _, label = detail["title"].partition(" · ")
+            body.append(f'<button type="button" hidden class="call-card-launch" '
+                        f'id="{target}-launch" data-call-card-launch '
+                        f'data-call-explanation="{target}">'
+                        f'<span class="call-card-number">{html.escape(number)}</span>'
+                        f'<span>{html.escape(label)}</span>'
+                        '<span class="call-card-glyph" aria-hidden="true">↗</span></button>')
+        body.append('</div>')
+        for detail in stage["details"]:
+            content = tree(detail["tree"], detail["title"]) if "tree" in detail else ""
+            if "explanation" in detail:
+                content += explanation(detail["explanation"])
+            body.append(f'<details class="call-branch" data-call-card '
+                        f'id="toolchain-call-{stage["id"]}-{detail["id"]}" '
+                        f'data-explanation-title="{html.escape(detail["title"])}">'
                         f'<summary>{html.escape(detail["title"])}</summary>'
-                        + content + '</details>')
+                        '<div class="call-card-content">' + content + '</div></details>')
             companion.extend(["### " + detail["title"], ""])
+            if "tree" in detail:
+                companion.extend(["```text", portable(detail["tree"]), "```", ""])
             if "explanation" in detail:
                 companion.extend([detail["explanation"].rstrip(), ""])
-            else:
-                companion.extend(["```text", portable(detail["tree"]), "```", ""])
         body.append('</article>')
-    body.append('<details class="call-branch call-example" id="toolchain-call-example"><summary>'
+    body.append('<div class="call-card-launchers call-example"><button type="button" hidden '
+                'class="call-card-launch" id="toolchain-call-example-launch" data-call-card-launch '
+                'data-call-explanation="toolchain-call-example">'
+                '<span class="call-card-number">E</span><span>Input buffers → execution → result</span>'
+                '<span class="call-card-glyph" aria-hidden="true">↗</span></button></div>')
+    body.append('<details class="call-branch call-example" data-call-card '
+                'id="toolchain-call-example" data-explanation-title="E · Input buffers → execution → result"><summary>'
                 'E · Connect the prepared objects to an input and a result</summary>'
-                + tree(EXAMPLE, "Add-one execution and illustrative values") + '</details></div>')
+                '<div class="call-card-content">'
+                + tree(EXAMPLE, "Add-one execution and illustrative values") + '</div></details></div>')
     body.append('<aside class="call-explanation-card" id="call-explanation-card" hidden '
                 'role="dialog" aria-modal="false" aria-labelledby="call-explanation-title">'
                 '<div class="call-explanation-card-header"><h2 id="call-explanation-title">'
@@ -815,6 +904,11 @@ def render_addition_calltrees(refs, revision):
     return "".join(body), text, dict(
         stages=[stage["id"] for stage in STAGES],
         branches=sum(len(stage["details"]) for stage in STAGES) + 1,
+        cards=[f'toolchain-call-{stage["id"]}-{detail["id"]}'
+               for stage in STAGES for detail in stage["details"]] + ["toolchain-call-example"],
+        reading_order=["kernels/*.mojo → P1 (.mojoc)", "P1 → recorded G1 (MO)",
+                       "devices → S1", "S1 + G1 → clone C1: MO → MAP → MOGG → MGP → CM1",
+                       "S1 + CM1 → initialized M1"],
         references=sorted(used_refs),
         text_sha256=hashlib.sha256(text.encode()).hexdigest(),
     )

@@ -239,6 +239,8 @@ footer p { font-size:10px; }
 .calltree-nav a:hover { border-color:#35665f; text-decoration:underline; text-underline-offset:3px; }
 .calltree-nav a > span,.call-stage-letter { display:inline-grid; place-items:center; flex:none; width:32px; height:32px; border:1px solid #698891; border-radius:50%; color:#163f4b; font:750 16px/1 ui-sans-serif,system-ui,sans-serif; }
 .calltree-nav strong { font-size:16px; line-height:1.5; overflow-wrap:anywhere; }
+.call-lifecycle { margin:12px 0 24px; padding:14px 16px; border:1px solid #9bb5c3; border-left:5px solid #245a56; border-radius:8px; color:#294454; background:#f2f7f7; font-size:16px; line-height:1.8; overflow-wrap:anywhere; }
+.call-lifecycle code { color:#5b21b6; font-weight:750; white-space:normal; }
 .call-stage { min-width:0; padding:0 0 30px; margin:0 0 32px; border-bottom:1px solid #c5d3dc; scroll-margin-top:125px; }
 .call-stage h3 { display:flex; gap:12px; align-items:center; margin:0 0 14px; color:#153f53; font:700 24px/1.45 ui-sans-serif,system-ui,sans-serif; }
 .call-stage .callsite { margin:0 0 18px; font:600 15px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace; overflow-wrap:anywhere; }
@@ -258,6 +260,16 @@ footer p { font-size:10px; }
 .call-source small { font-size:13px; color:#455a68; font-weight:600; }
 .call-note-link { color:#5b21b6; font-weight:800; text-decoration:underline; text-underline-offset:3px; }
 .call-note-link:focus-visible { outline:3px solid #ad682e; outline-offset:3px; }
+.call-reading-note { margin:0 0 16px; font-size:16px; line-height:1.8; color:#294454; }
+.call-card-launchers { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:16px 0 0; }
+.call-card-launch { display:flex; align-items:center; gap:12px; width:100%; min-width:0; text-align:left; padding:12px 14px; color:#153f53; background:#fffefa; border:1px solid #52788c; border-radius:8px; font:700 16px/1.6 ui-sans-serif,system-ui,sans-serif; }
+.call-card-launch:hover { background:#edf4f7; border-color:#52788c; }
+.call-card-launch:focus-visible { outline:3px solid #ad682e; outline-offset:3px; }
+.call-card-number { flex:none; color:#5b21b6; font-size:18px; font-weight:800; }
+[data-call-stage="graph"] .call-card-number { color:#9c3d00; }
+[data-call-stage="session"] .call-card-number { color:#0057a8; }
+[data-call-stage="init"] .call-card-number { color:#006644; }
+.call-card-glyph { flex:none; margin-left:auto; font-size:19px; }
 .call-explanation { min-width:0; margin:0 14px 16px; color:#233e4e; font-size:16px; line-height:1.8; overflow-wrap:anywhere; }
 .call-explanation p { margin:12px 0; }
 .call-explanation strong { font-weight:800; color:#153f53; }
@@ -271,9 +283,17 @@ footer p { font-size:10px; }
 .call-explanation-card-header button { flex:none; font-size:14px; }
 .call-explanation-card-body { min-height:0; overflow:auto; overscroll-behavior:contain; }
 .call-explanation-card .call-explanation { margin:0; padding:4px 18px 16px; }
+.call-explanation-card .call-card-content { min-width:0; }
+.call-explanation-card .call-tree-scroll { margin:14px; max-width:calc(100% - 28px); }
 .call-explanation-card td:first-child code { white-space:nowrap; }
-@media(max-width:600px) { .call-explanation-card-header { padding:12px; gap:8px; }.call-explanation-card-header h2 { font-size:17px; }.call-explanation-card .call-explanation { padding:0 12px 12px; } }
+@media(max-width:600px) { .call-card-launchers { grid-template-columns:1fr; }.call-explanation-card-header { padding:12px; gap:8px; }.call-explanation-card-header h2 { font-size:17px; }.call-explanation-card .call-explanation { padding:0 12px 12px; } }
 @media print { .call-explanation-card { display:none!important; } }
+@media print {
+  .call-card-launchers { display:none!important; }
+  details[data-call-card][hidden] { display:block!important; }
+  details.call-branch:not([open]) > .call-card-content { display:block!important; }
+  details.call-branch:not([open]) > summary { display:none!important; }
+}
 .call-branch { margin:14px 0 0; border:1px solid #c4d2dc; border-radius:8px; }
 .call-branch > summary,.qna-reference > summary { padding:12px 14px; color:#214756; font-size:16px; font-weight:750; cursor:pointer; line-height:1.6; }
 .call-branch .call-tree-scroll { margin:0 12px 12px; }
@@ -2947,11 +2967,12 @@ Both produce [10, 10; 22, 18]; intermediate lifetimes then end</pre><ol data-tra
     return 'Inputs: '+(s.inputs?s.cpu?'CPU references':'device buffers':'not supplied')+'\n'+(s.id==='matmul'?`Selected ${s.algorithm}; k=${s.k}\nCopy ready: ${s.copyReady}; block ready: ${s.blockReady}\n`:s.id==='epilogue'?`Route: ${s.fusion?'eligible epilogue sketch':'separate-body sketch'}\n`:'Illustrative SIMD group: '+(s.lane+1)+'\n')+'Accumulator: ['+s.acc.map(fmt)+']\nResult: ['+s.computed.map(fmt)+']\nBuffer ready: '+s.ready+'\nExplicit host read: '+s.hostRead;
   }
   function isTextHash(hash){return /^#toolchain-(?:q\d|call-|reference(?:$|-))/.test(hash);}
+  function callCardLauncher(target){return target?.matches('details[data-call-card]')?document.querySelector('[data-call-card-launch][data-call-explanation="'+target.id+'"]'):null;}
   function revealReadingTarget(target){for(let parent=target;parent;parent=parent.parentElement)if(parent.tagName==='DETAILS')parent.open=true;}
   class Lesson {
     constructor(node){this.node=node;this.kind=node.dataset.lesson;this.speed=1;this.playing=false;this.model=new ExampleModel(this.kind,data.example,options());this.visual=new window.CompilerExamplesVisual(node,reduced);
       node.addEventListener('click',e=>{const mode=e.target.closest('button[data-mode]')?.dataset.mode;if(mode)this.setMode(mode);if(e.target.closest('[data-return-animation]')){this.setMode('animation');this.node.scrollIntoView({block:'start',behavior:'instant'});this.node.querySelector('#toolchain-animation-tab').focus({preventScroll:true});}const qa=e.target.closest('[data-read-qa]')?.dataset.readQa;if(qa||e.target.closest('[data-read-current]')){this.setMode('text');const target=questionNode(qa||this.model.snapshot().qa);if(target){target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:'start',behavior:'instant'});}}const action=e.target.closest('[data-action]')?.dataset.action;if(action==='play')this.setPlaying(!this.playing);else if(action){this.setPlaying(false);if(action==='reset')this.model.configure(options());else this.model[action]();this.render(action==='step');}const index=e.target.closest('button[data-index]')?.dataset.index;if(index!==undefined){this.setPlaying(false);this.model.seek(Number(index));this.render(false);}});
-      if(this.kind==='toolchain')node.addEventListener('click',e=>{const anchor=e.target.closest('a[href^="#toolchain-"]');if(!anchor||anchor.hasAttribute('data-call-explanation')||!isTextHash(anchor.hash))return;const target=document.getElementById(anchor.hash.slice(1));if(target){this.setMode('text');revealReadingTarget(target);}});
+      if(this.kind==='toolchain')node.addEventListener('click',e=>{const anchor=e.target.closest('a[href^="#toolchain-"]');if(!anchor||anchor.hasAttribute('data-call-explanation')||!isTextHash(anchor.hash))return;const target=document.getElementById(anchor.hash.slice(1));if(target){this.setMode('text');const launcher=callCardLauncher(target);if(launcher){e.preventDefault();launcher.click();}else revealReadingTarget(target);}});
       node.querySelector('[role="tablist"]')?.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const tabs=[...node.querySelectorAll('[data-mode]')],current=tabs.indexOf(document.activeElement),next=e.key==='Home'?0:e.key==='End'?tabs.length-1:(current+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;this.setMode(tabs[next].dataset.mode);tabs[next].focus();});
       node.querySelector('[data-seek]').addEventListener('input',e=>{this.setPlaying(false);this.model.seek(Number(e.target.value));this.render(false);});
       node.querySelector('[data-speed]').addEventListener('change',e=>{this.speed=Number(e.target.value);if(this.playing)this.nextAt=performance.now()+1650/this.speed;});this.render(false);if(this.kind==='toolchain')this.setMode(isTextHash(location.hash)?'text':'animation');
@@ -2978,12 +2999,14 @@ Both produce [10, 10; 22, 18]; intermediate lifetimes then end</pre><ol data-tra
   function refreshOptions(){for(const c of controllers){c.setPlaying(false);c.model.configure(options());c.render(false);}const s=controllers.find(c=>c.kind==='compile').model.snapshot();document.getElementById('algorithm-select')?.toggleAttribute('disabled',s.cpu);document.querySelector('[data-actual]').textContent='Original dimensions: '+s.signature.join(' → ')+(data.example.id==='matmul'||data.example.id==='attention'?' · '+s.params.grid:'')+(data.example.id==='attention'?' · query BN='+s.params.BN+', feature BD='+s.params.BD+', key tile='+s.params.keyTile:'');}
   document.querySelectorAll('.example-options select').forEach(e=>e.addEventListener('change',refreshOptions));refreshOptions();
   document.querySelector('[data-qna-copy]').addEventListener('click',async()=>{const status=document.querySelector('[data-qna-copy-status]');try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(data.toolchain.text);else{const field=document.createElement('textarea');field.value=data.toolchain.text;field.className='copy-fallback';document.body.append(field);field.select();const copied=document.execCommand('copy');field.remove();if(!copied)throw Error('Clipboard unavailable');}status.textContent=data.toolchain.calltrees?'Copied call trees and complete answers 1–7.':'Copied complete answers 1–7.';}catch{status.textContent='Use Download the full text to save the complete text.';}});
-  function syncTextHash(){if(isTextHash(location.hash)){controllers.find(c=>c.kind==='toolchain').setMode('text');const target=document.getElementById(location.hash.slice(1));if(target){revealReadingTarget(target);target.scrollIntoView({block:'start',behavior:'instant'});}}}
+  function syncTextHash(){if(isTextHash(location.hash)){controllers.find(c=>c.kind==='toolchain').setMode('text');const target=document.getElementById(location.hash.slice(1));if(target){const launcher=callCardLauncher(target);if(launcher){launcher.scrollIntoView({block:'center',behavior:'instant'});launcher.click();}else{revealReadingTarget(target);target.scrollIntoView({block:'start',behavior:'instant'});}}}}
   window.addEventListener('hashchange',syncTextHash);
   function setupCallExplanationCard(){
     const card=document.getElementById('call-explanation-card');
     if(!card)return;
     document.body.append(card);
+    document.querySelectorAll('[data-call-card-launch]').forEach(button=>button.hidden=false);
+    document.querySelectorAll('details[data-call-card]').forEach(detail=>detail.hidden=true);
     const body=card.querySelector('.call-explanation-card-body'),closeButton=card.querySelector('[data-close-call-explanation]'),title=card.querySelector('#call-explanation-title');
     let trigger=null;
     const sourceOpen=()=>document.getElementById('source-dialog').open;
@@ -3007,7 +3030,7 @@ Both produce [10, 10; 22, 18]; intermediate lifetimes then end</pre><ol data-tra
       card.style.maxHeight=Math.max(80,useBelow?belowSpace:bounds.top-top-gap)+'px';
     }
     function open(link){
-      const explanation=document.getElementById(link.dataset.callExplanation),content=explanation?.querySelector('.call-explanation');
+      const explanation=document.getElementById(link.dataset.callExplanation),content=explanation?.querySelector('.call-card-content');
       if(!content)return;
       if(!card.hidden&&trigger===link){close(true);return;}
       close();trigger=link;

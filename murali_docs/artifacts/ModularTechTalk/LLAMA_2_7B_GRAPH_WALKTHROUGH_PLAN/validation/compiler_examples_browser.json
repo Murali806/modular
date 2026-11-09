@@ -7,8 +7,8 @@
     "Result cells agree with the model; source-specific host-copy behavior and CPU placement remain visible",
     "Hover/focus cards dismiss, L opens only on click, eleven colors match, original source/search/copy/download work",
     "Text/Animation tabs preserve the paused timeline; five offline diagrams replace Mermaid source in place; exact previous answers remain in complete copy/download",
-    "Add-one Text starts with four annotated input/output/example call trees; native/package links open complete source and old step links reveal the collapsed reference",
-    "Call-tree and original-answer deep links work from a fresh file open; all nine expanded branches fit at 320/390px with local tree scrolling",
+    "Add-one Text starts with four annotated call trees; numbered cards open from launchers/tree links, dismiss on outside/Escape, and retain source links",
+    "Call-tree and original-answer deep links work from a fresh file open; all eleven numbered cards open, scroll and dismiss at 320/390px",
     "Persistent shared-tile actors move; Pause freezes pose and steps; Resume/offscreen/reset behave correctly",
     "Entering Text freezes a moving OP1 and semantic step; returning to Animation resumes the same actor",
     "All four readers at 320/390px contain diagram scrolling and fit touch cards/legends",
@@ -22,7 +22,7 @@
     },
     {
       "label": "addition complete text",
-      "samples": 2161,
+      "samples": 2218,
       "minimum": 5.232
     },
     {
@@ -4277,102 +4277,122 @@
     },
     {
       "label": "addition call trees 320",
-      "samples": 570,
+      "samples": 627,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-graph-package 320",
-      "samples": 602,
+      "label": "addition card toolchain-call-graph-context 320",
+      "samples": 670,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-graph-validation 320",
-      "samples": 582,
+      "label": "addition card toolchain-call-graph-package 320",
+      "samples": 663,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-session-ownership 320",
-      "samples": 594,
+      "label": "addition card toolchain-call-graph-objects 320",
+      "samples": 789,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-compile-passes 320",
-      "samples": 616,
+      "label": "addition card toolchain-call-graph-validation 320",
+      "samples": 641,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-compile-kernels 320",
-      "samples": 636,
+      "label": "addition card toolchain-call-session-ownership 320",
+      "samples": 654,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-compile-mef 320",
-      "samples": 602,
+      "label": "addition card toolchain-call-compile-passes 320",
+      "samples": 765,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-init-resources 320",
-      "samples": 600,
+      "label": "addition card toolchain-call-compile-kernels 320",
+      "samples": 698,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-init-gates 320",
-      "samples": 585,
+      "label": "addition card toolchain-call-compile-mef 320",
+      "samples": 661,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-example 320",
-      "samples": 580,
+      "label": "addition card toolchain-call-init-resources 320",
+      "samples": 671,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition card toolchain-call-init-gates 320",
+      "samples": 644,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition card toolchain-call-example 320",
+      "samples": 639,
       "minimum": 5.232
     },
     {
       "label": "addition call trees 390",
-      "samples": 570,
+      "samples": 627,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-graph-package 390",
-      "samples": 602,
+      "label": "addition card toolchain-call-graph-context 390",
+      "samples": 670,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-graph-validation 390",
-      "samples": 582,
+      "label": "addition card toolchain-call-graph-package 390",
+      "samples": 663,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-session-ownership 390",
-      "samples": 594,
+      "label": "addition card toolchain-call-graph-objects 390",
+      "samples": 789,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-compile-passes 390",
-      "samples": 616,
+      "label": "addition card toolchain-call-graph-validation 390",
+      "samples": 641,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-compile-kernels 390",
-      "samples": 636,
+      "label": "addition card toolchain-call-session-ownership 390",
+      "samples": 654,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-compile-mef 390",
-      "samples": 602,
+      "label": "addition card toolchain-call-compile-passes 390",
+      "samples": 765,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-init-resources 390",
-      "samples": 600,
+      "label": "addition card toolchain-call-compile-kernels 390",
+      "samples": 698,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-init-gates 390",
-      "samples": 585,
+      "label": "addition card toolchain-call-compile-mef 390",
+      "samples": 661,
       "minimum": 5.232
     },
     {
-      "label": "addition expanded toolchain-call-example 390",
-      "samples": 580,
+      "label": "addition card toolchain-call-init-resources 390",
+      "samples": 671,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition card toolchain-call-init-gates 390",
+      "samples": 644,
+      "minimum": 5.232
+    },
+    {
+      "label": "addition card toolchain-call-example 390",
+      "samples": 639,
       "minimum": 5.232
     },
     {
@@ -4392,7 +4412,7 @@
     },
     {
       "label": "addition narrow text 320",
-      "samples": 2174,
+      "samples": 2231,
       "minimum": 5.232
     },
     {
@@ -4472,7 +4492,7 @@
     },
     {
       "label": "addition narrow text 390",
-      "samples": 2174,
+      "samples": 2231,
       "minimum": 5.232
     },
     {

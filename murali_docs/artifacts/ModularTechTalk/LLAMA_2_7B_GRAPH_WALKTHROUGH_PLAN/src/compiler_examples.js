@@ -35,11 +35,12 @@
     return 'Inputs: '+(s.inputs?s.cpu?'CPU references':'device buffers':'not supplied')+'\n'+(s.id==='matmul'?`Selected ${s.algorithm}; k=${s.k}\nCopy ready: ${s.copyReady}; block ready: ${s.blockReady}\n`:s.id==='epilogue'?`Route: ${s.fusion?'eligible epilogue sketch':'separate-body sketch'}\n`:'Illustrative SIMD group: '+(s.lane+1)+'\n')+'Accumulator: ['+s.acc.map(fmt)+']\nResult: ['+s.computed.map(fmt)+']\nBuffer ready: '+s.ready+'\nExplicit host read: '+s.hostRead;
   }
   function isTextHash(hash){return /^#toolchain-(?:q\d|call-|reference(?:$|-))/.test(hash);}
+  function callCardLauncher(target){return target?.matches('details[data-call-card]')?document.querySelector('[data-call-card-launch][data-call-explanation="'+target.id+'"]'):null;}
   function revealReadingTarget(target){for(let parent=target;parent;parent=parent.parentElement)if(parent.tagName==='DETAILS')parent.open=true;}
   class Lesson {
     constructor(node){this.node=node;this.kind=node.dataset.lesson;this.speed=1;this.playing=false;this.model=new ExampleModel(this.kind,data.example,options());this.visual=new window.CompilerExamplesVisual(node,reduced);
       node.addEventListener('click',e=>{const mode=e.target.closest('button[data-mode]')?.dataset.mode;if(mode)this.setMode(mode);if(e.target.closest('[data-return-animation]')){this.setMode('animation');this.node.scrollIntoView({block:'start',behavior:'instant'});this.node.querySelector('#toolchain-animation-tab').focus({preventScroll:true});}const qa=e.target.closest('[data-read-qa]')?.dataset.readQa;if(qa||e.target.closest('[data-read-current]')){this.setMode('text');const target=questionNode(qa||this.model.snapshot().qa);if(target){target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:'start',behavior:'instant'});}}const action=e.target.closest('[data-action]')?.dataset.action;if(action==='play')this.setPlaying(!this.playing);else if(action){this.setPlaying(false);if(action==='reset')this.model.configure(options());else this.model[action]();this.render(action==='step');}const index=e.target.closest('button[data-index]')?.dataset.index;if(index!==undefined){this.setPlaying(false);this.model.seek(Number(index));this.render(false);}});
-      if(this.kind==='toolchain')node.addEventListener('click',e=>{const anchor=e.target.closest('a[href^="#toolchain-"]');if(!anchor||anchor.hasAttribute('data-call-explanation')||!isTextHash(anchor.hash))return;const target=document.getElementById(anchor.hash.slice(1));if(target){this.setMode('text');revealReadingTarget(target);}});
+      if(this.kind==='toolchain')node.addEventListener('click',e=>{const anchor=e.target.closest('a[href^="#toolchain-"]');if(!anchor||anchor.hasAttribute('data-call-explanation')||!isTextHash(anchor.hash))return;const target=document.getElementById(anchor.hash.slice(1));if(target){this.setMode('text');const launcher=callCardLauncher(target);if(launcher){e.preventDefault();launcher.click();}else revealReadingTarget(target);}});
       node.querySelector('[role="tablist"]')?.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const tabs=[...node.querySelectorAll('[data-mode]')],current=tabs.indexOf(document.activeElement),next=e.key==='Home'?0:e.key==='End'?tabs.length-1:(current+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;this.setMode(tabs[next].dataset.mode);tabs[next].focus();});
       node.querySelector('[data-seek]').addEventListener('input',e=>{this.setPlaying(false);this.model.seek(Number(e.target.value));this.render(false);});
       node.querySelector('[data-speed]').addEventListener('change',e=>{this.speed=Number(e.target.value);if(this.playing)this.nextAt=performance.now()+1650/this.speed;});this.render(false);if(this.kind==='toolchain')this.setMode(isTextHash(location.hash)?'text':'animation');
@@ -66,12 +67,14 @@
   function refreshOptions(){for(const c of controllers){c.setPlaying(false);c.model.configure(options());c.render(false);}const s=controllers.find(c=>c.kind==='compile').model.snapshot();document.getElementById('algorithm-select')?.toggleAttribute('disabled',s.cpu);document.querySelector('[data-actual]').textContent='Original dimensions: '+s.signature.join(' → ')+(data.example.id==='matmul'||data.example.id==='attention'?' · '+s.params.grid:'')+(data.example.id==='attention'?' · query BN='+s.params.BN+', feature BD='+s.params.BD+', key tile='+s.params.keyTile:'');}
   document.querySelectorAll('.example-options select').forEach(e=>e.addEventListener('change',refreshOptions));refreshOptions();
   document.querySelector('[data-qna-copy]').addEventListener('click',async()=>{const status=document.querySelector('[data-qna-copy-status]');try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(data.toolchain.text);else{const field=document.createElement('textarea');field.value=data.toolchain.text;field.className='copy-fallback';document.body.append(field);field.select();const copied=document.execCommand('copy');field.remove();if(!copied)throw Error('Clipboard unavailable');}status.textContent=data.toolchain.calltrees?'Copied call trees and complete answers 1–7.':'Copied complete answers 1–7.';}catch{status.textContent='Use Download the full text to save the complete text.';}});
-  function syncTextHash(){if(isTextHash(location.hash)){controllers.find(c=>c.kind==='toolchain').setMode('text');const target=document.getElementById(location.hash.slice(1));if(target){revealReadingTarget(target);target.scrollIntoView({block:'start',behavior:'instant'});}}}
+  function syncTextHash(){if(isTextHash(location.hash)){controllers.find(c=>c.kind==='toolchain').setMode('text');const target=document.getElementById(location.hash.slice(1));if(target){const launcher=callCardLauncher(target);if(launcher){launcher.scrollIntoView({block:'center',behavior:'instant'});launcher.click();}else{revealReadingTarget(target);target.scrollIntoView({block:'start',behavior:'instant'});}}}}
   window.addEventListener('hashchange',syncTextHash);
   function setupCallExplanationCard(){
     const card=document.getElementById('call-explanation-card');
     if(!card)return;
     document.body.append(card);
+    document.querySelectorAll('[data-call-card-launch]').forEach(button=>button.hidden=false);
+    document.querySelectorAll('details[data-call-card]').forEach(detail=>detail.hidden=true);
     const body=card.querySelector('.call-explanation-card-body'),closeButton=card.querySelector('[data-close-call-explanation]'),title=card.querySelector('#call-explanation-title');
     let trigger=null;
     const sourceOpen=()=>document.getElementById('source-dialog').open;
@@ -95,7 +98,7 @@
       card.style.maxHeight=Math.max(80,useBelow?belowSpace:bounds.top-top-gap)+'px';
     }
     function open(link){
-      const explanation=document.getElementById(link.dataset.callExplanation),content=explanation?.querySelector('.call-explanation');
+      const explanation=document.getElementById(link.dataset.callExplanation),content=explanation?.querySelector('.call-card-content');
       if(!content)return;
       if(!card.hidden&&trigger===link){close(true);return;}
       close();trigger=link;

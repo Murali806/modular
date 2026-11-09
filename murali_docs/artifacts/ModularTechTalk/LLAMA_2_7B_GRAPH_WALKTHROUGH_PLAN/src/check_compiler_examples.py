@@ -66,6 +66,7 @@ def check_examples():
         assert len(p.original_fragments)==3,page
         assert p.diagrams==['build','macro','ir','kernel','offload'],page
         presentation='\n'.join(p.presentation)
+        flat_presentation=re.sub(r'\s+','',presentation)
         assert "This Mermaid diagram exceeds the terminal renderer's size limits" not in presentation,page
         assert not re.search(r'(?m)^\s*flowchart (?:LR|TD)\b',presentation),page
         assert 'language-mermaid' not in text,page
@@ -77,6 +78,24 @@ def check_examples():
             assert calltrees==e['toolchain']['calltrees']
             assert calltrees['stages']==['graph','session','compile','init']
             assert calltrees['branches']==11
+            expected_cards=[
+                'toolchain-call-graph-context','toolchain-call-graph-package',
+                'toolchain-call-graph-objects','toolchain-call-graph-validation',
+                'toolchain-call-session-ownership','toolchain-call-compile-passes',
+                'toolchain-call-compile-kernels','toolchain-call-compile-mef',
+                'toolchain-call-init-resources','toolchain-call-init-gates',
+                'toolchain-call-example',
+            ]
+            assert calltrees['cards']==expected_cards
+            assert all(card in p.ids for card in expected_cards)
+            assert calltrees['reading_order']==[
+                'kernels/*.mojo → P1 (.mojoc)','P1 → recorded G1 (MO)',
+                'devices → S1','S1 + G1 → clone C1: MO → MAP → MOGG → MGP → CM1',
+                'S1 + CM1 → initialized M1',
+            ]
+            assert 'P1(.mojoc)' in flat_presentation and 'P1+Graph(...)→G1(MO)' in flat_presentation
+            assert 'compile(G1)→C1:MO→MAP→MOGG→MGP→CM1' in flat_presentation
+            assert 'init(CM1)→M1' in flat_presentation
             tree_text=payload['toolchain']['text'].split('\n\n---\n\n',1)[0]
             assert hashlib.sha256(tree_text.encode()).hexdigest()==calltrees['text_sha256']
             for stage in calltrees['stages']:

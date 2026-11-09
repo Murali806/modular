@@ -39,10 +39,13 @@ async function readingDiagrams(p){
    if(e.example.id==='addition'){
     assert.equal(await p.locator('#toolchain-reference').getAttribute('open'),null);
     assert.equal(await p.locator('.call-stage').count(),4);
+    assert.equal(await p.locator('.call-branch[data-call-card]').count(),11);
     for(const stage of ['graph','session','compile','init']){
      const article=p.locator('#toolchain-call-'+stage);
      assert.equal(await article.locator('.call-contracts > div').count(),3);
      assert.equal(await article.locator(':scope > .call-tree-scroll').isVisible(),true);
+     assert.equal(await article.locator('.call-branch[data-call-card][hidden]').count(),await article.locator('.call-branch[data-call-card]').count());
+     assert.ok(await article.locator('.call-card-launch:visible').count()>0);
      await shot(p,'toolchain-call-'+stage,'addition_calltree_'+stage);
     }
     const cases=[['graph','graph_init'],['session','ct_session_native'],['compile','ct_context_compile'],['init','ct_model_setup']];
@@ -54,10 +57,21 @@ async function readingDiagrams(p){
      assert.equal(full,payloadText.files[r.file].text);
      await p.keyboard.press('Escape');
     }
-    await p.locator('#toolchain-call-graph-package > summary').click();
-    await p.locator('#toolchain-call-graph-package a[data-ref="ct_package_write"]').click();
+    await p.locator('#toolchain-call-graph-package-launch').click();
+    assert.equal(await p.locator('#call-explanation-card').isVisible(),true);
+    assert.match(await p.locator('#call-explanation-title').textContent(),/^A\.1 · Parse kernels/);
+    await p.locator('#call-explanation-card a[data-ref="ct_package_write"]').click();
     assert.equal(await p.locator('#source-dialog').isVisible(),true);await p.keyboard.press('Escape');
-    await p.locator('#toolchain-call-graph-package > summary').click();
+    assert.equal(await p.locator('#call-explanation-card').isVisible(),true);
+    await p.keyboard.press('Escape');assert.equal(await p.locator('#call-explanation-card').isVisible(),false);
+    assert.equal(await p.evaluate(()=>document.activeElement.id),'toolchain-call-graph-package-launch');
+    await p.locator('#toolchain-call-graph-objects-launch').click();
+    assert.match(await p.locator('#call-explanation-title').textContent(),/^A\.2 · ModuleOp/);
+    assert.match(await p.locator('#call-explanation-card').textContent(),/outer MLIR container/);
+    await p.mouse.click(1580,1120);assert.equal(await p.locator('#call-explanation-card').isVisible(),false);
+    await p.locator('#toolchain-call-graph > .call-tree-scroll a[data-call-explanation="toolchain-call-graph-validation"]').click();
+    assert.match(await p.locator('#call-explanation-title').textContent(),/^A\.3 · Custom-op/);
+    await p.keyboard.press('Escape');
     await p.locator('.calltree-nav a[href="#toolchain-call-init"]').click();
     assert.equal(await p.locator('#toolchain').getAttribute('data-mode'),'text');
     assert.ok(p.url().endsWith('#toolchain-call-init'));
@@ -100,13 +114,14 @@ async function readingDiagrams(p){
   checks.push('Result cells agree with the model; source-specific host-copy behavior and CPU placement remain visible');
   checks.push('Hover/focus cards dismiss, L opens only on click, eleven colors match, original source/search/copy/download work');
   checks.push('Text/Animation tabs preserve the paused timeline; five offline diagrams replace Mermaid source in place; exact previous answers remain in complete copy/download');
-  checks.push('Add-one Text starts with four annotated input/output/example call trees; native/package links open complete source and old step links reveal the collapsed reference');
+  checks.push('Add-one Text starts with four annotated call trees; numbered cards open from launchers/tree links, dismiss on outside/Escape, and retain source links');
   await desktop.context.close();
   const addition=manifest.examples.find(e=>e.example.id==='addition');
   const deep=await setup(pathToFileURL(path.join(task,addition.page)).href+'#toolchain-call-compile-kernels');
   assert.equal(await deep.p.locator('#toolchain').getAttribute('data-mode'),'text');
-  assert.equal(await deep.p.locator('#toolchain-call-compile-kernels').getAttribute('open'),'');
-  assert.equal(await deep.p.locator('#toolchain-call-compile-kernels .call-tree-scroll').isVisible(),true);
+  assert.equal(await deep.p.locator('#call-explanation-card').isVisible(),true);
+  assert.match(await deep.p.locator('#call-explanation-title').textContent(),/^C\.2 · Kernel specialization/);
+  assert.equal(await deep.p.locator('#call-explanation-card .call-tree-scroll').isVisible(),true);
   await deep.p.goto(pathToFileURL(path.join(task,addition.page)).href+'#toolchain-q3-3-1');
   assert.equal(await deep.p.locator('#toolchain-reference').getAttribute('open'),'');
   assert.equal(await deep.p.locator('#toolchain-q3-3-1').isVisible(),true);
@@ -114,16 +129,21 @@ async function readingDiagrams(p){
   for(const width of [320,390]){
    const narrow=await setup(pathToFileURL(path.join(task,addition.page)).href+'#toolchain-call-graph',{viewport:{width,height:850},isMobile:true,hasTouch:true});
    await audit(narrow.p,'addition call trees '+width);
-   for(const detail of await narrow.p.locator('.addition-calltrees .call-branch').all()){
-    await detail.locator(':scope > summary').tap();
-    assert.equal(await detail.locator('.call-tree-scroll').isVisible(),true);
-    await audit(narrow.p,'addition expanded '+await detail.getAttribute('id')+' '+width);
-    await detail.locator(':scope > summary').tap();
+   for(const launcher of await narrow.p.locator('.addition-calltrees .call-card-launch').all()){
+    const id=await launcher.getAttribute('data-call-explanation');
+    await launcher.tap();
+    assert.equal(await narrow.p.locator('#call-explanation-card').isVisible(),true);
+    assert.equal(await narrow.p.locator('#call-explanation-title').textContent(),await narrow.p.locator('#'+id).getAttribute('data-explanation-title'));
+    const tree=narrow.p.locator('#call-explanation-card .call-tree-scroll');
+    if(await tree.count())assert.equal(await tree.isVisible(),true);
+    await audit(narrow.p,'addition card '+id+' '+width);
+    await narrow.p.keyboard.press('Escape');
+    assert.equal(await narrow.p.locator('#call-explanation-card').isVisible(),false);
    }
    if(width===390)await shot(narrow.p,'toolchain-call-graph','addition_calltree_mobile');
    await narrow.context.close();
   }
-  checks.push('Call-tree and original-answer deep links work from a fresh file open; all nine expanded branches fit at 320/390px with local tree scrolling');
+  checks.push('Call-tree and original-answer deep links work from a fresh file open; all eleven numbered cards open, scroll and dismiss at 320/390px');
   const matmul=manifest.examples.find(e=>e.example.id==='matmul');
   const motion=await setup(pathToFileURL(path.join(task,matmul.page)).href,{reducedMotion:'no-preference'});await align(motion.p,'run');await seek(motion.p,'run',5);await motion.p.locator('#run [data-action="play"]').click();await motion.p.waitForTimeout(470);
   const actor=motion.p.locator('#run [data-actor="A-shared-0-0"]');assert.equal(await actor.count(),1);await actor.evaluate(e=>e.dataset.identityCheck='same');const start=await actor.getAttribute('transform');await motion.p.waitForTimeout(140);assert.notEqual(await actor.getAttribute('transform'),start);
@@ -135,7 +155,7 @@ async function readingDiagrams(p){
   await toolMotion.p.locator('#toolchain-animation-tab').click();assert.equal(await op.getAttribute('transform'),frozenOp);await toolMotion.p.locator('#toolchain [data-action="play"]').click();await toolMotion.p.waitForTimeout(120);assert.notEqual(await op.getAttribute('transform'),frozenOp);assert.equal(await op.getAttribute('data-retained-identity'),'same');await toolMotion.p.locator('#toolchain [data-action="play"]').click();await toolMotion.context.close();checks.push('Entering Text freezes a moving OP1 and semantic step; returning to Animation resumes the same actor');
   for(const width of [320,390])for(const e of manifest.examples){const mobile=await setup(pathToFileURL(path.join(task,e.page)).href,{viewport:{width,height:850},isMobile:true,hasTouch:true});await finish(mobile.p,'run');await audit(mobile.p,e.example.id+' narrow '+width);await mobile.p.locator('#run [data-card]').tap();assert.equal(await mobile.p.locator('#explanation-card').isVisible(),true);await audit(mobile.p,e.example.id+' touch card '+width);await mobile.p.locator('#run [data-card]').tap();assert.equal(await mobile.p.locator('#explanation-card').isVisible(),false);await mobile.p.locator('#legend-button').tap();await audit(mobile.p,e.example.id+' touch legend '+width);await mobile.p.keyboard.press('Escape');await align(mobile.p,'toolchain');await mobile.p.locator('#toolchain-text-tab').tap();await readingDiagrams(mobile.p);await audit(mobile.p,e.example.id+' narrow text '+width);assert.ok(await mobile.p.locator('#toolchain-q3-3-1').count());if(width===390&&e.example.id==='addition')await shot(mobile.p,'toolchain-q1 [data-diagram="build"]','addition_build_diagram_mobile');await mobile.context.close();}
   checks.push('All four readers at 320/390px contain diagram scrolling and fit touch cards/legends');
-  for(const e of manifest.examples){const nojs=await setup(pathToFileURL(path.join(task,e.page)).href,{javaScriptEnabled:false,viewport:{width:1000,height:900}});assert.ok(await nojs.p.locator('noscript').innerText());assert.equal(await nojs.p.locator('.source-cell').count(),20);assert.equal(await nojs.p.locator('#toolchain-text').isVisible(),true);await readingDiagrams(nojs.p);assert.equal(await nojs.p.locator('#toolchain [data-original-point]').count(),7);assert.equal(await nojs.p.locator('#toolchain [data-transcript] > li').count(),e.toolchain.steps);await nojs.p.locator('.source-cell').first().locator('summary').click();assert.ok((await nojs.p.locator('.source-cell').first().locator('code').innerText()).includes('InferenceSession'));if(e.example.id==='addition'){assert.equal(await nojs.p.locator('.call-stage').count(),4);await nojs.p.locator('#toolchain-call-graph-package > summary').click();assert.equal(await nojs.p.locator('#toolchain-call-graph-package .call-tree-scroll').isVisible(),true);await nojs.p.locator('#toolchain-call-graph-package > summary').click();}await nojs.p.emulateMedia({media:'print'});assert.equal(await nojs.p.locator('.menu').isVisible(),false);assert.equal(await nojs.p.locator('#toolchain-text').isVisible(),true);await readingDiagrams(nojs.p);if(e.example.id==='addition'){assert.equal(await nojs.p.locator('#toolchain-call-graph-package .call-tree-scroll').isVisible(),true);await shot(nojs.p,'toolchain-q1 [data-diagram="build"]','addition_build_diagram_print');}await nojs.context.close();}
+  for(const e of manifest.examples){const nojs=await setup(pathToFileURL(path.join(task,e.page)).href,{javaScriptEnabled:false,viewport:{width:1000,height:900}});assert.ok(await nojs.p.locator('noscript').innerText());assert.equal(await nojs.p.locator('.source-cell').count(),20);assert.equal(await nojs.p.locator('#toolchain-text').isVisible(),true);await readingDiagrams(nojs.p);assert.equal(await nojs.p.locator('#toolchain [data-original-point]').count(),7);assert.equal(await nojs.p.locator('#toolchain [data-transcript] > li').count(),e.toolchain.steps);await nojs.p.locator('.source-cell').first().locator('summary').click();assert.ok((await nojs.p.locator('.source-cell').first().locator('code').innerText()).includes('InferenceSession'));if(e.example.id==='addition'){assert.equal(await nojs.p.locator('.call-stage').count(),4);assert.equal(await nojs.p.locator('.call-branch[data-call-card]').count(),11);assert.equal(await nojs.p.locator('.call-branch[data-call-card][hidden]').count(),0);await nojs.p.locator('#toolchain-call-graph-package > summary').click();assert.equal(await nojs.p.locator('#toolchain-call-graph-package .call-tree-scroll').isVisible(),true);await nojs.p.locator('#toolchain-call-graph-package > summary').click();}await nojs.p.emulateMedia({media:'print'});assert.equal(await nojs.p.locator('.menu').isVisible(),false);assert.equal(await nojs.p.locator('#toolchain-text').isVisible(),true);await readingDiagrams(nojs.p);if(e.example.id==='addition'){assert.equal(await nojs.p.locator('#toolchain-call-graph-package .call-tree-scroll').isVisible(),true);await shot(nojs.p,'toolchain-q1 [data-diagram="build"]','addition_build_diagram_print');}await nojs.context.close();}
   checks.push('Offline network-free readers retain complete original sources and portable flows with JavaScript disabled and in print');
   assert.deepEqual(errors,[]);assert.deepEqual(network,[]);
   fs.writeFileSync(path.join(task,'validation/compiler_examples_browser.json'),JSON.stringify({evidence:'CPU-RUN · Chromium teaching animation only; no MAX/GPU execution',checks,audits,screenshots,errors,network},null,2)+'\n');console.log('Example browser checks passed:',checks.length,'groups /',audits.length,'render audits');

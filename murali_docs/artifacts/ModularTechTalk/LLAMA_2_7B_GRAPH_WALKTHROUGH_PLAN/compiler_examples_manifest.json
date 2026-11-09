@@ -1552,6 +1552,18 @@
           "alias": "DOC",
           "sha256": "60830fc36dbaae1814bc6f3a506f497f2ce92bf624b8198792144f6022b0308e"
         },
+        "ct_mo_map_opaque_test": {
+          "id": "ct_mo_map_opaque_test",
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/opaque-kernels.mlir",
+          "start": 1,
+          "end": 96,
+          "line": 1,
+          "symbol": "",
+          "label": "Compiler test: registered custom ops lower to opaque MAP iteration and calls",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "d7f7d358ea62fb18ee175bddc66bd2aa02832985a65a54e992660f838302692d"
+        },
         "ct_graph_device": {
           "id": "ct_graph_device",
           "file": "max/python/max/graph/graph.py",
@@ -2296,6 +2308,26 @@
             "init"
           ],
           "branches": 11,
+          "cards": [
+            "toolchain-call-graph-context",
+            "toolchain-call-graph-package",
+            "toolchain-call-graph-objects",
+            "toolchain-call-graph-validation",
+            "toolchain-call-session-ownership",
+            "toolchain-call-compile-passes",
+            "toolchain-call-compile-kernels",
+            "toolchain-call-compile-mef",
+            "toolchain-call-init-resources",
+            "toolchain-call-init-gates",
+            "toolchain-call-example"
+          ],
+          "reading_order": [
+            "kernels/*.mojo \u2192 P1 (.mojoc)",
+            "P1 \u2192 recorded G1 (MO)",
+            "devices \u2192 S1",
+            "S1 + G1 \u2192 clone C1: MO \u2192 MAP \u2192 MOGG \u2192 MGP \u2192 CM1",
+            "S1 + CM1 \u2192 initialized M1"
+          ],
           "references": [
             "amdgpu_backend",
             "artifact",
@@ -2326,12 +2358,8 @@
             "ct_executable_create",
             "ct_global_context",
             "ct_global_create",
-            "ct_graph_context",
             "ct_graph_context_state",
-            "ct_graph_device",
-            "ct_graph_extensions",
             "ct_graph_import",
-            "ct_graph_library",
             "ct_graph_module",
             "ct_graph_op_build",
             "ct_graph_op_definition",
@@ -2344,6 +2372,7 @@
             "ct_mef_open",
             "ct_mo_dialect",
             "ct_mo_map_add_test",
+            "ct_mo_map_opaque_test",
             "ct_model_handle",
             "ct_model_setup",
             "ct_module_load",
@@ -2362,6 +2391,7 @@
             "ct_weight_dict",
             "custom_api",
             "device_finalization",
+            "dispatch",
             "emit_mojo",
             "entry",
             "frontend",
@@ -2401,7 +2431,7 @@
             "runtime_calls",
             "serialize"
           ],
-          "text_sha256": "4f8c74c5241021612e119be78fb5b39db0bbf76196ac792a583ff6fa855fdee2"
+          "text_sha256": "e1a30a124548bbfd5caaf14677dcacdd02406d6ee55e36a006eb0f4db28fd218"
         }
       },
       "files": [
@@ -2644,6 +2674,10 @@
         {
           "path": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-add-static.mlir",
           "sha256": "60830fc36dbaae1814bc6f3a506f497f2ce92bf624b8198792144f6022b0308e"
+        },
+        {
+          "path": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/opaque-kernels.mlir",
+          "sha256": "d7f7d358ea62fb18ee175bddc66bd2aa02832985a65a54e992660f838302692d"
         },
         {
           "path": "Mojo/python/mojo/run.py",

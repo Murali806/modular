@@ -53,6 +53,8 @@
 .calltree-nav a:hover { border-color:#35665f; text-decoration:underline; text-underline-offset:3px; }
 .calltree-nav a > span,.call-stage-letter { display:inline-grid; place-items:center; flex:none; width:32px; height:32px; border:1px solid #698891; border-radius:50%; color:#163f4b; font:750 16px/1 ui-sans-serif,system-ui,sans-serif; }
 .calltree-nav strong { font-size:16px; line-height:1.5; overflow-wrap:anywhere; }
+.call-lifecycle { margin:12px 0 24px; padding:14px 16px; border:1px solid #9bb5c3; border-left:5px solid #245a56; border-radius:8px; color:#294454; background:#f2f7f7; font-size:16px; line-height:1.8; overflow-wrap:anywhere; }
+.call-lifecycle code { color:#5b21b6; font-weight:750; white-space:normal; }
 .call-stage { min-width:0; padding:0 0 30px; margin:0 0 32px; border-bottom:1px solid #c5d3dc; scroll-margin-top:125px; }
 .call-stage h3 { display:flex; gap:12px; align-items:center; margin:0 0 14px; color:#153f53; font:700 24px/1.45 ui-sans-serif,system-ui,sans-serif; }
 .call-stage .callsite { margin:0 0 18px; font:600 15px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace; overflow-wrap:anywhere; }
@@ -72,6 +74,16 @@
 .call-source small { font-size:13px; color:#455a68; font-weight:600; }
 .call-note-link { color:#5b21b6; font-weight:800; text-decoration:underline; text-underline-offset:3px; }
 .call-note-link:focus-visible { outline:3px solid #ad682e; outline-offset:3px; }
+.call-reading-note { margin:0 0 16px; font-size:16px; line-height:1.8; color:#294454; }
+.call-card-launchers { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:16px 0 0; }
+.call-card-launch { display:flex; align-items:center; gap:12px; width:100%; min-width:0; text-align:left; padding:12px 14px; color:#153f53; background:#fffefa; border:1px solid #52788c; border-radius:8px; font:700 16px/1.6 ui-sans-serif,system-ui,sans-serif; }
+.call-card-launch:hover { background:#edf4f7; border-color:#52788c; }
+.call-card-launch:focus-visible { outline:3px solid #ad682e; outline-offset:3px; }
+.call-card-number { flex:none; color:#5b21b6; font-size:18px; font-weight:800; }
+[data-call-stage="graph"] .call-card-number { color:#9c3d00; }
+[data-call-stage="session"] .call-card-number { color:#0057a8; }
+[data-call-stage="init"] .call-card-number { color:#006644; }
+.call-card-glyph { flex:none; margin-left:auto; font-size:19px; }
 .call-explanation { min-width:0; margin:0 14px 16px; color:#233e4e; font-size:16px; line-height:1.8; overflow-wrap:anywhere; }
 .call-explanation p { margin:12px 0; }
 .call-explanation strong { font-weight:800; color:#153f53; }
@@ -85,9 +97,17 @@
 .call-explanation-card-header button { flex:none; font-size:14px; }
 .call-explanation-card-body { min-height:0; overflow:auto; overscroll-behavior:contain; }
 .call-explanation-card .call-explanation { margin:0; padding:4px 18px 16px; }
+.call-explanation-card .call-card-content { min-width:0; }
+.call-explanation-card .call-tree-scroll { margin:14px; max-width:calc(100% - 28px); }
 .call-explanation-card td:first-child code { white-space:nowrap; }
-@media(max-width:600px) { .call-explanation-card-header { padding:12px; gap:8px; }.call-explanation-card-header h2 { font-size:17px; }.call-explanation-card .call-explanation { padding:0 12px 12px; } }
+@media(max-width:600px) { .call-card-launchers { grid-template-columns:1fr; }.call-explanation-card-header { padding:12px; gap:8px; }.call-explanation-card-header h2 { font-size:17px; }.call-explanation-card .call-explanation { padding:0 12px 12px; } }
 @media print { .call-explanation-card { display:none!important; } }
+@media print {
+  .call-card-launchers { display:none!important; }
+  details[data-call-card][hidden] { display:block!important; }
+  details.call-branch:not([open]) > .call-card-content { display:block!important; }
+  details.call-branch:not([open]) > summary { display:none!important; }
+}
 .call-branch { margin:14px 0 0; border:1px solid #c4d2dc; border-radius:8px; }
 .call-branch > summary,.qna-reference > summary { padding:12px 14px; color:#214756; font-size:16px; font-weight:750; cursor:pointer; line-height:1.6; }
 .call-branch .call-tree-scroll { margin:0 12px 12px; }
