@@ -1456,6 +1456,66 @@
           "alias": "PY",
           "sha256": "1649f7aee65fd6504e474be3837be9d387085648e192de2ea47bb96559c7fbdd"
         },
+        "ct_builtin_module": {
+          "id": "ct_builtin_module",
+          "file": "max/python/max/_core/max_license/modules/dialects/builtin.cpp",
+          "start": 62,
+          "end": 70,
+          "line": 62,
+          "symbol": "",
+          "label": "ModuleOp's native constructor and body binding",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "cfd9c800b278d53b275347dfb93b175bdea4c4e3f66372727e163d5d33056305"
+        },
+        "ct_mo_dialect": {
+          "id": "ct_mo_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/MODialect/MODialect.td",
+          "start": 25,
+          "end": 51,
+          "line": 25,
+          "symbol": "",
+          "label": "MO: MAX's frontend graph dialect",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "29c4d3f2b2f719fee8a1bf82e13c60a9d5c4e56dbbda8f18f558a5c17a4853f9"
+        },
+        "ct_graph_op_build": {
+          "id": "ct_graph_op_build",
+          "file": "GraphCompiler/lib/MODialect/MOOps.cpp",
+          "start": 820,
+          "end": 850,
+          "line": 820,
+          "symbol": "void GraphOp::build(OpBuilder &builder, OperationState &state, StringRef name,",
+          "label": "GraphOp builds its symbol, signatures, region and input block arguments",
+          "language": "cpp",
+          "alias": "C++",
+          "sha256": "38de2568d55eb5f8ec26d966d37e56ae9176ecd72b90cf74d748387635b99802"
+        },
+        "ct_graph_op_definition": {
+          "id": "ct_graph_op_definition",
+          "file": "GraphCompiler/include/GraphCompiler/MODialect/MOOps.td",
+          "start": 211,
+          "end": 297,
+          "line": 211,
+          "symbol": "",
+          "label": "GraphOp's module parent, graph region, attributes and output terminator",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "5c92a512c009ec9b452007394ec123cf672cccba2ad034ffaf7c841d2a8b42a5"
+        },
+        "ct_graph_module": {
+          "id": "ct_graph_module",
+          "file": "max/python/max/graph/graph.py",
+          "start": 562,
+          "end": 637,
+          "line": 562,
+          "symbol": "",
+          "label": "Module wrapper and shared encoder/decoder graph example",
+          "language": "python",
+          "alias": "PY",
+          "sha256": "50414efb590542a1ede6c6f0b78f98e4e390e32ca75f1efb2a28cda3a6e3505a"
+        },
         "ct_graph_device": {
           "id": "ct_graph_device",
           "file": "max/python/max/graph/graph.py",
@@ -2208,6 +2268,7 @@
             "compile_async",
             "ct_analysis_seed",
             "ct_analysis_verify",
+            "ct_builtin_module",
             "ct_check_lit",
             "ct_compile",
             "ct_compile_binding",
@@ -2234,6 +2295,9 @@
             "ct_graph_extensions",
             "ct_graph_import",
             "ct_graph_library",
+            "ct_graph_module",
+            "ct_graph_op_build",
+            "ct_graph_op_definition",
             "ct_graph_verify",
             "ct_init",
             "ct_kernel_load",
@@ -2241,6 +2305,7 @@
             "ct_load_all",
             "ct_mef_models",
             "ct_mef_open",
+            "ct_mo_dialect",
             "ct_model_handle",
             "ct_model_setup",
             "ct_module_load",
@@ -2296,7 +2361,7 @@
             "runtime_calls",
             "serialize"
           ],
-          "text_sha256": "4bd96c35a6ef1d002a1decba6e8a8bc4bc99f46a5bcf865c9677d1c4feded817"
+          "text_sha256": "6a46363275a9e9302594804ba021aa697322a38fe25c277978185aab55b09cbb"
         }
       },
       "files": [
@@ -2515,6 +2580,18 @@
         {
           "path": "max/python/max/_mlir_context.py",
           "sha256": "2900b1f9dd6f9a4916fca530eb1ae2ca380a24cc42ebfbb1efc31488d2dc7a8d"
+        },
+        {
+          "path": "max/python/max/_core/max_license/modules/dialects/builtin.cpp",
+          "sha256": "800ad617ede3c170ef88c2b8248ec7ab011cac2ab5f701f653c1c6614b93dbdc"
+        },
+        {
+          "path": "GraphCompiler/lib/MODialect/MOOps.cpp",
+          "sha256": "ae5244a9a35f2be02c58de84a405b5de352d12945da75986bd0b5ef91398f994"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/MODialect/MOOps.td",
+          "sha256": "0cf3f8400e5dace9def88de0c46e45cd40a0f57dd4d677d80ce9faa18be27ed1"
         },
         {
           "path": "Mojo/python/mojo/run.py",

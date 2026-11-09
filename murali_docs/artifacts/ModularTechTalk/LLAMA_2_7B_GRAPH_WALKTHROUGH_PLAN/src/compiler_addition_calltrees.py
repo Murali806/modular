@@ -23,6 +23,11 @@ MODEL = "GraphCompiler/lib/MEFModel/MEFModel.cpp"
 SOURCES = [
     ("ct_graph_context", "max/python/max/_mlir_context.py", "in_default_mlir_context", "python", 0, "Graph constructor's MLIR-context decorator"),
     ("ct_graph_context_state", "max/python/max/_mlir_context.py", "26:67", "lines", 0, "Shared default MLIR context and thread-local active-context guard"),
+    ("ct_builtin_module", "max/python/max/_core/max_license/modules/dialects/builtin.cpp", "62:70", "lines", 0, "ModuleOp's native constructor and body binding"),
+    ("ct_mo_dialect", "GraphCompiler/include/GraphCompiler/MODialect/MODialect.td", "25:51", "lines", 0, "MO: MAX's frontend graph dialect"),
+    ("ct_graph_op_build", "GraphCompiler/lib/MODialect/MOOps.cpp", "void GraphOp::build(OpBuilder &builder, OperationState &state, StringRef name,", "cpp", 0, "GraphOp builds its symbol, signatures, region and input block arguments"),
+    ("ct_graph_op_definition", "GraphCompiler/include/GraphCompiler/MODialect/MOOps.td", "211:297", "lines", 0, "GraphOp's module parent, graph region, attributes and output terminator"),
+    ("ct_graph_module", GRAPH, "562:637", "lines", 0, "Module wrapper and shared encoder/decoder graph example"),
     ("ct_graph_device", GRAPH, "Graph._populate_device_info_mapping", "python", 0, "Graph's device-to-target metadata"),
     ("ct_graph_extensions", GRAPH, "_resolved_custom_extensions", "python", 0, "Explicit extensions and default overlays"),
     ("ct_graph_library", GRAPH, "KernelLibrary.__init__", "python", 0, "KernelLibrary creates native analysis"),
@@ -115,6 +120,107 @@ That conditional behavior is implemented in [ensure_default_mlir_context:55](sou
 """
 
 
+GRAPH_OBJECTS_EXPLANATION = """**`builtin.ModuleOp` is the outer MLIR container; `mo.GraphOp(\"addition\")` is the named computation inside it.** Python’s `Graph(...)` constructor creates and retains both. See the [construction code](sources/max/python/max/graph/graph.py#L851).
+
+`Op` means **operation**. `builtin` is MLIR’s builtin dialect; `mo` is MAX’s graph dialect, defined in [MODialect.td](sources/GraphCompiler/include/GraphCompiler/MODialect/MODialect.td#L25). ([MLIR builtin dialect](https://mlir.llvm.org/docs/Dialects/Builtin/))
+
+**1. `builtin.ModuleOp`: the container**
+
+It represents an MLIR operation normally printed as `module { ... }`. Its body contains other operations—including your graph definition. MLIR organizes this nesting as **operation → region → block → operations**. ([MLIR operation structure](https://mlir.llvm.org/docs/LangRef/))
+
+```text
+builtin.ModuleOp(location=loc)
+└─ Python-to-C++ binding
+   └─ mlir::ModuleOp::create(loc, name=None)
+      └─ builtin.module
+         └─ body region
+            └─ body block
+               └─ initially empty; GraphOp will be inserted here
+```
+
+The native constructor and `.body` binding are in [builtin.cpp](sources/max/python/max/_core/max_license/modules/dialects/builtin.cpp#L62).
+
+When you supply `Graph(..., module=existing_module)`, MAX reuses that module. This allows several named graphs to share one module—for example, encoder and decoder graphs. See [the Python `Module` wrapper](sources/max/python/max/graph/graph.py#L562).
+
+**2. `mo.GraphOp(\"addition\")`: the computation definition**
+
+Here, **`\"addition\"` names the graph**. The operation that performs your computation is separately referenced as **`\"add_one\"`** in [addition.py](sources/max/examples/custom_ops/addition.py#L33).
+
+The actual constructor takes more than the name:
+
+```python
+op = _mo.GraphOp(
+    builder,
+    loc,
+    name=\"addition\",
+    input_types=[t.to_mlir() for t in input_types],
+    result_types=[],
+)
+```
+
+Its native construction expands as follows:
+
+```text
+OpBuilder(self._module.body.end)
+│  insertion point = end of the module’s body
+│
+└─ _mo.GraphOp(...)
+   └─ C++ GraphOp::build(...)
+      │
+      ├─ sym_name = \"addition\"
+      │  identifies this graph within the module
+      │
+      ├─ functionType
+      │  input:  float32 tensor [5,10] on selected device
+      │  output: empty initially
+      │
+      ├─ signature
+      │  KGEN generator signature wrapping that function type
+      │
+      ├─ input/result dimension parameters
+      │  declarations for symbolic dimensions, when present
+      │
+      └─ body region
+         └─ one block
+            └─ input block argument X
+               type = float32[5,10]
+               value = symbolic input placeholder
+```
+
+These steps come directly from [GraphOp::build](sources/GraphCompiler/lib/MODialect/MOOps.cpp#L820). The operation’s definition requires a module parent, a single graph-body block, and a terminating `mo.output`; see [MOOps.td](sources/GraphCompiler/include/GraphCompiler/MODialect/MOOps.td#L211).
+
+**3. How the initially empty graph becomes your addition graph**
+
+The constructor calls `forward(...)` with symbolic inputs. Your `ops.custom(name=\"add_one\", ...)` records the computation and produces a symbolic output. Then `Graph.output(...)` establishes the output signature and inserts `mo.output`. See [forward construction](sources/max/python/max/graph/graph.py#L918) and [output finalization](sources/max/python/max/graph/graph.py#L1458).
+
+The resulting structure is **schematic**, with internal chain and metadata operations omitted:
+
+```text
+Python Graph object
+│
+├─ _module → builtin.module
+│  └─ body region / block
+│     └─ mo.graph @addition
+│        │
+│        ├─ input signature:  float32[5,10]
+│        ├─ output signature: float32[5,10]
+│        │
+│        └─ body region / block
+│           ├─ X = symbolic input
+│           ├─ custom computation \"add_one\"(X) → symbolic Y
+│           └─ mo.output(Y)
+│
+└─ _mlir_op → another wrapper around that same mo.graph
+```
+
+The `_mlir_op` assignment wraps the existing operation through its C API pointer; it does not create another graph. See [graph.py](sources/max/python/max/graph/graph.py#L874).
+
+**Actual numbers arrive later**, through `model.execute(x)`. For example, an input element `2.5` produces `3.5` in this example. Compilation, initialization, buffer creation, and execution occur after graph construction in [addition.py](sources/max/examples/custom_ops/addition.py#L67).
+
+The **`.mojoc` package is produced on a separate branch**: loading your custom-extension directory invokes Mojo package preparation. `ModuleOp` and `GraphOp` construct the graph’s in-memory IR; see [extension loading](sources/max/python/max/graph/graph.py#L269) and [Mojo precompilation](sources/Mojo/python/mojo/paths.py#L141).
+"""
+
+
 STAGES = [
     dict(
         id="graph", letter="A", title="Graph(...) → G1 + package P1", short="Graph(...) → G1 + P1",
@@ -130,6 +236,7 @@ STAGES = [
 │  └─ [EXPLANATION:context]
 │
 ├─ create builtin.ModuleOp + mo.GraphOp("addition") → **G1**
+│  [INLINE:graph_objects]
 │  ├─ input TensorType → MLIR block argument: **X: float32[5,10]**
 │  ├─ _params = {} → this shape has no symbolic dimensions
 │  ├─ [SOURCE:ct_graph_device|_populate_device_info_mapping()] → CPU/GPU target metadata
@@ -484,22 +591,25 @@ def render_addition_calltrees(refs, revision):
         anchors = {}
 
         def source_anchor(match):
-            key = "ct_graph_context_state"
-            line = int(match[2])
+            file, line = match[2], int(match[3])
+            candidates = [key for key, r in refs.items()
+                          if r["file"] == file and r["start"] <= line <= r["end"]]
+            if not candidates:
+                raise ValueError(f"Explanation source line has no definition span: {file}:{line}")
+            key = min(candidates, key=lambda k: (refs[k]["end"] - refs[k]["start"], k))
             r = refs[key]
-            if not r["start"] <= line <= r["end"]:
-                raise ValueError(f"Context explanation line outside source span: {line}")
             used_refs.add(key)
-            token = f"CONTEXT_SOURCE_{len(anchors)}_TOKEN"
+            token = f"EXPLANATION_SOURCE_{len(anchors)}_TOKEN"
+            label = markdown.markdown(match[1]).removeprefix("<p>").removesuffix("</p>")
             anchors[token] = (
                 f'<a class="qna-source-path" data-ref="{key}" data-line="{line}" '
                 f'href="../sources/{html.escape(r["file"])}#L{line}">'
-                f'{html.escape(match[1])}</a>'
+                f'{label}</a>'
             )
             return token
 
         text = re.sub(
-            r"\[([^\]]+)\]\(sources/max/python/max/_mlir_context\.py#L(\d+)\)",
+            r"\[([^\]]+)\]\(sources/([^\s)]+)#L(\d+)\)",
             source_anchor, text,
         )
         rendered = markdown.markdown(text, extensions=["tables", "fenced_code"])
@@ -511,9 +621,18 @@ def render_addition_calltrees(refs, revision):
         return '<div class="call-explanation">' + rendered + '</div>'
 
     def tree(text, label):
+        parts = text.rstrip().split("│  [INLINE:graph_objects]\n")
+        content = '<pre class="call-tree"><code>' + decorated(parts[0].rstrip()) + '</code></pre>'
+        if len(parts) > 1:
+            if len(parts) != 2:
+                raise ValueError("The graph-object explanation must occur once in its call tree")
+            content += ('<section class="call-tree-inline-explanation" id="toolchain-call-graph-objects" '
+                        'aria-label="Inline explanation of ModuleOp and GraphOp">'
+                        + explanation(GRAPH_OBJECTS_EXPLANATION) + '</section>'
+                        + '<pre class="call-tree"><code>' + decorated(parts[1].rstrip()) + '</code></pre>')
         return (f'<div class="call-tree-scroll" tabindex="0" role="region" '
                 f'aria-label="{html.escape(label)}; scroll horizontally for long branches">'
-                '<pre class="call-tree"><code>' + decorated(text.rstrip()) + '</code></pre></div>')
+                + content + '</div>')
 
     def portable(text):
         def reference(match):
@@ -522,6 +641,14 @@ def render_addition_calltrees(refs, revision):
         return (MARKER.sub(reference, text).replace("**", "")
                 .replace("[EXPLANATION:context]", "Full explanation · is this a global variable? → A.0")
                 .rstrip())
+
+    def portable_tree(text):
+        parts = text.rstrip().split("│  [INLINE:graph_objects]\n")
+        result = ["```text", portable(parts[0]), "```"]
+        if len(parts) > 1:
+            result.extend(["", GRAPH_OBJECTS_EXPLANATION.rstrip(), "", "```text",
+                           portable(parts[1]), "```"])
+        return "\n".join(result)
 
     body = ['<div class="addition-calltrees" data-calltrees="addition">',
             '<p class="calltree-scope"><strong>SOURCE</strong> · '
@@ -545,7 +672,7 @@ def render_addition_calltrees(refs, revision):
             body.append(f'<div><dt>{label}</dt><dd>{html.escape(value)}</dd></div>')
             companion.append(label.upper() + ": " + value)
         body.append('</dl>' + tree(stage["tree"], title))
-        companion.extend(["", "```text", portable(stage["tree"]), "```", ""])
+        companion.extend(["", portable_tree(stage["tree"]), ""])
         for detail in stage["details"]:
             content = (explanation(detail["explanation"]) if "explanation" in detail
                        else tree(detail["tree"], detail["title"]))

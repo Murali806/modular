@@ -16,6 +16,108 @@ Graph.__init__(name, forward, input_types, custom_extensions) [max/python/max/gr
 │  └─ Full explanation · is this a global variable? → A.0
 │
 ├─ create builtin.ModuleOp + mo.GraphOp("addition") → G1
+```
+
+**`builtin.ModuleOp` is the outer MLIR container; `mo.GraphOp("addition")` is the named computation inside it.** Python’s `Graph(...)` constructor creates and retains both. See the [construction code](sources/max/python/max/graph/graph.py#L851).
+
+`Op` means **operation**. `builtin` is MLIR’s builtin dialect; `mo` is MAX’s graph dialect, defined in [MODialect.td](sources/GraphCompiler/include/GraphCompiler/MODialect/MODialect.td#L25). ([MLIR builtin dialect](https://mlir.llvm.org/docs/Dialects/Builtin/))
+
+**1. `builtin.ModuleOp`: the container**
+
+It represents an MLIR operation normally printed as `module { ... }`. Its body contains other operations—including your graph definition. MLIR organizes this nesting as **operation → region → block → operations**. ([MLIR operation structure](https://mlir.llvm.org/docs/LangRef/))
+
+```text
+builtin.ModuleOp(location=loc)
+└─ Python-to-C++ binding
+   └─ mlir::ModuleOp::create(loc, name=None)
+      └─ builtin.module
+         └─ body region
+            └─ body block
+               └─ initially empty; GraphOp will be inserted here
+```
+
+The native constructor and `.body` binding are in [builtin.cpp](sources/max/python/max/_core/max_license/modules/dialects/builtin.cpp#L62).
+
+When you supply `Graph(..., module=existing_module)`, MAX reuses that module. This allows several named graphs to share one module—for example, encoder and decoder graphs. See [the Python `Module` wrapper](sources/max/python/max/graph/graph.py#L562).
+
+**2. `mo.GraphOp("addition")`: the computation definition**
+
+Here, **`"addition"` names the graph**. The operation that performs your computation is separately referenced as **`"add_one"`** in [addition.py](sources/max/examples/custom_ops/addition.py#L33).
+
+The actual constructor takes more than the name:
+
+```python
+op = _mo.GraphOp(
+    builder,
+    loc,
+    name="addition",
+    input_types=[t.to_mlir() for t in input_types],
+    result_types=[],
+)
+```
+
+Its native construction expands as follows:
+
+```text
+OpBuilder(self._module.body.end)
+│  insertion point = end of the module’s body
+│
+└─ _mo.GraphOp(...)
+   └─ C++ GraphOp::build(...)
+      │
+      ├─ sym_name = "addition"
+      │  identifies this graph within the module
+      │
+      ├─ functionType
+      │  input:  float32 tensor [5,10] on selected device
+      │  output: empty initially
+      │
+      ├─ signature
+      │  KGEN generator signature wrapping that function type
+      │
+      ├─ input/result dimension parameters
+      │  declarations for symbolic dimensions, when present
+      │
+      └─ body region
+         └─ one block
+            └─ input block argument X
+               type = float32[5,10]
+               value = symbolic input placeholder
+```
+
+These steps come directly from [GraphOp::build](sources/GraphCompiler/lib/MODialect/MOOps.cpp#L820). The operation’s definition requires a module parent, a single graph-body block, and a terminating `mo.output`; see [MOOps.td](sources/GraphCompiler/include/GraphCompiler/MODialect/MOOps.td#L211).
+
+**3. How the initially empty graph becomes your addition graph**
+
+The constructor calls `forward(...)` with symbolic inputs. Your `ops.custom(name="add_one", ...)` records the computation and produces a symbolic output. Then `Graph.output(...)` establishes the output signature and inserts `mo.output`. See [forward construction](sources/max/python/max/graph/graph.py#L918) and [output finalization](sources/max/python/max/graph/graph.py#L1458).
+
+The resulting structure is **schematic**, with internal chain and metadata operations omitted:
+
+```text
+Python Graph object
+│
+├─ _module → builtin.module
+│  └─ body region / block
+│     └─ mo.graph @addition
+│        │
+│        ├─ input signature:  float32[5,10]
+│        ├─ output signature: float32[5,10]
+│        │
+│        └─ body region / block
+│           ├─ X = symbolic input
+│           ├─ custom computation "add_one"(X) → symbolic Y
+│           └─ mo.output(Y)
+│
+└─ _mlir_op → another wrapper around that same mo.graph
+```
+
+The `_mlir_op` assignment wraps the existing operation through its C API pointer; it does not create another graph. See [graph.py](sources/max/python/max/graph/graph.py#L874).
+
+**Actual numbers arrive later**, through `model.execute(x)`. For example, an input element `2.5` produces `3.5` in this example. Compilation, initialization, buffer creation, and execution occur after graph construction in [addition.py](sources/max/examples/custom_ops/addition.py#L67).
+
+The **`.mojoc` package is produced on a separate branch**: loading your custom-extension directory invokes Mojo package preparation. `ModuleOp` and `GraphOp` construct the graph’s in-memory IR; see [extension loading](sources/max/python/max/graph/graph.py#L269) and [Mojo precompilation](sources/Mojo/python/mojo/paths.py#L141).
+
+```text
 │  ├─ input TensorType → MLIR block argument: X: float32[5,10]
 │  ├─ _params = {} → this shape has no symbolic dimensions
 │  ├─ _populate_device_info_mapping() [max/python/max/graph/graph.py:L1366] → CPU/GPU target metadata
