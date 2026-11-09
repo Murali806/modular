@@ -265,11 +265,6 @@ footer p { font-size:10px; }
 .call-explanation pre { max-width:100%; overflow:auto; padding:14px; border:1px solid #bbcdd8; border-radius:8px; background:#f4f8fa; font:16px/1.85 ui-monospace,SFMono-Regular,Consolas,monospace; }
 .call-explanation pre code { color:#233e4e; font:inherit; }
 .call-explanation .qna-source-path { color:#0057a8; font-weight:750; }
-.call-tree-inline-explanation { min-width:0; margin:0 18px 0 23px; padding:0 0 8px 23px; border-left:1px solid #8098a5; }
-.call-tree-inline-explanation .call-explanation { margin:0; }
-.call-tree-inline-explanation pre { box-sizing:border-box; margin:12px 0; }
-.call-tree-scroll:has(> .call-tree-inline-explanation) > .call-tree:first-child { padding-bottom:0; }
-.call-tree-scroll:has(> .call-tree-inline-explanation) > .call-tree:last-child { padding-top:0; }
 .call-explanation-card { position:fixed; z-index:90; display:flex; flex-direction:column; width:min(820px,calc(100vw - 28px)); max-height:calc(100dvh - 82px); margin:0; border:1px solid #819dac; border-radius:12px; background:#fffefa; box-shadow:0 18px 55px #193b5140; overflow:hidden; }
 .call-explanation-card-header { display:flex; align-items:center; justify-content:space-between; flex:none; gap:14px; padding:14px 18px; border-bottom:1px solid #c4d2dc; }
 .call-explanation-card-header h2 { margin:0; color:#153f53; font:750 19px/1.4 ui-sans-serif,system-ui,sans-serif; }
@@ -3425,7 +3420,7 @@ Retain m / l / normalized O; release local score and exponent tiles</pre><ol dat
     const card=document.getElementById('call-explanation-card');
     if(!card)return;
     document.body.append(card);
-    const body=card.querySelector('.call-explanation-card-body'),closeButton=card.querySelector('[data-close-call-explanation]');
+    const body=card.querySelector('.call-explanation-card-body'),closeButton=card.querySelector('[data-close-call-explanation]'),title=card.querySelector('#call-explanation-title');
     let trigger=null;
     const sourceOpen=()=>document.getElementById('source-dialog').open;
     function close(restore=false){
@@ -3448,10 +3443,11 @@ Retain m / l / normalized O; release local score and exponent tiles</pre><ol dat
       card.style.maxHeight=Math.max(80,useBelow?belowSpace:bounds.top-top-gap)+'px';
     }
     function open(link){
-      const content=document.getElementById(link.dataset.callExplanation)?.querySelector('.call-explanation');
+      const explanation=document.getElementById(link.dataset.callExplanation),content=explanation?.querySelector('.call-explanation');
       if(!content)return;
       if(!card.hidden&&trigger===link){close(true);return;}
       close();trigger=link;
+      title.textContent=explanation.dataset.explanationTitle||'Explanation';
       body.replaceChildren(content.cloneNode(true));body.scrollTop=0;
       controllers.forEach(controller=>controller.setPlaying(false));
       card.hidden=false;link.setAttribute('aria-expanded','true');position();

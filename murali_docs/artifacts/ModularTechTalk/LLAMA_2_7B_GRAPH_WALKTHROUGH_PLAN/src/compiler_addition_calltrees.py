@@ -235,8 +235,7 @@ STAGES = [
 ├─ [SOURCE:ct_graph_context|in_default_mlir_context] → ensure this thread has an active MLIR context
 │  └─ [EXPLANATION:context]
 │
-├─ create builtin.ModuleOp + mo.GraphOp("addition") → **G1**
-│  [INLINE:graph_objects]
+├─ create [EXPLANATION:graph_objects] → **G1**
 │  ├─ input TensorType → MLIR block argument: **X: float32[5,10]**
 │  ├─ _params = {} → this shape has no symbolic dimensions
 │  ├─ [SOURCE:ct_graph_device|_populate_device_info_mapping()] → CPU/GPU target metadata
@@ -260,7 +259,9 @@ STAGES = [
 """,
         details=[
             dict(id="context", title="A.0 · What is the default MLIR context? Is it a global variable?",
-                 explanation=DEFAULT_CONTEXT_EXPLANATION),
+                 card_title="Default MLIR context", explanation=DEFAULT_CONTEXT_EXPLANATION),
+            dict(id="objects", title='A.0.1 · builtin.ModuleOp + mo.GraphOp("addition")',
+                 card_title="ModuleOp + GraphOp", explanation=GRAPH_OBJECTS_EXPLANATION),
             dict(id="package", title="A.1 · Expand the .mojo → .mojoc compiler subprocess", tree="""[SOURCE:package_builder|_build_mojo_source_package(kernels_dir)]  [parent Python process]
 ├─ input: absolute directory with [SOURCE:kernel_package_root|kernels/__init__.mojo]
 ├─ hash = MD5(absolute path string) → a stable filename, not a source-content hash
@@ -585,6 +586,12 @@ def render_addition_calltrees(refs, revision):
             '<a class="call-note-link" href="#toolchain-call-graph-context" '
             'data-call-explanation="toolchain-call-graph-context">'
             'Full explanation · is this a global variable?</a>',
+        ).replace(
+            "[EXPLANATION:graph_objects]",
+            '<a class="call-note-link" href="#toolchain-call-graph-objects" '
+            'data-call-explanation="toolchain-call-graph-objects" '
+            'title="Open the ModuleOp and GraphOp explanation">'
+            'builtin.ModuleOp + mo.GraphOp(&quot;addition&quot;)</a>',
         )
 
     def explanation(text):
@@ -621,18 +628,9 @@ def render_addition_calltrees(refs, revision):
         return '<div class="call-explanation">' + rendered + '</div>'
 
     def tree(text, label):
-        parts = text.rstrip().split("│  [INLINE:graph_objects]\n")
-        content = '<pre class="call-tree"><code>' + decorated(parts[0].rstrip()) + '</code></pre>'
-        if len(parts) > 1:
-            if len(parts) != 2:
-                raise ValueError("The graph-object explanation must occur once in its call tree")
-            content += ('<section class="call-tree-inline-explanation" id="toolchain-call-graph-objects" '
-                        'aria-label="Inline explanation of ModuleOp and GraphOp">'
-                        + explanation(GRAPH_OBJECTS_EXPLANATION) + '</section>'
-                        + '<pre class="call-tree"><code>' + decorated(parts[1].rstrip()) + '</code></pre>')
         return (f'<div class="call-tree-scroll" tabindex="0" role="region" '
                 f'aria-label="{html.escape(label)}; scroll horizontally for long branches">'
-                + content + '</div>')
+                '<pre class="call-tree"><code>' + decorated(text.rstrip()) + '</code></pre></div>')
 
     def portable(text):
         def reference(match):
@@ -640,15 +638,8 @@ def render_addition_calltrees(refs, revision):
             return f'{match[2].replace("**", "")} [{r["file"]}:L{r["line"]}]'
         return (MARKER.sub(reference, text).replace("**", "")
                 .replace("[EXPLANATION:context]", "Full explanation · is this a global variable? → A.0")
+                .replace("[EXPLANATION:graph_objects]", 'builtin.ModuleOp + mo.GraphOp("addition")')
                 .rstrip())
-
-    def portable_tree(text):
-        parts = text.rstrip().split("│  [INLINE:graph_objects]\n")
-        result = ["```text", portable(parts[0]), "```"]
-        if len(parts) > 1:
-            result.extend(["", GRAPH_OBJECTS_EXPLANATION.rstrip(), "", "```text",
-                           portable(parts[1]), "```"])
-        return "\n".join(result)
 
     body = ['<div class="addition-calltrees" data-calltrees="addition">',
             '<p class="calltree-scope"><strong>SOURCE</strong> · '
@@ -672,11 +663,13 @@ def render_addition_calltrees(refs, revision):
             body.append(f'<div><dt>{label}</dt><dd>{html.escape(value)}</dd></div>')
             companion.append(label.upper() + ": " + value)
         body.append('</dl>' + tree(stage["tree"], title))
-        companion.extend(["", portable_tree(stage["tree"]), ""])
+        companion.extend(["", "```text", portable(stage["tree"]), "```", ""])
         for detail in stage["details"]:
             content = (explanation(detail["explanation"]) if "explanation" in detail
                        else tree(detail["tree"], detail["title"]))
-            body.append(f'<details class="call-branch" id="toolchain-call-{stage["id"]}-{detail["id"]}">'
+            card_title = (f' data-explanation-title="{html.escape(detail["card_title"])}"'
+                          if "card_title" in detail else "")
+            body.append(f'<details class="call-branch" id="toolchain-call-{stage["id"]}-{detail["id"]}"{card_title}>'
                         f'<summary>{html.escape(detail["title"])}</summary>'
                         + content + '</details>')
             companion.extend(["### " + detail["title"], ""])
@@ -692,7 +685,7 @@ def render_addition_calltrees(refs, revision):
                 'role="dialog" aria-modal="false" aria-labelledby="call-explanation-title">'
                 '<div class="call-explanation-card-header"><h2 id="call-explanation-title">'
                 'Default MLIR context</h2><button type="button" data-close-call-explanation '
-                'aria-label="Close the MLIR context explanation">Close ×</button></div>'
+                'aria-label="Close explanation">Close ×</button></div>'
                 '<div class="call-explanation-card-body"></div></aside>')
     companion.extend(["## E · Input and output example", "", "```text", portable(EXAMPLE), "```", ""])
     text = "\n".join(companion)

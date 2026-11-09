@@ -72,7 +72,7 @@
     const card=document.getElementById('call-explanation-card');
     if(!card)return;
     document.body.append(card);
-    const body=card.querySelector('.call-explanation-card-body'),closeButton=card.querySelector('[data-close-call-explanation]');
+    const body=card.querySelector('.call-explanation-card-body'),closeButton=card.querySelector('[data-close-call-explanation]'),title=card.querySelector('#call-explanation-title');
     let trigger=null;
     const sourceOpen=()=>document.getElementById('source-dialog').open;
     function close(restore=false){
@@ -95,10 +95,11 @@
       card.style.maxHeight=Math.max(80,useBelow?belowSpace:bounds.top-top-gap)+'px';
     }
     function open(link){
-      const content=document.getElementById(link.dataset.callExplanation)?.querySelector('.call-explanation');
+      const explanation=document.getElementById(link.dataset.callExplanation),content=explanation?.querySelector('.call-explanation');
       if(!content)return;
       if(!card.hidden&&trigger===link){close(true);return;}
       close();trigger=link;
+      title.textContent=explanation.dataset.explanationTitle||'Explanation';
       body.replaceChildren(content.cloneNode(true));body.scrollTop=0;
       controllers.forEach(controller=>controller.setPlaying(false));
       card.hidden=false;link.setAttribute('aria-expanded','true');position();

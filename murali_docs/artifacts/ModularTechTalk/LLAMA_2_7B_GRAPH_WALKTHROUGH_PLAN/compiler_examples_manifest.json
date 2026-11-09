@@ -2259,7 +2259,7 @@
             "compile",
             "init"
           ],
-          "branches": 10,
+          "branches": 11,
           "references": [
             "amdgpu_backend",
             "artifact",
@@ -2361,7 +2361,7 @@
             "runtime_calls",
             "serialize"
           ],
-          "text_sha256": "6a46363275a9e9302594804ba021aa697322a38fe25c277978185aab55b09cbb"
+          "text_sha256": "53452d64aa1d5b8c4615250befe04327bfcd15517fc6363d57d5b75954505659"
         }
       },
       "files": [

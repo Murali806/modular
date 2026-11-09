@@ -1,0 +1,67 @@
+{
+  "result": "PASS",
+  "checks": [
+    {
+      "width": 1600,
+      "touch": false,
+      "fullContentPreserved": true,
+      "codeBlocks": 4,
+      "sourceLinks": 13,
+      "openWithoutScrollOrHashChange": true,
+      "dismiss": [
+        "Close",
+        "Escape",
+        "outside",
+        "toggle"
+      ],
+      "focusRestored": true,
+      "internalScrolling": true,
+      "contextCardSwitching": true,
+      "documentOverflow": false,
+      "print": true
+    },
+    {
+      "width": 390,
+      "touch": true,
+      "fullContentPreserved": true,
+      "codeBlocks": 4,
+      "sourceLinks": 13,
+      "openWithoutScrollOrHashChange": true,
+      "dismiss": [
+        "Close",
+        "Escape",
+        "outside",
+        "toggle"
+      ],
+      "focusRestored": true,
+      "internalScrolling": true,
+      "contextCardSwitching": true,
+      "documentOverflow": false,
+      "print": true
+    },
+    {
+      "width": 320,
+      "touch": true,
+      "fullContentPreserved": true,
+      "codeBlocks": 4,
+      "sourceLinks": 13,
+      "openWithoutScrollOrHashChange": true,
+      "dismiss": [
+        "Close",
+        "Escape",
+        "outside",
+        "toggle"
+      ],
+      "focusRestored": true,
+      "internalScrolling": true,
+      "contextCardSwitching": true,
+      "documentOverflow": false,
+      "print": true
+    }
+  ],
+  "sourceExplorer": "every card source link on desktop; native constructor link on touch",
+  "noJavaScriptFallback": true,
+  "browserErrors": [],
+  "externalRequests": [],
+  "evidence": "HTML/browser checks only; no MAX compilation or inference"
+}

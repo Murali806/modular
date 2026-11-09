@@ -16,7 +16,70 @@ Graph.__init__(name, forward, input_types, custom_extensions) [max/python/max/gr
 │  └─ Full explanation · is this a global variable? → A.0
 │
 ├─ create builtin.ModuleOp + mo.GraphOp("addition") → G1
+│  ├─ input TensorType → MLIR block argument: X: float32[5,10]
+│  ├─ _params = {} → this shape has no symbolic dimensions
+│  ├─ _populate_device_info_mapping() [max/python/max/graph/graph.py:L1366] → CPU/GPU target metadata
+│  └─ _weights = {}; device chains + always-ready chain → ordering tokens
+│
+├─ KernelLibrary() [max/python/max/graph/graph.py:L245] → native kernel Analysis
+├─ _resolved_custom_extensions([kernels/]) [max/python/max/graph/graph.py:L363] → paths + default overlays
+├─ _import_kernels(paths) [max/python/max/graph/graph.py:L1703]
+│  └─ KernelLibrary.load_paths(paths) [max/python/max/graph/graph.py:L269]
+│     ├─ source directory + __init__.mojo → _build_mojo_source_package(kernels/) [Mojo/python/mojo/paths.py:L141]
+│     │  └─ mojo precompile kernels/ -o staging.mojoc → publish P1
+│     └─ existing .mojoc → add directly; skip the source-package subprocess
+│
+├─ with G1 → forward(*self.inputs) runs once with symbolic X
+│  ├─ ops.custom(name="add_one", device, values=[X], out_types=[...]) [max/python/max/graph/ops/custom.py:L69]
+│  │  ├─ record mo.custom → registration name + target + result type
+│  │  └─ KernelLibrary.verify_custom_op(op) [max/python/max/graph/graph.py:L307] → validate Mojo contract
+│  └─ callback returns the custom result's .tensor → symbolic Y
+├─ Graph.output(Y) [max/python/max/graph/graph.py:L1396] → mo.output + signature + whole-graph verification
+└─ return G1 → recorded computation; P1 available for later specialization
 ```
+
+### A.0 · What is the default MLIR context? Is it a global variable?
+
+**Yes. `_DEFAULT_MLIR_CONTEXT` is a module-level global variable holding an `mlir.Context` object.** MAX creates it when this module is imported:
+
+```python
+_DEFAULT_MLIR_CONTEXT = mlir.Context()
+```
+
+The same default object is reused within that Python interpreter. See [_mlir_context.py:26](sources/max/python/max/_mlir_context.py#L26).
+
+An **MLIR context** provides the shared infrastructure for representing compiler IR:
+
+- **Dialects:** definitions of operations and their types.
+- **Types:** shared representations such as `f32` and tensor types.
+- **Attributes:** metadata attached to operations and types.
+
+Multiple graphs can use the same context while keeping their own operations and graph structure. ([mlir.llvm.org](https://mlir.llvm.org/doxygen/classmlir_1_1MLIRContext.html))
+
+There are **two distinct pieces of state**:
+
+| Name | Scope | Purpose |
+|---|---|---|
+| `_DEFAULT_MLIR_CONTEXT` | Module global | Holds the shared default context object. |
+| `mlir.Context.current` | Thread local | Identifies the context currently active on this thread. |
+
+The source explicitly documents this distinction in [_mlir_context.py:27](sources/max/python/max/_mlir_context.py#L27).
+
+Your call-tree line is more precisely:
+
+```text
+Graph(...)
+└─ @in_default_mlir_context
+   ├─ This thread already has an active context
+   │  └─ Keep that context; call Graph.__init__
+   └─ This thread has no active context
+      └─ Temporarily enter _DEFAULT_MLIR_CONTEXT
+         └─ Call Graph.__init__
+```
+
+That conditional behavior is implemented in [ensure_default_mlir_context:55](sources/max/python/max/_mlir_context.py#L55). **“Enter” makes a context active for IR-building APIs; entering alone does not compile or execute the graph.** ([mlir.llvm.org](https://mlir.llvm.org/docs/Bindings/Python/))
+
+### A.0.1 · builtin.ModuleOp + mo.GraphOp("addition")
 
 **`builtin.ModuleOp` is the outer MLIR container; `mo.GraphOp("addition")` is the named computation inside it.** Python’s `Graph(...)` constructor creates and retains both. See the [construction code](sources/max/python/max/graph/graph.py#L851).
 
@@ -116,70 +179,6 @@ The `_mlir_op` assignment wraps the existing operation through its C API pointer
 **Actual numbers arrive later**, through `model.execute(x)`. For example, an input element `2.5` produces `3.5` in this example. Compilation, initialization, buffer creation, and execution occur after graph construction in [addition.py](sources/max/examples/custom_ops/addition.py#L67).
 
 The **`.mojoc` package is produced on a separate branch**: loading your custom-extension directory invokes Mojo package preparation. `ModuleOp` and `GraphOp` construct the graph’s in-memory IR; see [extension loading](sources/max/python/max/graph/graph.py#L269) and [Mojo precompilation](sources/Mojo/python/mojo/paths.py#L141).
-
-```text
-│  ├─ input TensorType → MLIR block argument: X: float32[5,10]
-│  ├─ _params = {} → this shape has no symbolic dimensions
-│  ├─ _populate_device_info_mapping() [max/python/max/graph/graph.py:L1366] → CPU/GPU target metadata
-│  └─ _weights = {}; device chains + always-ready chain → ordering tokens
-│
-├─ KernelLibrary() [max/python/max/graph/graph.py:L245] → native kernel Analysis
-├─ _resolved_custom_extensions([kernels/]) [max/python/max/graph/graph.py:L363] → paths + default overlays
-├─ _import_kernels(paths) [max/python/max/graph/graph.py:L1703]
-│  └─ KernelLibrary.load_paths(paths) [max/python/max/graph/graph.py:L269]
-│     ├─ source directory + __init__.mojo → _build_mojo_source_package(kernels/) [Mojo/python/mojo/paths.py:L141]
-│     │  └─ mojo precompile kernels/ -o staging.mojoc → publish P1
-│     └─ existing .mojoc → add directly; skip the source-package subprocess
-│
-├─ with G1 → forward(*self.inputs) runs once with symbolic X
-│  ├─ ops.custom(name="add_one", device, values=[X], out_types=[...]) [max/python/max/graph/ops/custom.py:L69]
-│  │  ├─ record mo.custom → registration name + target + result type
-│  │  └─ KernelLibrary.verify_custom_op(op) [max/python/max/graph/graph.py:L307] → validate Mojo contract
-│  └─ callback returns the custom result's .tensor → symbolic Y
-├─ Graph.output(Y) [max/python/max/graph/graph.py:L1396] → mo.output + signature + whole-graph verification
-└─ return G1 → recorded computation; P1 available for later specialization
-```
-
-### A.0 · What is the default MLIR context? Is it a global variable?
-
-**Yes. `_DEFAULT_MLIR_CONTEXT` is a module-level global variable holding an `mlir.Context` object.** MAX creates it when this module is imported:
-
-```python
-_DEFAULT_MLIR_CONTEXT = mlir.Context()
-```
-
-The same default object is reused within that Python interpreter. See [_mlir_context.py:26](sources/max/python/max/_mlir_context.py#L26).
-
-An **MLIR context** provides the shared infrastructure for representing compiler IR:
-
-- **Dialects:** definitions of operations and their types.
-- **Types:** shared representations such as `f32` and tensor types.
-- **Attributes:** metadata attached to operations and types.
-
-Multiple graphs can use the same context while keeping their own operations and graph structure. ([mlir.llvm.org](https://mlir.llvm.org/doxygen/classmlir_1_1MLIRContext.html))
-
-There are **two distinct pieces of state**:
-
-| Name | Scope | Purpose |
-|---|---|---|
-| `_DEFAULT_MLIR_CONTEXT` | Module global | Holds the shared default context object. |
-| `mlir.Context.current` | Thread local | Identifies the context currently active on this thread. |
-
-The source explicitly documents this distinction in [_mlir_context.py:27](sources/max/python/max/_mlir_context.py#L27).
-
-Your call-tree line is more precisely:
-
-```text
-Graph(...)
-└─ @in_default_mlir_context
-   ├─ This thread already has an active context
-   │  └─ Keep that context; call Graph.__init__
-   └─ This thread has no active context
-      └─ Temporarily enter _DEFAULT_MLIR_CONTEXT
-         └─ Call Graph.__init__
-```
-
-That conditional behavior is implemented in [ensure_default_mlir_context:55](sources/max/python/max/_mlir_context.py#L55). **“Enter” makes a context active for IR-building APIs; entering alone does not compile or execute the graph.** ([mlir.llvm.org](https://mlir.llvm.org/docs/Bindings/Python/))
 
 ### A.1 · Expand the .mojo → .mojoc compiler subprocess
 
