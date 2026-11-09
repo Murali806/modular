@@ -1516,6 +1516,42 @@
           "alias": "PY",
           "sha256": "50414efb590542a1ede6c6f0b78f98e4e390e32ca75f1efb2a28cda3a6e3505a"
         },
+        "ct_elementwise_builder": {
+          "id": "ct_elementwise_builder",
+          "file": "max/python/max/graph/ops/elementwise.py",
+          "start": 1,
+          "end": 1811,
+          "line": 1,
+          "symbol": "",
+          "label": "Python add/mul record relaxed graph operations",
+          "language": "python",
+          "alias": "PY",
+          "sha256": "ac74dd02ded55ff8c84ce046d3fffa0a7e808eb849b491025f7a48c75c7a3338"
+        },
+        "ct_rmo_dialect": {
+          "id": "ct_rmo_dialect",
+          "file": "GraphCompiler/include/GraphCompiler/RMODialect/RMODialect.td",
+          "start": 1,
+          "end": 65,
+          "line": 1,
+          "symbol": "",
+          "label": "Relaxed operations lower to strictly typed MO",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "5a86cebc65e34876925484b4f78d33a81a64d6117803d4a56caf82f10e05266c"
+        },
+        "ct_mo_map_add_test": {
+          "id": "ct_mo_map_add_test",
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-add-static.mlir",
+          "start": 1,
+          "end": 22,
+          "line": 1,
+          "symbol": "",
+          "label": "Compiler test: tensor addition becomes elementwise iteration, loads, call and store",
+          "language": "text",
+          "alias": "DOC",
+          "sha256": "60830fc36dbaae1814bc6f3a506f497f2ce92bf624b8198792144f6022b0308e"
+        },
         "ct_graph_device": {
           "id": "ct_graph_device",
           "file": "max/python/max/graph/graph.py",
@@ -2285,6 +2321,7 @@
             "ct_convert_mef",
             "ct_cpu_options",
             "ct_device_map",
+            "ct_elementwise_builder",
             "ct_emit_archive",
             "ct_executable_create",
             "ct_global_context",
@@ -2306,6 +2343,7 @@
             "ct_mef_models",
             "ct_mef_open",
             "ct_mo_dialect",
+            "ct_mo_map_add_test",
             "ct_model_handle",
             "ct_model_setup",
             "ct_module_load",
@@ -2315,6 +2353,7 @@
             "ct_parser",
             "ct_precompile",
             "ct_resolver",
+            "ct_rmo_dialect",
             "ct_run_gc",
             "ct_session",
             "ct_session_binding",
@@ -2329,6 +2368,7 @@
             "graph_compiler_design",
             "graph_init",
             "graph_output",
+            "graph_stage_dumps",
             "host_object",
             "init_all",
             "jit_entry",
@@ -2361,7 +2401,7 @@
             "runtime_calls",
             "serialize"
           ],
-          "text_sha256": "53452d64aa1d5b8c4615250befe04327bfcd15517fc6363d57d5b75954505659"
+          "text_sha256": "4f8c74c5241021612e119be78fb5b39db0bbf76196ac792a583ff6fa855fdee2"
         }
       },
       "files": [
@@ -2592,6 +2632,18 @@
         {
           "path": "GraphCompiler/include/GraphCompiler/MODialect/MOOps.td",
           "sha256": "0cf3f8400e5dace9def88de0c46e45cd40a0f57dd4d677d80ce9faa18be27ed1"
+        },
+        {
+          "path": "max/python/max/graph/ops/elementwise.py",
+          "sha256": "ac74dd02ded55ff8c84ce046d3fffa0a7e808eb849b491025f7a48c75c7a3338"
+        },
+        {
+          "path": "GraphCompiler/include/GraphCompiler/RMODialect/RMODialect.td",
+          "sha256": "5a86cebc65e34876925484b4f78d33a81a64d6117803d4a56caf82f10e05266c"
+        },
+        {
+          "path": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-add-static.mlir",
+          "sha256": "60830fc36dbaae1814bc6f3a506f497f2ce92bf624b8198792144f6022b0308e"
         },
         {
           "path": "Mojo/python/mojo/run.py",

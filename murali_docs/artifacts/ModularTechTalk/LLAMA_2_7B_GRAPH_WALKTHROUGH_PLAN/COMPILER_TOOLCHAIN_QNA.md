@@ -89,6 +89,8 @@ That conditional behavior is implemented in [ensure_default_mlir_context:55](sou
 
 It represents an MLIR operation normally printed as `module { ... }`. Its body contains other operations—including your graph definition. MLIR organizes this nesting as **operation → region → block → operations**. ([MLIR operation structure](https://mlir.llvm.org/docs/LangRef/))
 
+A **module is a compilation unit that groups definitions**. MAX’s Python `Module` wrapper owns the enclosing `builtin.module`; each `Graph` contributes a named computation inside it. The module’s body gives the compiler one place to find and process those definitions. See [Module’s documented role](sources/max/python/max/graph/graph.py#L562).
+
 ```text
 builtin.ModuleOp(location=loc)
 └─ Python-to-C++ binding
@@ -102,6 +104,68 @@ builtin.ModuleOp(location=loc)
 The native constructor and `.body` binding are in [builtin.cpp](sources/max/python/max/_core/max_license/modules/dialects/builtin.cpp#L62).
 
 When you supply `Graph(..., module=existing_module)`, MAX reuses that module. This allows several named graphs to share one module—for example, encoder and decoder graphs. See [the Python `Module` wrapper](sources/max/python/max/graph/graph.py#L562).
+
+**1.1 Example · two graphs in one module**
+
+**Illustrative Python using the repository’s APIs.** Both graphs take two float32 vectors of length four:
+
+```python
+from max.driver import CPU
+from max.dtype import DType
+from max.graph import DeviceRef, Graph, Module, TensorType, ops
+
+device = CPU()
+t = TensorType(DType.float32, shape=[4],
+               device=DeviceRef.from_device(device))
+unit = Module()
+
+g_add = Graph("add", module=unit, input_types=[t, t],
+              forward=lambda a, b: ops.add(a, b))
+g_mul = Graph("mul", module=unit, input_types=[t, t],
+              forward=lambda a, b: ops.mul(a, b))
+```
+
+`unit` owns one IR module containing **two graph definitions**. `g_add` and `g_mul` retain their respective graph operations. Calls to `ops.add` and `ops.mul` first use **RMO builders** for relaxed shape handling; RMO later lowers to strict MO. See [add’s builder](sources/max/python/max/graph/ops/elementwise.py#L73), [mul’s builder](sources/max/python/max/graph/ops/elementwise.py#L353), and [the RMO dialect](sources/GraphCompiler/include/GraphCompiler/RMODialect/RMODialect.td#L27).
+
+**Schematic MO view after RMO → MO.** Extra chains and device metadata are omitted. The graph bodies use the spelling in the repository’s [two-graph compiler test](sources/GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir#L14):
+
+```mlir
+module {
+  mo.graph @add(%a: !mo.tensor<[4], f32>,
+                %b: !mo.tensor<[4], f32>)
+      -> !mo.tensor<[4], f32> {
+    %r = mo.add(%a, %b) : !mo.tensor<[4], f32>
+    mo.output %r : !mo.tensor<[4], f32>
+  }
+  mo.graph @mul(%a: !mo.tensor<[4], f32>,
+                %b: !mo.tensor<[4], f32>)
+      -> !mo.tensor<[4], f32> {
+    %r = mo.mul(%a, %b) : !mo.tensor<[4], f32>
+    mo.output %r : !mo.tensor<[4], f32>
+  }
+}
+```
+
+| Python / IR item | Meaning in this example |
+|---|---|
+| `unit` / outer `module { ... }` | Owns both definitions as one compilation unit. |
+| `g_add` / `mo.graph @add` | Describes elementwise `A + B`. |
+| `g_mul` / `mo.graph @mul` | Describes elementwise `A * B`. |
+| `%a`, `%b`, `%r` | Symbolic values connected by data dependencies. |
+| `!mo.tensor<[4], f32>` | Tensor type: four float32 elements; the numbers arrive at execution. |
+
+**1.2 Compile the unit; initialize its named models**
+
+```python
+from max.engine import InferenceSession
+
+session = InferenceSession(devices=[device])
+compiled = session.compile(unit)
+models = session.init_all(compiled)
+# models["add"] and models["mul"] are executable model handles.
+```
+
+`compile(unit)` produces one compiled artifact for the unit; `init_all` returns a model dictionary keyed by graph names. Each model’s `execute(A, B)` call selects its computation. See [compile’s Module input](sources/max/python/max/engine/api.py#L1062) and [init_all’s named results](sources/max/python/max/engine/api.py#L1160).
 
 **2. `mo.GraphOp("addition")`: the computation definition**
 
@@ -175,6 +239,62 @@ Python Graph object
 ```
 
 The `_mlir_op` assignment wraps the existing operation through its C API pointer; it does not create another graph. See [graph.py](sources/max/python/max/graph/graph.py#L874).
+
+**3.1 Your addition example · Python call → MO operation**
+
+**Equivalent explicit construction** for `addition.py`: `Y_type` is its declared float32 `[5,10]` tensor type and `mojo_kernels` is its `kernels/` path. The original example uses a `forward` callback to record the same custom operation:
+
+```python
+with Graph("addition", input_types=[Y_type],
+           custom_extensions=[mojo_kernels]) as graph:
+    X = graph.inputs[0]
+    y = ops.custom(name="add_one", device=device,
+                   values=[X], out_types=[Y_type])[0].tensor
+    graph.output(y)
+```
+
+**Schematic CPU MO view** of the recorded computation, with extra metadata omitted:
+
+```mlir
+module {
+  mo.graph @addition(%x: !mo.tensor<[5, 10], f32>)
+      -> !mo.tensor<[5, 10], f32> {
+    %y = mo.custom [symbol = "add_one",
+                   device = #M.device_ref<"cpu", 0>](%x)
+        : (!mo.tensor<[5, 10], f32>)
+          -> !mo.tensor<[5, 10], f32>
+    mo.output %y : !mo.tensor<[5, 10], f32>
+  }
+}
+```
+
+| Python construction | Change in the IR |
+|---|---|
+| `Graph("addition", input_types=[...])` | Insert `mo.graph @addition`; create symbolic `%x`. |
+| `ops.custom(name="add_one", ...)` | Insert `mo.custom`; attach kernel name and device; create symbolic `%y`. |
+| `graph.output(y)` | Set the graph’s result signature and insert `mo.output %y`. |
+
+The **Python builder runs to create IR nodes**; the kernel’s numerical work happens later. This does not translate the entire `addition.py` program into MLIR. See [custom-op construction](sources/max/python/max/graph/ops/custom.py#L114), [Graph.output](sources/max/python/max/graph/graph.py#L1458), and [the original example](sources/max/examples/custom_ops/addition.py#L33).
+
+**3.2 Later compilation · tensor operation → iteration and kernel call**
+
+For a **separate built-in-add compiler test**, shape `[8,16,128]`, the expected MO → MAP transformation is:
+
+```text
+BEFORE · MO
+  mo.add(X, Y) → one symbolic output tensor
+
+AFTER · MAP · schematic from FileCheck expectations
+  map.iter.elementwise<[8,16,128]>
+  ├─ map.load X[i] → x_i
+  ├─ map.load Y[i] → y_i
+  ├─ map.call.elementwise @...Add(i, x_i, y_i) → sum_i
+  └─ map.store Out[i] = sum_i
+```
+
+**TEST/source evidence:** the [test input and expected rewrite](sources/GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-add-static.mlir#L6) show a tensor-level operation becoming an elementwise iteration with loads, a kernel call, and a store. These are expected compiler representations; this documentation update does not run the compiler test.
+
+The enclosing module groups the definitions while compiler passes rewrite their contents. The [graph-stage test](sources/GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir#L28) later expects `mo.graph @add` and `mo.graph @mul` to become `mgp.model @add` and `mgp.model @mul` in the runtime-plan representation.
 
 **Actual numbers arrive later**, through `model.execute(x)`. For example, an input element `2.5` produces `3.5` in this example. Compilation, initialization, buffer creation, and execution occur after graph construction in [addition.py](sources/max/examples/custom_ops/addition.py#L67).
 

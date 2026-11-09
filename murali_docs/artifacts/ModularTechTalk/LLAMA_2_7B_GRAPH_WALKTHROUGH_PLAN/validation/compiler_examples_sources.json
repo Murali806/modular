@@ -10,9 +10,9 @@
   "previous_answers_preserved": true,
   "rendered_diagrams_per_page": 5,
   "visible_mermaid_source": false,
-  "source_files": 77,
-  "source_spans": 419,
-  "local_links": 1986,
+  "source_files": 80,
+  "source_spans": 422,
+  "local_links": 1998,
   "external_runtime_dependencies": 0,
   "evidence": "Source/document checks only; no MAX execution"
 }
