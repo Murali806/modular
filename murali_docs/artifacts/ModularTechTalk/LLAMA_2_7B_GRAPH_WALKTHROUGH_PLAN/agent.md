@@ -131,6 +131,13 @@ code-versus-buffer choreography without changing the Serve lesson order.
 
 ## Authoring and validation workflow
 
+- For the custom-op examples, read [the accepted example-reader decisions](references/compiler_example_readers.md).
+  They preserve the user's detailed call-tree, card, source-link, runtime and
+  animation choices. The current add-one layout removes Text · answers 1–7
+  and retains Animation and Call Stack Tree; a request to make another
+  example similar to add-one adopts that current layout and adapts its actual
+  inputs, registration, parameters and kernel computation.
+
 - Keep files created for this walkthrough under this task folder. Treat
   `src/` as the source of truth for generated pages; do not hand-edit generated
   output that the builder will overwrite.

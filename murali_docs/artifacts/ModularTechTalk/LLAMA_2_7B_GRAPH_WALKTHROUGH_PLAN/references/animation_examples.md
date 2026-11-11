@@ -187,6 +187,16 @@ The visual subclass retains the workbench's actor map and interpolation;
 [compiler_reader_ui.js](../src/compiler_reader_ui.js) shares transient cards
 and the offline original-source explorer with the parent workbench.
 
+Add-one and attention now use Animation + Call Stack Tree in lesson 01.
+Read [the accepted compiler-reader decisions](compiler_example_readers.md)
+before editing their inline source-linked cards. Attention adds separate
+source-ordered Graph/session/compile/init/execute trees, kernel dispatch and
+tile mechanisms, and a numerical recurrence card whose later maximum grows.
+Its dedicated authoring/model/controller files are listed in that reference.
+Use [check_compiler_example_readers_browser.cjs](../src/check_compiler_example_readers_browser.cjs)
+for those two readers' current layout, exact links, cards, live motion,
+fullscreen, mobile and no-JavaScript behavior.
+
 For a new concrete example, preserve its real filename, shapes, parameters,
 registration and call ordering. Label smaller numerical inputs separately.
 Do not copy a generic lifecycle and merely rename it: add a scene showing the
@@ -210,7 +220,8 @@ exclude Q/K/V/O and E/scratch. The full-score route is a comparison, not a
 claim about the provided kernel. Reusable storage keeps slot IDs across tiles;
 do not encode tile generation as a new allocation identity.
 
-Build just these readers with `python3 src/compiler_examples.py`. Rebuild
+Build only selected readers with `python3 src/compiler_examples.py --examples addition attention --readers-only`;
+omit the selection to regenerate all four. Rebuild
 `src/compiler_workbench.py` when changing the parent's progression cards.
 Use [check_compiler_examples.cjs](../src/check_compiler_examples.cjs) for
 independent tiny arithmetic and lifecycle invariants,

@@ -49,6 +49,7 @@ matching the motion, state detail and interactions of the cited local examples.
 | Serve admission, API, worker, batch constructor, busy/slow-reader/replica stories | [Serve requirements and invariants](references/max_serve_os_animations.md); Serve family in the catalog |
 | Session creation, devices, native context, handles and lifetimes | InferenceSession family in the catalog |
 | Graph/dialect transformations, Mojo systems control, target tools/binaries, MEF and driver/buffer movement | [Compiler and systems animations](references/compiler_and_systems_animations.md); connected journey + focused workbench/example family in the catalog |
+| Custom-op example readers modeled on add-one, detailed call trees/cards, source callers and kernel transformations | [Accepted example-reader decisions](references/compiler_example_readers.md); inspect the current add-one reader and adapt the actual requested example |
 | Deeper LLVM/MLIR/JIT research or a compiler redesign | [Research and applied decisions](COMPILER_WORKBENCH_RESEARCH.md); primary mechanisms inform design, pinned MAX source establishes implementation |
 | Memory budgets, KV pages, input origins or parent/worker planning | Memory family in the catalog; memory rules in [agent.md](agent.md) |
 | Main QnA/call-stack guide or requirements-only updates | Relevant sections of [agent.md](agent.md); update the affected reference without rebuilding pages |
@@ -82,6 +83,12 @@ matching the motion, state detail and interactions of the cited local examples.
 - Keep source cards, complete unchanged source definitions, an offline Source
   Explorer, portable text equivalents and usable no-JavaScript/print reading.
   Mark illustrative quantities and native boundaries honestly.
+- For the custom-op example readers, use the [accepted call-tree/card decisions](references/compiler_example_readers.md).
+  The latest add-one layout has Animation and Call Stack Tree views; the user
+  removed its Text · answers 1–7 view. Apply this layout to an example when
+  asked to make it similar to add-one, while preserving other existing views
+  outside that request. Keep explanation cards usable after removing a view
+  that previously stored their content.
 
 ## Complete and verify the work
 
