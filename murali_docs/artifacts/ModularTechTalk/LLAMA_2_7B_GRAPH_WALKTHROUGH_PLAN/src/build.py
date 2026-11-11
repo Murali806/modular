@@ -209,6 +209,7 @@ def build_guide(data: dict) -> None:
     from os_components import build_os_components
     from compiler_workbench import build_compiler_workbench
     from compiler_examples import build_compiler_examples
+    from compiler_kernel_loader import build_kernel_loader
     from inference_session import build_inference_session
     from widgets import WIDGETS, stage_data
 
@@ -218,6 +219,7 @@ def build_guide(data: dict) -> None:
     components_references, components_count, components_steps = build_os_components(data, TASK, SRC, python_span)
     build_compiler_workbench()
     build_compiler_examples()
+    build_kernel_loader()
     session_references, session_lessons = build_inference_session(data, TASK, SRC, python_span, cpp_span)
 
     cells = {c["id"]: c for c in data["cells"]}

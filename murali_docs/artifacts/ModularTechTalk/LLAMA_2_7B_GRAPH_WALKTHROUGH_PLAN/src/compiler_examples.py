@@ -326,3 +326,5 @@ def build_compiler_examples():
 
 if __name__=="__main__":
     build_compiler_examples()
+    from compiler_kernel_loader import build_kernel_loader
+    build_kernel_loader()

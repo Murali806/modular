@@ -219,6 +219,55 @@ for visible resource/motion/card behavior, and
 [check_compiler_examples.py](../src/check_compiler_examples.py) for pinned
 source bytes/spans and links. These checks do not execute MAX or Mojo.
 
+### Compiled native loader and driver bridge
+
+Rendered reader:
+[max_compiled_kernels_context_load_and_driver.html](../link_htmls/max_compiled_kernels_context_load_and_driver.html),
+linked beside `CompiledKernelsContext::load` in add-one's D.1 card.
+
+- Build/source snapshots: [compiler_kernel_loader.py](../src/compiler_kernel_loader.py).
+- Preserved answer: [compiler_kernel_loader_answer.md](../src/compiler_kernel_loader_answer.md).
+- Events, inputs/outputs, source-linked trees and legend:
+  [compiler_kernel_loader_lessons.py](../src/compiler_kernel_loader_lessons.py).
+- Separate deterministic state, persistent actor motion and controls:
+  [model](../src/compiler_kernel_loader_model.js),
+  [visuals](../src/compiler_kernel_loader_visuals.js),
+  [controller](../src/compiler_kernel_loader.js).
+- Focused byte, LinkGraph, fixup, pointer, launch and numerical cutaways:
+  [transformation renderer](../src/compiler_kernel_loader_transformations.js),
+  [transformation styles](../src/compiler_kernel_loader_transformations.css).
+- Primary research and the checkout's pinned upstream LLVM sources:
+  [research decisions](../KERNEL_LOADER_ANIMATION_RESEARCH.md),
+  [offline source loader](../src/compiler_kernel_loader_research.py).
+- Template/theme: [HTML](../src/compiler_kernel_loader.html),
+  [CSS](../src/compiler_kernel_loader.css).
+- Checks: [model/source](../src/check_compiler_kernel_loader.cjs),
+  [browser](../src/check_compiler_kernel_loader_browser.cjs).
+
+This reader uses the user's requested grey background with bold pink/green
+font highlights. Keep the preserved answer's words unchanged. Host object
+registration and symbol resolution precede later host routine execution; the
+Mojo/C++ bridge then reaches a distinct device-function cache and CUDA/HIP
+module/function loading route. Keep P0 host addresses distinct from device
+handles and tensor buffers. Cache hits skip registration/loading work, not
+fresh per-call input data. Launch submission and completion stay separate.
+The 68 current events span conditional cold/reuse/debug/error and CPU/GPU
+routes; this count is a teaching design, not a requirement for future readers.
+Nine focused cutaways share that timeline and show payload/state changes:
+owned-byte copies, block layout, relocation bytes, Resolved/Ready, argument-slot
+indirection, load/add/store and explicit result copies. The whole-process
+ownership map remains available beside the focused views.
+All example addresses, symbol names, object sizes and launch geometry remain
+illustrative. The complete pinned LLVM linking sources establish the extracted
+linking sequence. Vendor residency, numerical scheduling and hardware timing
+remain BOUNDARY.
+
+Build this supplement with `python3 src/compiler_kernel_loader.py`; the scoped
+compiler-example builder and the main builder also include it. Reuse the
+movable Hold/Expand/Close windows and offline full-source explorer. Validate
+the real D.1 link, Chrome fullscreen, source targets, live Pause/Resume,
+320/390px layouts and no-JavaScript transcript.
+
 ### Legacy engine source family
 
 The earlier engine HTML was retired on November 6, 2026. Its authoring/model

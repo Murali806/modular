@@ -674,7 +674,7 @@ On disk → [SOURCE:artifact|CM1.export_mef(path)] explicitly exports the compil
 ├─ invoke the compiled init region → runtime/state initialization and native routine loading
 │  └─ [SOURCE:runtime_calls|ModuleLoad planned by LowerCompiledRoutinesPass]
 │     └─ [SOURCE:ct_module_load|mgp_module_load_cpu] → CompiledKernelsContext in a runtime state slot
-│        └─ [SOURCE:ct_kernel_load|CompiledKernelsContext::load(archive_bytes, symbols)]
+│        └─ [SOURCE:ct_kernel_load|CompiledKernelsContext::load(archive_bytes, symbols)] [DETAIL:max_compiled_kernels_context_load_and_driver.html|Loader deep dive · all steps + GPU driver]
 │           ├─ ordinary route: archive hash → execution engine addIfAbsent<StaticArchiveLayer>
 │           └─ lookup named symbols → **resident native callable pointers**
 │              (debug/profiler route can link/load a shared library)
@@ -755,6 +755,11 @@ def render_addition_calltrees(refs, revision):
             lambda m: f'<a class="call-note-link" href="#{m[1]}" '
                       f'data-call-explanation="{m[1]}">{html.escape(m[2])}</a>', rendered,
         )
+        rendered = re.sub(
+            r"\[DETAIL:([a-z0-9_]+\.html(?:#[a-z0-9_-]+)?)\|([^\]]+)\]",
+            lambda match: '<a class="call-note-link" href="' + match[1]
+            + '">' + html.escape(match[2]) + '</a>', rendered,
+        )
         return rendered.replace(
             "[EXPLANATION:context]",
             '<a class="call-note-link" href="#toolchain-call-graph-context" '
@@ -810,6 +815,7 @@ def render_addition_calltrees(refs, revision):
         def reference(match):
             r = refs[match[1]]
             return f'{match[2].replace("**", "")} [{r["file"]}:L{r["line"]}]'
+        text = re.sub(r"\[DETAIL:([^|]+)\|([^\]]+)\]", lambda m: m[2] + " → " + m[1], text)
         return (CARD_MARKER.sub(lambda m: m[2], MARKER.sub(reference, text)).replace("**", "")
                 .replace("[EXPLANATION:context]", "Full explanation · is this a global variable? → A.0")
                 .replace("[EXPLANATION:graph_objects]", 'builtin.ModuleOp + mo.GraphOp("addition")')

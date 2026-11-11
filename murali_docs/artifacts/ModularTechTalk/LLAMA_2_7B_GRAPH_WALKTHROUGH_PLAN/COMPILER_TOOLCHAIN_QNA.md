@@ -569,7 +569,7 @@ Model::setup [GraphCompiler/lib/MEFModel/MEFModel.cpp:L184] → compiled initFn.
 ├─ invoke the compiled init region → runtime/state initialization and native routine loading
 │  └─ ModuleLoad planned by LowerCompiledRoutinesPass [GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp:L102]
 │     └─ mgp_module_load_cpu [GraphCompiler/lib/MGPDialect/Primitives/MGPCPUPrimitives.cpp:L55] → CompiledKernelsContext in a runtime state slot
-│        └─ CompiledKernelsContext::load(archive_bytes, symbols) [GraphCompiler/lib/Support/CompiledKernelsContext.cpp:L85]
+│        └─ CompiledKernelsContext::load(archive_bytes, symbols) [GraphCompiler/lib/Support/CompiledKernelsContext.cpp:L85] Loader deep dive · all steps + GPU driver → max_compiled_kernels_context_load_and_driver.html
 │           ├─ ordinary route: archive hash → execution engine addIfAbsent<StaticArchiveLayer>
 │           └─ lookup named symbols → resident native callable pointers
 │              (debug/profiler route can link/load a shared library)
