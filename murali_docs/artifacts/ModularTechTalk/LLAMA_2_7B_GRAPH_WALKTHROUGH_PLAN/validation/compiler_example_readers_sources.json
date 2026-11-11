@@ -1,0 +1,16 @@
+{
+  "result": "PASS",
+  "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "pages": 2,
+  "examples": [
+    "addition",
+    "attention"
+  ],
+  "animations": 12,
+  "visible_mermaid_source": false,
+  "source_files": 100,
+  "source_spans": 448,
+  "local_links": 2590,
+  "external_runtime_dependencies": 0,
+  "evidence": "Source/document checks only; no MAX execution"
+}

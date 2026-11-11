@@ -1,0 +1,24 @@
+{
+  "result": "PASS",
+  "checks": [
+    "addition: two-view layout, separate call trees, E retained, every inline card and exact source destination opens",
+    "addition: Read-current routes into retained call stack; Chrome fullscreen fits and exits",
+    "attention: two-view layout, separate call trees, E retained, every inline card and exact source destination opens",
+    "attention: Read-current routes into retained call stack; Chrome fullscreen fits and exits",
+    "attention: source-ordered shell → package → with-body and exact call-site links on graph tree rows",
+    "attention: every numeric step, growing maximum, alpha rescaling, result/reference, Back and Reset agree",
+    "attention: Expand, keyboard movement, Hold preserves the active numeric frame when another card opens, and Close removes it",
+    "attention: Python attributes and operand/result mapping visibly become verified MO fields",
+    "attention: CPU/NVIDIA/AMD illustrations reach correct tiny output; source tile sizes and no implicit CPU copy retained",
+    "attention: 320/390px trees scroll internally and expanded cards remain inside the mobile viewport",
+    "attention: real Play/Pause freezes and resumes the same moving payload; hidden cards stop playback",
+    "attention: source trees, native explanation disclosures and portable transcripts remain readable without JavaScript"
+  ],
+  "errors": [],
+  "externalRequests": 0,
+  "screenshots": [
+    "compiler_attention_online_card.png",
+    "compiler_attention_cards_mobile.png"
+  ],
+  "evidence": "Browser/source illustrations only; no MAX/Mojo build or GPU workload"
+}

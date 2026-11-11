@@ -193,6 +193,8 @@
             if(s.acc.length)add('naive-acc','cell',fmt(s.acc[0]),949,359,108,46,'runtime',{place:'accumulator'});
           }
         } else if(s.id==='attention'&&s.phase!=='resident'&&s.phase!=='arrays'&&s.phase!=='upload'&&s.phase!=='execute') {
+          if(s.phase==='gpu_launch')add('attention-launch','descriptor','grid (4,2) · block 32',855,164,292,74,'driver',{tag:'SPECIALIZED KERNEL + Q/K/V/O',origin:point(481,407),place:'GPU launch metadata'});
+          if(s.phase.startsWith('mma_'))add('attention-mma','tool',s.mmaPhase==='load'?'load A / B fragments':s.mmaPhase==='accumulate'?'C ← mma_op(A,B,C)':'SHARED store → barrier',855,164,292,74,'mojo',{tag:'SOURCE BK=8 · FOUR SLICES',origin:point(749,232),place:'score-tile matmul mechanism'});
           add('max-state','handle','m = '+(s.m===null?'MIN':fmt(s.m)),855,261,139,73,'mojo',{tag:'RUNNING MAXIMUM',place:'arithmetic state'});
           add('sum-state','handle','l = '+fmt(s.l),1008,261,139,73,'mojo',{tag:'DENOMINATOR',place:'arithmetic state'});
           if(s.local) {

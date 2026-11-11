@@ -17,6 +17,7 @@ for(const e of manifest.examples)for(const target of ['cuda','rocm','cpu'])for(c
   }
   const backend=target==='cpu'?'HostBackend':target==='cuda'?'NVPTXBackend':'AMDGPUBackend';
   const required=['bazel_target','bazel_libraries','bazel_outputs','toolchain_runfiles','python_process','package_source','package_import','graph_record','clone','mo_opt','mo_to_map','map_fusion','map_to_mogg','mogg_to_mgp','mgp_plan','finalize','emit_mojo','jit_lookup','offload_split','target_info','select_backend','mojo_specialize','post_elaboration','llvm_dialect','llvm_translate','llvm_codegen','emit_target','host_device','runtime_calls','mef','init','execute','result_ready','evidence'];
+  if(e.example.id==='attention')required.splice(required.indexOf('package_source'),0,'graph_shell');
   assert.deepEqual(toolchain.frames.map(f=>f.phase),required);
   assert.equal(toolchain.frames.length,e.toolchain.steps);
   const at=phase=>toolchain.frames.find(f=>f.phase===phase);
@@ -55,6 +56,10 @@ for(const e of manifest.examples)for(const target of ['cuda','rocm','cpu'])for(c
     assert.ok(run.frames.filter(f=>f.phase==='copy').every(f=>!f.copyReady&&!f.blockReady));assert.equal(s.params.BK,target==='rocm'?16:32);
   }
   if(e.example.id==='attention') {
+    assert.ok(at('package_source').shell);
+    assert.ok(build.frames.findIndex(f=>f.phase==='contract')<build.frames.findIndex(f=>f.phase==='package'));
+    assert.equal(run.frames.filter(f=>f.phase==='gpu_launch').length,target==='cpu'?0:1);
+    assert.equal(run.frames.filter(f=>f.phase==='mma_store').length,target==='cpu'?0:2);
     const second=run.frames.find(f=>f.phase==='max'&&f.tile===1);assert.equal(second.m,3);assert.ok(second.alpha<1&&second.alpha>0);
     assert.equal(s.tileCount,2);assert.equal(s.params.keyTile,target==='cpu'?4:8);assert.equal(s.params.BN,target==='cpu'?4:16);
     const rescaled=run.frames.find(f=>f.phase==='rescale'&&f.tile===1);assert.ok(rescaled.O.every((v,i)=>v<rescaled.oldO[i]));
@@ -71,7 +76,7 @@ checks.push('Graph, compiled artifact and initialized executable are distinct; r
 checks.push('CPU routes omit GPU transfers/coordination; NVIDIA/AMD tile parameters follow source');
 checks.push('Async copy completion precedes block consumption; shared reuse closes the gate');
 checks.push('Bazel build inputs stay distinct from runtime graph packaging; TargetInfo selects CPU/NVIDIA/AMD LLVM backend routes');
-checks.push('Thirty-four source-linked toolchain steps preserve G1 and the MGP plan while kernel/LLVM modules, code, artifact, handles and data become ready separately');
+checks.push('Source-linked toolchain steps preserve G1 and the MGP plan while kernel/LLVM modules, code, artifact, handles and data become ready separately; attention scaffolding precedes its package import');
 checks.push('Online-softmax second-tile rescaling preserves agreement with independent full softmax');
 checks.push('Deterministic seek/back/reset and immutable snapshots; all source references resolve');
 fs.writeFileSync(path.join(task,'validation/compiler_examples_model.json'),JSON.stringify({evidence:'CPU-RUN · JavaScript math/model checks only; no MAX/GPU execution',checks,results},null,2)+'\n');

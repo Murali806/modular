@@ -14,6 +14,8 @@ from cells import REVISION
 from compiler_journey import add_sources, lesson as journey_lesson, panel as journey_panel
 from compiler_toolchain import add_toolchain_sources, render_toolchain_text, portable_frames, transcript_html
 from compiler_addition_calltrees import SOURCES as CALLTREE_SOURCES
+from compiler_attention_calltrees import SOURCES as ATTENTION_SOURCES
+from compiler_capi_sources import add_capi_sources
 
 EXAMPLES = [
     dict(id="addition", number="01", level="Simple", title="Add one. Follow every boundary.",
@@ -126,8 +128,11 @@ def load_example(example):
         r["sha256"]=hashlib.sha256(code.encode()).hexdigest()
     add_sources(refs, files, REPO, TASK, REVISION)
     add_toolchain_sources(refs, files, REPO, TASK, REVISION)
-    if example["id"] == "addition":
+    if example["id"] in {"addition", "attention"}:
         add_toolchain_sources(refs, files, REPO, TASK, REVISION, sources=CALLTREE_SOURCES)
+        add_capi_sources(refs, files, REPO, TASK, REVISION)
+    if example["id"] == "attention":
+        add_toolchain_sources(refs, files, REPO, TASK, REVISION, sources=ATTENTION_SOURCES)
     return refs,files
 
 
@@ -185,11 +190,13 @@ def progression_cards(current=None):
     return '<div class="example-grid">'+"".join(f'<a class="example-link" href="{e["page"]}"'+(' aria-current="page"' if e["id"]==current else '')+f'><span>{e["number"]} · {e["level"]}</span><strong>{e["short"]}</strong><code>{html.escape(e["expression"])}</code><small>{e["filename"]}</small></a>' for e in EXAMPLES)+'</div>'
 
 
-def build_compiler_examples():
+def build_compiler_examples(example_ids=None):
     manifests=[]
     for example in EXAMPLES:
+        if example_ids is not None and example['id'] not in example_ids:
+            continue
         refs,files=load_example(example)
-        qna_html,qna_meta=render_toolchain_text(refs,example,TASK,SRC)
+        qna_html,qna_meta,call_stack_html=render_toolchain_text(refs,example,TASK,SRC)
         toolchain_frames=portable_frames(example,SRC)
         def link(key):
             r=refs[key]
@@ -269,11 +276,37 @@ def build_compiler_examples():
                 continue
             transcript=transcript_html(toolchain_frames,refs) if l['id']=='toolchain' else ''
             reading_link='<button type="button" class="qa-step-link" data-read-current data-interactive hidden>Read this step</button>' if l['id']=='toolchain' else ''
-            content=f'''<p class="intro">{html.escape(l['detail'])}</p><div class="visual" tabindex="0" aria-label="{html.escape(l['title'])}; scroll inside on narrow screens">{scene(l['id'],example)}</div><div class="playback" data-interactive hidden><button class="play" data-action="play" aria-pressed="false">▶ Play</button><button data-action="back">Back</button><button data-action="step">Step</button><button data-action="reset">↺ Reset</button><label>Speed <select data-speed><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label><input data-seek type="range" min="0" max="1" value="0" aria-label="{html.escape(l['title'])} step"><output data-progress>Ready</output></div><div class="state-strip" data-state-strip></div><div class="event" role="status" aria-live="polite"><strong data-event-title>Ready to explore</strong><span data-event-detail>{html.escape(l['detail'])}</span>{reading_link}</div><div class="ir-diff"><div><span>Original source · selected current definition</span><pre data-code-preview></pre></div><div><span>Schematic state / numerical work · not a generated dump</span><pre data-state-preview></pre></div></div><div class="event-sources" data-event-sources>{' · '.join(link(r) for r in l['refs'])}</div><details class="transcript"><summary>Portable flow · step-by-step transcript · evidence</summary><pre>{html.escape(l['ascii'])}</pre><ol data-transcript>{transcript}</ol></details>'''
+            content=f'''<p class="intro">{html.escape(l['detail'])}</p><div class="visual" tabindex="0" aria-label="{html.escape(l['title'])}; scroll inside on narrow screens">{scene(l['id'],example)}</div><div class="playback" data-interactive hidden><button class="play" data-action="play" aria-pressed="false">▶ Play</button><button data-action="back">Back</button><button data-action="step">Step</button><button data-action="reset">↺ Reset</button><label>Speed <select data-speed><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label><input data-seek type="range" min="0" max="1" value="0" aria-label="{html.escape(l['title'])} step"><output data-progress>Ready</output><button type="button" class="fullscreen-toggle" data-fullscreen-toggle aria-label="Open animation in fullscreen">⛶ Fullscreen</button></div><div class="state-strip" data-state-strip></div><div class="event" role="status" aria-live="polite"><strong data-event-title>Ready to explore</strong><span data-event-detail>{html.escape(l['detail'])}</span>{reading_link}</div><div class="ir-diff"><div><span>Original source · selected current definition</span><pre data-code-preview></pre></div><div><span>Schematic state / numerical work · not a generated dump</span><pre data-state-preview></pre></div></div><div class="event-sources" data-event-sources>{' · '.join(link(r) for r in l['refs'])}</div><details class="transcript"><summary>Portable flow · step-by-step transcript · evidence</summary><pre>{html.escape(l['ascii'])}</pre><ol data-transcript>{transcript}</ol></details>'''
             if l['id']=='toolchain':
-                tabs='''<div class="view-switch" role="tablist" aria-label="Lesson 01 reading mode" data-interactive hidden><button type="button" role="tab" id="toolchain-animation-tab" data-mode="animation" aria-controls="toolchain-animation" aria-selected="true">Animation</button><button type="button" role="tab" id="toolchain-text-tab" data-mode="text" aria-controls="toolchain-text" aria-selected="false" tabindex="-1">Text · <span class="qna-color qna-color--compile">answers 1–7</span></button></div>'''
-                content=tabs+'<div id="toolchain-animation" data-mode-panel="animation" role="tabpanel" aria-labelledby="toolchain-animation-tab">'+content+'</div><div class="toolchain-reading" id="toolchain-text" data-mode-panel="text" role="tabpanel" aria-labelledby="toolchain-text-tab">'+qna_html+'</div>'
-            sections.append(f'''<section class="lesson" id="{l['id']}" data-lesson="{l['id']}" aria-labelledby="heading-{l['id']}"><div class="experiment"><div class="experiment-top"><button class="lesson-badge" data-card="{l['id']}" aria-label="Explain {l['number']}: {html.escape(l['title'])}">{l['number']}</button><h2 id="heading-{l['id']}">{html.escape(l['title'])}</h2><span>{html.escape(l['evidence'])}</span></div>{content}</div></section>''')
+                call_stack_tab = ('<button type="button" role="tab" id="toolchain-callstack-tab" '
+                                  'data-mode="callstack" aria-controls="toolchain-callstack" '
+                                  'aria-selected="false" tabindex="-1">Call Stack Tree</button>'
+                                  if call_stack_html else '')
+                call_stack_panel = ('<div class="toolchain-reading call-stack-reading" '
+                                    'id="toolchain-callstack" data-mode-panel="callstack" '
+                                    'role="tabpanel" aria-labelledby="toolchain-callstack-tab">'
+                                    + call_stack_html + '</div>' if call_stack_html else '')
+                text_view = 'text' in qna_meta.get('reading_views', ['animation', 'text'])
+                text_tab = ('<button type="button" role="tab" id="toolchain-text-tab" data-mode="text" '
+                      'aria-controls="toolchain-text" aria-selected="false" tabindex="-1">'
+                      'Text · <span class="qna-color qna-color--compile">answers 1–7</span></button>'
+                      if text_view else '')
+                text_panel = ('<div class="toolchain-reading" id="toolchain-text" data-mode-panel="text" '
+                         'role="tabpanel" aria-labelledby="toolchain-text-tab">' + qna_html + '</div>'
+                         if text_view else '')
+                tabs=('<div class="view-switch" role="tablist" aria-label="Lesson 01 reading mode" '
+                      'data-interactive hidden><button type="button" role="tab" '
+                      'id="toolchain-animation-tab" data-mode="animation" '
+                      'aria-controls="toolchain-animation" aria-selected="true">Animation</button>'
+                      + text_tab + call_stack_tab + '</div>')
+                content=(tabs
+                         + '<div id="toolchain-animation" data-mode-panel="animation" role="tabpanel" '
+                         'aria-labelledby="toolchain-animation-tab">' + content + '</div>'
+                         + text_panel
+                         + call_stack_panel)
+            else:
+                content='<div class="animation-fullscreen-panel" data-mode-panel="animation">'+content+'</div>'
+            sections.append(f'''<section class="lesson" id="{l['id']}" data-lesson="{l['id']}" aria-labelledby="heading-{l['id']}"><div class="experiment"><div class="experiment-top"><button class="lesson-badge" data-card="{l['id']}" aria-label="Explain {l['number']}: {html.escape(l['title'])}">{l['number']}</button><h2 id="heading-{l['id']}">{html.escape(l['title'])}</h2><span>{html.escape(l['evidence'])}</span><button type="button" class="fullscreen-toggle" data-fullscreen-toggle aria-label="Open animation in fullscreen">⛶ Fullscreen</button></div>{content}</div></section>''')
             if l["id"]=="commands":
                 bazel_target=f'//max/examples/custom_ops:{example["task"]}'
                 command_panel=f'''<div class="command-quickstart"><div class="command-route"><h3>Bazel · build, then run the test</h3><p>Run from the repository root, the directory containing <code>bazelw</code>. The wrapper bootstraps its pinned Bazelisk when needed. The test target is generated by <code>custom_op_example_py_binary</code>; it runs the binary and fails if the process exits non-zero. Numerical assertions come from the Python example. The preceding build is optional because <code>bazelw test</code> builds its dependencies.</p><pre><code>./bazelw build {bazel_target}\n./bazelw test {bazel_target}.example-test</code></pre><p class="command-note">The generated Bazel test carries the <code>gpu</code> tag. The Python examples select CPU when no accelerator is detected; otherwise they request an accelerator.</p></div><div class="command-route"><h3>Pixi · set up the environment, then run the script</h3><p>Install the <a href="https://pixi.sh/latest/">Pixi CLI</a> first. Run setup once in the example directory; <code>pixi install</code> resolves the declared Python/MAX dependencies from the project environment and lockfile.</p><pre><code>cd max/examples/custom_ops\npixi install\npixi run {example["task"]}</code></pre><p class="command-note"><code>pixi run {example["task"]}</code> invokes <code>python {example["filename"]}</code>, as declared in <code>pixi.toml</code>. This route runs the example script directly; it does not invoke the Bazel test wrapper.</p></div>'''
@@ -310,7 +343,12 @@ def build_compiler_examples():
         # Shared source/card markup keeps keyboard/touch/offline behavior equal.
         shared=shell[shell.index('<aside id="explanation-card"'):shell.index('<script id="compiler-workbench-data"')]
         colors="\n".join(f'[data-component="{k}"], [data-color="{k}"]{{--ink:{ink};--tint:{tint}}}' for k,(ink,tint) in COLORS.items())
-        replacements=dict(css=(SRC/"compiler_workbench.css").read_text()+"\n"+(SRC/"compiler_example_links.css").read_text()+"\n"+(SRC/"compiler_examples.css").read_text()+"\n"+(SRC/"compiler_journey.css").read_text()+"\n"+colors,js="\n".join((SRC/name).read_text() for name in ("compiler_examples_model.js","compiler_journey_model.js","compiler_workbench_visuals.js","compiler_examples_visuals.js","compiler_journey_visuals.js","compiler_journey.js","compiler_reader_ui.js","compiler_examples.js")),title=html.escape(example["short"]),number=example["number"],level=example["level"],heading=html.escape(example["title"]),subtitle=html.escape(example["subtitle"]),expression=html.escape(example["expression"]),tiny=html.escape(example["tiny"]),notes=html.escape(example["notes"]),controls=controls,sections="\n".join(sections),cards=progression_cards(example["id"]),sources="\n".join(cells),shared=shared.replace('{{legend}}',"\n".join(legend)),payload=json.dumps(payload,ensure_ascii=False).replace('<','\\u003c'),revision=REVISION,filename=example["filename"])
+        window_styles=(SRC/"compiler_card_windows.css").read_text()+"\n"+(SRC/"compiler_card_conversions.css").read_text() if example["id"] in {"addition","attention"} else ""
+        window_scripts=("compiler_card_windows.js","compiler_card_conversions.js") if example["id"] in {"addition","attention"} else ()
+        if example["id"] == "attention":
+            window_styles += "\n" + (SRC/"compiler_attention_mechanisms.css").read_text()
+            window_scripts += ("compiler_attention_motion.js", "compiler_attention_mechanisms.js")
+        replacements=dict(css=(SRC/"compiler_workbench.css").read_text()+"\n"+(SRC/"compiler_example_links.css").read_text()+"\n"+(SRC/"compiler_examples.css").read_text()+"\n"+(SRC/"compiler_journey.css").read_text()+"\n"+colors+"\n"+window_styles,js="\n".join((SRC/name).read_text() for name in ("compiler_examples_model.js","compiler_journey_model.js","compiler_workbench_visuals.js","compiler_examples_visuals.js","compiler_journey_visuals.js","compiler_journey.js",*window_scripts,"compiler_reader_ui.js","compiler_examples.js")),title=html.escape(example["short"]),number=example["number"],level=example["level"],heading=html.escape(example["title"]),subtitle=html.escape(example["subtitle"]),expression=html.escape(example["expression"]),tiny=html.escape(example["tiny"]),notes=html.escape(example["notes"]),controls=controls,sections="\n".join(sections),cards=progression_cards(example["id"]),sources="\n".join(cells),shared=shared.replace('{{legend}}',"\n".join(legend)),payload=json.dumps(payload,ensure_ascii=False).replace('<','\\u003c'),revision=REVISION,filename=example["filename"])
         template=(SRC/"compiler_examples.html").read_text()
         tokens=set(re.findall(r"\{\{([a-z-]+)\}\}",template))
         if tokens!=replacements.keys():raise ValueError(f"Example template tokens differ: {tokens^replacements.keys()}")
@@ -321,10 +359,24 @@ def build_compiler_examples():
             toolchain_manifest['calltrees']=qna_meta['calltrees']
         manifests.append(dict(page="link_htmls/"+example["page"],example=example,references=refs,lessons=lessons,toolchain=toolchain_manifest,files=[{k:v for k,v in f.items() if k!='text'} for f in files.values()]))
         print(f"Built {example['page']}: build-to-target flow + journey + 5 focused sections / {len(refs)} source targets")
-    (TASK/"compiler_examples_manifest.json").write_text(json.dumps(dict(revision=REVISION,examples=manifests),indent=2)+"\n")
+    manifest_path = TASK/"compiler_examples_manifest.json"
+    if example_ids is not None and manifest_path.exists():
+        previous = json.loads(manifest_path.read_text())
+        replacements_by_id = {item['example']['id']: item for item in manifests}
+        manifests = [replacements_by_id.get(item['example']['id'], item)
+                     for item in previous['examples']]
+    manifest_path.write_text(json.dumps(dict(revision=REVISION,examples=manifests),indent=2)+"\n")
 
 
 if __name__=="__main__":
-    build_compiler_examples()
-    from compiler_kernel_loader import build_kernel_loader
-    build_kernel_loader()
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--examples', nargs='+', choices=[e['id'] for e in EXAMPLES])
+    parser.add_argument('--readers-only', action='store_true', help='Build selected readers without compiler supplements')
+    args = parser.parse_args()
+    build_compiler_examples(args.examples)
+    if not args.readers_only:
+        from compiler_pipeline_detail import build_pipeline_detail
+        build_pipeline_detail()
+        from compiler_kernel_loader import build_kernel_loader
+        build_kernel_loader()

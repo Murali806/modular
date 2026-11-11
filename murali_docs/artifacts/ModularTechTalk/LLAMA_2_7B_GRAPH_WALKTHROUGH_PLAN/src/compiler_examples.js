@@ -20,6 +20,8 @@
       else if(data.example.id==='epilogue'&&['dot','epilogue','matmul','add_one','multiply'].includes(s.phase)){key=['epilogue','add_one'].includes(s.phase)?'math':'entry';needle=key==='math'?'return x + 1':'forward=lambda';}
       else if(data.example.id==='matmul'&&!s.cpu&&s.algorithm==='tiled'){key=s.phase==='memset'?'dispatch':'math';needle={memset:'gpu_ctx.enqueue_memset',registers:'var a_smem',copy:'GenericToSharedAsyncTileCopier',commit:'async_copy_commit_group()',wait:'async_copy_wait_all()',barrier:'barrier()',mac:'comptime for k',reuse_barrier:'barrier()',store:'dst[row, col]'}[s.phase]||'';}
       else if(data.example.id==='attention'&&!['ready'].includes(s.phase)){key=s.cpu?'math_cpu':'math';needle={initialize:'var m_1',score:'var S =',max:'m_2.max',exp:'E.copy_from',sum:'l_2 +=',rescale:'O_i *= l_1',weighted:'O_i += PV',store:'copy_from(O_i)'}[s.phase]||'';}
+      if(data.example.id==='attention'&&s.phase==='gpu_launch'){key='attention_launch';needle='ctx.enqueue_function';}
+      if(data.example.id==='attention'&&s.phase.startsWith('mma_')){key='attention_mma';needle={mma_load:'var a_reg',mma_accumulate:'var d_reg',mma_store:'mma_b_t.store_d'}[s.phase];}
     }
     const r=data.references[key],lines=data.files[r.file].text.split('\n');let start=r.start-1;
     if(needle){const hits=lines.map((line,i)=>i>=r.start-1&&i<r.end&&line.includes(needle)?i:-1).filter(i=>i>=0);if(hits.length)start=s.phase==='reuse_barrier'?hits[hits.length-1]:hits[0];}
@@ -35,18 +37,19 @@
     return 'Inputs: '+(s.inputs?s.cpu?'CPU references':'device buffers':'not supplied')+'\n'+(s.id==='matmul'?`Selected ${s.algorithm}; k=${s.k}\nCopy ready: ${s.copyReady}; block ready: ${s.blockReady}\n`:s.id==='epilogue'?`Route: ${s.fusion?'eligible epilogue sketch':'separate-body sketch'}\n`:'Illustrative SIMD group: '+(s.lane+1)+'\n')+'Accumulator: ['+s.acc.map(fmt)+']\nResult: ['+s.computed.map(fmt)+']\nBuffer ready: '+s.ready+'\nExplicit host read: '+s.hostRead;
   }
   function isTextHash(hash){return /^#toolchain-(?:q\d|call-|reference(?:$|-))/.test(hash);}
-  function callCardLauncher(target){return target?.matches('details[data-call-card]')?document.querySelector('[data-call-card-launch][data-call-explanation="'+target.id+'"]'):null;}
+  function callCardTrigger(target){return target?.matches('details[data-call-card]')?document.querySelector('[data-call-card-launch][data-call-explanation="'+target.id+'"]')||document.querySelector('.call-tree-scroll a[data-call-explanation="'+target.id+'"]'):null;}
   function revealReadingTarget(target){for(let parent=target;parent;parent=parent.parentElement)if(parent.tagName==='DETAILS')parent.open=true;}
+  function animationPanelFor(button){return button.closest('[data-mode-panel="animation"]')||button.closest('[data-lesson]')?.querySelector('[data-mode-panel="animation"]')||null;}
   class Lesson {
     constructor(node){this.node=node;this.kind=node.dataset.lesson;this.speed=1;this.playing=false;this.model=new ExampleModel(this.kind,data.example,options());this.visual=new window.CompilerExamplesVisual(node,reduced);
-      node.addEventListener('click',e=>{const mode=e.target.closest('button[data-mode]')?.dataset.mode;if(mode)this.setMode(mode);if(e.target.closest('[data-return-animation]')){this.setMode('animation');this.node.scrollIntoView({block:'start',behavior:'instant'});this.node.querySelector('#toolchain-animation-tab').focus({preventScroll:true});}const qa=e.target.closest('[data-read-qa]')?.dataset.readQa;if(qa||e.target.closest('[data-read-current]')){this.setMode('text');const target=questionNode(qa||this.model.snapshot().qa);if(target){target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:'start',behavior:'instant'});}}const action=e.target.closest('[data-action]')?.dataset.action;if(action==='play')this.setPlaying(!this.playing);else if(action){this.setPlaying(false);if(action==='reset')this.model.configure(options());else this.model[action]();this.render(action==='step');}const index=e.target.closest('button[data-index]')?.dataset.index;if(index!==undefined){this.setPlaying(false);this.model.seek(Number(index));this.render(false);}});
-      if(this.kind==='toolchain')node.addEventListener('click',e=>{const anchor=e.target.closest('a[href^="#toolchain-"]');if(!anchor||anchor.hasAttribute('data-call-explanation')||!isTextHash(anchor.hash))return;const target=document.getElementById(anchor.hash.slice(1));if(target){this.setMode('text');const launcher=callCardLauncher(target);if(launcher){e.preventDefault();launcher.click();}else revealReadingTarget(target);}});
+      node.addEventListener('click',e=>{const mode=e.target.closest('button[data-mode]')?.dataset.mode;if(mode)this.setMode(mode);if(e.target.closest('[data-return-animation]')){this.setMode('animation');this.node.scrollIntoView({block:'start',behavior:'instant'});this.node.querySelector('#toolchain-animation-tab').focus({preventScroll:true});}const fullscreenButton=e.target.closest('[data-fullscreen-toggle]');if(fullscreenButton){if(this.kind==='toolchain'&&this.mode!=='animation')this.setMode('animation');const panel=animationPanelFor(fullscreenButton),reportFailure=()=>{const detail=this.node.querySelector('[data-event-detail]');if(detail)detail.textContent='Chrome did not grant fullscreen access for this page.';};if(panel){try{const request=document.fullscreenElement===panel?document.exitFullscreen():panel.requestFullscreen?.({navigationUI:'hide'});request?.catch(reportFailure);}catch{reportFailure();}}}const qa=e.target.closest('[data-read-qa]')?.dataset.readQa;if(qa||e.target.closest('[data-read-current]')){showReadingQuestion(this,qa||this.model.snapshot().qa);}const action=e.target.closest('[data-action]')?.dataset.action;if(action==='play')this.setPlaying(!this.playing);else if(action){this.setPlaying(false);if(action==='reset')this.model.configure(options());else this.model[action]();this.render(action==='step');}const index=e.target.closest('button[data-index]')?.dataset.index;if(index!==undefined){this.setPlaying(false);this.model.seek(Number(index));this.render(false);}});
+      if(this.kind==='toolchain')node.addEventListener('click',e=>{const anchor=e.target.closest('a[href^="#toolchain-"]');if(!anchor||anchor.hasAttribute('data-call-explanation')||!isTextHash(anchor.hash))return;const target=document.getElementById(anchor.hash.slice(1));if(target){this.setMode('text');const trigger=callCardTrigger(target);if(trigger){e.preventDefault();trigger.click();}else revealReadingTarget(target);}});
       node.querySelector('[role="tablist"]')?.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const tabs=[...node.querySelectorAll('[data-mode]')],current=tabs.indexOf(document.activeElement),next=e.key==='Home'?0:e.key==='End'?tabs.length-1:(current+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;this.setMode(tabs[next].dataset.mode);tabs[next].focus();});
       node.querySelector('[data-seek]').addEventListener('input',e=>{this.setPlaying(false);this.model.seek(Number(e.target.value));this.render(false);});
       node.querySelector('[data-speed]').addEventListener('change',e=>{this.speed=Number(e.target.value);if(this.playing)this.nextAt=performance.now()+1650/this.speed;});this.render(false);if(this.kind==='toolchain')this.setMode(isTextHash(location.hash)?'text':'animation');
     }
-    setMode(mode){this.setPlaying(false);this.mode=mode;this.node.dataset.mode=mode;this.node.querySelectorAll('[data-mode-panel]').forEach(p=>p.hidden=p.dataset.modePanel!==mode);this.node.querySelectorAll('[data-mode]').forEach(b=>{const selected=b.dataset.mode===mode;b.setAttribute('aria-selected',String(selected));b.tabIndex=selected?0:-1;});}
-    setPlaying(value){if(value&&this.mode==='text')return;if(value&&this.model.snapshot().done){this.model.configure(options());this.render(false);}this.playing=value;if(value){this.visual.resume();this.nextAt=performance.now()+350;schedule();}else this.visual.pause();this.updatePlay();}
+    setMode(mode){if(!this.node.querySelector('[data-mode-panel="'+mode+'"]'))mode=this.node.querySelector('[data-mode-panel="callstack"]')?'callstack':'animation';this.setPlaying(false);this.mode=mode;this.node.dataset.mode=mode;this.node.querySelectorAll('[data-mode-panel]').forEach(p=>p.hidden=p.dataset.modePanel!==mode);this.node.querySelectorAll('[data-mode]').forEach(b=>{const selected=b.dataset.mode===mode;b.setAttribute('aria-selected',String(selected));b.tabIndex=selected?0:-1;});}
+    setPlaying(value){if(value&&this.kind==='toolchain'&&this.mode!=='animation')return;if(value&&this.model.snapshot().done){this.model.configure(options());this.render(false);}this.playing=value;if(value){this.visual.resume();this.nextAt=performance.now()+350;schedule();}else this.visual.pause();this.updatePlay();}
     updatePlay(){const b=this.node.querySelector('[data-action="play"]');b.textContent=this.playing?'Ⅱ Pause':'▶ Play';b.setAttribute('aria-pressed',String(this.playing));this.node.dataset.playing=String(this.playing);}
     render(animate){const s=this.model.snapshot();Object.assign(this.node.dataset,{index:s.index,frames:s.total,phase:s.phase,state:JSON.stringify(s)});this.visual.render(s,animate,this.speed);if(animate)schedule();
       this.node.querySelector('[data-progress]').textContent=(s.index+1)+' / '+s.total;const seek=this.node.querySelector('[data-seek]');seek.max=s.total-1;seek.value=s.index;
@@ -58,29 +61,34 @@
       const codeHeading=this.node.querySelector('.ir-diff > div:first-child > span'),stateHeading=this.node.querySelector('.ir-diff > div:nth-child(2) > span');
       codeHeading.textContent=s.lesson==='commands'?'Command · copy from the selected step':'Original source · selected current definition';
       stateHeading.textContent=s.lesson==='commands'?'Targets and setup · repository evidence':'Schematic state / numerical work · not a generated dump';
-      this.node.querySelector('[data-read-current]')?.replaceChildren('Read '+s.qa+' in Text');
+      this.node.querySelector('[data-read-current]')?.replaceChildren('Read '+s.qa+(this.node.querySelector('[data-mode-panel="text"]')?' in Text':' in Call Stack Tree'));
       this.node.querySelector('[data-transcript]').innerHTML=this.model.frames.map((f,i)=>'<li'+(i===s.index?' aria-current="step"':'')+'><button type="button" data-index="'+i+'" aria-label="Seek to step '+(i+1)+'">'+String(i+1).padStart(2,'0')+'</button><strong>'+escape(f.title)+'</strong><p>'+escape(f.detail)+'</p>'+(f.representation?'<code>'+escape(f.representation)+'</code><button type="button" class="qa-step-link" data-read-qa="'+f.qa+'">Read '+f.qa+'</button>':'')+'<div class="transcript-sources">'+sourceLinks(f.refs)+'</div></li>').join('');this.updatePlay();
     }
   }
-  function questionNode(qa){const parts=qa.split('.');while(parts.length){const target=document.getElementById('toolchain-q'+parts.join('-'));if(target){revealReadingTarget(target);return target;}parts.pop();}return null;}
+  document.addEventListener('fullscreenchange',()=>{document.querySelectorAll('[data-fullscreen-toggle]').forEach(button=>{const panel=animationPanelFor(button),active=Boolean(panel&&document.fullscreenElement===panel);button.textContent=active?'⤢ Exit fullscreen':'⛶ Fullscreen';button.setAttribute('aria-label',active?'Exit fullscreen animation':'Open animation in fullscreen');button.title=active?'Exit fullscreen (or press Escape)':'Expand this animation to fit the screen';});});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.fullscreenElement){event.preventDefault();document.exitFullscreen().catch(()=>{});}});
+  function questionNode(qa){const parts=qa.split('.');while(parts.length){const target=document.getElementById('toolchain-q'+parts.join('-'))||document.getElementById(data.toolchain.reading_targets?.[parts.join('.')]);if(target){revealReadingTarget(target);return target;}parts.pop();}return null;}
+  function showReadingQuestion(controller,qa){controller.setMode('text');const target=questionNode(qa);if(!target)return;const trigger=callCardTrigger(target);if(trigger){trigger.scrollIntoView({block:'center',behavior:'instant'});trigger.click();}else{target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:'start',behavior:'instant'});}}
   document.querySelectorAll('[data-interactive]').forEach(e=>e.hidden=false);document.querySelectorAll('[data-lesson]').forEach(n=>controllers.push(new Lesson(n)));
   function refreshOptions(){for(const c of controllers){c.setPlaying(false);c.model.configure(options());c.render(false);}const s=controllers.find(c=>c.kind==='compile').model.snapshot();document.getElementById('algorithm-select')?.toggleAttribute('disabled',s.cpu);document.querySelector('[data-actual]').textContent='Original dimensions: '+s.signature.join(' → ')+(data.example.id==='matmul'||data.example.id==='attention'?' · '+s.params.grid:'')+(data.example.id==='attention'?' · query BN='+s.params.BN+', feature BD='+s.params.BD+', key tile='+s.params.keyTile:'');}
   document.querySelectorAll('.example-options select').forEach(e=>e.addEventListener('change',refreshOptions));refreshOptions();
-  document.querySelector('[data-qna-copy]').addEventListener('click',async()=>{const status=document.querySelector('[data-qna-copy-status]');try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(data.toolchain.text);else{const field=document.createElement('textarea');field.value=data.toolchain.text;field.className='copy-fallback';document.body.append(field);field.select();const copied=document.execCommand('copy');field.remove();if(!copied)throw Error('Clipboard unavailable');}status.textContent=data.toolchain.calltrees?'Copied call trees and complete answers 1–7.':'Copied complete answers 1–7.';}catch{status.textContent='Use Download the full text to save the complete text.';}});
-  function syncTextHash(){if(isTextHash(location.hash)){controllers.find(c=>c.kind==='toolchain').setMode('text');const target=document.getElementById(location.hash.slice(1));if(target){const launcher=callCardLauncher(target);if(launcher){launcher.scrollIntoView({block:'center',behavior:'instant'});launcher.click();}else{revealReadingTarget(target);target.scrollIntoView({block:'start',behavior:'instant'});}}}}
+  document.querySelector('[data-qna-copy]')?.addEventListener('click',async()=>{const status=document.querySelector('[data-qna-copy-status]');try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(data.toolchain.text);else{const field=document.createElement('textarea');field.value=data.toolchain.text;field.className='copy-fallback';document.body.append(field);field.select();const copied=document.execCommand('copy');field.remove();if(!copied)throw Error('Clipboard unavailable');}status.textContent=data.toolchain.calltrees?'Copied call trees and complete answers 1–7.':'Copied complete answers 1–7.';}catch{status.textContent='Use Download the full text to save the complete text.';}});
+  function syncTextHash(){if(isTextHash(location.hash)){controllers.find(c=>c.kind==='toolchain').setMode('text');const target=document.getElementById(location.hash.slice(1))||questionNode(location.hash.slice(12).replaceAll('-','.'));if(target){const trigger=callCardTrigger(target);if(trigger){trigger.scrollIntoView({block:'center',behavior:'instant'});trigger.click();}else{revealReadingTarget(target);target.scrollIntoView({block:'start',behavior:'instant'});}}}}
   window.addEventListener('hashchange',syncTextHash);
   function setupCallExplanationCard(){
     const card=document.getElementById('call-explanation-card');
     if(!card)return;
     document.body.append(card);
+    const cardWindows=window.CompilerCardWindows;cardWindows?.register(card);
     document.querySelectorAll('[data-call-card-launch]').forEach(button=>button.hidden=false);
     document.querySelectorAll('details[data-call-card]').forEach(detail=>detail.hidden=true);
     const body=card.querySelector('.call-explanation-card-body'),closeButton=card.querySelector('[data-close-call-explanation]'),title=card.querySelector('#call-explanation-title');
     let trigger=null;
     const sourceOpen=()=>document.getElementById('source-dialog').open;
-    function close(restore=false){
-      if(card.hidden)return;
+    function close(restore=false,force=false){
+      if(card.hidden||(!force&&cardWindows?.isHeld(card)))return;
       card.hidden=true;
+      cardWindows?.closed(card);
       const previous=trigger;trigger=null;
       previous?.setAttribute('aria-expanded','false');
       body.replaceChildren();
@@ -88,6 +96,7 @@
     }
     function position(){
       if(card.hidden||!trigger)return;
+      if(cardWindows&&!cardWindows.followsTrigger(card)){cardWindows.positioned(card);return;}
       card.style.maxHeight='calc(100dvh - 82px)';
       const bounds=trigger.getBoundingClientRect(),gap=14;
       const below=Math.max(68,bounds.bottom+10),belowSpace=innerHeight-below-gap,aboveSpace=bounds.top-68-gap;
@@ -101,6 +110,7 @@
       const explanation=document.getElementById(link.dataset.callExplanation),content=explanation?.querySelector('.call-card-content');
       if(!content)return;
       if(!card.hidden&&trigger===link){close(true);return;}
+      cardWindows?.opening(card);
       close();trigger=link;
       title.textContent=explanation.dataset.explanationTitle||'Explanation';
       body.replaceChildren(content.cloneNode(true));body.scrollTop=0;
@@ -116,7 +126,7 @@
       if(link){event.preventDefault();open(link);return;}
       if(!card.hidden&&!sourceOpen()&&!card.contains(event.target))close();
     });
-    closeButton.addEventListener('click',()=>close(true));
+    closeButton.addEventListener('click',()=>close(true,true));
     document.addEventListener('pointerdown',event=>{
       if(!card.hidden&&!sourceOpen()&&!card.contains(event.target)&&!trigger.contains(event.target))close();
     });
@@ -129,6 +139,7 @@
     addEventListener('resize',position);
     addEventListener('scroll',()=>{
       if(card.hidden||sourceOpen())return;
+      if(cardWindows&&!cardWindows.followsTrigger(card)){cardWindows.positioned(card);return;}
       const bounds=trigger.getBoundingClientRect();
       if(bounds.bottom<68||bounds.top>innerHeight-14)close();else position();
     },{passive:true});

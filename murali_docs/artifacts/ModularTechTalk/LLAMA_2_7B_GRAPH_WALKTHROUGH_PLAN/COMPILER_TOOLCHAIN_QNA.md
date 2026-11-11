@@ -2,40 +2,40 @@
 
 SOURCE · repository revision 610f7111836d9a950d45ba52ec9b3e0ed589fe3f. Numerical values are illustrative; no MAX execution.
 
-## A · Graph(...) → G1 + package P1
+Reading order: A.1 kernels/*.mojo → P1 (.mojoc); A.2 P1 + Graph(...) → G1 (MO); B InferenceSession(...) → S1; C compile(G1) → C1: MO → MAP → MOGG → MGP → CM1; D init(CM1) → M1.
+
+## A · kernels/ → package P1 → recorded graph G1 (MO)
 
 graph = Graph("addition", forward=..., input_types=..., custom_extensions=[mojo_kernels])
 
-INPUT: name="addition"; symbolic X: float32[5,10] @ device; forward callback; kernels/
-OUTPUT: G1: Python Graph + mo.graph module; P1: resolved .mojoc package path
-EXAMPLE: forward records custom("add_one", [X]) → symbolic Y: float32[5,10]
+INPUT: kernels/__init__.mojo + referenced kernels/*.mojo; name="addition"; symbolic X: float32[5,10]
+OUTPUT: P1: one precompiled .mojoc package; G1: verified caller-owned MO graph using P1
+EXAMPLE: parse/check package → P1; forward records custom("add_one", [X]) → symbolic Y; MO → MAP is in C
+
+Package preparation is shown first. Graph.__init__ creates its empty scaffold earlier and records the custom operation after P1 is ready; A.2 shows that source order. C performs MO → MAP on clone C1.
 
 ```text
-Graph.__init__(name, forward, input_types, custom_extensions) [max/python/max/graph/graph.py:L819]
-├─ in_default_mlir_context [max/python/max/_mlir_context.py:L70] → ensure this thread has an active MLIR context
-│  └─ Full explanation · is this a global variable? → A.0
-│
-├─ create builtin.ModuleOp + mo.GraphOp("addition") → G1
-│  ├─ input TensorType → MLIR block argument: X: float32[5,10]
-│  ├─ _params = {} → this shape has no symbolic dimensions
-│  ├─ _populate_device_info_mapping() [max/python/max/graph/graph.py:L1366] → CPU/GPU target metadata
-│  └─ _weights = {}; device chains + always-ready chain → ordering tokens
-│
-├─ KernelLibrary() [max/python/max/graph/graph.py:L245] → native kernel Analysis
-├─ _resolved_custom_extensions([kernels/]) [max/python/max/graph/graph.py:L363] → paths + default overlays
-├─ _import_kernels(paths) [max/python/max/graph/graph.py:L1703]
-│  └─ KernelLibrary.load_paths(paths) [max/python/max/graph/graph.py:L269]
-│     ├─ source directory + __init__.mojo → _build_mojo_source_package(kernels/) [Mojo/python/mojo/paths.py:L141]
-│     │  └─ mojo precompile kernels/ -o staging.mojoc → publish P1
-│     └─ existing .mojoc → add directly; skip the source-package subprocess
-│
-├─ with G1 → forward(*self.inputs) runs once with symbolic X
-│  ├─ ops.custom(name="add_one", device, values=[X], out_types=[...]) [max/python/max/graph/ops/custom.py:L69]
-│  │  ├─ record mo.custom → registration name + target + result type
-│  │  └─ KernelLibrary.verify_custom_op(op) [max/python/max/graph/graph.py:L307] → validate Mojo contract
-│  └─ callback returns the custom result's .tensor → symbolic Y
-├─ Graph.output(Y) [max/python/max/graph/graph.py:L1396] → mo.output + signature + whole-graph verification
-└─ return G1 → recorded computation; P1 available for later specialization
+_import_kernels(...): prepare package P1 [max/python/max/graph/graph.py:L1703] ↗ caller [max/python/max/graph/graph.py:L910]
+├─ KernelLibrary.load_paths([kernels/]) [max/python/max/graph/graph.py:L269]
+│  └─ _build_mojo_source_package(kernels/) [Mojo/python/mojo/paths.py:L141]
+│     ├─ kernels/__init__.mojo [max/examples/custom_ops/kernels/__init__.mojo:L1] + referenced child modules, including add_one.mojo ↗ caller [Mojo/python/mojo/paths.py:L141]
+│     ├─ separate compiler process → Mojo executable + mojo precompile kernels/ -o staging.mojoc
+│     │  └─ parse → resolve → semantic/lifetime checks → MLIR bytecode ↗ caller [Mojo/python/mojo/paths.py:L141]
+│     └─ atomic publication → P1: one .mojoc package ↗ caller [Mojo/python/mojo/paths.py:L141]
+├─ existing .mojoc path → load that package directly ↗ caller [max/python/max/graph/graph.py:L1703]
+└─ package phase complete → A.1 · parser, checks, file format and subprocess ↗ caller [max/python/max/graph/graph.py:L1703]
+
+2 · Record and finish G1 with P1 available [max/examples/custom_ops/addition.py:L33]
+├─ @in_default_mlir_context [max/python/max/_mlir_context.py:L70] → activate an MLIR context on this thread → Full explanation · is this a global variable? → A.0 ↗ caller [max/examples/custom_ops/addition.py:L33]
+├─ reuse the constructor's empty builtin.ModuleOp + mo.GraphOp("addition") scaffold
+│  └─ input X: float32[5,10] + device metadata + ordering chains ↗ caller [max/examples/custom_ops/addition.py:L33]
+├─ forward(symbolic X)
+│  └─ ops.custom(name="add_one", values=[X], out_types=[Y_type], device=DeviceRef.from_device(device)) [max/python/max/graph/ops/custom.py:L69]
+│     ├─ insert mo.custom → symbolic Y ↗ caller [max/python/max/graph/ops/custom.py:L69]
+│     └─ verify_custom_op [max/python/max/graph/graph.py:L307] → verify against P1 ↗ caller [max/python/max/graph/ops/custom.py:L69]
+├─ Graph.output(Y) [max/python/max/graph/graph.py:L1396] → mo.output + output signature + graph verification ↗ caller [max/examples/custom_ops/addition.py:L33]
+└─ return G1: caller-owned MO graph → A.3 · registration and validation ↗ caller [max/examples/custom_ops/addition.py:L33]
+   Next: create S1 (B); compile a clone C1: MO → MAP → MOGG → MGP (C).
 ```
 
 ### A.0 · What is the default MLIR context? Is it a global variable?
@@ -56,16 +56,27 @@ An **MLIR context** provides the shared infrastructure for representing compiler
 
 Multiple graphs can use the same context while keeping their own operations and graph structure. ([mlir.llvm.org](https://mlir.llvm.org/doxygen/classmlir_1_1MLIRContext.html))
 
-There are **two distinct pieces of state**:
+These three names have different roles: one is a context **object**, one is the **per-thread active-context lookup**, and one is a **thread-pool executor** that scopes tasks with a context.
 
-| Name | Scope | Purpose |
-|---|---|---|
-| `_DEFAULT_MLIR_CONTEXT` | Module global | Holds the shared default context object. |
-| `mlir.Context.current` | Thread local | Identifies the context currently active on this thread. |
+| Name | What it is | The question it answers | Lifetime / behavior |
+|---|---|---|---|
+| [`_DEFAULT_MLIR_CONTEXT`](sources/max/python/max/_mlir_context.py#L26) | One module-level `mlir.Context` object in this Python interpreter. | “Which context should MAX use as its fallback?” | Created at module import. MAX enters it on the importing thread and exits it at interpreter shutdown. Worker tasks can temporarily enter this same object. |
+| [`mlir.Context.current`](sources/max/python/max/_mlir_context.py#L27) | A thread-local property; it is not another context object or a module global. | “Which context, if any, is active on **this OS thread right now**?” | Can be `None`, `_DEFAULT_MLIR_CONTEXT`, or another context. One thread's current value is not automatically copied to another thread. |
+| [`MLIRThreadPoolExecutor`](sources/max/python/max/_mlir_context.py#L89) | MAX's subclass of Python's `ThreadPoolExecutor`. It is an executor, not a context. | “How should tasks submitted to this pool get a usable MLIR context?” | Its `submit()` wraps each task with `call_with_default_mlir_context`. On the worker thread, that wrapper keeps an already-current context or temporarily enters `_DEFAULT_MLIR_CONTEXT` if the worker has none. It does not create a context per task or copy the submitting thread's current context. |
 
-The source explicitly documents this distinction in [_mlir_context.py:27](sources/max/python/max/_mlir_context.py#L27).
+The implementation and its thread-local note are in [_mlir_context.py:26–67](sources/max/python/max/_mlir_context.py#L26); the executor wrapper is in [_mlir_context.py:89](sources/max/python/max/_mlir_context.py#L89).
 
-Your call-tree line is more precisely:
+```text
+Shared object: _DEFAULT_MLIR_CONTEXT
+Main thread: module import enters it → mlir.Context.current on main points to this object
+Worker task: MLIRThreadPoolExecutor.submit → call_with_default_mlir_context(fn)
+  If current on that worker is None → temporarily enter the shared default → run fn → leave it
+  If current on that worker is already set → preserve it → run fn
+```
+
+So “current” is the thread's active-context slot; “default” is the shared object that MAX can put in that slot when it is empty; the executor runs tasks on worker threads and applies that fallback around each submitted task. The executor is not a per-context mutex or semaphore. The conditional behavior is implemented in [ensure_default_mlir_context:55](sources/max/python/max/_mlir_context.py#L55) and [call_with_default_mlir_context:44](sources/max/python/max/_mlir_context.py#L44). **Entering a context makes it active for IR-building APIs; entering alone does not compile or execute the graph.** ([MLIR Python bindings](https://mlir.llvm.org/docs/Bindings/Python/))
+
+For the `Graph(...)` call tree, the decorator applies the same rule directly around construction:
 
 ```text
 Graph(...)
@@ -77,11 +88,1091 @@ Graph(...)
          └─ Call Graph.__init__
 ```
 
-That conditional behavior is implemented in [ensure_default_mlir_context:55](sources/max/python/max/_mlir_context.py#L55). **“Enter” makes a context active for IR-building APIs; entering alone does not compile or execute the graph.** ([mlir.llvm.org](https://mlir.llvm.org/docs/Bindings/Python/))
+### A.0.1 · What does `@in_default_mlir_context` mean?
 
-### A.0.1 · builtin.ModuleOp + mo.GraphOp("addition")
+It is **Python decorator syntax**. `in_default_mlir_context` is a Python function; `@` applies it to the `__init__` function when the class body is created. It is not a Python attribute on `Graph` or on a graph instance.
+
+This syntax:
+
+```python
+@in_default_mlir_context
+def __init__(self, ...):
+    ...
+```
+
+is equivalent in effect to:
+
+```python
+def __init__(self, ...):
+    ...
+
+__init__ = in_default_mlir_context(__init__)
+```
+
+The decorator returns a wrapper. When `Graph(...)` calls the wrapped constructor, the wrapper enters `ensure_default_mlir_context()`, calls the original constructor, and leaves the context manager when construction returns or raises. If this thread already has an active MLIR context, the helper keeps it instead of entering another one. See the [decorator implementation](sources/max/python/max/_mlir_context.py#L70).
+
+### A.0.2 · Why mention a background thread?
+
+A **background thread** (bg-thread) is another OS thread in the same Python process, often a worker created by a thread pool. It is not another process. `mlir.Context.current` is thread-local: the main thread's active-context setting is not automatically copied to a worker thread. MAX's source states this directly in [`ensure_default_mlir_context`](sources/max/python/max/_mlir_context.py#L54).
+
+For example, a caller may construct a graph from a worker:
+
+```python
+from concurrent.futures import ThreadPoolExecutor
+
+def make_graph():
+    return Graph("addition", input_types=[...], forward=...)
+
+with ThreadPoolExecutor() as workers:
+    graph = workers.submit(make_graph).result()
+```
+
+When `Graph.__init__` runs on that worker, its decorator notices whether that worker has a current MLIR context. If not, it temporarily enters `_DEFAULT_MLIR_CONTEXT` so `builtin.ModuleOp`, `mo.GraphOp`, and related MLIR bindings run with the intended context. The scope ends with the constructor call. MAX also provides an [`MLIRThreadPoolExecutor`](sources/max/python/max/_mlir_context.py#L89) that wraps submitted tasks with the same context guard. The module comments say this scoped worker handling also avoids nanobind GIL/TLS teardown crashes ([context setup and comments](sources/max/python/max/_mlir_context.py#L26)).
+
+### A.1 · Parse kernels/*.mojo → package P1 (.mojoc)
+
+```text
+_build_mojo_source_package(kernels_dir) [Mojo/python/mojo/paths.py:L141]  [parent Python process]
+├─ input: absolute directory with kernels/__init__.mojo [max/examples/custom_ops/kernels/__init__.mojo:L1] ↗ caller [Mojo/python/mojo/paths.py:L141]
+├─ hash = MD5(absolute path string) → a stable filename, not a source-content hash ↗ caller [Mojo/python/mojo/paths.py:L141]
+├─ final: <tempdir>/.modular_<uid>/mojo_pkg/mojo_pkg_<hash>.mojoc ↗ caller [Mojo/python/mojo/paths.py:L141]
+├─ staging: .staging.<pid>/mojo_pkg_<hash>.mojoc ↗ caller [Mojo/python/mojo/paths.py:L141]
+├─ subprocess_run_mojo(["precompile", kernels_dir, "-o", staging], check=True) [Mojo/python/mojo/run.py:L57]
+│  ├─ SDK default: <MAX package root>/bin/mojo; ambient path override [Mojo/python/mojo/run.py:L22] ↗ caller [Mojo/python/mojo/run.py:L57]
+│  ├─ MODULAR_MOJO_MAX_DRIVER_PATH → otherwise shutil.which("mojo") on PATH ↗ caller [Mojo/python/mojo/run.py:L57]
+│  └─ subprocess.run(...) → Python waits for the separate compiler process
+│     └─ mojo precompile: precompile(State) [Mojo/tools/mojo/Precompile/mojo-precompile.cpp:L209]
+│        ├─ validate source package / names; create compiler context; open output ↗ caller [Mojo/tools/mojo/Precompile/mojo-precompile.cpp:L209]
+│        ├─ invokeMojoParser(...)
+│        │  └─ LIT::importMojoPackage(kernels_dir, "kernels", ...) [Mojo/lib/MojoParser/EntryPoint.cpp:L391]
+│        │     └─ DeclResolver::resolveAllReferencedFrom(package) [Mojo/lib/MojoParser/DeclResolver.cpp:L1756]
+│        │        ├─ parse the package + child modules, including add_one.mojo [max/examples/custom_ops/kernels/add_one.mojo:L1] ↗ caller [Mojo/lib/MojoParser/DeclResolver.cpp:L1756]
+│        │        └─ resolve referenced dependency declarations and bodies ↗ caller [Mojo/lib/MojoParser/DeclResolver.cpp:L1756]
+│        ├─ buildPrecompiledPackage(...) [Mojo/lib/Precompile/Precompile.cpp:L146] → serializable post-parse IR clone ↗ caller [Mojo/tools/mojo/Precompile/mojo-precompile.cpp:L209]
+│        ├─ KGENCompiler::runCheckLITPipeline(parsed_module) [Mojo/lib/Compiler/KGENCompiler.cpp:L1119] → semantic/lifetime checks ↗ caller [Mojo/tools/mojo/Precompile/mojo-precompile.cpp:L209]
+│        └─ writePrecompiledFile(built_package, stream) [Mojo/lib/Support/MojoPrecompiledFile.cpp:L128]
+│           └─ LIT lit.package MLIR bytecode → zstd payload + MPKG V2 header → staging .mojoc ↗ caller [Mojo/lib/Support/MojoPrecompiledFile.cpp:L128]
+│
+├─ compiler succeeds → os.replace(staging, final) → atomic publication ↗ caller [max/examples/custom_ops/addition.py:L33]
+├─ finally → remove staging directory ↗ caller [max/examples/custom_ops/addition.py:L33]
+└─ return final Path → P1; addition.py stays a separate Python program ↗ caller [max/examples/custom_ops/addition.py:L33]
+   The source-directory branch invokes precompile again; it has no exists() skip.
+```
+
+### A.1.1 · Is `mojo` an executable? Where is it?
+
+**Yes.** Here, `mojo` is the Mojo compiler's command-line driver executable. Python starts it as a separate child process with `subprocess.run`; `mojo` is not a Python class and is not just a shell alias. The actual argument vector is:
+
+```text
+[resolved-mojo-executable, "precompile", <kernels-directory>, "-o", <staging-.mojoc-path>]
+```
+
+There is **no single absolute path for every install**. The [SDK environment setup](sources/Mojo/python/mojo/run.py#L22) chooses `<get_package_root()>/bin/mojo` when MAX can find its installed package root. An ambient `MODULAR_MOJO_MAX_DRIVER_PATH` overrides that default. If the package root is unavailable (the helper calls this the Bazel case) and there is no override, [the launcher falls back to `shutil.which("mojo")`](sources/Mojo/python/mojo/run.py#L57), which searches `PATH`.
+
+For a wheel install, the bundled path is therefore typically shaped like `<venv>/lib/pythonX.Y/site-packages/max/bin/mojo`; in a Bazel or source-run environment, it can be a runfiles/toolchain path or whatever `PATH` resolves. To print the path selected by the installed `mojo` Python helper in the current environment:
+
+```bash
+python -c 'from mojo.run import _mojo_env; import shutil; e = _mojo_env(); print(e.get("MODULAR_MOJO_MAX_DRIVER_PATH") or shutil.which("mojo"))'
+```
+
+The helper verifies that the resolved path exists, prepends it to the `precompile` arguments, and waits for that compiler process to finish before publishing P1.
+
+### A.1.2 · What does the `add_one` MLIR bytecode look like?
+
+First, distinguish the **file bytes** from a **readable MLIR listing**. The `.mojoc` file is an MPKG V2 package header plus a zstd-compressed MLIR bytecode payload; literal byte values are binary and do not display as a function listing. During this precompile step the payload is a `lit.package` containing post-parse **LIT-dialect** IR, including function bodies after semantic/lifetime checks. It has not yet been specialized for a concrete `target`/`width`, lowered through the kernel JIT, or emitted as CPU/GPU machine code. See the [repository's Mojo package walkthrough](sources/Mojo/docs/compiler/MojoCompilerWalkthrough.md#L612) and the [package writer](sources/Mojo/lib/Support/MojoPrecompiledFile.cpp#L128).
+
+The exact source expression is in [`add_one.mojo`](sources/max/examples/custom_ops/kernels/add_one.mojo#L32). `execute` has a compile-time `target`; its helper has a compile-time `width`:
+
+```mojo
+def elementwise_add_one[
+    width: Int
+](idx: Coord) {var} -> SIMD[x.dtype, width]:
+    return x.load[width](idx) + 1
+
+foreach[target=target](elementwise_add_one, output, ctx)
+```
+
+The package's readable structure is conceptually:
+
+```text
+lit.package @kernels
+  lit.struct.decl @AddOne
+    lit.fn "execute[target: StaticString]"  [body retained]
+      helper "elementwise_add_one[width: Int]"  [body retained]
+        load x[idx] as SIMD → add 1 → return SIMD
+      foreach[target=target](elementwise_add_one, output, ctx)
+```
+
+This is a **structural sketch, not a captured compiler dump**: the repository documents `lit.package`, `lit.struct.decl`, and `lit.fn` as the package IR shape, while the arrows summarize the source-level math rather than claiming exact LIT operation spellings. The actual `.mojoc` payload is binary. A literal byte dump or exact decoded `add_one` IR would require running this repository revision's compiler and capturing its output. See the [documented package shape](sources/Mojo/docs/compiler/MojoCompilerWalkthrough.md#L647).
+
+### _location() · What is loc?
+
+**SOURCE · loc is an MLIR Location: metadata describing where an IR operation was created.** The Python variable <code>loc</code> holds the Location returned by <code>_location()</code>. The active MLIR Context owns its interned metadata; source locations help diagnostics and source-aware debugging. See [the helper](sources/max/python/max/graph/graph.py#L438) and [the native frame binding](sources/max/python/max/_core/max_license/modules/graph.cpp#L162).
+
+**Inputs → decisions → output, in source order**
+
+```text
+Graph.__init__: with _location() as loc [LINK:graph_init:851]
+└─ _location(ignore_frames=1, attach_profile_scopes=True) [LINK:ct_graph_location:438]
+   ├─ Require an active mlir.Context.current [LINK:ct_graph_location:442]
+   │  └─ absent → raise RuntimeError [LINK:ct_graph_location:443]
+   ├─ Read the current source_tracebacks setting [LINK:ct_graph_location:449]
+   │  ├─ disabled → Location.unknown() [LINK:ct_graph_location:450]
+   │  └─ enabled → traceback.extract_stack() [LINK:ct_graph_location:457]
+   │     ├─ Keep frame summaries; trim _location + ignore_frames callers [LINK:ct_graph_location:457]
+   │     ├─ nonempty → _graph.frame_loc(current_context, tb) [LINK:ct_graph_location:459]
+   │     │  └─ PythonFrameAttr::getOpaque → MLIR Location [LINK:ct_graph_frame_loc:165]
+   │     └─ empty → Location.unknown() [LINK:ct_graph_location:461]
+   ├─ If attach_profile_scopes: wrap active name/color scopes [LINK:ct_graph_location:464]
+   │  └─ _graph.profile_scope_location(context, name, location, color) [LINK:ct_graph_location:472]
+   └─ Return location → the variable loc [LINK:ct_graph_location:475]
+```
+
+**What <code>with</code> does next**
+
+The Location context manager makes <code>loc</code> current for the block. MAX also passes that same object explicitly to [<code>builtin.ModuleOp(location=loc)</code>](sources/max/python/max/graph/graph.py#L856) and [<code>_mo.GraphOp(builder, loc, ...)</code>](sources/max/python/max/graph/graph.py#L860). The native [GraphOp builder](sources/GraphCompiler/lib/MODialect/MOOps.cpp#L849) attaches its operation location to every input block argument. Exiting <code>with</code> restores the surrounding current Location; the created IR retains its attached metadata. ([MLIR Python bindings](https://mlir.llvm.org/docs/Bindings/Python/))
+
+**Add-one example · a Python stack becomes IR provenance**
+
+The graph is requested at [addition.py:33](sources/max/examples/custom_ops/addition.py#L33). With source tracebacks enabled, the helper collects the stack and removes its final two frames with the default <code>ignore_frames=1</code>:
+
+~~~text
+Before trimming, illustrative frame summaries:
+  ... → addition.py:33 → ... → Graph.__init__:851 → _location:457
+
+After trimming:
+  ... → addition.py:33 → ...
+
+frame_loc(context, remaining summaries) → loc
+  loc → builtin.ModuleOp
+  loc → mo.GraphOp("addition") → symbolic input argument X
+~~~
+
+The ellipses allow surrounding Python/decorator frames. This is a source-derived example of retained provenance, rather than an executed stack capture or an exact printed MLIR dump. The native wrapper stores the summaries in an opaque MLIR source Location. Profiling scopes can wrap either the stack-derived or unknown Location, even when source tracebacks are disabled. See [frame_loc](sources/max/python/max/_core/max_license/modules/graph.cpp#L162) and [scope wrapping](sources/max/python/max/graph/graph.py#L464).
+
+### MLIR Module · Reuse or create the IR container
+
+**SOURCE · self._module holds the selected builtin.ModuleOp: the IR container for this graph.** A public Python <code>Module</code> wrapper exposes that operation through <code>module.mlir_module</code>. Its body can hold several named graph definitions, compiled together. See [Module's contract](sources/max/python/max/graph/graph.py#L562).
+
+**Inputs → branch → retained module, in source order**
+
+```text
+Graph.__init__(..., module=module): inside with _location() as loc [LINK:graph_init:851]
+└─ self._module = module.mlir_module if module else builtin.ModuleOp(location=loc) [LINK:graph_init:855]
+   ├─ module supplied → read its mlir_module attribute [LINK:ct_graph_module:619]
+   │  └─ retain the same typed builtin.ModuleOp as self._module [LINK:ct_graph_module:637]
+   └─ module omitted → builtin.ModuleOp(location=loc) [LINK:graph_init:856]
+      └─ nanobind ModuleOp constructor(location, name=None) [LINK:ct_builtin_module:62]
+         └─ mlir::ModuleOp::create(loc, name) [LINK:ct_builtin_module:65]
+            └─ new builtin.module → body region → initially empty body block [LINK:ct_builtin_module:68]
+```
+
+<code>loc</code> comes from the preceding <code>_location()</code> call. The fresh-module branch passes it to the native constructor. The reuse branch keeps the existing module and its attached location; the upcoming graph definition receives the current <code>loc</code> separately. See [the conditional assignment and GraphOp call](sources/max/python/max/graph/graph.py#L855).
+
+**Add-one · no module argument**
+
+The [example's Graph call](sources/max/examples/custom_ops/addition.py#L33) omits <code>module=</code>. At this row, the newly created module's body is empty. The next two source actions position the builder and insert the graph definition:
+
+~~~text
+At this row                         After GraphOp insertion
+self._module                        self._module
+  builtin.module                      builtin.module
+    body region                         body region
+      body block: []                      body block
+                                            mo.graph @addition
+                                              graph region / block
+                                                symbolic argument X
+~~~
+
+These are schematic IR structures before forward records the computation. The module body contains graph definitions; the graph's own body contains its computation. See [GraphOp insertion](sources/max/python/max/graph/graph.py#L860) and [native graph-body creation](sources/GraphCompiler/lib/MODialect/MOOps.cpp#L847).
+
+**Reuse example · encoder and decoder share one compilation unit**
+
+Excerpt of the [Module documentation example](sources/max/python/max/graph/graph.py#L588); graph-output code is omitted here:
+
+~~~python
+module = Module()
+with Graph("encoder", input_types=[], module=module) as encoder:
+    ...  # record encoder output
+with Graph("decoder", input_types=[], module=module) as decoder:
+    ...  # record decoder output
+~~~
+
+~~~text
+module.mlir_module ────────┐
+encoder._module ──────────┼── same builtin.module
+decoder._module ──────────┘     body block
+                                 mo.graph @encoder
+                                 mo.graph @decoder
+~~~
+
+Both Graph objects retain the shared enclosing operation and their own graph definitions. Constructing the decoder appends a definition to the existing module; it preserves the encoder definition. [Module's documented example](sources/max/python/max/graph/graph.py#L609) hands this unit to <code>InferenceSession.load_all(module)</code>.
+
+### OpBuilder · Insert at module.body.end
+
+**SOURCE · OpBuilder is a native MLIR operation builder, positioned after the module body's existing operations.** The Python constructor creates a C++ <code>mlir::OpBuilder</code>; its insertion point identifies a block and a position within that block. See [the MAX call site](sources/max/python/max/graph/graph.py#L858) and [the native constructor](sources/max/python/max/_core/max_license/_core.cpp#L612).
+
+**Evaluate the expression left to right**
+
+```text
+builder = OpBuilder(self._module.body.end) [LINK:graph_init:858]
+├─ self._module → selected builtin.ModuleOp [LINK:graph_init:855]
+├─ .body → native ModuleOp body binding [LINK:ct_builtin_module:68]
+│  └─ &self.getBodyRegion().front() → the module body block [LINK:ct_builtin_module:69]
+├─ .end → native Block.end binding [LINK:ct_block_end:408]
+│  ├─ cast the Python block view to mlir::Block* [LINK:ct_block_end:410]
+│  └─ OpBuilder::InsertPoint(block, block->end()) [LINK:ct_block_end:411]
+└─ OpBuilder(insert_point) → nanobind constructor [LINK:ct_op_builder:612]
+   └─ std::make_unique<mlir::OpBuilder>(ip.getBlock(), ip.getPoint()) [LINK:ct_op_builder:614]
+      └─ OUT: builder ready to insert operations in this module block [LINK:ct_op_builder:615]
+```
+
+<code>body.end</code> is a position after the last operation, including the empty-block case. Creating the builder sets this position; the next [<code>_mo.GraphOp(builder, loc, ...)</code>](sources/max/python/max/graph/graph.py#L860) call creates the graph at that position. The native [GraphOp builder](sources/GraphCompiler/lib/MODialect/MOOps.cpp#L820) fills the graph signature, region and input block arguments.
+
+**Fresh add-one module · the first insertion**
+
+~~~text
+Before builder creation          Builder ready                 After GraphOp call
+module body: []                  module body: []               module body:
+                                ↑ insertion point at end        mo.graph @addition
+~~~
+
+**Shared module · append the decoder after the encoder**
+
+~~~text
+Before decoder construction         After decoder GraphOp insertion
+module body                          module body
+  mo.graph @encoder                    mo.graph @encoder
+  ↑ end insertion point                mo.graph @decoder
+~~~
+
+The arrow marks the position after <code>@encoder</code>. The selected block is the outer module body, so the new graph is a sibling of the encoder. The graph's computation is recorded later in its own body through [<code>with self</code> and the forward callback](sources/max/python/max/graph/graph.py#L921).
+
+**Input → output:** the existing module's body block and its end iterator become a native builder stored in the local Python variable <code>builder</code>. That builder is passed immediately to GraphOp construction. These diagrams describe symbolic IR construction, with no compilation or tensor execution at this step.
+
+### to_mlir() · Python input type → MLIR tensor type
+
+**SOURCE · t.to_mlir() turns a Python type description into the native MO tensor type used by the graph's IR.** In add-one, <code>t</code> is the caller's <code>TensorType</code> describing float32 elements, shape <code>[5, 10]</code>, and a selected device. The result is a <code>mo.TensorType</code> handle. See [the symbolic-type contract](sources/max/python/max/graph/type.py#L358) and [the conversion method](sources/max/python/max/graph/type.py#L430).
+
+**Inputs → conversions → native type, in source order**
+
+```text
+Graph.__init__: input_types=[t.to_mlir() for t in input_types] [LINK:graph_init:864]
+└─ TensorType.to_mlir(self=t) [LINK:ct_tensor_to_mlir:430]
+   ├─ metadata = []; optionally append the layout attribute [LINK:ct_tensor_to_mlir:436]
+   │  └─ add-one has _layout=None → empty metadata [LINK:ct_tensor_description:404]
+   └─ return mo.TensorType(...) [LINK:ct_tensor_to_mlir:439]
+      ├─ argument 1: self.shape.to_mlir() [LINK:ct_tensor_to_mlir:440]
+      │  └─ Shape.to_mlir() → mosh.ShapeAttr(dim attributes, mosh.ShapeType()) [LINK:ct_shape_to_mlir:36]
+      │     └─ for 5 and 10: StaticDim.to_mlir() [LINK:ct_static_dim_to_mlir:562]
+      │        └─ signed i64 IntegerAttr → kgen.CastFromBuiltinAttr [LINK:ct_static_dim_to_mlir:570] [CALLER:ct_shape_to_mlir|39]
+      ├─ argument 2: self.dtype → existing DType.float32 value [LINK:ct_tensor_to_mlir:441] [CALLER:ct_tensor_to_mlir|441]
+      ├─ argument 3: self.device.to_mlir() [LINK:ct_tensor_to_mlir:442]
+      │  └─ DeviceRef.to_mlir() → m.DeviceRefAttr(kind string, device id) [LINK:ct_device_ref_to_mlir:181] [CALLER:ct_tensor_to_mlir|442]
+      └─ keyword metadata: builtin.DictionaryAttr(metadata) [LINK:ct_tensor_to_mlir:443] [CALLER:ct_tensor_to_mlir|443]
+```
+
+The method is called on each Python input type. For this example there is one input, so GraphOp receives a one-element list of native types. The native MO type builders derive their MLIR Context from the shape attribute and retain shape, dtype, device reference and metadata as the tensor type's fields. See [the context-inferred builder](sources/GraphCompiler/lib/MODialect/MOTypes.cpp#L324) and [the base type builder](sources/GraphCompiler/lib/MODialect/MOTypes.cpp#L304).
+
+**Add-one example · before and after**
+
+Illustrative Python using the same float32 <code>[5, 10]</code> input declaration as [addition.py](sources/max/examples/custom_ops/addition.py#L51), with CPU selected explicitly:
+
+~~~python
+t = TensorType(DType.float32, shape=[5, 10], device=DeviceRef.CPU())
+ir_type = t.to_mlir()
+input_types_for_graph_op = [ir_type]
+~~~
+
+| Python description | Native type field |
+| --- | --- |
+| <code>shape=[5, 10]</code> | <code>mosh.ShapeAttr</code> containing typed attributes for 5 and 10 |
+| <code>dtype=DType.float32</code> | dtype field; displayed as <code>f32</code> in MLIR assembly |
+| <code>device=DeviceRef.CPU()</code> | <code>m.DeviceRefAttr("cpu", 0)</code> |
+| <code>_layout=None</code> | empty <code>builtin.DictionaryAttr</code> metadata |
+
+~~~text
+Python type description t
+  TensorType(float32, [5, 10], cpu:0)
+                ↓ t.to_mlir()
+Native mo.TensorType handle ir_type
+  shape + dtype + device reference + metadata
+                ↓ passed in input_types=[ir_type]
+mo.GraphOp("addition")
+  input block argument X has this type
+~~~
+
+**Schematic IR view of that typed input** — this is an illustration, not a captured compiler dump:
+
+~~~mlir
+// CPU: the default device can be omitted in printed tensor types.
+mo.graph @addition(%x: !mo.tensor<[5, 10], f32>) -> () {
+  // Construction snapshot: forward/output have not been recorded yet.
+}
+
+// If the same description uses DeviceRef.GPU(0), the device field changes:
+// %x: !mo.tensor<[5, 10], f32, gpu:0>
+~~~
+
+The [native tensor-type printer](sources/GraphCompiler/lib/MODialect/MOTypes.cpp#L219) prints these fields; [GraphOp::build](sources/GraphCompiler/lib/MODialect/MOOps.cpp#L849) gives each input block argument its declared type. This operation converts type metadata: tensor numbers enter later through execution buffers, while <code>t</code> remains the Python description. Conversion itself does not emit a <code>.mojoc</code> package or run graph-compilation passes.
+
+**1 · Shape: what happens to the numbers 5 and 10?**
+
+The Python sizes describe the number of rows and columns. The compiler needs typed attributes for those sizes, not raw Python integers. [StaticDim.to_mlir](sources/max/python/max/graph/dim.py#L570) constructs each attribute; [Shape.to_mlir](sources/max/python/max/graph/shape.py#L39) collects them.
+
+~~~text
+StaticDim(5)                                   StaticDim(10)
+  ↓ self.dim = 5                                 ↓ self.dim = 10
+IntegerType(64, signed) = si64                   IntegerType(64, signed) = si64
+  ↓                                              ↓
+IntegerAttr(si64, 5)                            IntegerAttr(si64, 10)
+  ↓                                              ↓
+kgen.CastFromBuiltinAttr(the typed 5)           kgen.CastFromBuiltinAttr(the typed 10)
+  └──────────────────────┬───────────────────────┘
+                         ↓
+mosh.ShapeAttr([dimension-expression 5, dimension-expression 10], mosh.ShapeType())
+                         ↓
+shape field of mo.TensorType → printed shape [5, 10]
+~~~
+
+**Read it as:** <code>si64</code> means a signed 64-bit integer <em>type</em>; <code>IntegerAttr(si64, 5)</code> is an immutable typed constant describing size 5; <code>CastFromBuiltinAttr</code> wraps that builtin constant for KGEN's dimension-expression representation. It does not cast the tensor's float32 elements to integers. This structural illustration is not the exact serialized bytecode or printed attribute spelling. A tensor with 5 rows still has float32 elements.
+
+**2 · Dtype: why is self.dtype passed directly?**
+
+~~~python
+# Illustrative values already stored in the Python type description:
+t.dtype                 # DType.float32
+# TensorType.to_mlir supplies this existing value as argument 2:
+mo.TensorType(shape_attr, t.dtype, device_attr, metadata=metadata_attr)
+~~~
+
+[The conversion](sources/max/python/max/graph/type.py#L441) passes the dtype value already chosen by the caller. The [native type builder](sources/GraphCompiler/lib/MODialect/MOTypes.cpp#L304) uses it for the element type; the [printer](sources/GraphCompiler/lib/MODialect/MOTypes.cpp#L219) displays float32 as <code>f32</code>. For <code>[5, 10]</code>, this describes 50 float32 elements when a tensor is supplied later. Choosing <code>DType.int32</code> instead would describe integer elements; this method does not convert any actual tensor data.
+
+| Field | Meaning in this example |
+| --- | --- |
+| <code>IntegerAttr(si64, 5)</code> | Row-count metadata: the size is 5 |
+| <code>DType.float32</code> / <code>f32</code> | Element datatype: each tensor value is float32 |
+
+**3 · Device: what becomes cpu:0 or gpu:0?**
+
+[DeviceRef.to_mlir](sources/max/python/max/graph/type.py#L181) takes the symbolic device kind and index:
+
+~~~text
+DeviceRef.CPU()   → self.device_type="cpu", self.id=0 → m.DeviceRefAttr("cpu", 0)
+DeviceRef.GPU(0)  → self.device_type="gpu", self.id=0 → m.DeviceRefAttr("gpu", 0)
+DeviceRef.GPU(1)  → self.device_type="gpu", self.id=1 → m.DeviceRefAttr("gpu", 1)
+~~~
+
+The attribute labels the graph tensor's device. A <code>gpu:0</code> label is not a GPU buffer or a driver handle; forming it does not allocate or transfer tensor data. The same <code>[5, 10]</code> / <code>f32</code> type can therefore carry either a CPU or GPU reference. The tensor-type printer omits the default <code>cpu:0</code> field and prints a nondefault GPU field.
+
+**4 · Metadata: a concrete convolution layout example**
+
+**Add-one:** <code>_layout=None → metadata=[] → builtin.DictionaryAttr([])</code>. There is no convolution-filter layout attached to its input. The optional layout path is useful for convolution filters; [FilterLayout](sources/max/python/max/graph/type.py#L38) describes their memory layout.
+
+~~~python
+# Illustrative internal type description for a convolution filter:
+filter_type = TensorType(
+    DType.float32, [3, 3, 16, 32], device=DeviceRef.CPU(),
+    _layout=FilterLayout.RSCF,
+)
+# to_mlir() builds:
+layout_attr = FilterLayout.RSCF.to_mlir()  # mo.LayoutAttr(format_str="RSCF")
+metadata = [NamedAttribute("layout", layout_attr)]
+metadata_attr = builtin.DictionaryAttr(metadata)
+# metadata_attr is argument metadata=... of mo.TensorType(...)
+~~~
+
+[conv2d's documented order](sources/max/python/max/graph/ops/conv.py#L44) is <code>R, S, C, F = height, width, input channels / groups, output channels</code>. With groups=1, this example is a 3×3 filter with 16 input channels and 32 output channels. The <code>layout</code> key tells compiler operations how to interpret the axes, separately from element dtype and device.
+
+~~~text
+Python _layout=FilterLayout.RSCF
+  → mo.LayoutAttr("RSCF")
+  → DictionaryAttr {layout: the RSCF attribute}
+  → metadata field on native mo.TensorType
+  → TensorType::getLayoutAttr() reads metadata["layout"]
+  → filter-packing shape calculation reads the format:
+       RSCF: F is last axis → [3, 3, 16, 32] → F = 32
+       FCRS: F is first axis → [32, 16, 3, 3] → F = 32
+~~~
+
+The [native metadata reader](sources/GraphCompiler/lib/MODialect/MOTypes.cpp#L454) obtains this key; the [filter-packing shape function](sources/GraphCompiler/lib/MODialect/PackingShapeFunctions.cpp#L279) uses the layout to choose the F axis. [conv2d](sources/max/python/max/graph/ops/conv.py#L141) attaches the requested filter layout through <code>filter._with_layout(filter_layout)</code>. Merely attaching metadata does not transpose a buffer. RSCF and FCRS examples describe different axis orders; a real reorder requires the appropriate operation.
+
+**Small extension · a symbolic dimension**
+
+For <code>TensorType(DType.float32, ["batch", 10], device=DeviceRef.CPU())</code>, the shape remains rank two. Instead of fixing the first size, [SymbolicDim.to_mlir](sources/max/python/max/graph/dim.py#L286) creates <code>kgen.ParamDeclRefAttr("batch", si64)</code>. The second dimension still follows the static-size conversion above. The graph later declares its named dimension parameters from these types.
+
+### GraphOp · Region, block arguments and signature
+
+**SOURCE · GraphOp creates one region and one body block; each input adds an argument to that same block.** The region is created by the builder, not passed in as existing region information. See [GraphOp::build](sources/GraphCompiler/lib/MODialect/MOOps.cpp#L820).
+
+**Native calls in source order**
+
+```text
+Graph.__init__ → mo.GraphOp(builder, loc, name, input_types, result_types=[]) [LINK:graph_init:860]
+└─ GraphOp::build(builder, state, name, inputTypes, resultTypes, isSubgraph) [LINK:ct_graph_op_build:820]
+   ├─ Set symbol name: "addition" [LINK:ct_graph_op_build:825] [CALLER:ct_graph_op_build|825]
+   ├─ builder.getFunctionType(inputTypes, resultTypes) → ordered input/output types [LINK:ct_graph_op_build:831] [CALLER:ct_graph_op_build|831]
+   ├─ Wrap function type in KGEN::FuncTypeGeneratorType; attach signature and functionType [LINK:ct_graph_op_build:832] [CALLER:ct_graph_op_build|832]
+   ├─ Collect named dimension parameters from input/result shapes [LINK:ct_graph_op_build:839] [CALLER:ct_graph_op_build|839]
+   ├─ state.addRegion() → new empty body region owned by GraphOp [LINK:ct_graph_op_build:846] [CALLER:ct_graph_op_build|846]
+   ├─ bodyRegion->emplaceBlock() → ONE block inside that region [LINK:ct_graph_op_build:847] [CALLER:ct_graph_op_build|847]
+   └─ for each input type: body.addArgument(input, state.location) [LINK:ct_graph_op_build:848]
+      └─ append a typed argument to the SAME block; attach loc [LINK:ct_graph_op_build:849] [CALLER:ct_graph_op_build|849]
+```
+
+**Where does the region come from?** <code>OperationState</code> is the operation being assembled. <code>state.addRegion()</code> creates its nested body container; <code>emplaceBlock()</code> creates the block that will hold the computation. The later forward callback inserts operations into that body. Input types provide the arguments' types; they do not provide a region or a block per input.
+
+~~~text
+Example with TWO user inputs (schematic, not an executed dump):
+inputTypes = [float32[5,10], float32[5,10]]
+                         ↓
+builtin.module
+└─ mo.graph @pair                 ← graph operation
+   └─ body region                ← created ONCE by addRegion()
+      └─ entry block             ← created ONCE by emplaceBlock()
+         ├─ block argument %x : float32[5,10]  ← first addArgument()
+         ├─ block argument %y : float32[5,10]  ← second addArgument()
+         └─ operations inserted later: use %x and %y in this block
+~~~
+
+**Why one argument per input?** Each argument gives the computation a separate symbolic value for an input position. For a two-input addition, the body needs both <code>%x</code> and <code>%y</code>. Arguments are values, not blocks. A block contains an ordered sequence of operations; splitting the inputs into two blocks would not represent the simple two-input computation shown here. In the actual add-one example, there is only one declared tensor input, so the native builder initially adds one tensor argument.
+
+**Why keep a signature?** It is the ordered type contract for entering and leaving the graph. It tells the compiler the number and types of inputs/results, including shapes, dtypes and devices carried by those types. The builder stores a function type and its KGEN generator signature; the signature is metadata about the computation, while the body contains the computation itself.
+
+~~~text
+Add-one lifecycle (T = !mo.tensor<[5, 10], f32>):
+Shell construction:    inputTypes=[T], resultTypes=[] → function type (T) → ()
+Forward recording:     %x : T → mo.custom "add_one" → %result : T
+Graph.output(result):  update output contract        → function type (T) → (T)
+                       attach generator signature + mo.output terminator
+~~~
+
+[Graph.output](sources/max/python/max/graph/graph.py#L1455) constructs the function type from the body-argument types and output-value types, then updates <code>signature</code> and <code>functionType</code> before inserting the output operation. The empty result list is a construction-stage snapshot, not the final add-one output contract.
+
+~~~mlir
+// Schematic two-input computation, after forward/output recording.
+// Block arguments are printed in the graph header; ^entry is implicit here.
+mo.graph @pair(%x: !mo.tensor<[5, 10], f32>,
+               %y: !mo.tensor<[5, 10], f32>) -> !mo.tensor<[5, 10], f32> {
+  // Recorded operations consume %x and %y and produce %sum.
+  // The final mo.output returns %sum using the result type in the signature.
+}
+~~~
+
+These examples illustrate IR structure and contracts, not executed tensor arithmetic. The source-linked tree above shows the exact native construction calls.
+
+### Shape parameters · Declare symbolic dimensions
+
+**SOURCE · Declare named shape parameters, not extra tensor inputs.** The constructor first collects <code>SymbolicDim</code> names from input shapes, then declares those names on GraphOp. See [discovery](sources/max/python/max/graph/graph.py#L840) and [declaration](sources/max/python/max/graph/graph.py#L868).
+
+```text
+Graph.__init__(input_types=...) [LINK:graph_init:840]
+├─ scan TensorType/BufferType shapes; collect only SymbolicDim.name [LINK:graph_init:843] [CALLER:graph_init|840]
+├─ dict.fromkeys(names) → unique names in first-seen order [LINK:graph_init:840] [CALLER:graph_init|840]
+├─ si64 = kgen.SIMDType(1, kgen._KGENDType.get_int(64, True)) [LINK:graph_init:868] [CALLER:graph_init|868]
+└─ op.input_parameters = ParamDeclArrayAttr([ParamDeclAttr(p, si64) for p in self._params]) [LINK:graph_init:870] [CALLER:graph_init|870]
+```
+
+~~~text
+Static add-one input:        TensorType(float32, [5, 10])
+  discovered names          []
+  self._params              {}
+  op.input_parameters       empty ParamDeclArrayAttr
+  tensor block arguments    one: %x : float32[5,10]
+
+Illustrative dynamic input: TensorType(float32, ["batch", 10])
+  discovered names          ["batch"]
+  self._params              {"batch": None}
+  op.input_parameters       [ParamDeclAttr("batch", si64)]
+  tensor block arguments    one: %x : float32[batch,10]
+~~~
+
+**Input → output:** a named shape description becomes a typed parameter declaration; the actual size is not chosen by this constructor. If a later input tensor has shape <code>[8, 10]</code>, 8 is the concrete batch-size example. The declaration itself is not a second tensor or a data allocation. The KGEN <code>si64</code> here is a one-lane signed 64-bit parameter type; it does not change float32 tensor elements.
+
+[SymbolicDim.to_mlir](sources/max/python/max/graph/dim.py#L286) creates the corresponding named parameter reference in the tensor shape. Declaring <code>batch</code> gives that reference a name/type definition. For two tensor types <code>["batch", 10]</code> and <code>["batch", 20]</code>, <code>dict.fromkeys</code> declares <code>batch</code> once while both shapes refer to it. Static sizes 5 and 10 remain dimension constants.
+
+### Graph handles · Retain the operation and body block
+
+**SOURCE · `_CAPICreate(op._CAPIPtr)` bridges two Python binding families around the same native GraphOp.** `op` is MAX's `_core` GraphOp wrapper. `mlir.Operation` is the MLIR Python Operation class [re-exported by MAX](sources/max/python/max/mlir/__init__.py#L19). The bridge creates a Python wrapper, not another graph, region, block, or IR copy.
+
+**CAPI = C Application Programming Interface.** MLIR exposes C-compatible handles and functions around its C++ implementation. `MlirOperation` is a small opaque handle containing `void *ptr`; it is not the serialized graph or its tensor data. A Python capsule carries that pointer with a type-specific name so the receiving binding can extract the correct kind of handle. [Opaque structs](sources/external/llvm-project/mlir/include/mlir-c/IR.h#L45), [capsule contract](sources/external/llvm-project/mlir/include/mlir-c/Bindings/Python/Interop.h#L88).
+
+**Exact constructor line, expanded in evaluation order**
+
+```text
+self._mlir_op = mlir.Operation._CAPICreate(op._CAPIPtr) [LINK:graph_init:874]
+├─ Evaluate op._CAPIPtr first: MAX _core property getter [LINK:ct_capi_export:607]
+│  ├─ self.getOperation() → native mlir::Operation * for the existing mo.graph [LINK:ct_capi_export:609] [CALLER:ct_capi_export|609]
+│  ├─ wrap(native pointer) → MlirOperation{ptr = same pointer} [LINK:capi_wrap:25] [CALLER:ct_capi_export|609]
+│  └─ mlirPythonOperationToCapsule(handle) → PyCapsule_New(handle.ptr, operation capsule name, NULL) [LINK:capi_capsule:330] [CALLER:ct_capi_export|609]
+├─ Call mlir.Operation._CAPICreate(capsule) [LINK:capi_factory_bind:4486]
+│  └─ PyOperation::createFromCapsule(capsule) [LINK:capi_factory:1207]
+│     ├─ mlirPythonCapsuleToOperation → PyCapsule_GetPointer(capsule, expected operation name) [LINK:capi_capsule:338] [CALLER:capi_factory|1208]
+│     ├─ null extracted handle? throw nb::python_error() [LINK:capi_factory:1209] [CALLER:capi_factory|1209]
+│     ├─ mlirOperationGetContext(rawOperation) → wrap(unwrap(op)->getContext()) [LINK:capi_context_get:695] [CALLER:capi_factory|1211]
+│     └─ forOperation(PyMlirContext::forContext(rawCtxt), rawOperation) [LINK:capi_factory:1212]
+│        ├─ createInstance → allocate Python PyOperation wrapper around the same handle [LINK:capi_wrapper_create:948] [CALLER:capi_wrapper_create|964]
+│        └─ releaseObject() → return Python object; not release/destroy native IR [LINK:capi_factory:1213] [CALLER:capi_factory|1212]
+├─ assign returned Python wrapper to self._mlir_op [LINK:graph_init:874] [CALLER:graph_init|874]
+├─ self._current_block = self._mlir_op.regions[0].blocks[0] [LINK:graph_init:875] [CALLER:graph_init|875]
+└─ self._graph_body = self._current_block [LINK:graph_init:876] [CALLER:graph_init|876]
+```
+
+**A small pointer example** — `P` is a symbolic address label, not a measured address:
+
+~~~text
+Native IR already exists:
+MODULE1: builtin.module
+└─ OP1: mo.graph @addition at address P
+   └─ region[0] → block[0] → input %x
+
+MAX _core GraphOp wrapper op ──→ OP1 at P
+           ↓ op._CAPIPtr
+PyCapsule {name=<qualified operation name>, pointer=P, destructor=NULL}
+           ↓ mlir.Operation._CAPICreate(capsule)
+MLIR Python PyOperation wrapper ──→ OP1 at the SAME P
+           ↓ assigned to G1._mlir_op
+G1._current_block and G1._graph_body ──→ the SAME block[0]
+
+Native graph count: 1 throughout. Binding wrappers differ; graph identity does not.
+~~~
+
+The property name `_CAPIPtr` is defined by [MLIR's interop header](sources/external/llvm-project/mlir/include/mlir-c/Bindings/Python/Interop.h#L97). Its value is a capsule, not a Python integer address. `_CAPICreate` is a bound static factory method, [mapped to createFromCapsule](sources/external/llvm-project/mlir/lib/Bindings/Python/IRCore.cpp#L4486). These are Python extension calls in the same process; no subprocess, HTTP request, compiler invocation or machine-code lowering occurs here.
+
+**What the C API looks like internally** — these short structural examples expand the actual macros/helpers:
+
+~~~cpp
+// mlir-c/IR.h exposes an opaque C handle:
+struct MlirOperation { void *ptr; };
+// CAPI/Wrap.h + CAPI/IR.h generate pointer adapters:
+MlirOperation wrap(mlir::Operation *p) { return MlirOperation{p}; }
+mlir::Operation *unwrap(MlirOperation h) {
+  return static_cast<mlir::Operation *>(h.ptr);
+}
+// Python Interop.h carries that same pointer across binding families:
+PyCapsule_New(h.ptr, MLIR_PYTHON_CAPSULE_OPERATION, NULL);
+PyCapsule_GetPointer(capsule, MLIR_PYTHON_CAPSULE_OPERATION);
+~~~
+
+[wrap/unwrap macro](sources/external/llvm-project/mlir/include/mlir/CAPI/Wrap.h#L25), [Operation specialization](sources/external/llvm-project/mlir/include/mlir/CAPI/IR.h#L29), [capsule export/import](sources/external/llvm-project/mlir/include/mlir-c/Bindings/Python/Interop.h#L330). The qualified capsule name includes the binding package prefix; the source defines its suffix as `ir.Operation._CAPIPtr`. The producer and consumer must agree on that name. A wrong-kind capsule fails extraction and raises a Python error; a plain Python integer is not a correctly named capsule. The name check does not prove pointer liveness; the native operation must still be valid.
+
+**Lifetime and identity**
+
+| Item | What it retains or owns here |
+| --- | --- |
+| `MODULE1` / enclosing module | The attached native GraphOp and its region/block |
+| MAX `_core` wrapper `op` | A binding view of the existing native GraphOp |
+| `_CAPIPtr` capsule | Pointer + name; the export supplies no destructor or keep-alive owner |
+| MLIR `PyOperation` wrapper | The C API operation handle plus a Python MLIR-context reference |
+| `G1._mlir_op` | A Python reference to the returned wrapper |
+
+**The capsule itself does not keep the native operation alive.** Keep the enclosing module/graph alive while using the wrappers. This constructor already retains `self._module`. [createFromCapsule](sources/external/llvm-project/mlir/lib/Bindings/Python/IRCore.cpp#L1207) does not clone, erase, detach, or rename the GraphOp. [PyOperation's destructor](sources/external/llvm-project/mlir/lib/Bindings/Python/IRCore.cpp#L921) distinguishes an attached operation from a detached operation owned by Python. Do not generalize the lifetime rules of this attached GraphOp bridge to other factories such as Context/Module: the interop header gives those factories their own ownership contract.
+
+**What the retained body is used for next**
+
+`self._mlir_op.regions[0].blocks[0]` retrieves the existing graph entry block through the new wrapper. Both `_current_block` and `_graph_body` initially reference it. [_add_op_generated](sources/max/python/max/graph/graph.py#L1258) inserts later generated operations at the current block's end; [Graph.inputs](sources/max/python/max/graph/graph.py#L942) wraps the body arguments as symbolic Python values. None of those lookups executes tensor arithmetic.
+
+**Evidence:** MAX export and constructor sources are pinned to the page's MAX revision. The complete upstream MLIR files embedded in Source Explorer are separately pinned to LLVM `6941494e2ae550d753728ba13454311b344d82cf`, the [LLVM_COMMIT selected by that MAX revision](sources/bazel/public-patches/llvm_source.bzl#L5). Source Explorer labels LLVM spans with their dependency revision. These are source-derived implementation examples, not proof that a particular installed wheel was rebuilt or executed.
+
+### Device metadata · Attach the module mapping
+
+**SOURCE · Add target-description metadata to the enclosing MLIR module.** This is separate from the device label on each tensor type and from the session's runtime devices. See [_populate_device_info_mapping](sources/max/python/max/graph/graph.py#L1366).
+
+```text
+Graph.__init__ → self._populate_device_info_mapping() [LINK:graph_init:877]
+└─ Graph._populate_device_info_mapping() [LINK:ct_graph_device:1366]
+   ├─ module = self._mlir_op.block.owner → enclosing builtin.module [LINK:ct_graph_device:1368] [CALLER:ct_graph_device|1368]
+   ├─ existing mo.device_info_mapping? return immediately [LINK:ct_graph_device:1369] [CALLER:ct_graph_device|1369]
+   ├─ devices = [CPU()]; if accelerator_count() > 0, append Accelerator() [LINK:ct_graph_device:1371] [CALLER:ct_graph_device|1371]
+   ├─ read architecture_name and model_name; each falls back to "unknown" on error [LINK:ct_graph_device:1377] [CALLER:ct_graph_device|1375]
+   ├─ _DeviceInfoAttr(label, api, arch, model, tile_based_fusion=False) [LINK:ct_graph_device:1385] [CALLER:ct_graph_device|1385]
+   └─ entries keyed by dev.label → module attribute mo.device_info_mapping = mlir.DictAttr.get(entries) [LINK:ct_graph_device:1393] [CALLER:ct_graph_device|1393]
+```
+
+~~~text
+Illustrative mapping, with placeholder values rather than measured hardware:
+builtin.module attributes
+└─ mo.device_info_mapping
+   ├─ "cpu:0" → {label, api, arch="<host architecture>", model="<host model>",
+   │             tile_based_fusion=false}
+   └─ "gpu:0" → {label, api, arch="<detected architecture>", model="<GPU model>",
+                 tile_based_fusion=false}   ← only if an accelerator is detected
+~~~
+
+| Item | What it describes |
+| --- | --- |
+| Tensor <code>DeviceRefAttr("gpu", 0)</code> | This tensor's symbolic device reference |
+| Module <code>mo.device_info_mapping</code> | Device labels mapped to target-description attributes |
+| <code>InferenceSession(devices=[device])</code> | Runtime devices selected for that session |
+
+**Important source limit:** this helper starts with CPU and adds one default <code>Accelerator()</code> when any accelerator is available; it does not enumerate every GPU in a multi-GPU machine. A supplied shared module with an existing mapping takes the early return. This method records metadata; it does not compile a kernel or submit graph execution.
+
+### Weights and chains · Initialize graph bookkeeping
+
+**SOURCE · Initialize two separate kinds of graph bookkeeping: symbolic weights and dependency chains.** See [constructor initialization](sources/max/python/max/graph/graph.py#L879).
+
+```text
+Graph.__init__ [LINK:graph_init:879]
+├─ self._weights = {} → initially no named weight declarations [LINK:graph_init:879] [CALLER:graph_init|879]
+├─ self._has_chain_input = False → no adopted incoming chain yet [LINK:graph_init:880] [CALLER:graph_init|880]
+└─ self.device_chains = _DeviceChainMap(self) [LINK:graph_init:881]
+   ├─ OrderedDict.__init__() → initially empty mapping [LINK:ct_device_chain_map:127] [CALLER:ct_device_chain_map|127]
+   └─ retain self._graph = graph for later lazy insertion [LINK:ct_device_chain_map:129] [CALLER:ct_device_chain_map|129]
+```
+
+~~~text
+Immediately after these lines:
+_weights          = {}
+_has_chain_input  = False
+device_chains     = {}        ← next constructor step seeds the host chain
+~~~
+
+**Weights example:** add-one needs no model weights, so its registry stays empty. A different graph could register a symbolic weight named <code>projection.weight</code>. [Graph.add_weight](sources/max/python/max/graph/graph.py#L1619) checks the name, records a <code>mo.constant_external</code> declaration, and stores <code>_GraphWeight(weight, weight_tensor)</code> under that name. Reusing the same weight object returns an existing declaration; a different object with the same name raises an error. This Python map describes graph weights; it is not the runtime <code>WeightsRegistry</code> populated during model initialization.
+
+**Lazy chains example (after the next step has seeded CPU):**
+
+~~~text
+Stored map:                  {cpu:0 → CH0}
+Read device_chains[gpu:0]:    missing key → _DeviceChainMap.__getitem__()
+Normal add-one graph:        _has_chain_input=False
+                             → reuse current CPU chain as the seed
+Stored map becomes:          {cpu:0 → CH0, gpu:0 → CH0}
+~~~
+
+[The lazy lookup](sources/max/python/max/graph/graph.py#L135) registers a missing device on access. In a graph with incoming chains at its top-level body, it can instead add a chain block argument. Merely constructing the map creates no GPU chain, thread, queue, lock or GPU allocation. The map holds symbolic ordering values for later graph operations.
+
+### Ordering chain · Create the always-ready seed
+
+**SOURCE · Create an initially ready IR chain with no input dependencies.** A chain is an internal value used to express ordering of side effects. It is not tensor data, a mutex or a semaphore.
+
+```text
+Graph.__init__: create always-ready chain [LINK:graph_init:886]
+├─ _add_op_generated(ChainCreateOp, result=ChainType(), inputs=[], attach_profile_scopes=False) [LINK:graph_init:887]
+│  ├─ builder at self._current_block.end → insert and verify the op [LINK:ct_generated_op:1258] [CALLER:ct_generated_op|1258]
+│  └─ return wrappers for op.results; constructor selects result [0] [LINK:ct_generated_op:1277] [CALLER:graph_init|886]
+├─ _ChainValue(result[0]) → self._always_ready_chain = CH0 [LINK:graph_init:886] [CALLER:graph_init|886]
+└─ _update_chain(CH0) → device_chains[DeviceRef.CPU()] = CH0 [LINK:ct_update_chain:1064] [CALLER:graph_init|894]
+```
+
+~~~text
+IR dependencies (schematic):
+[] ──→ mo.chain.create ──→ CH0 : !mo.chain
+                          ├─ _always_ready_chain retains CH0
+                          └─ device_chains[cpu:0] initially points to CH0
+
+Later side-effect ordering example:
+CH0 → side effect A → CH1 → side effect B → CH2
+      device_chains[cpu:0] can advance to the latest chain
+      _always_ready_chain remains CH0
+~~~
+
+**Why ready?** [ChainCreateOp's definition](sources/GraphCompiler/include/GraphCompiler/MODialect/MOOps.td#L4804) says its result depends on all input values. Here <code>inputs=[]</code>, so this initial chain has no producer dependencies to wait for. Graph construction records that property; it does not perform the side effects now.
+
+**Why keep CH0 separately?** The [constructor comment](sources/max/python/max/graph/graph.py#L883) says it is never advanced by the graph and is used for operations safe to schedule without per-device ordering constraints, such as host-to-device staging transfers. The mutable host-chain map can advance independently. An always-ready dependency does not make a transfer itself complete or guarantee hardware timing.
+
+**General ChainCreate example:** with <code>inputs=[CH1, tensor_result]</code>, the produced chain depends on both producers. This expresses a join of IR dependencies. The constructor's empty-input version is the initial seed. <code>attach_profile_scopes=False</code> avoids attaching an active profiling scope to this bookkeeping operation.
+
+### Chain input · Recognize and adopt an incoming dependency
+
+**SOURCE · If the final declared input is a chain, adopt it as the host ordering input.** The constructor checks the last block argument's type; it does not add a trailing chain to add-one.
+
+```text
+Graph.__init__: examine graph-body arguments [LINK:graph_init:896]
+├─ no arguments? skip the check [LINK:graph_init:896] [CALLER:graph_init|896]
+├─ wrap self._graph_body.arguments[-1] as a native Value [LINK:graph_init:897] [CALLER:graph_init|897]
+├─ _is_chain_value(value) → isinstance(value.type, mo.ChainType) [LINK:ct_is_chain:119] [CALLER:graph_init|900]
+└─ if True: _has_chain_input=True; convert with _ChainValue.from_mlir and _update_chain [LINK:graph_init:901] [CALLER:graph_init|901]
+```
+
+~~~text
+Actual add-one:
+body arguments = [%x : float32[5,10]]
+last argument  = %x → tensor type → not a chain
+_has_chain_input stays False
+device_chains[cpu:0] stays CH0 (the new empty-input chain)
+
+Subgraph-style example:
+body arguments = [%x : float32[5,10], %incoming : !mo.chain]
+last argument  = %incoming → chain type → adopt it
+_has_chain_input becomes True
+device_chains[cpu:0] = %incoming
+_always_ready_chain still holds CH0
+~~~
+
+**Where can an incoming chain come from?** [Graph.add_subgraph](sources/max/python/max/graph/graph.py#L1027) constructs the child with <code>input_types=[*input_types, _ChainType()]</code>. The extra block argument lets the child carry an ordering dependency from its caller. The child graph's construction recognizes that chain; construction does not execute the caller or child.
+
+**Why separate it from tensor inputs?** [Graph.inputs](sources/max/python/max/graph/graph.py#L943) excludes internal trailing chain values before exposing user inputs to the forward callback. In the simple child example, the lambda gets symbolic <code>x</code>, not the extra chain. Per-device chain bookkeeping can extend this pattern; the host chain is seeded from the explicit trailing chain instead of adding a duplicate host-chain argument.
+
+### with self · Activate graph construction
+
+**SOURCE · `with self` enters Python's context-manager protocol and makes G1 the active graph.** It does not execute a compiled model. [Constructor call](sources/max/python/max/graph/graph.py#L921).
+
+```text
+with self [LINK:graph_init:921]
+├─ Graph.__enter__ → push self._enter() context manager and enter it [LINK:ct_graph_context_manager:1135] [CALLER:graph_init|921]
+└─ Graph._enter() [LINK:ct_graph_enter:1142]
+   ├─ ensure_default_mlir_context() → make MLIR construction context available on this thread [LINK:ct_graph_enter:1144] [CALLER:ct_graph_enter|1144]
+   ├─ token = CURRENT_GRAPH.set(self) → active graph is G1 [LINK:ct_graph_enter:1145] [CALLER:ct_graph_enter|1145]
+   ├─ yield self → constructor runs its forward-building body [LINK:ct_graph_enter:1147] [CALLER:ct_graph_enter|1147]
+   └─ finally CURRENT_GRAPH.reset(token) → restore earlier graph context [LINK:ct_graph_enter:1149] [CALLER:ct_graph_enter|1149]
+```
+
+~~~text
+Before with G1:   CURRENT_GRAPH = previous graph or unset
+Inside with G1:   CURRENT_GRAPH = G1 → ops.custom finds G1
+After with G1:    previous graph or unset is restored
+~~~
+
+`Graph.current` is a Python class property backed by a ContextVar, not a newly constructed graph. [Its getter](sources/max/python/max/graph/graph.py#L1215) reads `CURRENT_GRAPH`; an unset value raises `LookupError("No graph found")`. The active graph selects the destination for operations. The MLIR Context instead owns/types IR objects. Nested graph contexts restore the previous graph when they exit, including exceptional exits.
+
+### self.inputs · Block argument → symbolic TensorValue
+
+**SOURCE · Wrap the graph's declared block arguments as Python symbolic values.** No matrix data is supplied at this step.
+
+```text
+forward(*self.inputs, *args, **kwargs) [LINK:graph_init:922]
+└─ cached Graph.inputs property [LINK:ct_graph_inputs:935]
+   ├─ body_args = self._graph_body.arguments [LINK:ct_graph_inputs:942] [CALLER:ct_graph_inputs|942]
+   ├─ omit internal trailing chain values when the graph has chain inputs [LINK:ct_graph_inputs:943] [CALLER:ct_graph_inputs|943]
+   └─ Value.from_mlir(_Value._from_cmlir(arg)) for each argument → tuple of symbolic values [LINK:ct_graph_inputs:949] [CALLER:ct_graph_inputs|949]
+```
+
+~~~text
+G1 body:  %arg0 : !mo.tensor<[5,10], f32>
+                         ↓ native value wrapped by Python Value.from_mlir
+self.inputs = (TensorValue referring to %arg0,)
+                         ↓ tuple expanded as forward(*self.inputs)
+lambda parameter x refers to that same symbolic input
+~~~
+
+**Example:** `x.dtype` is float32 and `x.tensor.shape` describes `[5,10]`. There are still no 50 matrix values in `x`. The tuple has one element because add-one declares one user input; two declared tensor inputs would give two symbolic arguments to a two-parameter callback. The `cached_property` retains the result of this input-wrapper lookup.
+
+### forward(x) · Execute Python to record IR
+
+**SOURCE · The constructor calls the Python lambda immediately with symbolic x.** This executes graph-building Python, not the add-one Mojo kernel. [Lambda](sources/max/examples/custom_ops/addition.py#L37), [call](sources/max/python/max/graph/graph.py#L922).
+
+```text
+Graph.__init__ → result = forward(*self.inputs, *args, **kwargs) [LINK:graph_init:922]
+└─ addition.py forward=lambda x: (...) [LINK:entry:37]
+   ├─ prepare ops.custom arguments: name, device, values=[x] [LINK:entry:39] [CALLER:entry|38]
+   ├─ TensorType(dtype=x.dtype, shape=x.tensor.shape, device=DeviceRef.from_device(device)) [LINK:entry:43] [CALLER:entry|43]
+   └─ call ops.custom(...)[0].tensor → one symbolic result returned to constructor [LINK:entry:49] [CALLER:entry|38]
+```
+
+~~~text
+INPUT x: symbolic float32[5,10], selected device
+  → output Python TensorType: float32[5,10], same selected device
+  → out_types=[that type] passed to ops.custom
+  → type.to_mlir(): native MO result type
+  → future result %r : float32[5,10]
+~~~
+
+The output TensorType is a declaration of the result contract. Copying x's shape/dtype does not allocate an output tensor or add 1 to its elements. `ops.custom` uses the declared types to construct a symbolic call. The registered Mojo implementation becomes executable through later compilation and initialization; real data enters through model execution.
+
+
+**Concrete CPU example · values available while Python records G1**
+
+| Expression | Concrete description | Comes from |
+| --- | --- | --- |
+| `device` | `CPU()`; symbolic reference `cpu:0` | Example device selection |
+| `x` | Python TensorValue X1 referring to native block argument `%arg0` | `self.inputs[0]` |
+| `x.dtype` | `DType.float32` | Input type supplied to Graph |
+| `x.tensor.shape` | Shape containing static dimensions 5 and 10 | Input shape `[rows, columns]` |
+| `DeviceRef.from_device(device)` | CPU reference, id 0 | Same selected device |
+| `T_out` | `TensorType(DType.float32, [5,10], device=cpu_ref)` | Output declaration in the lambda |
+| `out_types` | `[T_out]` | One expected output |
+
+```python
+# Expanded form of the original lambda, for explanation.
+# x is a symbolic TensorValue supplied by Graph.__init__.
+cpu_ref = DeviceRef.from_device(device)
+T_out = TensorType(dtype=x.dtype, shape=x.tensor.shape, device=cpu_ref)
+outputs = ops.custom(name="add_one", device=cpu_ref,
+                     values=[x], out_types=[T_out])
+y = outputs[0].tensor
+```
+
+```text
+forward(X1) [LINK:graph_init:922]
+├─ x.dtype → float32; x.tensor.shape → static [5,10] [LINK:entry:44] [CALLER:entry|43]
+├─ DeviceRef.from_device(CPU()) → cpu reference 0 [LINK:entry:46] [CALLER:entry|46]
+├─ TensorType(...) → T_out; declares type, allocates no output buffer [LINK:entry:43] [CALLER:entry|43]
+├─ ops.custom(..., out_types=[T_out]) → [Y1 referring to %r] [LINK:entry:38] [CALLER:entry|38]
+└─ outputs[0].tensor → Y1 → constructor's result [LINK:entry:49] [CALLER:graph_init|922]
+```
+
+For a selected accelerator, the same shape/dtype is declared with a GPU device reference (for example `gpu:0`). Neither case puts actual matrix elements in X1 or Y1. Later `model.execute` can receive, for example, a matrix whose first row starts `[0.0, 1.0, 2.0, ...]`; its output then starts `[1.0, 2.0, 3.0, ...]`. Those numbers belong to execution, not this forward callback.
+
+### ops.custom · Name, device and output attributes
+
+**SOURCE · Convert the Python call's name and device into attributes, and its output descriptions into native types.** [ops.custom](sources/max/python/max/graph/ops/custom.py#L69).
+
+```text
+ops.custom("add_one", device, values=[x], out_types=[T]) [LINK:custom_api:69]
+├─ graph = Graph.current; context = default_mlir_context() [LINK:custom_api:94] [CALLER:custom_api|94]
+├─ symbol_attr = StringAttr.get(name, context) → "add_one" [LINK:custom_api:96] [CALLER:custom_api|96]
+├─ device = DeviceRef.from_device(device) [LINK:custom_api:97] [CALLER:custom_api|97]
+├─ reject buffers/opaque values for this functional custom-op path; normalize inputs [LINK:custom_api:99] [CALLER:custom_api|99]
+├─ [t.to_mlir() for t in out_types] → declared native result types [LINK:custom_api:110] [CALLER:custom_api|109]
+└─ after insertion: custom_op.device = bridge(device.to_mlir()) [LINK:custom_api:122] [CALLER:custom_api|122]
+```
+
+~~~text
+Python name "add_one"      → MLIR StringAttr → custom op symbol
+Python selected device    → DeviceRef      → DeviceRefAttr → custom op device
+Python out_types=[T]      → [T.to_mlir()]   → one native MO result type
+Python parameters=None   → no extra kernel-parameter dictionary in add-one
+~~~
+
+The string names the kernel registered by the Mojo decorator; it does not embed the Python lambda or Mojo function body in the MO call. The device attribute is assigned after operation insertion and before kernel verification. Optional `parameters` are attached only when supplied; this example supplies none.
+
+
+**Concrete attributes · CPU and GPU examples**
+
+```text
+name = "add_one" [LINK:entry:39]
+└─ StringAttr.get("add_one", context) [LINK:custom_api:96]
+   └─ MLIR string attribute whose value is add_one → symbol field of CUST1 [LINK:custom_api:110] [CALLER:custom_api|96]
+
+device = DeviceRef.from_device(CPU()) [LINK:entry:40]
+└─ DeviceRef.from_device(...) → DeviceRef(kind=cpu, id=0) [LINK:custom_api:97]
+   └─ DeviceRef.to_mlir() → m.DeviceRefAttr("cpu", 0) [LINK:ct_device_ref_to_mlir:183]
+      └─ attribute C API bridge → custom_op.device [LINK:custom_api:122] [CALLER:custom_api|122]
+
+GPU illustration: DeviceRef(kind=gpu, id=0) [LINK:ct_device_ref_to_mlir:183]
+└─ m.DeviceRefAttr("gpu", 0) → GPU-labelled call [LINK:ct_device_ref_to_mlir:183] [CALLER:custom_api|122]
+
+out_types = [T_out: float32[5,10] on cpu:0] [LINK:entry:42]
+└─ T_out.to_mlir() → native MO tensor type with shape/dtype/device [LINK:ct_tensor_to_mlir:430]
+   └─ result_types=[that native type] → one native SSA result %r [LINK:custom_api:110] [CALLER:custom_api|109]
+```
+
+The device examples above show constructor arguments and attribute contents, not an asserted textual MLIR printer syntax. A DeviceRefAttr identifies a device kind and index; it does not contain the driver, stream, GPU memory, or compiled kernel. The registration string selects P1's kernel declaration; device metadata guides subsequent compatibility checks.
+
+### mo.custom · Insert the call into G1
+
+**SOURCE · Insert a new MO call operation into the active graph body, preserving the input value reference.** Python x remains a wrapper for the existing block argument.
+
+```text
+ops.custom → graph._add_op_get_op_with_results(mo.custom, result_types, values, symbol=...) [LINK:custom_api:109]
+└─ Graph._add_op_get_op_with_results [LINK:ct_insert_result:1286]
+   ├─ unwrap Python Value/Type/Attribute handles to MLIR binding handles [LINK:ct_insert_result:1297] [CALLER:ct_insert_result|1297]
+   ├─ choose insertion point _ip or mlir.InsertionPoint(self._body) [LINK:ct_insert_result:1312] [CALLER:ct_insert_result|1312]
+   ├─ enter insertion point + _location(); call mo.custom with converted arguments [LINK:ct_insert_result:1320] [CALLER:ct_insert_result|1320]
+   ├─ find newly inserted operation and verify its IR structure [LINK:ct_insert_result:1328] [CALLER:ct_insert_result|1328]
+   └─ return symbolic result wrappers and staged_op [LINK:ct_insert_result:1364] [CALLER:ct_insert_result|1364]
+```
+
+~~~text
+Before: G1 body has %arg0 : float32[5,10] and chain seed CH0
+             ↓ insert mo.custom using %arg0 as its operand
+After:  G1 body retains %arg0 and CH0
+        + custom call CUST1:
+            symbol = "add_one"
+            operand = %arg0
+            result = %r : float32[5,10]
+~~~
+
+This is an operation-structure illustration, not an exact assembly dump. The input reference is connected to a new result-producing operation; the input data is not copied or computed. The generic builder verifies the inserted operation's IR structure before `ops.custom` finishes device/parameter attachment and explicitly verifies it against the loaded kernel library.
+
+
+**Complete add-one call · source order and concrete arguments**
+
+```text
+ops.custom(name="add_one", device=cpu_ref, values=[X1], out_types=[T_out]) [LINK:entry:38]
+├─ Graph.current → active G1; default_mlir_context() → IR context [LINK:custom_api:94] [CALLER:custom_api|94]
+├─ symbol_attr = StringAttr.get("add_one", context) [LINK:custom_api:96] [CALLER:custom_api|96]
+├─ normalize selected device → CPU DeviceRef, id=0 [LINK:custom_api:97] [CALLER:custom_api|97]
+├─ reject Buffer/opaque arguments; normalize tensor-like inputs [LINK:custom_api:99] [CALLER:custom_api|99]
+├─ convert T_out → native tensor type float32[5,10] on cpu:0 [LINK:custom_api:110] [CALLER:custom_api|109]
+├─ G1._add_op_get_op_with_results(mo.custom, [T_native], [X1], symbol=symbol_attr) [LINK:custom_api:109]
+│  ├─ recursively unwrap [X1] → [mlir.Value referring to %arg0] [LINK:ct_insert_result:1299] [CALLER:ct_insert_result|1309]
+│  ├─ bridge native type/attribute handles; retain symbol="add_one" [LINK:ct_insert_result:1303] [CALLER:ct_insert_result|1310]
+│  ├─ ip = mlir.InsertionPoint(G1._body) [LINK:ct_insert_result:1312] [CALLER:ct_insert_result|1312]
+│  ├─ with ip, _location(...): call mo.custom([T_native], [%arg0], symbol=...) [LINK:ct_insert_result:1317] [CALLER:ct_insert_result|1320]
+│  ├─ find inserted CUST1; staged_op = staged_op.opview [LINK:ct_insert_result:1323] [CALLER:ct_insert_result|1328]
+│  ├─ G1._verify_op(staged_op) → structural IR verification [LINK:ct_insert_result:1329] [CALLER:ct_insert_result|1329]
+│  ├─ attach output parameter declarations; wrap native %r as Y1 [LINK:ct_insert_result:1351] [CALLER:ct_insert_result|1360]
+│  └─ return ([Y1], CUST1) to ops.custom [LINK:ct_insert_result:1364] [CALLER:custom_api|109]
+├─ parameters=None → skip optional parameter dictionary assignment [LINK:custom_api:113] [CALLER:custom_api|113]
+├─ attach device attribute m.DeviceRefAttr("cpu",0) to CUST1 [LINK:custom_api:122] [CALLER:custom_api|122]
+├─ verify CUST1 against the loaded P1 kernel library [LINK:custom_api:127] [CARD:toolchain-call-graph-custom-verify|Kernel validation · P1 and MO] [CALLER:custom_api|127]
+└─ return [Y1] → caller selects [0].tensor [LINK:custom_api:129] [CALLER:entry|49]
+```
+
+**Graph body before / after · schematic IR structure, not an exact compiler dump**
+
+~~~text
+T_cpu = native MO tensor type: float32, shape=[5,10], device=cpu:0
+
+BEFORE custom call
+builtin.module MODULE1
+└─ mo.graph @addition : (T_cpu) → ()       output not finished yet
+   └─ region R0 / block B0
+      ├─ block argument %arg0 : T_cpu      X1 refers here
+      └─ CH0: initial ordering-chain operation
+
+AFTER insertion + device attachment + validation
+builtin.module MODULE1
+└─ mo.graph @addition : (T_cpu) → ()       output still not finished
+   └─ region R0 / block B0
+      ├─ block argument %arg0 : T_cpu
+      ├─ CH0: initial ordering-chain operation
+      └─ CUST1: mo.custom
+         ├─ symbol attribute: "add_one"
+         ├─ device attribute: kind=cpu, id=0
+         ├─ operand 0: %arg0 : T_cpu
+         └─ result 0: %r : T_cpu           Y1 refers here
+
+AFTER Graph.output(Y1)                    later constructor continuation
+mo.graph @addition : (T_cpu) → (T_cpu)
+└─ same B0: CH0, CUST1, then mo.output(%r)
+~~~
+
+At insertion, the generic helper verifies the operation's IR structure. The call's device attachment and P1 kernel-contract verification follow in `ops.custom`. P1 remains a separate implementation package throughout; the body here contains a symbolic call, not `x.load + 1` or the Mojo source.
+
+
+**Concrete attributes · CPU and GPU examples**
+
+```text
+name = "add_one" [LINK:entry:39]
+└─ StringAttr.get("add_one", context) [LINK:custom_api:96]
+   └─ MLIR string attribute whose value is add_one → symbol field of CUST1 [LINK:custom_api:110] [CALLER:custom_api|96]
+
+device = DeviceRef.from_device(CPU()) [LINK:entry:40]
+└─ DeviceRef.from_device(...) → DeviceRef(kind=cpu, id=0) [LINK:custom_api:97]
+   └─ DeviceRef.to_mlir() → m.DeviceRefAttr("cpu", 0) [LINK:ct_device_ref_to_mlir:183]
+      └─ attribute C API bridge → custom_op.device [LINK:custom_api:122] [CALLER:custom_api|122]
+
+GPU illustration: DeviceRef(kind=gpu, id=0) [LINK:ct_device_ref_to_mlir:183]
+└─ m.DeviceRefAttr("gpu", 0) → GPU-labelled call [LINK:ct_device_ref_to_mlir:183] [CALLER:custom_api|122]
+
+out_types = [T_out: float32[5,10] on cpu:0] [LINK:entry:42]
+└─ T_out.to_mlir() → native MO tensor type with shape/dtype/device [LINK:ct_tensor_to_mlir:430]
+   └─ result_types=[that native type] → one native SSA result %r [LINK:custom_api:110] [CALLER:custom_api|109]
+```
+
+The device examples above show constructor arguments and attribute contents, not an asserted textual MLIR printer syntax. A DeviceRefAttr identifies a device kind and index; it does not contain the driver, stream, GPU memory, or compiled kernel. The registration string selects P1's kernel declaration; device metadata guides subsequent compatibility checks.
+
+### Kernel validation · MO call ↔ Mojo package P1
+
+**SOURCE · Check the symbolic MO call against the kernel definitions loaded from P1.** The existing Mojo package supplies the registered implementation contract.
+
+```text
+ops.custom → graph._kernel_library.verify_custom_op(custom_op) [LINK:custom_api:127]
+└─ KernelLibrary.verify_custom_op [LINK:ct_graph_verify:307]
+   ├─ library paths → frozenset cache key [LINK:ct_graph_verify:315] [CALLER:ct_graph_verify|315]
+   ├─ cached Analysis exists? reuse it and verify this operation [LINK:ct_graph_verify:319] [CALLER:ct_graph_verify|319]
+   └─ otherwise verify with current Analysis; cache it when paths exist [LINK:ct_graph_verify:322] [CALLER:ct_graph_verify|322]
+```
+
+~~~text
+P1 (.mojoc): @extensibility.register("add_one") → AddOne.execute
+                                           ↘ registered contract
+MO call CUST1: "add_one", operand %x, result type T, device
+                                           ↗ validation
+valid symbolic call → Python result wrappers may be returned
+invalid contract    → exception; caller does not receive a successful result
+~~~
+
+[Native Analysis::verifyCustomOp](sources/max/python/max/_core/max_license/lib/Graph/Bindings.cpp#L69) bridges the operation to compiler analysis. P1 remains an implementation package; validation does not inline its Mojo body as MO arithmetic or run the kernel. Add-one supplies output types explicitly; its optional unimplemented shape function is not needed to infer these declared outputs.
+
+### Result wrappers · %r → [TensorValue] → lambda result
+
+**SOURCE · Return a Python list of wrappers for the custom operation's symbolic results.** Add-one has one declared result type, so the list contains one result.
+
+```text
+Graph._add_op_get_op_with_results [LINK:ct_insert_result:1356]
+├─ native result Value → Value.from_mlir(_Value._from_cmlir(result)) [LINK:ct_insert_result:1358] [CALLER:ct_insert_result|1358]
+└─ return results, staged_op → ops.custom returns results [LINK:custom_api:129] [CALLER:ct_insert_result|1364]
+   └─ addition lambda selects results[0].tensor [LINK:entry:49] [CALLER:entry|38]
+```
+
+~~~text
+MO result %r : float32[5,10]
+    ↑ referenced by Python TensorValue wrapper
+results = [wrapper(%r)]
+    → results[0]          selects that wrapper
+    → results[0].tensor   exposes the TensorValue interface
+    → constructor receives symbolic result, not 50 computed numbers
+~~~
+
+The return is a list because `out_types` can declare several results; each result has its own native value and Python wrapper. `.tensor` does not execute or transfer data. `Graph.output(result)` records which symbolic result will be returned when the compiled model is eventually run.
+
+
+**Complete returned values · named wrappers and native referents**
+
+~~~text
+X1 = Python TensorValue wrapper
+     native referent = block argument %arg0
+     dtype = DType.float32
+     shape = static [5,10]
+     device = cpu:0
+
+CUST1 = native mo.custom operation owned by G1 body B0
+        symbol="add_one", operands=[%arg0], results=[%r]
+
+Y1 = Python TensorValue wrapper
+     native referent = CUST1 result %r
+     dtype = DType.float32
+     shape = static [5,10]
+     device = cpu:0
+
+helper return:      ([Y1], staged_op=CUST1)
+ops.custom return:  [Y1]                 one-element Python list
+...[0]:            Y1                   selects the first wrapper
+...[0].tensor:     Y1 tensor interface   refers to the same %r
+forward return:    Y1
+Graph.output(Y1):  record mo.output(%r), finish output signature
+~~~
+
+The X1/Y1 labels are teaching names, not actual Python `repr` output or pointer addresses. The list contains a symbolic TensorValue, not a Buffer, NumPy array, or 50 calculated numbers. Its declared shape has 50 elements, but their values become available only through later execution. A native result is identified by its producing operation and result index; the wrapper preserves that identity.
+
+```text
+native result %r → _Value._from_cmlir(result) [LINK:ct_insert_result:1360]
+└─ Value.from_mlir(...) → tensor-valued wrapper Y1 [LINK:ct_insert_result:1360] [CALLER:ct_insert_result|1360]
+   ├─ helper returns results=[Y1] and staged_op=CUST1 [LINK:ct_insert_result:1364] [CALLER:ct_insert_result|1364]
+   ├─ ops.custom verifies CUST1, then returns only results=[Y1] [LINK:custom_api:127] [CALLER:custom_api|129]
+   └─ original lambda selects [0].tensor → constructor receives Y1 [LINK:entry:49] [CALLER:graph_init|922]
+```
+
+### Finish forward · Output contract and context exit
+
+**SOURCE · Finish the symbolic graph and restore the previous active graph.** [Constructor continuation](sources/max/python/max/graph/graph.py#L932).
+
+```text
+Graph.__init__ → Graph.output(result) [LINK:graph_init:932]
+├─ flatten result structure and collect native output values/types [LINK:graph_output:1433] [CALLER:graph_output|1433]
+├─ construct function type (body input types) → (output types) and generator signature [LINK:graph_output:1458] [CALLER:graph_output|1458]
+├─ insert mo.OutputOp, record argument/result names and verify completed G1 [LINK:graph_output:1467] [CALLER:graph_output|1467]
+└─ leave with self → __exit__ → CURRENT_GRAPH.reset(token) [LINK:ct_graph_enter:1149] [CALLER:ct_graph_context_manager|1138]
+```
+
+~~~text
+Shell:     (%x : T) → ()
+Forward:   %x → CUST1("add_one") → %r : T
+Output:    signature becomes (T) → (T); mo.output returns %r
+Exit:      previous Graph.current restored; populated G1 retained
+Next:      session.compile(G1), then init, then execute with actual data
+~~~
+
+The output operation terminates the graph body and establishes its result contract. Verification checks the completed symbolic IR; no matrix arithmetic has happened during this recording sequence.
+
+### A.2 · ModuleOp + GraphOp → record graph G1
 
 **`builtin.ModuleOp` is the outer MLIR container; `mo.GraphOp("addition")` is the named computation inside it.** Python’s `Graph(...)` constructor creates and retains both. See the [construction code](sources/max/python/max/graph/graph.py#L851).
+
+**Source order inside this constructor:**
+
+```text
+@in_default_mlir_context
+→ create empty builtin.ModuleOp + mo.GraphOp scaffold
+→ import kernels/; prepare P1 (.mojoc)
+→ forward(symbolic X); record mo.custom("add_one")
+→ Graph.output(Y); return completed graph G1
+```
+
+The reader opens with the **package-preparation phase A.1**, then follows the completed **MO graph G1 in A.2/A.3**. The empty scaffold precedes package loading in the source; the custom operation is recorded after loading. See [kernel import](sources/max/python/max/graph/graph.py#L909) and [forward recording](sources/max/python/max/graph/graph.py#L918).
 
 `Op` means **operation**. `builtin` is MLIR’s builtin dialect; `mo` is MAX’s graph dialect, defined in [MODialect.td](sources/GraphCompiler/include/GraphCompiler/MODialect/MODialect.td#L25). ([MLIR builtin dialect](https://mlir.llvm.org/docs/Dialects/Builtin/))
 
@@ -92,18 +1183,35 @@ It represents an MLIR operation normally printed as `module { ... }`. Its body c
 A **module is a compilation unit that groups definitions**. MAX’s Python `Module` wrapper owns the enclosing `builtin.module`; each `Graph` contributes a named computation inside it. The module’s body gives the compiler one place to find and process those definitions. See [Module’s documented role](sources/max/python/max/graph/graph.py#L562).
 
 ```text
-builtin.ModuleOp(location=loc)
-└─ Python-to-C++ binding
-   └─ mlir::ModuleOp::create(loc, name=None)
-      └─ builtin.module
-         └─ body region
-            └─ body block
+Graph.__init__(..., module=maybe_module) [LINK:graph_init:851]
+├─ caller supplied a Module wrapper
+│  └─ reuse module.mlir_module → self._module [LINK:graph_init:855]
+│     └─ Module exposes/stores the typed builtin.ModuleOp [LINK:ct_graph_module:637]
+└─ no module supplied
+   └─ builtin.ModuleOp(location=loc) [LINK:graph_init:856]
+      └─ nanobind ModuleOp constructor [LINK:ct_builtin_module:62]
+         └─ mlir::ModuleOp::create(loc, name=None) [LINK:ct_builtin_module:65]
+            └─ builtin.module → body region → body block
                └─ initially empty; GraphOp will be inserted here
 ```
 
 The native constructor and `.body` binding are in [builtin.cpp](sources/max/python/max/_core/max_license/modules/dialects/builtin.cpp#L62).
 
 When you supply `Graph(..., module=existing_module)`, MAX reuses that module. This allows several named graphs to share one module—for example, encoder and decoder graphs. See [the Python `Module` wrapper](sources/max/python/max/graph/graph.py#L562).
+
+**For the addition example · immediately after GraphOp insertion**
+
+At this instant, GraphOp has one typed input and no result types yet (<code>result_types=[]</code>). It has created the graph region and its entry block; <code>%arg0</code> is the symbolic input X, not a tensor buffer containing numbers. This is a temporary construction snapshot before the chain, custom operation, and <code>mo.output</code> are added. Location annotations are omitted from this schematic:
+
+~~~mlir
+module {
+  mo.graph @addition(%arg0: !mo.tensor<[5, 10], f32>) -> () {
+    // Entry block contains %arg0; no computation or mo.output yet.
+  }
+}
+~~~
+
+**Structure:** the outer module body contains the <code>mo.graph @addition</code> operation; that graph owns one region and one block, whose argument list contains <code>%arg0</code>. The selected-device mapping is attached separately immediately afterward by <code>Graph._populate_device_info_mapping()</code> ([graph.py](sources/max/python/max/graph/graph.py#L877)).
 
 **1.1 Example · two graphs in one module**
 
@@ -127,45 +1235,15 @@ g_mul = Graph("mul", module=unit, input_types=[t, t],
 
 `unit` owns one IR module containing **two graph definitions**. `g_add` and `g_mul` retain their respective graph operations. Calls to `ops.add` and `ops.mul` first use **RMO builders** for relaxed shape handling; RMO later lowers to strict MO. See [add’s builder](sources/max/python/max/graph/ops/elementwise.py#L73), [mul’s builder](sources/max/python/max/graph/ops/elementwise.py#L353), and [the RMO dialect](sources/GraphCompiler/include/GraphCompiler/RMODialect/RMODialect.td#L27).
 
-**Schematic MO view after RMO → MO.** Extra chains and device metadata are omitted. The graph bodies use the spelling in the repository’s [two-graph compiler test](sources/GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir#L14):
+**Recorded module structure before compilation:**
 
-```mlir
-module {
-  mo.graph @add(%a: !mo.tensor<[4], f32>,
-                %b: !mo.tensor<[4], f32>)
-      -> !mo.tensor<[4], f32> {
-    %r = mo.add(%a, %b) : !mo.tensor<[4], f32>
-    mo.output %r : !mo.tensor<[4], f32>
-  }
-  mo.graph @mul(%a: !mo.tensor<[4], f32>,
-                %b: !mo.tensor<[4], f32>)
-      -> !mo.tensor<[4], f32> {
-    %r = mo.mul(%a, %b) : !mo.tensor<[4], f32>
-    mo.output %r : !mo.tensor<[4], f32>
-  }
-}
+```text
+unit.mlir_module → builtin.module
+├─ g_add → mo.graph @add → relaxed rmo.add computation
+└─ g_mul → mo.graph @mul → relaxed rmo.mul computation
 ```
 
-| Python / IR item | Meaning in this example |
-|---|---|
-| `unit` / outer `module { ... }` | Owns both definitions as one compilation unit. |
-| `g_add` / `mo.graph @add` | Describes elementwise `A + B`. |
-| `g_mul` / `mo.graph @mul` | Describes elementwise `A * B`. |
-| `%a`, `%b`, `%r` | Symbolic values connected by data dependencies. |
-| `!mo.tensor<[4], f32>` | Tensor type: four float32 elements; the numbers arrive at execution. |
-
-**1.2 Compile the unit; initialize its named models**
-
-```python
-from max.engine import InferenceSession
-
-session = InferenceSession(devices=[device])
-compiled = session.compile(unit)
-models = session.init_all(compiled)
-# models["add"] and models["mul"] are executable model handles.
-```
-
-`compile(unit)` produces one compiled artifact for the unit; `init_all` returns a model dictionary keyed by graph names. Each model’s `execute(A, B)` call selects its computation. See [compile’s Module input](sources/max/python/max/engine/api.py#L1062) and [init_all’s named results](sources/max/python/max/engine/api.py#L1160).
+The Python calls build symbolic definitions. **C.1** follows their compilation through strict MO and MAP; **D.1** initializes the resulting named models.
 
 **2. `mo.GraphOp("addition")`: the computation definition**
 
@@ -186,31 +1264,23 @@ op = _mo.GraphOp(
 Its native construction expands as follows:
 
 ```text
-OpBuilder(self._module.body.end)
-│  insertion point = end of the module’s body
-│
-└─ _mo.GraphOp(...)
-   └─ C++ GraphOp::build(...)
-      │
-      ├─ sym_name = "addition"
-      │  identifies this graph within the module
-      │
-      ├─ functionType
-      │  input:  float32 tensor [5,10] on selected device
-      │  output: empty initially
-      │
-      ├─ signature
-      │  KGEN generator signature wrapping that function type
-      │
-      ├─ input/result dimension parameters
-      │  declarations for symbolic dimensions, when present
-      │
-      └─ body region
-         └─ one block
-            └─ input block argument X
-               type = float32[5,10]
-               value = symbolic input placeholder
+Graph.__init__ [LINK:graph_init:851]
+└─ builder = OpBuilder(self._module.body.end) [LINK:graph_init:858]
+   ├─ evaluate self._module.body
+   │  └─ ModuleOp.body binding returns the module body block [LINK:ct_builtin_module:68]
+   ├─ evaluate .end
+   │  └─ choose an insertion point after the block's current top-level operations
+   ├─ construct the MLIR Python OpBuilder at that insertion point
+   │  └─ underlying native mlir::OpBuilder is positioned in this module block
+   └─ pass builder to _mo.GraphOp(builder, loc, ...) [LINK:graph_init:860]
+      └─ C++ GraphOp::build(OpBuilder &, OperationState, ...) [LINK:ct_graph_op_build:820]
+         ├─ sym_name = addition → identifies this graph in the module
+         ├─ function type → input float32[5,10]; outputs initially empty
+         ├─ KGEN signature + symbolic-dimension parameter attributes
+         └─ create body region → entry block → typed symbolic input X
 ```
+
+The builder positions the new graph at the end of the module body, so adding a graph to a shared module leaves earlier top-level graphs in place. The MLIR Python binding supplies the OpBuilder and block insertion-point API; the MAX call site is [graph.py:858](sources/max/python/max/graph/graph.py#L858), and the module-body binding is in [builtin.cpp:68–70](sources/max/python/max/_core/max_license/modules/dialects/builtin.cpp#L68).
 
 These steps come directly from [GraphOp::build](sources/GraphCompiler/lib/MODialect/MOOps.cpp#L820). The operation’s definition requires a module parent, a single graph-body block, and a terminating `mo.output`; see [MOOps.td](sources/GraphCompiler/include/GraphCompiler/MODialect/MOOps.td#L211).
 
@@ -248,7 +1318,8 @@ The `_mlir_op` assignment wraps the existing operation through its C API pointer
 with Graph("addition", input_types=[Y_type],
            custom_extensions=[mojo_kernels]) as graph:
     X = graph.inputs[0]
-    y = ops.custom(name="add_one", device=device,
+    y = ops.custom(name="add_one",
+                   device=DeviceRef.from_device(device),
                    values=[X], out_types=[Y_type])[0].tensor
     graph.output(y)
 ```
@@ -276,75 +1347,26 @@ module {
 
 The **Python builder runs to create IR nodes**; the kernel’s numerical work happens later. This does not translate the entire `addition.py` program into MLIR. See [custom-op construction](sources/max/python/max/graph/ops/custom.py#L114), [Graph.output](sources/max/python/max/graph/graph.py#L1458), and [the original example](sources/max/examples/custom_ops/addition.py#L33).
 
-**3.2 Later compilation · tensor operation → iteration and kernel call**
-
-For a **separate built-in-add compiler test**, shape `[8,16,128]`, the expected MO → MAP transformation is:
-
-```text
-BEFORE · MO
-  mo.add(X, Y) → one symbolic output tensor
-
-AFTER · MAP · schematic from FileCheck expectations
-  map.iter.elementwise<[8,16,128]>
-  ├─ map.load X[i] → x_i
-  ├─ map.load Y[i] → y_i
-  ├─ map.call.elementwise @...Add(i, x_i, y_i) → sum_i
-  └─ map.store Out[i] = sum_i
-```
-
-**TEST/source evidence:** the [test input and expected rewrite](sources/GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-add-static.mlir#L6) show a tensor-level operation becoming an elementwise iteration with loads, a kernel call, and a store. These are expected compiler representations; this documentation update does not run the compiler test.
-
-The enclosing module groups the definitions while compiler passes rewrite their contents. The [graph-stage test](sources/GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir#L28) later expects `mo.graph @add` and `mo.graph @mul` to become `mgp.model @add` and `mgp.model @mul` in the runtime-plan representation.
-
 **Actual numbers arrive later**, through `model.execute(x)`. For example, an input element `2.5` produces `3.5` in this example. Compilation, initialization, buffer creation, and execution occur after graph construction in [addition.py](sources/max/examples/custom_ops/addition.py#L67).
 
-The **`.mojoc` package is produced on a separate branch**: loading your custom-extension directory invokes Mojo package preparation. `ModuleOp` and `GraphOp` construct the graph’s in-memory IR; see [extension loading](sources/max/python/max/graph/graph.py#L269) and [Mojo precompilation](sources/Mojo/python/mojo/paths.py#L141).
+The prepared **P1 `.mojoc` package** supplies kernel implementation bodies. **G1** contains the symbolic MO graph. In **C.1**, compilation rewrites a clone **C1** through MO → MAP; G1 remains with the caller. See [package loading](sources/max/python/max/graph/graph.py#L269).
 
-### A.1 · Expand the .mojo → .mojoc compiler subprocess
-
-```text
-_build_mojo_source_package(kernels_dir) [Mojo/python/mojo/paths.py:L141]  [parent Python process]
-├─ input: absolute directory with kernels/__init__.mojo [max/examples/custom_ops/kernels/__init__.mojo:L1]
-├─ hash = MD5(absolute path string) → a stable filename, not a source-content hash
-├─ final: <tempdir>/.modular_<uid>/mojo_pkg/mojo_pkg_<hash>.mojoc
-├─ staging: .staging.<pid>/mojo_pkg_<hash>.mojoc
-├─ subprocess_run_mojo(["precompile", kernels_dir, "-o", staging], check=True) [Mojo/python/mojo/run.py:L57]
-│  ├─ executable: MODULAR_MOJO_MAX_DRIVER_PATH, otherwise mojo on PATH
-│  └─ subprocess.run(...) → Python waits for the separate compiler process
-│     └─ mojo precompile: precompile(State) [Mojo/tools/mojo/Precompile/mojo-precompile.cpp:L209]
-│        ├─ validate source package / names; create compiler context; open output
-│        ├─ invokeMojoParser(...)
-│        │  └─ LIT::importMojoPackage(kernels_dir, "kernels", ...) [Mojo/lib/MojoParser/EntryPoint.cpp:L391]
-│        │     └─ DeclResolver::resolveAllReferencedFrom(package) [Mojo/lib/MojoParser/DeclResolver.cpp:L1756]
-│        │        ├─ parse the package + child modules, including add_one.mojo [max/examples/custom_ops/kernels/add_one.mojo:L1]
-│        │        └─ resolve referenced dependency declarations and bodies
-│        ├─ buildPrecompiledPackage(...) [Mojo/lib/Precompile/Precompile.cpp:L146] → serializable post-parse IR clone
-│        ├─ KGENCompiler::runCheckLITPipeline(parsed_module) [Mojo/lib/Compiler/KGENCompiler.cpp:L1119] → semantic/lifetime checks
-│        └─ writePrecompiledFile(built_package, stream) [Mojo/lib/Support/MojoPrecompiledFile.cpp:L128]
-│           └─ MLIR bytecode → zstd payload + MPKG V2 header → staging .mojoc
-│
-├─ compiler succeeds → os.replace(staging, final) → atomic publication
-├─ finally → remove staging directory
-└─ return final Path → P1; addition.py stays a separate Python program
-   The source-directory branch invokes precompile again; it has no exists() skip.
-```
-
-### A.2 · Expand registration, validation and Graph.output
+### A.3 · Custom-op registration → verified graph G1
 
 ```text
 ops.custom("add_one", values=[X], out_types=[Y_type], device) [max/python/max/graph/ops/custom.py:L69]
 ├─ explicit out_types → output dtype/shape/device is already supplied
-│  └─ this path bypasses AddOne's optional unimplemented shape function
-├─ insert mo.custom with name="add_one" → link to @extensibility.register("add_one") / AddOne [max/examples/custom_ops/kernels/add_one.mojo:L32]
+│  └─ this path bypasses AddOne's optional unimplemented shape function ↗ caller [max/python/max/graph/ops/custom.py:L69]
+├─ insert mo.custom with name="add_one" → link to @extensibility.register("add_one") / AddOne [max/examples/custom_ops/kernels/add_one.mojo:L32] ↗ caller [max/python/max/graph/ops/custom.py:L69]
 ├─ KernelLibrary.verify_custom_op(operation) [max/python/max/graph/graph.py:L307]
-│  ├─ lookup reusable native Analysis by frozenset(package_paths)
+│  ├─ lookup reusable native Analysis by frozenset(package_paths) ↗ caller [max/python/max/graph/graph.py:L307]
 │  └─ Analysis::verifyCustomOp(operation) [max/python/max/_core/max_license/lib/Graph/Bindings.cpp:L69]
-│     └─ MojoRegistry → check registered kernel, device, arguments and results
-├─ return symbolic custom result → callback returns its .tensor
+│     └─ MojoRegistry → check registered kernel, device, arguments and results ↗ caller [max/python/max/_core/max_license/lib/Graph/Bindings.cpp:L69]
+├─ return symbolic custom result → callback returns its .tensor ↗ caller [max/python/max/graph/ops/custom.py:L69]
 └─ Graph.output(Y) [max/python/max/graph/graph.py:L1396]
-   ├─ flatten result tree; infer output types/names; write graph signature
-   ├─ record mo.output(Y, required chains)
-   └─ verify G1 → Y describes a future output; it contains no computed numbers
+   ├─ flatten result tree; infer output types/names; write graph signature ↗ caller [max/python/max/graph/graph.py:L1396]
+   ├─ record mo.output(Y, required chains) ↗ caller [max/python/max/graph/graph.py:L1396]
+   └─ verify G1 → Y describes a future output; it contains no computed numbers ↗ caller [max/python/max/graph/graph.py:L1396]
 ```
 
 ## B · InferenceSession(devices=[device]) → S1
@@ -357,46 +1379,120 @@ EXAMPLE: CPU → [CPU]; GPU → [Accelerator, CPU]. G1 keeps its own package P1.
 
 ```text
 InferenceSession.__init__(devices=[device]) [max/python/max/engine/api.py:L664] → S1
-├─ normalize devices → deduplicate while preserving first occurrence
-├─ append CPU() if absent → host runtime is present for both target routes
-├─ optional import/export MEF policy → neither selected in addition.py
-├─ session extensions = []; num_threads or 0 → automatic runtime choice
+├─ normalize devices → deduplicate while preserving first occurrence ↗ caller [max/python/max/engine/api.py:L664]
+├─ append CPU() if absent → host runtime is present for both target routes ↗ caller [max/python/max/engine/api.py:L664]
+├─ optional import/export MEF policy → neither selected in addition.py ↗ caller [max/python/max/engine/api.py:L664]
+├─ session extensions = []; num_threads or 0 → automatic runtime choice ↗ caller [max/python/max/engine/api.py:L664]
 └─ _InferenceSession(final_devices, [], 0) [max/python/max/_core/max_license/modules/engine.cpp:L787]  [nanobind → C++]
    └─ Core::InferenceSession::InferenceSession(...) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L541]
-      ├─ populateCompileConfig([]) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L615] → session compilation settings
-      ├─ retain Device handles; runtimeConfig.addDevice(DeviceSpec, driver context)
-      ├─ runtimeConfig → numThreads=0; API language="python"
+      ├─ populateCompileConfig([]) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L615] → session compilation settings ↗ caller [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L541]
+      ├─ retain Device handles; runtimeConfig.addDevice(DeviceSpec, driver context) ↗ caller [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L541]
+      ├─ runtimeConfig → numThreads=0; API language="python" ↗ caller [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L541]
       └─ Engine::Context::create(runtimeConfig) [max/lib/max_license/API/c/EngineContext.cpp:L169]
-         ├─ getOrCreateCPUDeviceOptions(config) [max/lib/max_license/API/c/EngineContext.cpp:L50] → host scheduling options
+         ├─ getOrCreateCPUDeviceOptions(config) [max/lib/max_license/API/c/EngineContext.cpp:L50] → host scheduling options ↗ caller [max/lib/max_license/API/c/EngineContext.cpp:L169]
          ├─ Init::getOrCreateContext("max-engine", options) [Init/lib/Init.cpp:L116]
-         │  ├─ matching global context exists → retain it
-         │  └─ otherwise → createContextImpl(...) [Init/lib/Init.cpp:L40] → MAX context + CPUDevice
-         ├─ Engine::Context(config, maxContext) [max/lib/max_license/API/c/EngineContext.cpp:L214] → retain runtime references
-         └─ native session owns this Engine::Context → S1 ready for compile/init
+         │  ├─ matching global context exists → retain it ↗ caller [Init/lib/Init.cpp:L116]
+         │  └─ otherwise → createContextImpl(...) [Init/lib/Init.cpp:L40] → MAX context + CPUDevice ↗ caller [Init/lib/Init.cpp:L116]
+         ├─ Engine::Context(config, maxContext) [max/lib/max_license/API/c/EngineContext.cpp:L214] → retain runtime references ↗ caller [max/lib/max_license/API/c/EngineContext.cpp:L169]
+         └─ native session owns this Engine::Context → S1 ready for compile/init → B.1 ↗ caller [max/lib/max_license/API/c/EngineContext.cpp:L169]
 ```
 
-### B.1 · Expand ownership, threads and constructor examples
+### B.1 · Devices → native context and host runtime → S1
 
 ```text
 Constructor input → normalized output [max/python/max/engine/api.py:L664]
-├─ [CPU()]                  → [CPU()]
-├─ [Accelerator()]          → [Accelerator(), CPU()]
-└─ [device, device, CPU()]  → [device, CPU()]  (if device is an accelerator)
+├─ [CPU()]                  → [CPU()] ↗ caller [max/python/max/engine/api.py:L664]
+├─ [Accelerator()]          → [Accelerator(), CPU()] ↗ caller [max/python/max/engine/api.py:L664]
+└─ [device, device, CPU()]  → [device, CPU()]  (if device is an accelerator) ↗ caller [max/python/max/engine/api.py:L664]
 
 S1 [Python InferenceSession]
 └─ _impl → Core::InferenceSession [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L541] [C++ object in the same host process]
-   ├─ devices → retained existing driver handles / contexts
-   ├─ sessionCompileConfig → compiler settings / optional extension paths
+   ├─ devices → retained existing driver handles / contexts ↗ caller [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L541]
+   ├─ sessionCompileConfig → compiler settings / optional extension paths ↗ caller [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L541]
    └─ runtimeContext → Engine::Context [max/lib/max_license/API/c/EngineContext.cpp:L214] [owned native object]
-      ├─ config → runtime settings / device descriptions
+      ├─ config → runtime settings / device descriptions ↗ caller [max/lib/max_license/API/c/EngineContext.cpp:L214]
       ├─ maxContext → shared MAX ContextRef [Init/lib/Init.cpp:L116]
-      │  └─ creation/reuse protected by std::mutex
-      └─ cpuDevice → AsyncRT host runtime / worker scheduling
+      │  └─ creation/reuse protected by std::mutex ↗ caller [Init/lib/Init.cpp:L116]
+      └─ cpuDevice → AsyncRT host runtime / worker scheduling ↗ caller [max/lib/max_license/API/c/EngineContext.cpp:L214]
 
 Thread policy → num_threads=None becomes 0: automatic selection [max/lib/max_license/API/c/EngineContext.cpp:L50]
-└─ context/runtime can be reused → do not infer a new private pool per S1
-Constructor result → configuration + ownership; G1 is supplied later to compile.
+└─ context/runtime can be reused → do not infer a new private pool per S1 ↗ caller [max/lib/max_license/API/c/EngineContext.cpp:L50]
+Constructor result → S1 configuration + ownership; G1 and its prepared P1 are supplied later to compile.
+In this example, session custom_extensions=None → package preparation remains in A.
 ```
+
+
+
+**InferenceSession does more than normalize devices.** It retains compilation settings, device handles, runtime configuration, and a native engine context. Its methods later compile graphs and initialize executable models; it also configures diagnostics/profiling. Constructor completion alone produces neither compiled code nor a Model.
+
+**Example object snapshot · CPU add-one, immediately after construction**
+
+~~~text
+S1: Python InferenceSession
+├─ num_threads = None                     Python argument, native policy becomes 0
+└─ _impl → N1: Core::InferenceSession
+   ├─ devices = [CPU0]                    retained driver handle
+   ├─ sessionCompileConfig = CFG1: CompilationRequest
+   │  ├─ modelSource = monostate          no model supplied yet
+   │  ├─ pipelineName = None              chosen later for compilation
+   │  └─ passthroughConfigs = []          no constructor extensions
+   ├─ runtimeConfig
+   │  ├─ numThreads = 0                   automatic selection, not zero workers
+   │  ├─ apiLanguage = "python"
+   │  └─ configured devices = [{spec=CPU0.deviceSpec, context=CPU0.ctx}]
+   └─ runtimeContext → E1: Engine::Context (owned by N1)
+      ├─ config = runtimeConfig copy
+      ├─ maxContext = ContextRef(CX1)     reference to shared MAX M::Context
+      ├─ cpuDevice = reference to HRT1    host AsyncRT CPUDevice
+      └─ crashRecoveryContext            configured stack/crash recovery
+
+CX1: MAX M::Context (reference-counted native service container)
+├─ cpuDeviceRef → HRT1                   retained runtime reference
+└─ typed service storage
+   ├─ M::Config                          loaded process configuration
+   ├─ Init::Options                      stored options used for reuse checks
+   ├─ Telemetry::TelemetryContext        initialized with programName="max-engine"
+   └─ GML::MaxEngineTelemetryContext     emplaced by Engine::Context::create
+
+GPU variant: devices=[GPU0,CPU0]; configured-device pairs include both.
+E1 and CX1 are still host-side native objects, not GPU memory allocations.
+~~~
+
+These labels are an explanatory snapshot, not Python `repr`, captured addresses, or an exhaustive list of process-dependent services. Native members are declared in [InferenceSession.h](sources/max/python/max/_core/max_license/include/_core/Engine/InferenceSession.h#L95). The [Engine::Context constructor](sources/max/lib/max_license/API/c/EngineContext.cpp#L217) copies runtime config and retains the MAX context and CPU runtime reference. [M::Context](sources/Support/include/Support/Context.h#L30) is a typed service container; it is distinct from the MLIR Context that owns graph IR.
+
+**Created or reused · same shared object, separate owned engine wrappers**
+
+~~~text
+First session:
+  getOrCreateContext("max-engine", options)
+    → no current global MAX context → create CX1 → retain HRT1 + services
+  N1 owns E1; E1.maxContext refers to CX1
+
+Later compatible session:
+  getOrCreateContext("max-engine", same options)
+    → current CX1 exists → ContextRef::copy(existing)
+  N2 owns E2; E2.maxContext also refers to CX1
+
+Different Init::Options with an existing global context:
+  → fatal configuration mismatch; no silent incompatible reuse
+~~~
+
+The exact reuse decision is in [Init::getOrCreateContext](sources/Init/lib/Init.cpp#L116). A configuration-supplied MAX context follows the [earlier direct-retain branch](sources/max/lib/max_license/API/c/EngineContext.cpp#L175). Shared CX1 does not imply that every session has the same runtime device list: E1/E2 retain their own runtime configuration copies.
+
+**populateCompileConfig · concrete before and after values**
+
+| Moment | CompilationRequest contents |
+| --- | --- |
+| Original constructor input | `customExtensions=[]` |
+| Default CFG1 | `modelSource=monostate`, `pipelineName=None`, `passthroughConfigs=[]` |
+| `populateCompileConfig([])` | Copies the default request; adds no kernel-library entries |
+| Optional extension illustration | `customExtensions=["/tmp/addon.mojoc"]` (must already exist) |
+| Request with that extension | `passthroughConfigs=[KernelLibraryDriverConfig(path="/tmp/addon.mojoc")]`; source/pipeline still unset |
+| Later compile of original G1 | Copies session CFG1 and adds G1's P1 path plus model/pipeline settings |
+
+An extension is a **Mojo implementation package path**, not a device, Python class, or machine-code kernel. For example, `/tmp/addon.mojoc` can contain registered custom kernels. This path is illustrative; no such file is claimed to exist here. The [native extension validator](sources/max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp#L600) rejects missing or unsupported package paths. [CompilationRequest](sources/max/include/max/max_license/API/c/CompiledModels.h#L65) copies source/pipeline fields and clones its driver configs; [addKernelLibraryPath](sources/max/include/max/max_license/API/c/CompiledModels.h#L135) stores a KernelLibraryDriverConfig.
+
+The original add-one call supplies no session extensions. Its Graph already owns P1's package paths, which [compile_async](sources/max/python/max/engine/api.py#L1022) supplies later. A separate optional API example is `InferenceSession(devices=[device], custom_extensions=[Path("/tmp/addon.mojoc")])`; Python processes these extensions before entering the native constructor. Session construction prepares the ownership/configuration needed for later work; it does not execute or specialize those kernels.
 
 ## C · session.compile(G1) → compiled artifact CM1
 
@@ -409,118 +1505,186 @@ EXAMPLE: name="addition"; one X/Y float32[5,10]; AddOne specializes for CPU or G
 ```text
 InferenceSession.compile(G1) [max/python/max/engine/api.py:L1062]  [Python caller]
 ├─ compile_async(G1) [max/python/max/engine/api.py:L969]
-│  ├─ module = G1.module; extensions += G1.kernel_libraries_paths → P1
-│  ├─ expected_weights = {} → add-one has no external weight bindings
-│  ├─ Analysis::seedKernelDecls(module) [max/python/max/_core/max_license/lib/Graph/Bindings.cpp:L75] → add reusable declarations to caller module
+│  ├─ module = G1.module; extensions += G1.kernel_libraries_paths → P1 ↗ caller [max/python/max/engine/api.py:L969]
+│  ├─ expected_weights = {} → add-one has no external weight bindings ↗ caller [max/python/max/engine/api.py:L969]
+│  ├─ Analysis::seedKernelDecls(module) [max/python/max/_core/max_license/lib/Graph/Bindings.cpp:L75] → add reusable declarations to caller module ↗ caller [max/python/max/engine/api.py:L969]
 │  ├─ _compile_module(module, extensions, tile_based_fusion=False) [max/python/max/engine/api.py:L1276]
-│  │  ├─ acquire process-global compilation lock
+│  │  ├─ acquire process-global compilation lock ↗ caller [max/python/max/engine/api.py:L1276]
 │  │  ├─ _impl.compile(module._CAPIPtr, extensions, pipeline_name, False) [max/python/max/_core/max_license/modules/engine.cpp:L824]
 │  │  │  └─ Core::InferenceSession::compile(capsule, ...) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L654]
-│  │  │     ├─ CompilationRequest → source module pointer + graph format + options
+│  │  │     ├─ CompilationRequest → source module pointer + graph format + options ↗ caller [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L654]
 │  │  │     └─ Engine::Context::compileModel(config) [max/lib/max_license/API/c/EngineContext.cpp:L225]
-│  │  │        ├─ allocate pending AsyncValue<CompiledModels>
+│  │  │        ├─ allocate pending AsyncValue<CompiledModels> ↗ caller [max/lib/max_license/API/c/EngineContext.cpp:L225]
 │  │  │        └─ addTask(cpuDevice, ...) → compilation on a host runtime worker
 │  │  │           └─ compileModelSync(config) [max/lib/max_license/API/c/EngineContext.cpp:L269]
 │  │  │              └─ CompiledModels::create(context, compileCfg, runtimeCfg) [max/lib/max_license/API/c/CompiledModels.cpp:L100]
 │  │  │                 └─ MOFContext::compileToBinary(source, format) [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L377]
-│  │  │                    ├─ clone module → compiler working graph C1
-│  │  │                    ├─ graph-artifact cache hit → reuse prepared MEF bytes
-│  │  │                    └─ miss/disabled → MO → MAP → MOGG → MGP → kernel JIT → MEF
-│  │  └─ done callback → release compilation lock when the task resolves
-│  └─ wrap pending handle → CompiledModel(handle, expected_weights={}) [max/python/max/engine/api.py:L414] → CM1
+│  │  │                    ├─ clone module → compiler working graph C1 ↗ caller [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L377]
+│  │  │                    ├─ graph-artifact cache hit → reuse prepared MEF bytes ↗ caller [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L377]
+│  │  │                    └─ miss/disabled → MO → MAP → MOGG → MGP → C.1 ↗ caller [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L377]
+│  │  │                       → kernel JIT / LLVM / targets C.2 → MEF C.3
+│  │  └─ done callback → release compilation lock when the task resolves ↗ caller [max/examples/custom_ops/addition.py:L67]
+│  └─ wrap pending handle → CompiledModel(handle, expected_weights={}) [max/python/max/engine/api.py:L414] → CM1 ↗ caller [max/examples/custom_ops/addition.py:L67]
 │
-├─ handle.wait() → caller waits for completion; exception() → raise on failure
-└─ return resolved CM1 → graph names=("addition",); executable state comes from init
+├─ handle.wait() → caller waits for completion; exception() → raise on failure ↗ caller [max/examples/custom_ops/addition.py:L67]
+└─ return resolved CM1 → graph names=("addition",); executable state comes from init ↗ caller [max/examples/custom_ops/addition.py:L67]
    G1 remains with the caller; native lowering transforms the clone C1.
 ```
 
-### C.1 · Expand MO → MAP → MOGG → MGP and their actual owners
+### C.1 · Clone G1 → MO → MAP → MOGG → MGP
 
 ```text
 MOFContext::compileToBinary [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L377] → owns the compilation route for C1
 └─ cache miss → convertMOToMEF(C1, options) [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L356]
    └─ MO::runGCPipeline(C1, options) [GraphCompiler/lib/GraphCompiler.cpp:L638]
-      ├─ create mlir::PassManager; gcPipelineImpl builds passes; pm.run(C1) executes them
+      ├─ create mlir::PassManager; gcPipelineImpl builds passes; pm.run(C1) executes them ↗ caller [GraphCompiler/lib/GraphCompiler.cpp:L638]
       ├─ buildMoPipeline [GraphCompiler/lib/GraphCompiler.cpp:L219] → MO = Modular Operations
-      │  ├─ graph/tensors/shapes/device placement/custom op contracts
-      │  └─ seeded kernel declarations → skip redundant package import
+      │  ├─ graph/tensors/shapes/device placement/custom op contracts ↗ caller [GraphCompiler/lib/GraphCompiler.cpp:L219]
+      │  └─ seeded kernel declarations → skip redundant package import ↗ caller [GraphCompiler/lib/GraphCompiler.cpp:L219]
       ├─ MOToMAPPass [GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:L764] → MAP = Modular Access Primitives
-      │  └─ expose accesses and computations for fusion / implementation decisions
-      ├─ buildMapPipeline [GraphCompiler/lib/GraphCompiler.cpp:L338] → optimize access patterns / eligible fusion
+      │  └─ expose accesses and computations for fusion / implementation decisions ↗ caller [GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:L764]
+      ├─ buildMapPipeline [GraphCompiler/lib/GraphCompiler.cpp:L338] → optimize access patterns / eligible fusion ↗ caller [GraphCompiler/lib/GraphCompiler.cpp:L638]
       ├─ MAPToMOGGPass [GraphCompiler/lib/Conversion/MAPToMOGG/MAPToMOGG.cpp:L53] → MOGG = Modular Operation Generator Graph
-      │  └─ MojoRegistry + MAPToMOGGState → select implementation / glue calls
-      ├─ buildMoggPipeline [GraphCompiler/lib/GraphCompiler.cpp:L370] → refine Mojo-oriented functions and calls
+      │  └─ MojoRegistry + MAPToMOGGState → select implementation / glue calls ↗ caller [GraphCompiler/lib/Conversion/MAPToMOGG/MAPToMOGG.cpp:L53]
+      ├─ buildMoggPipeline [GraphCompiler/lib/GraphCompiler.cpp:L370] → refine Mojo-oriented functions and calls ↗ caller [GraphCompiler/lib/GraphCompiler.cpp:L638]
       ├─ MOGGToMGPPass [GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp:L2406] → MGP = Modular Glue Primitives
-      │  └─ MOGraphLowering → init/execute regions, buffers, state slots and chains
+      │  └─ MOGraphLowering → init/execute regions, buffers, state slots and chains ↗ caller [GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp:L2406]
       ├─ buildMgpPipeline [GraphCompiler/lib/GraphCompiler.cpp:L382]
-      │  ├─ FinalizeDeviceGraphsPass [GraphCompiler/lib/MGPDialect/Transforms/FinalizeDeviceGraphsPass.cpp:L375] → finalize marked device graphs when present
-      │  └─ EmitMojo [GraphCompiler/lib/MOGGDialect/Transforms/EmitMojo.cpp:L147] → emitted source for native routines / package imports
-      ├─ JitCompileKernelsPass [GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:L529] → compile/reuse native routines (C.2)
+      │  ├─ FinalizeDeviceGraphsPass [GraphCompiler/lib/MGPDialect/Transforms/FinalizeDeviceGraphsPass.cpp:L375] → finalize marked device graphs when present ↗ caller [GraphCompiler/lib/GraphCompiler.cpp:L382]
+      │  └─ EmitMojo [GraphCompiler/lib/MOGGDialect/Transforms/EmitMojo.cpp:L147] → emitted source for native routines / package imports ↗ caller [GraphCompiler/lib/GraphCompiler.cpp:L382]
+      ├─ JitCompileKernelsPass [GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:L529] → compile/reuse native routines (C.2) ↗ caller [GraphCompiler/lib/GraphCompiler.cpp:L638]
       └─ buildJitPipeline [GraphCompiler/lib/GraphCompiler.cpp:L75]
-         ├─ LowerCompiledRoutinesPass [GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp:L102] → ModuleLoad / ExecuteGeneric
-         └─ inline/clean chains → OutlineModelsToCallables → initialization + execution plan
+         ├─ LowerCompiledRoutinesPass [GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp:L102] → ModuleLoad / ExecuteGeneric ↗ caller [GraphCompiler/lib/GraphCompiler.cpp:L75]
+         └─ inline/clean chains → OutlineModelsToCallables → initialization + execution plan ↗ caller [GraphCompiler/lib/GraphCompiler.cpp:L75]
    Dialect names and roles → GraphCompiler.md [GraphCompiler/docs/GraphCompiler.md:L1]
 
-Add-one ancestry [schematic representation; not a captured compiler dump]
-└─ mo.custom("add_one", X) → implementation-oriented accesses/call
+Add-one ancestry [GraphCompiler/lib/Conversion/MAPToMOGG/MAPToMOGG.cpp:L53] [schematic representation; not a captured compiler dump]
+└─ mo.custom("add_one", X) → implementation-oriented accesses/call ↗ caller [GraphCompiler/lib/Conversion/MAPToMOGG/MAPToMOGG.cpp:L53]
    → selected AddOne routine → buffer/state execution plan → compiled callable
 ```
 
-### C.2 · Expand specialization, LLVM translation, targets and JIT
+[Open the detailed C.1 compiler route · examples and why for every stage](max_graph_compiler_pipeline_examples.html)
+
+**Shared-module example · compilation belongs to C.1**
+
+After **B** has created `session` (S1), compile the `unit` built in A.2:
+
+```python
+compiled_unit = session.compile(unit)
+```
+
+This accepts a `Module` containing multiple graphs and returns one compiled artifact. See [compile’s Module input](sources/max/python/max/engine/api.py#L1062).
+
+**Schematic MO view after RMO → MO.** Extra chains and device metadata are omitted. The graph bodies use the spelling in the repository’s [two-graph compiler test](sources/GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir#L14):
+
+```mlir
+module {
+  mo.graph @add(%a: !mo.tensor<[4], f32>,
+                %b: !mo.tensor<[4], f32>)
+      -> !mo.tensor<[4], f32> {
+    %r = mo.add(%a, %b) : !mo.tensor<[4], f32>
+    mo.output %r : !mo.tensor<[4], f32>
+  }
+  mo.graph @mul(%a: !mo.tensor<[4], f32>,
+                %b: !mo.tensor<[4], f32>)
+      -> !mo.tensor<[4], f32> {
+    %r = mo.mul(%a, %b) : !mo.tensor<[4], f32>
+    mo.output %r : !mo.tensor<[4], f32>
+  }
+}
+```
+
+| Python / IR item | Meaning in this example |
+|---|---|
+| `unit` / outer `module { ... }` | Owns both definitions as one compilation unit. |
+| `g_add` / `mo.graph @add` | Describes elementwise `A + B`. |
+| `g_mul` / `mo.graph @mul` | Describes elementwise `A * B`. |
+| `%a`, `%b`, `%r` | Symbolic values connected by data dependencies. |
+| `!mo.tensor<[4], f32>` | Tensor type: four float32 elements; the numbers arrive at execution. |
+
+
+**G1 → compiler clone C1 → MO → MAP**
+
+`G1` is the caller-owned Python `Graph`; its `builtin.module` contains the `mo.graph` operation. `session.compile(G1)` gives the compiler a working clone, **C1**. MAX runs graph passes on C1, leaving G1 available to the caller.
+
+```text
+G1 / C1 at the MO boundary
+module {
+  mo.graph @addition(%x: !mo.tensor<[5, 10], f32>) -> !mo.tensor<[5, 10], f32> {
+    %y = mo.custom [symbol = "add_one"](%x)
+         : (!mo.tensor<[5, 10], f32>) -> !mo.tensor<[5, 10], f32>
+    mo.output %y : !mo.tensor<[5, 10], f32>
+  }
+}
+
+MOToMAP · registered custom-op pattern · schematic for add_one
+map.iter.opaque
+├─ inputs (X); outputs (Y)
+└─ map.call.opaque @...AddOne
+   └─ kernelName = "add_one"
+```
+
+**Custom-op evidence:** the [MOToMAP custom-kernel test](sources/GraphCompiler/test/mo-opt/Conversion/MOToMAP/opaque-kernels.mlir#L30) shows the same registered opaque-op form: `mo.custom` becomes `map.iter.opaque`, which contains `map.call.opaque`. Its test-only symbol is `map_lower_one_fused_output`; the drawing applies that lowering pattern to `add_one` and is schematic, not a captured MAX dump. The package P1 supplies the registered `AddOne` implementation; its source uses `foreach` to define the elementwise work ([AddOne](sources/max/examples/custom_ops/kernels/add_one.mojo#L32)).
+
+**Built-in-op comparison:** Python `ops.add(A, B)` initially records relaxed RMO. After RMO → MO, the [elementwise-add test](sources/GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-add-static.mlir#L6) shows `mo.add` becoming `map.iter.elementwise` with indexed loads, `map.call.elementwise @...Add`, and a store. That is a distinct MAP lowering shape from the `add_one` opaque custom call.
+
+The enclosing module groups definitions while compiler passes rewrite C1's contents. The [graph-stage test](sources/GraphCompiler/test/mo-opt/gc-pipeline-dump.mlir#L28) later expects `mo.graph @add` and `mo.graph @mul` to become `mgp.model @add` and `mgp.model @mul` in the runtime-plan representation.
+
+### C.2 · Kernel specialization → LLVM → target code
 
 ```text
 compileMojoToBinary(C1, emitted Mojo, ...) [GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:L529]
-├─ emitted routine + P1 → parser/checks/LIT lowering → separate kernel IR KIR1
+├─ emitted routine + P1 → parser/checks/LIT lowering → separate kernel IR KIR1 ↗ caller [GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:L529]
 ├─ compiled-kernel lookup → checkCache(state, ...) [GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:L213]
-│  ├─ hit → handleCacheHits [GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:L507] → reuse compatible native archives
+│  ├─ hit → handleCacheHits [GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:L507] → reuse compatible native archives ↗ caller [GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:L213]
 │  └─ miss → handleCacheMisses [GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:L435]
 │     ├─ KGENCompiler::runElaborationPipeline [Mojo/lib/Compiler/KGENCompiler.cpp:L1140]
-│     │  ├─ populateElaborateModulePasses [Mojo/lib/Compiler/KGENCompiler.cpp:L967] → concrete parameter specialization
-│     │  ├─ buildPostElaborationPipeline [Mojo/lib/Compiler/Pipeline/Pipeline.cpp:L154] → concrete IR optimization
-│     │  └─ offloads encountered → compileOffloads [Mojo/lib/Compiler/KGENCompiler.cpp:L516] → group/slice IR by TargetInfo
+│     │  ├─ populateElaborateModulePasses [Mojo/lib/Compiler/KGENCompiler.cpp:L967] → concrete parameter specialization ↗ caller [Mojo/lib/Compiler/KGENCompiler.cpp:L1140]
+│     │  ├─ buildPostElaborationPipeline [Mojo/lib/Compiler/Pipeline/Pipeline.cpp:L154] → concrete IR optimization ↗ caller [Mojo/lib/Compiler/KGENCompiler.cpp:L1140]
+│     │  └─ offloads encountered → compileOffloads [Mojo/lib/Compiler/KGENCompiler.cpp:L516] → group/slice IR by TargetInfo ↗ caller [Mojo/lib/Compiler/KGENCompiler.cpp:L1140]
 │     └─ ObjectCompiler::emitArchive [Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp:L1023] → native archive with callable symbols
 │        └─ ObjectCompiler::lowerAllFuncsToLLVM [Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp:L816]
-│           ├─ buildLowerToLLVMPipeline [Mojo/lib/Compiler/ObjectCompiler/KGENToLLVMPipeline.cpp:L26] → KGEN/POP/control flow → LLVM dialect (MLIR)
-│           └─ MLIR-to-LLVM translation [Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp:L796] → llvm::Module → LLVM1 (LLVM IR)
+│           ├─ buildLowerToLLVMPipeline [Mojo/lib/Compiler/ObjectCompiler/KGENToLLVMPipeline.cpp:L26] → KGEN/POP/control flow → LLVM dialect (MLIR) ↗ caller [Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp:L816]
+│           └─ MLIR-to-LLVM translation [Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp:L796] → llvm::Module → LLVM1 (LLVM IR) ↗ caller [Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp:L816]
 │
 ├─ target options guide compilation → TargetBackendRegistry::getBackend [Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp:L114] uses the triple
-│  ├─ host target → HostBackend [Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.cpp:L54] → CPU object / host routines
-│  ├─ nvptx64-nvidia-cuda, e.g. sm_90a → NVPTXBackend [Mojo/lib/Compiler/ObjectCompiler/Target/max_license/NVPTX/NVPTXBackend.cpp:L1] → PTX → cubin
-│  └─ amdgcn-amd-amdhsa, e.g. gfx942 → AMDGPUBackend [Mojo/lib/Compiler/ObjectCompiler/Target/max_license/AMDGPU/AMDGPUBackend.cpp:L77] → GPU object → ELF image
+│  ├─ host target → HostBackend [Mojo/lib/Compiler/ObjectCompiler/Target/Host/HostBackend.cpp:L54] → CPU object / host routines ↗ caller [Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp:L114]
+│  ├─ nvptx64-nvidia-cuda, e.g. sm_90a → NVPTXBackend [Mojo/lib/Compiler/ObjectCompiler/Target/max_license/NVPTX/NVPTXBackend.cpp:L1] → PTX → cubin ↗ caller [Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp:L114]
+│  └─ amdgcn-amd-amdhsa, e.g. gfx942 → AMDGPUBackend [Mojo/lib/Compiler/ObjectCompiler/Target/max_license/AMDGPU/AMDGPUBackend.cpp:L77] → GPU object → ELF image ↗ caller [Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp:L114]
 │     Target examples are source examples, not detected hardware on this host.
-├─ LLVM TargetRegistry + TargetMachine [Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp:L63] → in-process LLVM code generation [Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp:L277]
-└─ native compiled resources + C1 runtime plan → continue MEF preparation (C.3)
+├─ LLVM TargetRegistry + TargetMachine [Mojo/lib/Compiler/ObjectCompiler/Target/TargetBackend.cpp:L63] → in-process LLVM code generation [Mojo/lib/Compiler/ObjectCompiler/ObjectCompiler.cpp:L277] ↗ caller [max/examples/custom_ops/addition.py:L67]
+└─ native compiled resources + C1 runtime plan → continue MEF preparation (C.3) ↗ caller [max/examples/custom_ops/addition.py:L67]
 
 JIT = just-in-time compilation → required specialized code is prepared as the program runs.
-└─ here: addition.py → session.compile(G1) invokes compiler APIs in the host process
+└─ here: addition.py → session.compile(G1) invokes compiler APIs in the host process ↗ caller [max/examples/custom_ops/addition.py:L67]
    → AddOne's dtype/layout/target specialize; compiled code can be reused for later inputs.
    P1 precompilation is the earlier subprocess; kernel JIT is a later compilation phase.
 ```
 
-### C.3 · Expand MEF preparation, compiled descriptors and cache boundaries
+### C.3 · MEF preparation → compiled artifact CM1
 
 ```text
 convertMOToMEF(C1) [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L356]  [after graph passes + native routine JIT]
 └─ MO::convertMGPToMEF(lowered_module) [GraphCompiler/lib/GraphCompiler.cpp:L692]
-   ├─ clone for serialization → prepare device-specific runtime primitive names
-   ├─ translateMLIRToMEF → serialized graph callables / attrs / native resources
-   └─ WriteableBuffer → prepared MEF bytes in memory
+   ├─ clone for serialization → prepare device-specific runtime primitive names ↗ caller [GraphCompiler/lib/GraphCompiler.cpp:L692]
+   ├─ translateMLIRToMEF → serialized graph callables / attrs / native resources ↗ caller [GraphCompiler/lib/GraphCompiler.cpp:L692]
+   └─ WriteableBuffer → prepared MEF bytes in memory ↗ caller [GraphCompiler/lib/GraphCompiler.cpp:L692]
 
 CompiledModels::create(...) [max/lib/max_license/API/c/CompiledModels.cpp:L100] receives those bytes
 └─ CompiledModels::read(buffer, frameworkCtx, sourceModel) [max/lib/max_license/API/c/CompiledModels.cpp:L80]
    └─ loadModelsFromMEF(buffer) [max/lib/max_license/API/c/CompiledModels.cpp:L29]
-      ├─ MEFFile::open → validate/open the prepared container
-      ├─ loadMGPMEFFile(mef) [GraphCompiler/lib/MEFModel/MEFModel.cpp:L901] → register runtime primitives; read Model descriptors
-      └─ retain buffer + MEF handle + model descriptors → native CompiledModels
+      ├─ MEFFile::open → validate/open the prepared container ↗ caller [max/lib/max_license/API/c/CompiledModels.cpp:L29]
+      ├─ loadMGPMEFFile(mef) [GraphCompiler/lib/MEFModel/MEFModel.cpp:L901] → register runtime primitives; read Model descriptors ↗ caller [max/lib/max_license/API/c/CompiledModels.cpp:L29]
+      └─ retain buffer + MEF handle + model descriptors → native CompiledModels ↗ caller [max/lib/max_license/API/c/CompiledModels.cpp:L29]
          → resolve async handle → Python CM1: CompiledModel
 
 Cache routes → MOFContext graph-artifact cache [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L377]
-├─ artifact hit → skip graph lowering / kernel JIT; read retained MEF bytes/descriptors
-├─ kernel hit only → reuse routine code; still lower/prepare the graph's runtime plan
-└─ cold path → both compilation phases run
+├─ artifact hit → skip graph lowering / kernel JIT; read retained MEF bytes/descriptors ↗ caller [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L377]
+├─ kernel hit only → reuse routine code; still lower/prepare the graph's runtime plan ↗ caller [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L377]
+└─ cold path → both compilation phases run ↗ caller [GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:L377]
 
 On disk → CM1.export_mef(path) [max/python/max/engine/api.py:L414] explicitly exports the compiled bytes
-└─ session.compile(G1) itself returns CM1; it does not require a user-named .mef file.
+└─ session.compile(G1) itself returns CM1; it does not require a user-named .mef file. ↗ caller [max/python/max/engine/api.py:L414]
 ```
 
 ## D · session.init(CM1) → executable model M1
@@ -534,90 +1698,103 @@ EXAMPLE: init_all → {"addition": M1}; init → M1. The input Buffer is supplie
 ```text
 InferenceSession.init(CM1) [max/python/max/engine/api.py:L1126]
 ├─ init_all(CM1, weights_registry=None) [max/python/max/engine/api.py:L1160]
-│  ├─ registry = {}; expected_weights = {} → no weight-binding validation failures
+│  ├─ registry = {}; expected_weights = {} → no weight-binding validation failures → D.2 ↗ caller [max/python/max/engine/api.py:L1160]
 │  ├─ _impl._load_all(compiled_handle, registry) [max/python/max/_core/max_license/modules/engine.cpp:L787] → share artifact handle
 │  │  └─ Core::InferenceSession::loadAll(handle, weightsDict) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L289]
-│  │     ├─ buildWeightsFromDict({}) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L214] → empty native registry + managed-tensor list
-│  │     ├─ await compiled handle (release GIL while waiting) → descriptor "addition"
+│  │     ├─ buildWeightsFromDict({}) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L214] → empty native registry + managed-tensor list ↗ caller [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L289]
+│  │     ├─ await compiled handle (release GIL while waiting) → descriptor "addition" ↗ caller [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L289]
 │  │     └─ for each model descriptor → Core::InferenceSession::load(model, registry) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L275]
 │  │        └─ Engine::Context::initModel(model, registry) [max/lib/max_license/API/c/EngineContext.cpp:L288]
 │  │           └─ addTask(cpuDevice, ...) → initializer runs on a host runtime worker
 │  │              └─ createExecutableModel(model, cpuDevice, config, registry) [max/lib/max_license/API/c/EngineContext.cpp:L79]
-│  │                 ├─ DeviceMap from session DeviceSpecs + retained driver contexts
-│  │                 ├─ Model::setup(cpuDevice, registry, deviceMap) [GraphCompiler/lib/MEFModel/MEFModel.cpp:L184]
-│  │                 │  ├─ mapDeviceRefsToDevices [GraphCompiler/lib/Driver/Device/DeviceMap.cpp:L24] → synchronize/resolve contexts
-│  │                 │  ├─ initArgs = registry pointer + model device contexts
-│  │                 │  ├─ initFn.invoke(initArgs) → run compiled initialization callable
-│  │                 │  └─ construct ExecutableModel from chain/context/registry/extra args
-│  │                 └─ waitForModelSetup() [GraphCompiler/lib/MEFModel/MEFModel.cpp:L387] → initialization results must be ready
+│  │                 ├─ DeviceMap from session DeviceSpecs + retained driver contexts ↗ caller [max/lib/max_license/API/c/EngineContext.cpp:L79]
+│  │                 ├─ Model::setup(cpuDevice, registry, deviceMap) [GraphCompiler/lib/MEFModel/MEFModel.cpp:L184] → D.1
+│  │                 │  ├─ mapDeviceRefsToDevices [GraphCompiler/lib/Driver/Device/DeviceMap.cpp:L24] → synchronize/resolve contexts ↗ caller [GraphCompiler/lib/MEFModel/MEFModel.cpp:L184]
+│  │                 │  ├─ initArgs = registry pointer + model device contexts ↗ caller [GraphCompiler/lib/MEFModel/MEFModel.cpp:L184]
+│  │                 │  ├─ initFn.invoke(initArgs) → run compiled initialization callable ↗ caller [GraphCompiler/lib/MEFModel/MEFModel.cpp:L184]
+│  │                 │  └─ construct ExecutableModel from chain/context/registry/extra args ↗ caller [GraphCompiler/lib/MEFModel/MEFModel.cpp:L184]
+│  │                 └─ waitForModelSetup() [GraphCompiler/lib/MEFModel/MEFModel.cpp:L387] → initialization results must be ready ↗ caller [max/lib/max_license/API/c/EngineContext.cpp:L79]
 │  │        → ModelHandle(..., native_session_ref, executable, registry, index) [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L194]
 │  │          → cache input/output devices → M1
-│  └─ name-index results → {"addition": M1}
-├─ exactly one model? yes → return sole model M1
-└─ next source step → numeric input allocation, model.execute(x) (outside init)
+│  └─ name-index results → {"addition": M1} ↗ caller [max/examples/custom_ops/addition.py:L68]
+├─ exactly one model? yes → return sole model M1 ↗ caller [max/examples/custom_ops/addition.py:L68]
+└─ next source step → numeric input allocation, model.execute(x) (outside init) ↗ caller [max/examples/custom_ops/addition.py:L68]
 ```
 
-### D.1 · Expand initialization resources, loading and readiness
+### D.1 · Load runtime resources → ready executable M1
 
 ```text
 Model::setup [GraphCompiler/lib/MEFModel/MEFModel.cpp:L184] → compiled initFn.invoke(registry + devices)
 ├─ mapDeviceRefsToDevices [GraphCompiler/lib/Driver/Device/DeviceMap.cpp:L24]
-│  ├─ synchronize supplied driver contexts before first resource use
-│  ├─ CPU DeviceRef → create legacy runtime CPU context
-│  └─ GPU DeviceRef → reuse supplied context; fallback create by device id if absent
-├─ CUDA/HIP contexts → ensure configured stream count before capture (default: 2)
+│  ├─ synchronize supplied driver contexts before first resource use ↗ caller [GraphCompiler/lib/Driver/Device/DeviceMap.cpp:L24]
+│  ├─ CPU DeviceRef → create legacy runtime CPU context ↗ caller [GraphCompiler/lib/Driver/Device/DeviceMap.cpp:L24]
+│  └─ GPU DeviceRef → reuse supplied context; fallback create by device id if absent ↗ caller [GraphCompiler/lib/Driver/Device/DeviceMap.cpp:L24]
+├─ CUDA/HIP contexts → ensure configured stream count before capture (default: 2) ↗ caller [GraphCompiler/lib/MEFModel/MEFModel.cpp:L184]
 ├─ invoke the compiled init region → runtime/state initialization and native routine loading
 │  └─ ModuleLoad planned by LowerCompiledRoutinesPass [GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp:L102]
 │     └─ mgp_module_load_cpu [GraphCompiler/lib/MGPDialect/Primitives/MGPCPUPrimitives.cpp:L55] → CompiledKernelsContext in a runtime state slot
 │        └─ CompiledKernelsContext::load(archive_bytes, symbols) [GraphCompiler/lib/Support/CompiledKernelsContext.cpp:L85] Loader deep dive · all steps + GPU driver → max_compiled_kernels_context_load_and_driver.html
-│           ├─ ordinary route: archive hash → execution engine addIfAbsent<StaticArchiveLayer>
-│           └─ lookup named symbols → resident native callable pointers
+│           ├─ ordinary route: archive hash → execution engine addIfAbsent<StaticArchiveLayer> ↗ caller [GraphCompiler/lib/Support/CompiledKernelsContext.cpp:L85]
+│           └─ lookup named symbols → resident native callable pointers ↗ caller [GraphCompiler/lib/Support/CompiledKernelsContext.cpp:L85]
 │              (debug/profiler route can link/load a shared library)
-├─ initializer results → [chain, MGP context, weight-registry reference, extra state/device args]
-├─ waitForModelSetup [GraphCompiler/lib/MEFModel/MEFModel.cpp:L387] → await every required value; propagate errors
-└─ executable M1 → reuse retained state and routines for fresh execution inputs
+├─ initializer results → [chain, MGP context, weight-registry reference, extra state/device args] ↗ caller [max/examples/custom_ops/addition.py:L68]
+├─ waitForModelSetup [GraphCompiler/lib/MEFModel/MEFModel.cpp:L387] → await every required value; propagate errors ↗ caller [max/examples/custom_ops/addition.py:L68]
+└─ executable M1 → reuse retained state and routines for fresh execution inputs ↗ caller [max/examples/custom_ops/addition.py:L68]
 
 Boundaries
-├─ .mojoc P1: portable post-parse package for later specialization
-├─ CM1: compiled bytes + descriptors; still needs runtime setup
-└─ M1: ready executable handle; numeric X arrives at execute, not at constructor/init
+├─ .mojoc P1: portable post-parse package for later specialization ↗ caller [max/examples/custom_ops/addition.py:L68]
+├─ CM1: compiled bytes + descriptors; still needs runtime setup ↗ caller [max/examples/custom_ops/addition.py:L68]
+└─ M1: ready executable handle; numeric X arrives at execute, not at constructor/init ↗ caller [max/examples/custom_ops/addition.py:L68]
 ```
 
-### D.2 · Expand initialization gates and retained ownership
+**Shared-module example · runtime initialization belongs to D.1**
+
+Use the compiled artifact from C.1:
+
+```python
+models = session.init_all(compiled_unit)
+add_model = models["add"]
+mul_model = models["mul"]
+# Supply input buffers to add_model.execute(A, B) or mul_model.execute(A, B) later.
+```
+
+`init_all` returns a model dictionary keyed by each graph’s `sym_name`; the compiled artifact is ready for execution after successful runtime initialization. See [init_all’s named results](sources/max/python/max/engine/api.py#L1160). The single-graph addition example uses `session.init(CM1)` to obtain one M1.
+
+### D.2 · Initialization gates, weights and retained ownership
 
 ```text
 init_all initialization gates [max/python/max/engine/api.py:L1160]
-├─ add-one: expected weights {} + supplied registry {} → pass
-├─ weighted graph: missing declared name → ValueError before native initialization
-├─ supplied weight: device type must match; array must be contiguous
-├─ actual device/context/setup failure → native initialization raises
-├─ virtual-device mode → CompileOnlyModel stand-in; execute refuses hardware work
-└─ init [max/python/max/engine/api.py:L1126] requires exactly one result; multi-model artifacts use init_all
+├─ add-one: expected weights {} + supplied registry {} → pass ↗ caller [max/python/max/engine/api.py:L1160]
+├─ weighted graph: missing declared name → ValueError before native initialization ↗ caller [max/python/max/engine/api.py:L1160]
+├─ supplied weight: device type must match; array must be contiguous ↗ caller [max/python/max/engine/api.py:L1160]
+├─ actual device/context/setup failure → native initialization raises ↗ caller [max/python/max/engine/api.py:L1160]
+├─ virtual-device mode → CompileOnlyModel stand-in; execute refuses hardware work ↗ caller [max/python/max/engine/api.py:L1160]
+└─ init [max/python/max/engine/api.py:L1126] requires exactly one result; multi-model artifacts use init_all ↗ caller [max/python/max/engine/api.py:L1160]
 
 M1 [native ModelHandle exposed as the Python Model]
-├─ loadedModel → initialized ExecutableModel and persistent execution state
-├─ compiledModels → shared CM1 native artifact / model descriptors / bytes
+├─ loadedModel → initialized ExecutableModel and persistent execution state ↗ caller [max/examples/custom_ops/addition.py:L68]
+├─ compiledModels → shared CM1 native artifact / model descriptors / bytes ↗ caller [max/examples/custom_ops/addition.py:L68]
 ├─ inferenceSession → retained native S1 reference [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L194]
-│  └─ Engine::Context → MAX context / CPU runtime / session device settings
-└─ weightsRegistry + managedTensors → retained bindings (empty in add-one)
+│  └─ Engine::Context → MAX context / CPU runtime / session device settings ↗ caller [max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:L194]
+└─ weightsRegistry + managedTensors → retained bindings (empty in add-one) ↗ caller [max/examples/custom_ops/addition.py:L68]
 
 Repeated initialization → _load_all uses compiled.copy() [max/python/max/_core/max_license/modules/engine.cpp:L787]
-└─ same CM1 can initialize multiple handles; each handle retains what it needs.
+└─ same CM1 can initialize multiple handles; each handle retains what it needs. ↗ caller [max/python/max/_core/max_license/modules/engine.cpp:L787]
 ```
 
 ## E · Input and output example
 
 ```text
 addition.py: execution happens after all four preparation calls [max/examples/custom_ops/addition.py:L1]
-├─ x_values = np.random.uniform(size=(5,10)).astype(np.float32) → host array
-├─ x = Buffer.from_numpy(x_values).to(device) → B1: input Buffer
-├─ result = model.execute(x)[0] → O1: output Buffer
-└─ result.to(CPU()).to_numpy() → CPU-readable numbers; expected = x_values + 1
+├─ x_values = np.random.uniform(size=(5,10)).astype(np.float32) → host array ↗ caller [max/examples/custom_ops/addition.py:L71]
+├─ x = Buffer.from_numpy(x_values).to(device) → B1: input Buffer ↗ caller [max/examples/custom_ops/addition.py:L71]
+├─ result = model.execute(x)[0] → O1: output Buffer ↗ caller [max/examples/custom_ops/addition.py:L71]
+└─ result.to(CPU()).to_numpy() → CPU-readable numbers; expected = x_values + 1 ↗ caller [max/examples/custom_ops/addition.py:L71]
 
 Illustrative values in the same [5,10] shape [not an executed MAX result]
-├─ input row 0:  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-├─ output row 0: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-└─ G1 / S1 / CM1 / M1 were prepared without these numbers; B1/O1 hold per-call data.
+├─ input row 0:  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] ↗ caller [max/examples/custom_ops/addition.py:L71]
+├─ output row 0: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] ↗ caller [max/examples/custom_ops/addition.py:L71]
+└─ G1 / S1 / CM1 / M1 were prepared without these numbers; B1/O1 hold per-call data. ↗ caller [max/examples/custom_ops/addition.py:L71]
 ```
 
 

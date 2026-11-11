@@ -6,7 +6,7 @@
     "CPU routes omit GPU transfers/coordination; NVIDIA/AMD tile parameters follow source",
     "Async copy completion precedes block consumption; shared reuse closes the gate",
     "Bazel build inputs stay distinct from runtime graph packaging; TargetInfo selects CPU/NVIDIA/AMD LLVM backend routes",
-    "Thirty-four source-linked toolchain steps preserve G1 and the MGP plan while kernel/LLVM modules, code, artifact, handles and data become ready separately",
+    "Source-linked toolchain steps preserve G1 and the MGP plan while kernel/LLVM modules, code, artifact, handles and data become ready separately; attention scaffolding precedes its package import",
     "Online-softmax second-tile rescaling preserves agreement with independent full softmax",
     "Deterministic seek/back/reset and immutable snapshots; all source references resolve"
   ],
@@ -286,10 +286,10 @@
       "target": "cuda",
       "variant": "default",
       "frames": [
-        34,
+        35,
         7,
         14,
-        20
+        27
       ],
       "backend": "NVPTXBackend",
       "result": [
@@ -302,10 +302,10 @@
       "target": "rocm",
       "variant": "default",
       "frames": [
-        34,
+        35,
         7,
         14,
-        20
+        27
       ],
       "backend": "AMDGPUBackend",
       "result": [
@@ -318,7 +318,7 @@
       "target": "cpu",
       "variant": "default",
       "frames": [
-        34,
+        35,
         7,
         14,
         20

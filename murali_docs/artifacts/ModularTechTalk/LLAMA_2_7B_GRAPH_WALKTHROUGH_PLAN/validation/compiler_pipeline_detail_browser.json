@@ -1,0 +1,15 @@
+{
+  "result": "PASS",
+  "stages": 12,
+  "checks": [
+    "12 stages: why/example/source, ordered steps, accumulating output, retained actor identity, exact offline source lines and Reset",
+    "all source-link targets bounded by embedded complete files",
+    "C.1 popup links directly to detailed compiler reader",
+    "live document/reference motion, Pause and Resume",
+    "mobile stage selection and stepping; wide scene scroll contained",
+    "portable no-JavaScript reader includes all 12 stages"
+  ],
+  "errors": [],
+  "externalRequests": 0,
+  "evidence": "Browser teaching model; no compiler or hardware execution"
+}

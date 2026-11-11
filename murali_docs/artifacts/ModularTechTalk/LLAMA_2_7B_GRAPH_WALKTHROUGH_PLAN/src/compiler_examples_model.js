@@ -29,9 +29,10 @@
       if(this.kind==='build') {
         add('source','Read the actual Python example',this.example.expression);
         if(id==='matmul')add('buffers','Create input buffers before constructing this graph','The helper calls Buffer.from_numpy(...).to(device) first. Graph input types use those buffer shapes.',{hostInputs:true,inputs:true},['entry']);
+        if(id==='attention')add('contract','Create the empty attention graph shell','Graph.__init__ converts three input types, creates the module/GraphOp/body arguments, and seeds ordering before it imports the kernel package. The with-body runs after the constructor returns.',{graph:true,shell:true},['attention_callsite','graph_init','ct_graph_op_build']);
         add('package','Prepare the implementation package','KernelLibrary loads the source directory as a precompiled .mojoc package. The package retains MLIR implementation bodies for later specialization.',{package:true},['package_load','mojo_package']);
-        add('contract','Describe shapes, dtype and device','TensorType describes symbolic inputs. These are contracts, not numerical inference results.',{graph:true},['entry','graph_init']);
-        add('register','Import implementations before invoking the builder',`Graph imports kernels/. The registration name resolves ${routine} before ops.custom verifies its call.`,{registered:true},['graph_init','registration','custom_api']);
+        if(id!=='attention')add('contract','Describe shapes, dtype and device','TensorType describes symbolic inputs. These are contracts, not numerical inference results.',{graph:true},['entry','graph_init']);
+        add('register',id==='attention'?'Resolve the implementation before recording the custom call':'Import implementations before invoking the builder',`Graph imports kernels/. The registration name resolves ${routine} before ops.custom verifies its call.`,{registered:true},['graph_init','registration','custom_api']);
         add('custom','Record a named custom operation',`ops.custom("${name}") records the operation and explicit output type.`,{ops:1},['entry','custom_api']);
         if(id==='epilogue')add('compose','Keep the surrounding math visible','The Python @ operator records matmul; add_one_elementwise and ×2 compose after it. Three mathematical operations can become one eligible epilogue route.',{ops:3},['entry','registration']);
         add('output','Finalize the graph output contract',id==='addition'||id==='epilogue'?'Graph(forward=...) calls the builder and finalizes its returned output through Graph.output.':'The context-manager example explicitly calls graph.output(...) before leaving Graph.',{verified:true},['entry','graph_output','graph_init']);
@@ -68,7 +69,7 @@
         const f=(qa,phase,title,detail,patch={},refs=['entry'])=>add(phase,title,detail,
           {qa,sourceRef:refs[0],sourceNeedle:'',...patch},refs);
         f('1.1','bazel_target','Resolve the Python example target',
-          `./bazelw build ${commandTarget} resolves the macro, Python binary and declared dependencies. This frame is a build-graph illustration; the earlier interrupted build remains the recorded result.`,
+          `./bazelw build ${commandTarget} resolves the macro, Python binary and declared dependencies. `+(id==='addition'?'This frame is a build-graph illustration; the earlier interrupted build remains the recorded result.':'This frame is a source-derived build-graph illustration; no successful example build is claimed.'),
           {command:`./bazelw build ${commandTarget}`,representation:'BUILD.bazel → Python binary target',sourceRef:'bazel_binary',sourceNeedle:'name ='},['bazel_wrapper','bazel_binary','bazel_build_file']);
         f('1.2','bazel_libraries','Precompile the shared Mojo dependencies',
           'The layout, extensibility and std labels resolve to Mojo source-package targets. mojo_library invokes the configured Mojo compiler to create separate .mojoc packages containing post-parse MLIR bytecode.',
@@ -82,6 +83,9 @@
         f('2.1','python_process','Run the Python application on the host CPU',
           `./bazelw run ${commandTarget}, or its .example-test, starts ${this.example.filename}. The CPU process owns graph construction, compilation requests, driver interaction and later Buffer arguments.`,
           {stage:'package',hostRuntime:true,command:`./bazelw run ${commandTarget}`,representation:'CPU Python process → Graph(custom_extensions=kernels/)'},['entry','bazel_binary_test']);
+        if(id==='attention')f('2.1','graph_shell','Create the empty module and three-argument graph shell',
+          'In source order, Graph.__init__ creates the MLIR module, GraphOp signature/body and chain bookkeeping before importing kernels/. The caller supplies three static TensorTypes; no forward lambda or numeric Q/K/V runs here.',
+          {shell:true,representation:'MODULE1 → G1 shell: (%q,%k,%v); result types initially empty',sourceNeedle:'with _location()'},['graph_init','ct_graph_op_build','attention_callsite']);
         f('2.2','package_source','Precompile kernels/ into a private staging package',
           'KernelLibrary.load_paths calls mojo.paths._build_mojo_source_package. It invokes mojo precompile <kernels directory> -o <staging path>. The helper atomically publishes mojo_pkg_<path_hash>.mojoc under the temporary per-user package directory.',
           {package:true,representation:'kernels/*.mojo → staging .mojoc → atomically published P1',sourceNeedle:'args ='},['package_builder','package_load','kernel_package_root']);
@@ -231,6 +235,7 @@
             }
           }
         } else {
+          if(!cpu)add('gpu_launch','Specialize and enqueue the GPU kernel','The source binds BN=16, BD=8 and concrete tensor types/layouts. grid=(D/BD,N/BN)=(4,2), block=32. Each block computes one 16×8 output tile.',{launch:true},['attention_launch']);
           add('initialize','Initialize online softmax state','For this query row: m=MIN, l=0, O=[0,0]. The animation uses the mathematical −∞ limit for the finite MIN sentinel.',{m:null,l:0,O:[0,0]},['math']);
           let m=-Infinity,l=0,out=[0,0];
           for(let t=0;t<2;t++) {
@@ -239,6 +244,11 @@
             const alpha=Number.isFinite(oldM)?Math.exp(oldM-m):0,E=scores.map(s=>Math.exp(s-m));l=alpha*oldL+E.reduce((a,b)=>a+b,0);
             const rescaled=oldO.map(x=>x*alpha*oldL/l),weights=E.map(x=>x/l);
             out=rescaled.map((x,j)=>x+weights.reduce((s,w,i)=>s+w*V[start+i][j],0));
+            if(!cpu){
+              add('mma_load',`Key tile ${t+1}: load TensorCore operand fragments`,'The original GPU score matmul splits D=32 into four BK=8 slices. load_a/load_b make fragments; the tiny two-key arithmetic below is a teaching reduction.',{tile:t,local:false,mmaPhase:'load'},['attention_mma']);
+              add('mma_accumulate','Multiply fragments and accumulate C','mma_op(A,B,C) produces partial scores; c_reg retains the accumulator across reduction slices.',{mmaPhase:'accumulate'},['attention_mma']);
+              add('mma_store','Store shared scores, synchronize, then read the tile','store_d(out_sram,c_reg); barrier(); res.copy_from(out_sram). Block synchronization differs from later result readiness.',{mmaPhase:'store'},['attention_mma']);
+            }
             add('score',`Key tile ${t+1}: Q K_tileᵀ → [${scores}]`,'Scores are local to this key tile. The original operation is unscaled and has no mask, dropout or head/batch axis.',{tile:t,scores,E:[],oldM:Number.isFinite(oldM)?oldM:null,oldL,oldO,local:true},['math']);
             add('max',`Update the running maximum: m=${fmt(m)}`,t?'The larger second-tile maximum changes the reference scale. Older contributions must be rescaled.':'The first tile establishes a finite reference maximum.',{m,alpha},['math']);
             add('exp','Compute E = exp(scores − m_new)',`E=[${E.map(fmt)}], α=exp(m_old−m_new)=${fmt(alpha)}.`,{E},['math']);

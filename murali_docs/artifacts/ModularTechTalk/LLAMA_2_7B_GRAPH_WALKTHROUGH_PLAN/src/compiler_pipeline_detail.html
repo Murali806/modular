@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>C.1 · MAX graph compiler: transformations and examples</title><style>@@CSS@@</style></head><body>
+<header><a href="max_example_01_add_one_compilation_and_execution.html#toolchain">← Add-one · C.1</a><span>SOURCE · pinned compiler route</span></header>
+<main><h1>From symbolic graph to runtime callables</h1><p>What changes, why it changes, and which implementation performs the work. Add-one stays the reference; elementwise fusion and marked GPU graphs are separate, explicitly conditional comparisons.</p>
+<p class="evidence">Revision <code>@@REV@@</code>. All IR, object names, indices and memory examples below are schematic. They are not captured compiler dumps or measured hardware behavior. This page creates no compiler processes or device work.</p>
+<details class="orientation"><summary>Keep the objects and phases distinct</summary><pre>P1: .mojoc implementation package
+G1: caller graph retained → C1: compiler-owned clone changes
+C1: MO → MAP → MOGG → MGP plan (dialects can coexist)
+KIR1: specialized kernel IR → LLVM IR → target code
+CM1: prepared graph/code artifact → init → M1 → execute(B1) → O1</pre><p>All pass groups run through compiler libraries in the host process. Saved IR files are optional inspection outputs. The explicit MAP ancestry shown here applies to the advanced fusion route; an option-disabled path may retain MO custom operations.</p></details>
+<div class="layout"><nav aria-label="Compiler stages">@@NAV@@</nav><section class="reader">
+<section class="scene" aria-label="Compiler transformation workbench"><div class="controls"><button data-action="back">Back</button><button data-action="step">Step</button><button data-action="play">Play</button><button data-action="reset">Reset</button><output id="count">0 / 4</output><button data-action="prev">Previous stage</button><button data-action="next">Next stage</button></div>
+<h2 id="scene-title"></h2><div class="canvas"><svg viewBox="0 0 1100 470" role="img" aria-label="Retained G1, compiler C1 before and after a selected transformation">
+<defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="#346875"/></marker></defs>
+<rect x="18" y="15" width="1064" height="50" rx="8" class="retained"/><text x="34" y="38" class="strong">G1 + P1 · caller objects retained</text><text x="34" y="56">Compiler changes C1 / its routine lineage; real buffers are supplied later.</text>
+<path class="sheet before" d="M22 90H310L338 118V342H22Z"/><text x="38" y="115" class="strong">BEFORE · compiler representation</text><g id="before-lines"></g>
+<rect x="382" y="90" width="290" height="250" rx="12" class="tool"/><text x="400" y="115" class="strong">PASS / COMPILER MECHANISM</text><foreignObject x="400" y="133" width="250" height="98"><div xmlns="http://www.w3.org/1999/xhtml" id="mechanism"></div></foreignObject><rect id="gate" x="400" y="240" width="254" height="68" rx="6"/><text x="414" y="265" id="gate-text"></text><text x="414" y="288" id="gate-note"></text>
+<path class="sheet after" d="M716 90H1035L1063 118V342H716Z"/><text x="732" y="115" class="strong">AFTER · resulting structure</text><g id="after-lines"></g>
+<path class="route" d="M340 222H379M674 222H714" marker-end="url(#arrow)"/>
+<g id="artifact" transform="translate(38,302)"><path d="M0 0H183L197 14V45H0Z"/><foreignObject x="9" y="5" width="175" height="34"><div xmlns="http://www.w3.org/1999/xhtml" id="packet">C1 operation/reference</div></foreignObject></g>
+<rect x="22" y="366" width="1040" height="84" rx="8" class="history"/><text x="37" y="389" class="strong">LINEAGE / READINESS</text><text x="37" y="412" id="lineage"></text><text x="37" y="433" id="phase-note"></text>
+</svg></div><p class="event" aria-live="polite"><b id="event-title"></b><span id="event-detail"></span></p><p id="current-source"></p></section>
+@@ARTICLES@@
+</section></div>
+<details class="portable"><summary>Portable flow · every stage · examples · source evidence</summary>@@PORTABLE@@</details>
+<p class="evidence">SOURCE evidence establishes the implementation at this revision. Numerical examples explain equivalence and resource roles; no MAX/Mojo compilation or inference was executed to generate this reader.</p>
+</main>
+<dialog id="source-dialog"><div class="source-toolbar"><b id="source-name"></b><button id="source-close">Close ×</button><label>Find <input id="source-find" type="search"></label></div><p id="source-pin"></p><pre id="source-code"></pre></dialog>
+<script type="application/json" id="pipeline-data">@@DATA@@</script><script>@@JS@@</script></body></html>

@@ -388,12 +388,18 @@ def render_toolchain_text(refs, example, task, src):
     portable = re.sub(r"\{\{diagram:[a-z]+\}\}", "", portable)
     portable = re.sub(r'<code>(.*?)</code>', lambda m: '`' + html.unescape(m[1]) + '`', portable, flags=re.S)
     calltrees = None
+    graph_call_stack_html = None
     if example["id"] == "addition":
         from compiler_addition_calltrees import render_addition_calltrees
-        calltree_html, calltree_text, calltrees = render_addition_calltrees(refs, REVISION)
+        calltree_html, calltree_text, calltrees, graph_call_stack_html = render_addition_calltrees(
+            refs, REVISION, cards_with_callstack=True)
         body = [calltree_html, '<details class="qna-reference" id="toolchain-reference"><summary>Reference · complete answers 1–7, diagrams and finer numbered explanations</summary><div class="qna-reference-body">', *body, '</div></details>']
         portable = calltree_text + '\n\n---\n\n' + portable
         (task / "COMPILER_TOOLCHAIN_QNA.md").write_text(portable)
+    elif example["id"] == "attention":
+        from compiler_attention_calltrees import render_attention_calltrees
+        graph_call_stack_html, portable, calltrees = render_attention_calltrees(refs, REVISION, src)
+        (task / "ATTENTION_CALL_STACKS.md").write_text(portable.rstrip() + "\n")
     copy_label = 'Copy call trees + 1–7' if calltrees else 'Copy complete 1–7'
     tools = '<div class="qna-tools" data-interactive hidden><button type="button" data-return-animation>Back to Animation</button><button type="button" data-qna-copy>' + copy_label + '</button><a href="../COMPILER_TOOLCHAIN_QNA.md" download>Download the full text</a><output data-qna-copy-status role="status"></output></div>'
     footer = '<div class="qna-tools" data-interactive hidden><button type="button" data-return-animation>Back to Animation · current step</button><a href="#toolchain-q1">Back to question 1</a></div>'
@@ -401,7 +407,14 @@ def render_toolchain_text(refs, example, task, src):
                     point1_sha256=hashlib.sha256(point1.encode()).hexdigest())
     if calltrees:
         metadata['calltrees'] = calltrees
-    return tools + color_qna_text("".join(body) + footer), metadata
+        metadata['reading_views'] = ['animation', 'callstack']
+        metadata['reading_targets'] = {
+            '1': 'graph-constructor-copy', '1.3': 'graph-constructor-copy',
+            '2': 'toolchain-call-graph-package', '3': 'toolchain-call-compile-passes',
+            '4': 'toolchain-call-compile-kernels', '5': 'toolchain-call-compile-kernels',
+            '6': 'toolchain-call-session-ownership', '7': 'session-compile-section',
+        }
+    return tools + color_qna_text("".join(body) + footer), metadata, graph_call_stack_html
 
 
 def portable_frames(example, src):
