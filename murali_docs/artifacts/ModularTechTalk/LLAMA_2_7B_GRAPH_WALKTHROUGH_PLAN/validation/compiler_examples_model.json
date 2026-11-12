@@ -1,6 +1,9 @@
 {
   "evidence": "CPU-RUN · JavaScript math/model checks only; no MAX/GPU execution",
   "checks": [
+    "Both query rows agree with independent stable softmax at each committed key prefix and final output.",
+    "Exponentials, old-output rescaling, merge arithmetic and snapshot independence are verified.",
+    "A native-code hit skips code generation while retaining runtime lowering; vendor changes select the correct backend, module APIs and source evidence.",
     "Independent tiny arithmetic: add-one, composed matmul, full-K tiled matmul and full-softmax attention",
     "Graph, compiled artifact and initialized executable are distinct; readiness/host copying follows each source",
     "CPU routes omit GPU transfers/coordination; NVIDIA/AMD tile parameters follow source",
@@ -12,6 +15,36 @@
   ],
   "results": [
     {
+      "example": "attention",
+      "layout": "attention-stage-reader-v1",
+      "numeric": [
+        {
+          "query": 0,
+          "steps": 38,
+          "output": [
+            2.137996831383711,
+            1.1058629220748353
+          ],
+          "reference": [
+            2.1379968313837105,
+            1.1058629220748353
+          ]
+        },
+        {
+          "query": 1,
+          "steps": 38,
+          "output": [
+            0.9406738431877646,
+            2.97280775249664
+          ],
+          "reference": [
+            0.9406738431877647,
+            2.9728077524966405
+          ]
+        }
+      ]
+    },
+    {
       "example": "addition",
       "target": "cuda",
       "variant": "default",
@@ -279,54 +312,6 @@
         8,
         3,
         6
-      ]
-    },
-    {
-      "example": "attention",
-      "target": "cuda",
-      "variant": "default",
-      "frames": [
-        35,
-        7,
-        14,
-        27
-      ],
-      "backend": "NVPTXBackend",
-      "result": [
-        1.6118556566078874,
-        1.4186799207178729
-      ]
-    },
-    {
-      "example": "attention",
-      "target": "rocm",
-      "variant": "default",
-      "frames": [
-        35,
-        7,
-        14,
-        27
-      ],
-      "backend": "AMDGPUBackend",
-      "result": [
-        1.6118556566078874,
-        1.4186799207178729
-      ]
-    },
-    {
-      "example": "attention",
-      "target": "cpu",
-      "variant": "default",
-      "frames": [
-        35,
-        7,
-        14,
-        20
-      ],
-      "backend": "HostBackend",
-      "result": [
-        1.6118556566078874,
-        1.4186799207178729
       ]
     }
   ]

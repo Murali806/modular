@@ -7,7 +7,13 @@ const checks=[],results=[];
 const dot=(a,b)=>a.reduce((s,x,i)=>s+x*b[i],0);
 const scores=K.map(k=>dot(Q,k)),max=Math.max(...scores),weights=scores.map(x=>Math.exp(x-max));
 const reference=V[0].map((_,j)=>weights.reduce((s,w,i)=>s+w*V[i][j],0)/weights.reduce((s,w)=>s+w,0));
-for(const e of manifest.examples)for(const target of ['cuda','rocm','cpu'])for(const variant of e.example.id==='epilogue'?['fused','separate']:e.example.id==='matmul'?['tiled','naive']:['default']) {
+const freshAttention=manifest.examples.some(e=>e.layout==='attention-stage-reader-v1');
+if(freshAttention){
+  const report=require('./check_attention_walkthrough_model.cjs').run();
+  checks.push(...report.checks);
+  results.push({example:'attention',layout:'attention-stage-reader-v1',numeric:report.numeric});
+}
+for(const e of manifest.examples.filter(e=>e.layout!=='attention-stage-reader-v1'))for(const target of ['cuda','rocm','cpu'])for(const variant of e.example.id==='epilogue'?['fused','separate']:e.example.id==='matmul'?['tiled','naive']:['default']) {
   const options={target,fusion:variant,algorithm:variant==='default'?'tiled':variant};
   const toolchain=new ExampleModel('toolchain',e.example,options),build=new ExampleModel('build',e.example,options),compile=new ExampleModel('compile',e.example,options),run=new ExampleModel('run',e.example,options);
   for(const model of [toolchain,build,compile,run]) {

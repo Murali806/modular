@@ -50,6 +50,14 @@ def check_examples(example_ids=None):
     parsers[workbench.resolve()]=home
     selected=[e for e in manifest['examples'] if example_ids is None or e['example']['id'] in example_ids]
     for e in selected:
+        if e.get('layout') == 'attention-stage-reader-v1':
+            from check_attention_walkthrough import check_attention
+            report = check_attention()
+            assert report['revision'] == manifest['revision']
+            file_checks.update(f['path'] for f in e['files'])
+            spans += len(e['references'])
+            links += report['local_links']
+            continue
         page=TASK/e['page'];text=page.read_text();p=Parser();p.feed(text);parsers[page.resolve()]=p
         assert len(p.ids)==len(set(p.ids)),page
         assert not p.dependencies

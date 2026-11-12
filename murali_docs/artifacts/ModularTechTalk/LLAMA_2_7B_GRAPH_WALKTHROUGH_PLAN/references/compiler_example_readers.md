@@ -121,6 +121,12 @@ layouts. Preserve unrelated working-tree changes and earlier Git checkpoints.
 
 ## Current fused-attention implementation
 
+The user rejected the implementation described below as crowded and requested
+a fresh page at the same path. Its stage-led replacement and current scoped
+commands are in [attention_stage_reader.md](attention_stage_reader.md).
+Treat the following implementation notes as historical source references,
+not instructions to restore the rejected layout.
+
 For the user's November 12 reassessment and the deeper implementation,
 read [attention card design and research](attention_card_design.md).
 The initial short scenes remain a baseline to audit, not the required depth.

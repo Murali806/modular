@@ -195,6 +195,10 @@ def build_compiler_examples(example_ids=None):
     for example in EXAMPLES:
         if example_ids is not None and example['id'] not in example_ids:
             continue
+        if example['id'] == 'attention':
+            from attention_walkthrough import build_attention
+            manifests.append(build_attention(example))
+            continue
         refs,files=load_example(example)
         qna_html,qna_meta,call_stack_html=render_toolchain_text(refs,example,TASK,SRC)
         toolchain_frames=portable_frames(example,SRC)

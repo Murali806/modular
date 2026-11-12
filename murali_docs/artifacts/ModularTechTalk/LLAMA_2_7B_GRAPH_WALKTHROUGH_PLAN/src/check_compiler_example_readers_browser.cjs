@@ -4,6 +4,7 @@ const {pathToFileURL}=require('node:url'),{chromium}=require('playwright');
 const audit=require('./compiler_browser_audit.cjs');
 const task=path.resolve(__dirname,'..'),errors=[],requests=[],checks=[],screenshots=[];
 const pages={addition:'max_example_01_add_one_compilation_and_execution.html',attention:'max_example_04_fused_attention_online_softmax.html'};
+const freshAttention=JSON.parse(fs.readFileSync(path.join(task,'compiler_examples_manifest.json'),'utf8')).examples.some(e=>e.layout==='attention-stage-reader-v1');
 const url=id=>pathToFileURL(path.join(task,'link_htmls',pages[id])).href;
 const closeCard=async page=>{const c=page.locator('#call-explanation-card');if(await c.isVisible())await c.locator('[data-window-close]').click();};
 const openCard=async(page,id)=>{await closeCard(page);const a=page.locator('#toolchain-callstack [data-call-explanation="'+id+'"]').first();await a.scrollIntoViewIfNeeded();await a.click();const c=page.locator('#call-explanation-card');assert.equal(await c.isVisible(),true,id);return c;};
@@ -18,6 +19,7 @@ const closeSource=async page=>page.locator('#source-dialog #source-close').click
   await ctx.route(/^https?:/,r=>{requests.push(r.request().url());return r.abort();});
   const p=await ctx.newPage();p.setDefaultTimeout(10000);p.on('pageerror',e=>errors.push(e.message));
   for(const id of ['addition','attention']){
+   if(id==='attention'&&freshAttention)continue;
    await p.goto(url(id));
    assert.equal(await p.locator('#toolchain-text-tab,#toolchain-text').count(),0);
    assert.deepEqual(await p.locator('#toolchain [role="tab"]').allTextContents(),['Animation','Call Stack Tree']);
@@ -46,6 +48,7 @@ const closeSource=async page=>page.locator('#source-dialog #source-close').click
    await p.locator('#toolchain-animation [data-fullscreen-toggle]').click();await p.waitForFunction(()=>!document.fullscreenElement);
    checks.push(id+': Read-current routes into retained call stack; Chrome fullscreen fits and exits');
   }
+  if(!freshAttention){
   await p.goto(url('attention'));await p.locator('#toolchain-callstack-tab').click();
   const stack=p.locator('#toolchain-callstack'),graph=stack.locator('#graph-constructor-copy');
   const graphText=await graph.textContent();assert.ok(graphText.indexOf('Insert mo.GraphOp')<graphText.indexOf('_import_kernels'));assert.ok(graphText.indexOf('_import_kernels')<graphText.indexOf('results = ops.custom'));
@@ -161,6 +164,11 @@ const closeSource=async page=>page.locator('#source-dialog #source-close').click
   const printContext=await browser.newContext({viewport:{width:1200,height:1000},reducedMotion:'reduce'}),printPage=await printContext.newPage();await printPage.goto(url('attention'));await printPage.emulateMedia({media:'print'});
   const printCard=printPage.locator('#toolchain-call-kernel-online'),printTranscript=printCard.locator('.attention-motion-transcript');assert.equal(await printCard.isVisible(),true);assert.equal(await printTranscript.locator('li').first().isVisible(),true);assert.equal(await printCard.locator('[data-am-action="play"]').isVisible(),false);assert.equal(await printCard.locator('[data-call-tree-id]').isVisible(),true);await printContext.close();
   checks.push('attention: print exposes source trees and portable per-step transcripts while hiding interactive controls');
+  }else{
+   const report=await require('./check_attention_walkthrough_browser.cjs').run();
+   checks.push(...report.checks.map(check=>'attention: '+check));
+   screenshots.push(...report.screenshots);
+  }
   assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);
   const report={result:'PASS',checks,errors,externalRequests:requests.length,screenshots,evidence:'Browser/source illustrations only; no MAX/Mojo build or GPU workload'};
   fs.writeFileSync(path.join(task,'validation/compiler_example_readers_browser.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));

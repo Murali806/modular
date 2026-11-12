@@ -1,5 +1,11 @@
 # Detailed attention cards
 
+**Superseded layout:** the user subsequently rejected the expanded page as
+crowded and requested a fresh stage-led reader. Use
+[the replacement design](attention_stage_reader.md) for example 04. The
+mechanism/source-research distinctions below remain useful background; the
+earlier card count, layout and implementation list are not acceptance criteria.
+
 The user reassessed the attention reader on November 12, 2026: matching
 add-one's appearance and adding a short animation to every card did not
 provide enough explanation. Apply these decisions to complex attention

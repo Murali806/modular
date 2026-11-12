@@ -51,11 +51,17 @@ matching the motion, state detail and interactions of the cited local examples.
 | Graph/dialect transformations, Mojo systems control, target tools/binaries, MEF and driver/buffer movement | [Compiler and systems animations](references/compiler_and_systems_animations.md); connected journey + focused workbench/example family in the catalog |
 | Custom-op example readers modeled on add-one, detailed call trees/cards, source callers and kernel transformations | [Accepted example-reader decisions](references/compiler_example_readers.md); inspect the current add-one reader and adapt the actual requested example |
 | Deepening complex attention cards whose short generic animations do not explain the mechanism | [Attention card design and research](references/attention_card_design.md); audit each card's input, native calls, concrete state changes and numerical explanation |
+| Fresh attention reader after the user rejected the crowded card layout | [Fresh stage-led attention design](references/attention_stage_reader.md); build/run → G1 → S1 → C1 → M1 → execute, with a separate artifact/driver guide |
 | Deeper LLVM/MLIR/JIT research or a compiler redesign | [Research and applied decisions](COMPILER_WORKBENCH_RESEARCH.md); primary mechanisms inform design, pinned MAX source establishes implementation |
 | Memory budgets, KV pages, input origins or parent/worker planning | Memory family in the catalog; memory rules in [agent.md](agent.md) |
 | Main QnA/call-stack guide or requirements-only updates | Relevant sections of [agent.md](agent.md); update the affected reference without rebuilding pages |
 
 ## Preserve the accepted experience
+
+The user's November 12 fresh-start request supersedes the earlier attention
+layout: do not reintroduce the previous 34-card overview or generic combined
+journey. Use its [stage-led replacement](references/attention_stage_reader.md).
+This decision applies to example 04, not to the accepted add-one reader.
 
 - Use a light theme, a full-width scene and compact controls. The compiler
   workbench's drafting surface and physical artifact shapes are an accepted
