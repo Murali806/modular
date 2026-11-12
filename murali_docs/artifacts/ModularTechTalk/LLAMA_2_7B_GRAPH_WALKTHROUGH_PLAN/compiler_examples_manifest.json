@@ -7465,6 +7465,446 @@
       },
       "layout": "attention-stage-reader-v1",
       "references": {
+        "build:3": {
+          "id": "build:3",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "line": 3,
+          "start": 1,
+          "end": 124,
+          "label": "BUILD.bazel:3",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "fd76f32f14256dca172d5033747849880f0952565fd4a99ad76042c18ef885b4"
+        },
+        "build:73": {
+          "id": "build:73",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "line": 73,
+          "start": 1,
+          "end": 124,
+          "label": "BUILD.bazel:73",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "fd76f32f14256dca172d5033747849880f0952565fd4a99ad76042c18ef885b4"
+        },
+        "macro:5": {
+          "id": "macro:5",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 5,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:5",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "macro:8": {
+          "id": "macro:8",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 8,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:8",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "macro:9": {
+          "id": "macro:9",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 9,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:9",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "macro:12": {
+          "id": "macro:12",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 12,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:12",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "macro:13": {
+          "id": "macro:13",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 13,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:13",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "build:74": {
+          "id": "build:74",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "line": 74,
+          "start": 1,
+          "end": 124,
+          "label": "BUILD.bazel:74",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "fd76f32f14256dca172d5033747849880f0952565fd4a99ad76042c18ef885b4"
+        },
+        "macro:15": {
+          "id": "macro:15",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 15,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:15",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "build:9": {
+          "id": "build:9",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "line": 9,
+          "start": 1,
+          "end": 124,
+          "label": "BUILD.bazel:9",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "fd76f32f14256dca172d5033747849880f0952565fd4a99ad76042c18ef885b4"
+        },
+        "macro:18": {
+          "id": "macro:18",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 18,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:18",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "macro:19": {
+          "id": "macro:19",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 19,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:19",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "macro:24": {
+          "id": "macro:24",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 24,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:24",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "macro:31": {
+          "id": "macro:31",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 31,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:31",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "macro:32": {
+          "id": "macro:32",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 32,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:32",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "py-rule:13": {
+          "id": "py-rule:13",
+          "file": "bazel/internal/modular_py_binary.bzl",
+          "line": 13,
+          "start": 1,
+          "end": 162,
+          "label": "modular_py_binary.bzl:13",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
+        },
+        "py-rule:73": {
+          "id": "py-rule:73",
+          "file": "bazel/internal/modular_py_binary.bzl",
+          "line": 73,
+          "start": 1,
+          "end": 162,
+          "label": "modular_py_binary.bzl:73",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
+        },
+        "py-rule:80": {
+          "id": "py-rule:80",
+          "file": "bazel/internal/modular_py_binary.bzl",
+          "line": 80,
+          "start": 1,
+          "end": 162,
+          "label": "modular_py_binary.bzl:80",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
+        },
+        "py-rule:88": {
+          "id": "py-rule:88",
+          "file": "bazel/internal/modular_py_binary.bzl",
+          "line": 88,
+          "start": 1,
+          "end": 162,
+          "label": "modular_py_binary.bzl:88",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
+        },
+        "py-rule:126": {
+          "id": "py-rule:126",
+          "file": "bazel/internal/modular_py_binary.bzl",
+          "line": 126,
+          "start": 1,
+          "end": 162,
+          "label": "modular_py_binary.bzl:126",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
+        },
+        "py-rule:134": {
+          "id": "py-rule:134",
+          "file": "bazel/internal/modular_py_binary.bzl",
+          "line": 134,
+          "start": 1,
+          "end": 162,
+          "label": "modular_py_binary.bzl:134",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
+        },
+        "py-rule:147": {
+          "id": "py-rule:147",
+          "file": "bazel/internal/modular_py_binary.bzl",
+          "line": 147,
+          "start": 1,
+          "end": 162,
+          "label": "modular_py_binary.bzl:147",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
+        },
+        "macro:43": {
+          "id": "macro:43",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 43,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:43",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "macro:44": {
+          "id": "macro:44",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 44,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:44",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "macro:47": {
+          "id": "macro:47",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 47,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:47",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "macro:45": {
+          "id": "macro:45",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 45,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:45",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "macro:48": {
+          "id": "macro:48",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 48,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:48",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "macro:49": {
+          "id": "macro:49",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 49,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:49",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "test-rule:37": {
+          "id": "test-rule:37",
+          "file": "bazel/internal/modular_run_binary_test.bzl",
+          "line": 37,
+          "start": 1,
+          "end": 45,
+          "label": "modular_run_binary_test.bzl:37",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "151c7e7e76fceb0d39822aa64dab0de7ee98e95e687ada4725b3cc492ab8673b"
+        },
+        "test-rule:33": {
+          "id": "test-rule:33",
+          "file": "bazel/internal/modular_run_binary_test.bzl",
+          "line": 33,
+          "start": 1,
+          "end": 45,
+          "label": "modular_run_binary_test.bzl:33",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "151c7e7e76fceb0d39822aa64dab0de7ee98e95e687ada4725b3cc492ab8673b"
+        },
+        "binary-test:5": {
+          "id": "binary-test:5",
+          "file": "bazel/internal/binary_test.bzl",
+          "line": 5,
+          "start": 1,
+          "end": 52,
+          "label": "binary_test.bzl:5",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "eeae2173c6218649b31fda594719b4ccb7d0578573a3527e073c612140cc86e8"
+        },
+        "binary-test:31": {
+          "id": "binary-test:31",
+          "file": "bazel/internal/binary_test.bzl",
+          "line": 31,
+          "start": 1,
+          "end": 52,
+          "label": "binary_test.bzl:31",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "eeae2173c6218649b31fda594719b4ccb7d0578573a3527e073c612140cc86e8"
+        },
+        "binary-test:34": {
+          "id": "binary-test:34",
+          "file": "bazel/internal/binary_test.bzl",
+          "line": 34,
+          "start": 1,
+          "end": 52,
+          "label": "binary_test.bzl:34",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "eeae2173c6218649b31fda594719b4ccb7d0578573a3527e073c612140cc86e8"
+        },
+        "build:77": {
+          "id": "build:77",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "line": 77,
+          "start": 1,
+          "end": 124,
+          "label": "BUILD.bazel:77",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "fd76f32f14256dca172d5033747849880f0952565fd4a99ad76042c18ef885b4"
+        },
+        "macro:14": {
+          "id": "macro:14",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 14,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:14",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "py-rule:64": {
+          "id": "py-rule:64",
+          "file": "bazel/internal/modular_py_binary.bzl",
+          "line": 64,
+          "start": 1,
+          "end": 162,
+          "label": "modular_py_binary.bzl:64",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
+        },
+        "py-rule:102": {
+          "id": "py-rule:102",
+          "file": "bazel/internal/modular_py_binary.bzl",
+          "line": 102,
+          "start": 1,
+          "end": 162,
+          "label": "modular_py_binary.bzl:102",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
+        },
+        "py-rule:94": {
+          "id": "py-rule:94",
+          "file": "bazel/internal/modular_py_binary.bzl",
+          "line": 94,
+          "start": 1,
+          "end": 162,
+          "label": "modular_py_binary.bzl:94",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
+        },
+        "py-rule:82": {
+          "id": "py-rule:82",
+          "file": "bazel/internal/modular_py_binary.bzl",
+          "line": 82,
+          "start": 1,
+          "end": 162,
+          "label": "modular_py_binary.bzl:82",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
+        },
+        "macro:16": {
+          "id": "macro:16",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 16,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:16",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
         "graph:910": {
           "id": "graph:910",
           "file": "max/python/max/graph/graph.py",
@@ -7475,6 +7915,83 @@
           "alias": "PY",
           "language": "python",
           "sha256": "1d22145baa183f535d9e707aa959b7cb833ef4c150d39e2ebccf66e24923edb4"
+        },
+        "paths:178": {
+          "id": "paths:178",
+          "file": "Mojo/python/mojo/paths.py",
+          "line": 178,
+          "start": 1,
+          "end": 191,
+          "label": "paths.py:178",
+          "alias": "PY",
+          "language": "python",
+          "sha256": "d6d4e532fe4ede43c69b297b781cfbf46030dd8746d8883a159bc2af8d72f7e7"
+        },
+        "entry:86": {
+          "id": "entry:86",
+          "file": "max/examples/custom_ops/fused_attention.py",
+          "line": 86,
+          "start": 1,
+          "end": 87,
+          "label": "fused_attention.py:86",
+          "alias": "PY",
+          "language": "python",
+          "sha256": "e5874ab1b10e723df30f868d8c73dd3a272eee49fee0bc35bc4620aa52ba7b69"
+        },
+        "test-rule:17": {
+          "id": "test-rule:17",
+          "file": "bazel/internal/modular_run_binary_test.bzl",
+          "line": 17,
+          "start": 1,
+          "end": 45,
+          "label": "modular_run_binary_test.bzl:17",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "151c7e7e76fceb0d39822aa64dab0de7ee98e95e687ada4725b3cc492ab8673b"
+        },
+        "build:76": {
+          "id": "build:76",
+          "file": "max/examples/custom_ops/BUILD.bazel",
+          "line": 76,
+          "start": 1,
+          "end": 124,
+          "label": "BUILD.bazel:76",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "fd76f32f14256dca172d5033747849880f0952565fd4a99ad76042c18ef885b4"
+        },
+        "entry:83": {
+          "id": "entry:83",
+          "file": "max/examples/custom_ops/fused_attention.py",
+          "line": 83,
+          "start": 1,
+          "end": 87,
+          "label": "fused_attention.py:83",
+          "alias": "PY",
+          "language": "python",
+          "sha256": "e5874ab1b10e723df30f868d8c73dd3a272eee49fee0bc35bc4620aa52ba7b69"
+        },
+        "macro:1": {
+          "id": "macro:1",
+          "file": "max/examples/custom_ops/custom_op_example.bzl",
+          "line": 1,
+          "start": 1,
+          "end": 50,
+          "label": "custom_op_example.bzl:1",
+          "alias": "BUILD",
+          "language": "text",
+          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
+        },
+        "entry:58": {
+          "id": "entry:58",
+          "file": "max/examples/custom_ops/fused_attention.py",
+          "line": 58,
+          "start": 1,
+          "end": 87,
+          "label": "fused_attention.py:58",
+          "alias": "PY",
+          "language": "python",
+          "sha256": "e5874ab1b10e723df30f868d8c73dd3a272eee49fee0bc35bc4620aa52ba7b69"
         },
         "graph:1703": {
           "id": "graph:1703",
@@ -7538,17 +8055,6 @@
           "start": 1,
           "end": 191,
           "label": "paths.py:165",
-          "alias": "PY",
-          "language": "python",
-          "sha256": "d6d4e532fe4ede43c69b297b781cfbf46030dd8746d8883a159bc2af8d72f7e7"
-        },
-        "paths:178": {
-          "id": "paths:178",
-          "file": "Mojo/python/mojo/paths.py",
-          "line": 178,
-          "start": 1,
-          "end": 191,
-          "label": "paths.py:178",
           "alias": "PY",
           "language": "python",
           "sha256": "d6d4e532fe4ede43c69b297b781cfbf46030dd8746d8883a159bc2af8d72f7e7"
@@ -7684,17 +8190,6 @@
           "alias": "PY",
           "language": "python",
           "sha256": "cf4a52f5675de36f45c3b6e9aafa065f708520316cd70084b6710d2ecf891cdc"
-        },
-        "py-rule:64": {
-          "id": "py-rule:64",
-          "file": "bazel/internal/modular_py_binary.bzl",
-          "line": 64,
-          "start": 1,
-          "end": 162,
-          "label": "modular_py_binary.bzl:64",
-          "alias": "BUILD",
-          "language": "text",
-          "sha256": "237cd03b71ba2bea06cc08ee822a2daf9a169890a603913320e6f1bd54282d12"
         },
         "env:195": {
           "id": "env:195",
@@ -9511,17 +10006,6 @@
           "language": "cpp",
           "sha256": "c293d6dfa872e623f80ad8b6587b669b621b05a7a8dc5d5688e3558b32360001"
         },
-        "entry:83": {
-          "id": "entry:83",
-          "file": "max/examples/custom_ops/fused_attention.py",
-          "line": 83,
-          "start": 1,
-          "end": 87,
-          "label": "fused_attention.py:83",
-          "alias": "PY",
-          "language": "python",
-          "sha256": "e5874ab1b10e723df30f868d8c73dd3a272eee49fee0bc35bc4620aa52ba7b69"
-        },
         "primitives:251": {
           "id": "primitives:251",
           "file": "GraphCompiler/lib/MGPDialect/Primitives/MGPPrimitives.cpp",
@@ -9554,39 +10038,6 @@
           "alias": "BUILD",
           "language": "text",
           "sha256": "b08ee9381524e0254669a64c781796cd1c3ca037fd80998ce828dec99c9ab6f6"
-        },
-        "build:73": {
-          "id": "build:73",
-          "file": "max/examples/custom_ops/BUILD.bazel",
-          "line": 73,
-          "start": 1,
-          "end": 124,
-          "label": "BUILD.bazel:73",
-          "alias": "BUILD",
-          "language": "text",
-          "sha256": "fd76f32f14256dca172d5033747849880f0952565fd4a99ad76042c18ef885b4"
-        },
-        "macro:12": {
-          "id": "macro:12",
-          "file": "max/examples/custom_ops/custom_op_example.bzl",
-          "line": 12,
-          "start": 1,
-          "end": 50,
-          "label": "custom_op_example.bzl:12",
-          "alias": "BUILD",
-          "language": "text",
-          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
-        },
-        "macro:15": {
-          "id": "macro:15",
-          "file": "max/examples/custom_ops/custom_op_example.bzl",
-          "line": 15,
-          "start": 1,
-          "end": 50,
-          "label": "custom_op_example.bzl:15",
-          "alias": "BUILD",
-          "language": "text",
-          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
         },
         "env:78": {
           "id": "env:78",
@@ -9632,17 +10083,6 @@
           "language": "text",
           "sha256": "bffc55e31ff09f52b7136fb97c97aee7fb2e4d8ecf98a344fb1a59b1242d137c"
         },
-        "macro:16": {
-          "id": "macro:16",
-          "file": "max/examples/custom_ops/custom_op_example.bzl",
-          "line": 16,
-          "start": 1,
-          "end": 50,
-          "label": "custom_op_example.bzl:16",
-          "alias": "BUILD",
-          "language": "text",
-          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
-        },
         "entry:14": {
           "id": "entry:14",
           "file": "max/examples/custom_ops/fused_attention.py",
@@ -9650,17 +10090,6 @@
           "start": 1,
           "end": 87,
           "label": "fused_attention.py:14",
-          "alias": "PY",
-          "language": "python",
-          "sha256": "e5874ab1b10e723df30f868d8c73dd3a272eee49fee0bc35bc4620aa52ba7b69"
-        },
-        "entry:86": {
-          "id": "entry:86",
-          "file": "max/examples/custom_ops/fused_attention.py",
-          "line": 86,
-          "start": 1,
-          "end": 87,
-          "label": "fused_attention.py:86",
           "alias": "PY",
           "language": "python",
           "sha256": "e5874ab1b10e723df30f868d8c73dd3a272eee49fee0bc35bc4620aa52ba7b69"
@@ -10225,39 +10654,6 @@
           "alias": "BUILD",
           "language": "text",
           "sha256": "b08ee9381524e0254669a64c781796cd1c3ca037fd80998ce828dec99c9ab6f6"
-        },
-        "macro:5": {
-          "id": "macro:5",
-          "file": "max/examples/custom_ops/custom_op_example.bzl",
-          "line": 5,
-          "start": 1,
-          "end": 50,
-          "label": "custom_op_example.bzl:5",
-          "alias": "BUILD",
-          "language": "text",
-          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
-        },
-        "macro:19": {
-          "id": "macro:19",
-          "file": "max/examples/custom_ops/custom_op_example.bzl",
-          "line": 19,
-          "start": 1,
-          "end": 50,
-          "label": "custom_op_example.bzl:19",
-          "alias": "BUILD",
-          "language": "text",
-          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
-        },
-        "macro:43": {
-          "id": "macro:43",
-          "file": "max/examples/custom_ops/custom_op_example.bzl",
-          "line": 43,
-          "start": 1,
-          "end": 50,
-          "label": "custom_op_example.bzl:43",
-          "alias": "BUILD",
-          "language": "text",
-          "sha256": "27d934f9ca0af4018618752bef5a7b116f56cbfb848e5413eb304530fd50a7f9"
         },
         "paths:169": {
           "id": "paths:169",
@@ -11397,6 +11793,7 @@
           "why"
         ],
         "cards": [
+          "macro",
           "package",
           "context",
           "module",

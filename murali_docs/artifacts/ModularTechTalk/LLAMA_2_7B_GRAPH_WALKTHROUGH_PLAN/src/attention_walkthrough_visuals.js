@@ -9,6 +9,30 @@
   const markIndex=(mark,marks)=>Math.max(0,marks.indexOf(mark));
   function standard(a,b,c){return [{x:16,y:22,w:202,h:464,title:a},{x:234,y:22,w:514,h:464,title:b},{x:764,y:22,w:260,h:464,title:c}];}
   function scene(lanes,nodes,edges=[],footer='SOURCE · schematic state; identities are teaching labels'){return {lanes,nodes,edges,footer};}
+  function macroScene(f){
+    const p=markIndex(f.mark,['macro-call','macro-bind','macro-data','macro-deps','macro-env','macro-binary','macro-test','macro-policy','macro-complete']);
+    const nodes=[n('macro-caller',30,67,212,131,'BUILD.bazel call',['name="fused_attention"','srcs=[fused_attention.py]','load → call Starlark'],'file','pink')],edges=[];
+    if(p>=1)nodes.push(n('macro-args',30,230,212,235,'Bound arguments',['extra_data=[]','extra_deps=[]','tags=[manual]','compatibility=select(...)',p>=7?'AMD / Apple: excluded':'configuration resolves later'],'slots','pink'));
+    if(p>=2){
+      const rows=['name: fused_attention','srcs: fused_attention.py','data: kernel_sources; imports: .'];
+      if(p>=3)rows.push('Python: MAX modules + NumPy','Mojo: layout, extensibility, std');
+      if(p>=4)rows.push('helper: .mojo_deps + .mojo_test_env','env: compiler / import / linker paths');
+      if(p>=5)rows.push('declare py_binary with these fields');
+      if(p>=7)rows.push('forward configurable compatibility');
+      nodes.push(n('macro-recipe',286,67,440,280,'Python target recipe',rows,'program','blue'));
+      edges.push(e('macro-caller','macro-recipe','arguments'));
+    }
+    if(p>=5){
+      nodes.push(n('macro-python',768,67,242,142,'Executable declaration',[':fused_attention','kind: py_binary','source/data/dependency edges','launcher created at build'],'file','green'));
+      edges.push(e('macro-recipe','macro-python','declare'));
+    }
+    if(p>=6){
+      nodes.push(n('macro-test',768,249,242,216,'Test declaration',[':fused_attention.example-test','binary → :fused_attention','tags=[gpu,manual]','size=large; args=[]',p>=7?'same compatibility forwarded':'test environment configured'],'file','green'));
+      edges.push(e('macro-test','macro-python','binary reference'));
+    }
+    if(p>=7)nodes.push(n('macro-policy',286,370,440,95,p>=8?'Result: declarations retained by Bazel':'Policies remain on the targets',[p>=8?'next: analysis → requested build/run/test actions':'compatibility: AMD / Apple → incompatible',p>=8?'P1 and Python main() belong to runtime':'manual forwarded to the example test only'],'gate',p>=8?'green':'orange'));
+    return scene([{x:16,y:22,w:242,h:464,title:'CALLER / BOUND VALUES'},{x:272,y:22,w:468,h:464,title:'MACRO EXPANSION · BAZEL LOADING'},{x:754,y:22,w:270,h:464,title:'DECLARED TARGET GRAPH'}],nodes,edges,'SOURCE · target declarations become build actions during later analysis; no compiler runs in this macro');
+  }
   const buildMarks=['command','bazel','targets','analysis','libraries','launcher','built','run','main','package-input','precompile','package-ready','test'];
   function build(f){
     const p=['package-parse','package-checks','package-write'].includes(f.mark)?10:markIndex(f.mark,buildMarks),nodes=[n('request',30,62,174,90,'Requested target',['fused_attention','Bazel label'],'file','pink')],edges=[];
@@ -146,6 +170,7 @@
   }
   function pose(key,f,options={}){
     if(f.math)return math(f);
+    if(key==='macro')return macroScene(f);
     if(key==='build')return build(f);
     if(['graph','module','custom'].includes(key))return graph(f);
     if(key==='context')return contextScene(f);

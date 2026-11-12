@@ -7,6 +7,97 @@ def card(id, title, intro, tree, body, animation):
 
 
 CARDS = [
+card('macro', 'Bazel macro · What this call creates',
+     'This Starlark function declares a Python executable target and a sibling test, with the dependencies needed by the custom-op example.',
+'''caller: BUILD.bazel loads the macro from :custom_op_example.bzl [[build:3]]
+└─ custom_op_example_py_binary(name="fused_attention", …) [[build:73]] [[macro:5]]
+   ├─ bind arguments: name, srcs, extra_data, extra_deps, compatibility, tags [[macro:5]]
+   │  └─ extra_data=[] and extra_deps=[] use the defaults for this caller [[macro:8]] [[macro:9]]
+   ├─ modular_py_binary(name=name, srcs=srcs, …) [[macro:12]]
+   │  ├─ name="fused_attention"; srcs=["fused_attention.py"] [[macro:13]] [[build:74]]
+   │  ├─ data=[":kernel_sources"] + [] → raw kernels/*.mojo available at runtime [[macro:15]] [[build:9]]
+   │  ├─ imports=["."] → make this example package available for Python imports [[macro:18]]
+   │  ├─ mojo_deps=[layout,extensibility,std] → Mojo package dependencies [[macro:19]]
+   │  ├─ deps=[MAX driver,dtype,engine,graph,NumPy] + [] [[macro:24]]
+   │  ├─ pass target_compatible_with; configure dependency-check exceptions [[macro:31]] [[macro:32]]
+   │  └─ nested wrapper declares the executable and its support targets [[py-rule:13]]
+   │     ├─ :fused_attention.mojo_deps → collect transitive Mojo dependencies [[py-rule:73]]
+   │     ├─ :fused_attention.mojo_test_env → compiler/import/linker environment [[py-rule:80]]
+   │     ├─ py_binary(name="fused_attention", srcs=…, data=…, env=…) [[py-rule:88]]
+   │     └─ developer helpers: .venv, .debug, .pydeps_test [[py-rule:126]] [[py-rule:134]] [[py-rule:147]]
+   └─ modular_run_binary_test(name=name + ".example-test", binary=name, …) [[macro:43]]
+      ├─ name="fused_attention.example-test"; binary="fused_attention" [[macro:44]] [[macro:47]]
+      ├─ size="large"; args=[]; tags=["gpu"] + ["manual"] [[macro:45]] [[macro:48]]
+      ├─ forward compatibility; wrapper configures test environment [[macro:49]] [[test-rule:37]]
+      └─ binary_test declares a test referencing the Python executable [[test-rule:33]]
+         ├─ rule implementation schedules an executable symlink [[binary-test:5]]
+         └─ merge binary runfiles and runtime environment [[binary-test:31]] [[binary-test:34]]
+
+OUT after loading: target declarations in Bazel's package, plus support targets [[py-rule:88]] [[test-rule:33]]
+└─ :fused_attention.example-test → :fused_attention → source/data/library dependencies [[macro:47]]
+   Bazel analyzes these declarations and executes requested build/test actions later. [[external:bazel-macros]]''',
+'''### What kind of function is this?
+
+`custom_op_example_py_binary` is defined with `def` in a **.bzl Starlark file**. Starlark resembles Python, but Bazel evaluates it while loading the BUILD package. A macro is a reusable recipe for declaring build targets. Calling it here runs the recipe's two nested macros; those eventually instantiate the `py_binary` and `binary_test` rules. The function has no explicit return value. Its useful result is the targets it declares. [[macro:5]] [[macro:12]] [[macro:43]] [[external:bazel-macros]]
+
+### The actual caller, including the hidden arguments
+
+This is the complete declaration in this checkout. `extra_data` and `extra_deps` are omitted, so their defaults are empty lists. [[build:73]] [[macro:8]]
+
+```starlark
+custom_op_example_py_binary(
+    name = "fused_attention",
+    srcs = ["fused_attention.py"],
+    tags = ["manual"],  # TODO: Disabled in CI - fix vectorization issue
+    target_compatible_with = select({
+        "//:amd_gpu": ["@platforms//:incompatible"],
+        "//:apple_gpu": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+)
+```
+
+### Where each argument goes
+
+| Argument / field | Value here | What Bazel receives |
+|---|---|---|
+| `name` | `"fused_attention"` | Python target `//max/examples/custom_ops:fused_attention`; suffix added for the test [[macro:13]] [[macro:44]] |
+| `srcs` | `["fused_attention.py"]` | Python entry source for the executable [[macro:14]] [[py-rule:94]] |
+| `extra_data` | `[]` | Added to `:kernel_sources`, the grouped Mojo source files supplied as runtime data [[macro:15]] |
+| `extra_deps` | `[]` | Added to the MAX Python and NumPy dependencies [[macro:24]] |
+| `mojo_deps` | Fixed by the macro | `//max:layout`, `//max:extensibility`, `@mojo//:std` for the runtime Mojo environment [[macro:19]] [[py-rule:82]] |
+| `tags` | `["manual"]` | This macro forwards them only to the test, which receives `["gpu","manual"]` [[macro:48]] |
+| `target_compatible_with` | The caller's `select(...)` | Forwarded to the Python target and test; resolved for the Bazel configuration [[macro:31]] [[macro:49]] |
+
+The `select` excludes configurations matching `//:amd_gpu` or `//:apple_gpu`; the default adds no constraint. It does not detect an accelerator or select a compiler backend at Python runtime. The AMD compiler/driver diagrams elsewhere explain that backend as a comparison; this target's pinned BUILD declaration excludes that Bazel configuration. [[build:77]]
+
+### What gets created, and when?
+
+```
+Loading: call macro
+  ├─ declare :fused_attention               [py_binary]
+  ├─ declare :fused_attention.example-test  [binary_test]
+  │             └─ binary = :fused_attention
+  └─ declare environment / dependency / developer support targets
+
+Analysis: resolve configured dependencies and construct build actions
+Execution: run the requested actions; launcher and runfiles become available
+```
+
+The macro registers build instructions. Python `main()`, Graph G1, runtime package P1 and GPU execution are later parts of running the resulting program. Shared Mojo dependencies can have build-time `.mojoc` actions, while the custom `kernels/*.mojo` files are raw runtime data for this Python target. The separate `mojo_library(name="kernels")` declaration is not a dependency introduced by this macro. [[macro:16]] [[py-rule:88]] [[graph:910]] [[paths:178]]
+
+| Command target | Effect |
+|---|---|
+| `./bazelw build //max/examples/custom_ops:fused_attention` | Build the Python executable and needed dependencies; no call to Python `main()` [[py-rule:88]] |
+| `./bazelw run //max/examples/custom_ops:fused_attention` | Build as needed, then launch `fused_attention.py`; its guard calls `main()` [[entry:86]] |
+| `./bazelw test //max/examples/custom_ops:fused_attention.example-test` | Explicitly request the sibling test, which runs the same binary and checks exit status [[test-rule:17]] [[macro:47]] |
+
+The `manual` test tag keeps the test out of wildcard test selection; it can still be requested by its explicit label on a compatible configuration. `size="large"` is test metadata, independent of the attention tensor dimensions. The source script prints its output and contains no numerical parity assertion. [[build:76]] [[macro:45]] [[entry:83]] [[external:bazel-tags]]
+
+### Why use one macro?
+
+All custom-op Python examples need similar Python imports, Mojo packages, runtime tool paths and a simple executable test. The macro keeps that setup in one place, so each BUILD declaration supplies its own name/source and only the extra dependencies or constraints it needs. The name `fused_attention` identifies a **Bazel target**; the later `ops.custom` call uses the separate registration string `modular_ops::fused_attention_custom` to select the Mojo operation. [[macro:1]] [[entry:58]]''', 'macro'),
+
 card('package', 'P1 · From Mojo source to a precompiled package',
      'One subprocess prepares reusable package IR. Concrete GPU instructions are generated later.',
 '''Graph.__init__(custom_extensions=[kernels/]) [[graph:910]]

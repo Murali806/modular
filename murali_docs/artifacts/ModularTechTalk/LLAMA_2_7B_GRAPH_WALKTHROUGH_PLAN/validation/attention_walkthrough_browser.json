@@ -3,7 +3,7 @@
   "checks": [
     "All 11 stages and three views work offline; every main/driver frame has readable, nonoverlapping actors and source evidence.",
     "Caller links open full pinned source at the exact selected line; Hold preserves a source while another is inspected.",
-    "All nine focused cards render their call trees and complete mechanism timelines; changing query row resets the arithmetic.",
+    "All 10 focused cards render their call trees and complete mechanism timelines; changing query row resets the arithmetic.",
     "Hold, Close, Expand/Restore, keyboard movement/resizing, pointer dragging and held-window stacking work.",
     "Chrome fullscreen keeps stage scrolling and card controls usable, including held-card reparenting on exit.",
     "Backend/cache controls update displayed transformations and source evidence together.",
@@ -77,6 +77,12 @@
       "frames": 11,
       "renderedLabels": 294,
       "distinctScenes": 11
+    },
+    {
+      "label": "card:macro",
+      "frames": 9,
+      "renderedLabels": 190,
+      "distinctScenes": 9
     },
     {
       "label": "card:package",

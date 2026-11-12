@@ -138,7 +138,7 @@ async function run() {
       }
       await card.locator('[data-window-close]').click();
     }
-    checks.push('All nine focused cards render their call trees and complete mechanism timelines; changing query row resets the arithmetic.');
+    checks.push(`All ${cards.length} focused cards render their call trees and complete mechanism timelines; changing query row resets the arithmetic.`);
 
     await p.evaluate(()=>AttentionReader.openCard('module'));
     const card=p.locator('[data-window-key="card-module"]');

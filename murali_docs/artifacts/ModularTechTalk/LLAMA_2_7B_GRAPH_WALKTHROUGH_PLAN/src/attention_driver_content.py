@@ -282,6 +282,10 @@ The Python process, MAX runtime workers and vendor user-space API participate lo
 ]
 
 EXTERNAL = {
+ 'bazel-macros': dict(title='Bazel · Starlark legacy macros', url='https://bazel.build/extending/legacy-macros',
+               note='A def-style Starlark macro runs while loading a BUILD package and declares rule targets. It is separate from rule analysis and action execution.'),
+ 'bazel-tags': dict(title='Bazel · common target attributes and tags', url='https://bazel.build/reference/be/common-definitions#common-attributes',
+               note='The manual tag affects wildcard target/test selection. The local macro forwards the caller’s tags to its generated example test.'),
  'bazel': dict(title='Bazel · phases of a build', url='https://bazel.build/run/build',
                note='Bazel separates loading, target analysis and action execution. The local Starlark macro establishes this example’s dependencies.'),
  'cuda-module': dict(title='NVIDIA CUDA Driver API · module management', url='https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__MODULE.html',

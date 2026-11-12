@@ -84,7 +84,7 @@ chapter('build', '01', 'Build the launcher. Then enter Python.',
     '''caller: ./bazelw build //max/examples/custom_ops:fused_attention [[bazelw:1]]
 ├─ repository wrapper → pinned Bazelisk executable; exec forwards arguments [[bazelw:33]] [[bazelw:59]]
 ├─ Bazel loads BUILD.bazel and expands the example macro [[build:73]]
-│  └─ custom_op_example_py_binary(name="fused_attention", …) [[macro:5]]
+│  └─ custom_op_example_py_binary(name="fused_attention", …) [[macro:5]] {{macro}}
 │     ├─ modular_py_binary → Python launcher + fused_attention.py [[py-rule:53]]
 │     ├─ data: :kernel_sources → kernels/*.mojo in runfiles [[macro:15]]
 │     ├─ Mojo deps: layout, extensibility, std → library packages [[macro:19]]
