@@ -8,9 +8,9 @@
   ],
   "animations": 12,
   "visible_mermaid_source": false,
-  "source_files": 100,
-  "source_spans": 448,
-  "local_links": 2590,
+  "source_files": 107,
+  "source_spans": 464,
+  "local_links": 3527,
   "external_runtime_dependencies": 0,
   "evidence": "Source/document checks only; no MAX execution"
 }

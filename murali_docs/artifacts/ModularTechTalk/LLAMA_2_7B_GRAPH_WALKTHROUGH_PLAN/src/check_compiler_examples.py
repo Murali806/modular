@@ -15,7 +15,7 @@ class Parser(HTMLParser):
     def __init__(self):
         super().__init__();self.ids=[];self.links=[];self.dependencies=[];self.refs=[];self.originals={};self.original_point=None
         self.original_points=[];self.original_fragments=[];self.original_fragment=None;self.diagrams=[];self.presentation=[];self.suppressed_tag=None
-        self.caller_trees=[];self.call_tree_ids=[]
+        self.caller_trees=[];self.call_tree_ids=[];self.attention_scenarios={}
     def handle_starttag(self,tag,attrs):
         a=dict(attrs)
         if 'id' in a:self.ids.append(a['id'])
@@ -23,6 +23,7 @@ class Parser(HTMLParser):
         if 'data-ref' in a:self.refs.append(a['data-ref'])
         if 'data-caller-source' in a:self.caller_trees.append(a.get('data-caller-tree'))
         if 'data-call-tree-id' in a:self.call_tree_ids.append(a['data-call-tree-id'])
+        if 'data-am-scenarios' in a:self.attention_scenarios[a['data-am-lesson']]=json.loads(a['data-am-scenarios'])
         if 'data-original-point' in a:self.original_points.append(a['data-original-point'])
         if tag=='pre' and 'data-original-point' in a:
             self.original_point=a['data-original-point'];self.originals[self.original_point]=''
@@ -152,7 +153,17 @@ def check_examples(example_ids=None):
             assert Counter(p.caller_trees)==Counter(calltrees['caller_link_counts'])
             assert all(tree in p.call_tree_ids for tree in calltrees['separate_call_stack_sections'])
             assert 'modular_ops::fused_attention_custom' in presentation
-            assert 'threeblockarguments' in flat_presentation
+            assert len(p.attention_scenarios)==len(calltrees['cards'])
+            for key,scenarios in p.attention_scenarios.items():
+                assert 'toolchain-call-'+key+'-tree' in p.call_tree_ids
+                for scenario in scenarios.values():
+                    for frame in scenario['frames']:
+                        for r in frame['refs']:
+                            span=payload['references'][r['key']]
+                            assert span['start']<=r['line']<=span['end']
+            native=p.attention_scenarios['graph-native-builder']['actual']['frames'][-1]['values']
+            assert native['region']=='R0 created' and native['block']=='B0 created'
+            assert native['args'].split(', ')==['%q:T','%k:T','%v:T']
             assert 'output=model.execute(Q,K,V)' in flat_presentation
             assert 'forward=None' in presentation and 'BN_1=8' in presentation
             assert 'toolchain-call-example-launch' in p.ids

@@ -121,6 +121,10 @@ layouts. Preserve unrelated working-tree changes and earlier Git checkpoints.
 
 ## Current fused-attention implementation
 
+For the user's November 12 reassessment and the deeper implementation,
+read [attention card design and research](attention_card_design.md).
+The initial short scenes remain a baseline to audit, not the required depth.
+
 [The attention reader](../link_htmls/max_example_04_fused_attention_online_softmax.html)
 now uses the two-view layout with separate graph/session/compile/init/execute
 trees and a kernel tree. Its authoring source is
@@ -129,21 +133,26 @@ The common source-link renderer is
 [compiler_calltree_reader.py](../src/compiler_calltree_reader.py); the graph
 and kernel payloads remain example-specific.
 
-Use [compiler_attention_motion.js](../src/compiler_attention_motion.js) for
-deterministic numerical and representation frames,
+Use [compiler_attention_lessons.py](../src/compiler_attention_lessons.py) and
+its constructor/recording/runtime/kernel modules for source-ordered frames,
+[compiler_attention_math.js](../src/compiler_attention_math.js) for the
+independent numerical model,
 [compiler_attention_mechanisms.py](../src/compiler_attention_mechanisms.py)
 for embedded offline scenes, and
 [compiler_attention_mechanisms.js](../src/compiler_attention_mechanisms.js)
 for per-card controls. The recurrence card shows only the terms reached at
 the current step: prior-output rescaling precedes the new PV contribution.
 Keep matrix data, symbolic values, native callables and GPU handles distinct.
-Pause freezes the current packet pose; resume continues from that pose.
+Pause freezes the field transformation and timeline; resume continues from
+that pose. The current operation appears above the scene, and focused
+arithmetic panels precede optional inputs/object registers.
 
 Scoped commands from this folder:
 
 ```sh
-PYTHONDONTWRITEBYTECODE=1 python3 src/compiler_examples.py --examples addition attention --readers-only
+PYTHONDONTWRITEBYTECODE=1 python3 src/compiler_examples.py --examples attention --readers-only
 PYTHONDONTWRITEBYTECODE=1 python3 src/check_compiler_examples.py --examples addition attention
+node src/check_attention_math.cjs
 NODE_PATH=/tmp/codex-inference-session-playwright/node_modules node src/check_compiler_example_readers_browser.cjs
 ```
 

@@ -347,7 +347,7 @@ def build_compiler_examples(example_ids=None):
         window_scripts=("compiler_card_windows.js","compiler_card_conversions.js") if example["id"] in {"addition","attention"} else ()
         if example["id"] == "attention":
             window_styles += "\n" + (SRC/"compiler_attention_mechanisms.css").read_text()
-            window_scripts += ("compiler_attention_motion.js", "compiler_attention_mechanisms.js")
+            window_scripts += ("compiler_attention_math.js", "compiler_attention_mechanisms.js")
         replacements=dict(css=(SRC/"compiler_workbench.css").read_text()+"\n"+(SRC/"compiler_example_links.css").read_text()+"\n"+(SRC/"compiler_examples.css").read_text()+"\n"+(SRC/"compiler_journey.css").read_text()+"\n"+colors+"\n"+window_styles,js="\n".join((SRC/name).read_text() for name in ("compiler_examples_model.js","compiler_journey_model.js","compiler_workbench_visuals.js","compiler_examples_visuals.js","compiler_journey_visuals.js","compiler_journey.js",*window_scripts,"compiler_reader_ui.js","compiler_examples.js")),title=html.escape(example["short"]),number=example["number"],level=example["level"],heading=html.escape(example["title"]),subtitle=html.escape(example["subtitle"]),expression=html.escape(example["expression"]),tiny=html.escape(example["tiny"]),notes=html.escape(example["notes"]),controls=controls,sections="\n".join(sections),cards=progression_cards(example["id"]),sources="\n".join(cells),shared=shared.replace('{{legend}}',"\n".join(legend)),payload=json.dumps(payload,ensure_ascii=False).replace('<','\\u003c'),revision=REVISION,filename=example["filename"])
         template=(SRC/"compiler_examples.html").read_text()
         tokens=set(re.findall(r"\{\{([a-z-]+)\}\}",template))

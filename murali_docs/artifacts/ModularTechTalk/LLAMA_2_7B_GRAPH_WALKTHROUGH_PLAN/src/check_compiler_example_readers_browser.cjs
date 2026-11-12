@@ -50,28 +50,45 @@ const closeSource=async page=>page.locator('#source-dialog #source-close').click
   const stack=p.locator('#toolchain-callstack'),graph=stack.locator('#graph-constructor-copy');
   const graphText=await graph.textContent();assert.ok(graphText.indexOf('Insert mo.GraphOp')<graphText.indexOf('_import_kernels'));assert.ok(graphText.indexOf('_import_kernels')<graphText.indexOf('results = ops.custom'));
   for(const line of await graph.locator('.call-stack-copy-line').all())if((await line.textContent()).replace(/[│\s]/g,''))assert.ok(await line.locator('a[data-ref]').count()>0);
-  for(const [key,line] of [['entry',41],['entry',56],['entry',57],['entry',60],['graph_init',856],['graph_init',864],['custom_api',113],['ct_graph_op_build',848]]){
+  for(const [key,line] of [['entry',41],['entry',56],['entry',57],['entry',60],['graph_init',856],['graph_init',864],['custom_api',114],['ct_graph_op_build',849]]){
    const a=graph.locator('a[data-ref="'+key+'"][data-line="'+line+'"]').first();await a.click();assert.equal(await p.locator('#source-dialog #source-file .source-line.exact').getAttribute('data-line'),String(line));await closeSource(p);
   }
   checks.push('attention: source-ordered shell → package → with-body and exact call-site links on graph tree rows');
   let c=await openCard(p,'toolchain-call-kernel-online');await c.locator('[data-window-expand]').click();
   const numeric=c.locator('[data-attention-mechanism="online"]');
-  let f=await visibleFrame(c);assert.equal(f.index,0);assert.equal(f.m,null);
-  for(let i=1;i<=11;i++){
-   await numeric.locator('[data-am-action="step"]').click();f=await visibleFrame(c);assert.equal(f.index,i);
-   const shown=await numeric.locator('[data-am-m]').textContent();assert.equal(shown,f.m===null?'−∞':String(f.m));
-   if(i===7){assert.equal(f.m,3);assert.ok(Math.abs(f.alpha-Math.exp(-2))<1e-12);}
+  const cardSeek=async(el,index)=>el.locator('[data-am-slider]').evaluate((r,n)=>{r.value=n;r.dispatchEvent(new Event('input',{bubbles:true}));},index);
+  for(const query of ['actual','query1']){
+   await numeric.locator('[data-am-scenario]').selectOption(query);
+   let frame=await visibleFrame(c);assert.equal(frame.index,0);assert.equal(frame.scene.m,null);
+   let alphaReached=false,maxReached=false;
+   for(let i=1;i<frame.length;i++){
+    await cardSeek(numeric,i);frame=await visibleFrame(c);assert.equal(frame.index,i);
+    assert.equal(await numeric.locator('[data-am-step-action]').textContent(),frame.action);
+    if(frame.refs[0].line===349&&frame.scene.tile===1){assert.equal(frame.scene.mNew,query==='actual'?3:1);maxReached=true;}
+    if(frame.refs[0].line===355&&frame.scene.tile===1){assert.ok(Math.abs(frame.scene.alpha-(query==='actual'?Math.exp(-2):1))<1e-12);alphaReached=true;}
+    if(frame.refs[0].line===358)assert.deepEqual(frame.values.E,frame.values.S);
+    if(frame.refs[0].line===344){assert.equal(frame.scene.tileMax,null);assert.equal(frame.scene.dotTerms,null);}
+    if(frame.refs[0].line===360)frame.values.E.forEach(x=>assert.ok(x>0&&x<=1));
+    if([370,371,372].includes(frame.refs[0].line)){
+     const scale=numeric.locator('[data-am-output-scale]');assert.equal(await scale.count(),1);
+     assert.equal(await scale.getAttribute('data-am-changed'),'true');
+     assert.equal(await numeric.locator('[data-am-m-slot]').getAttribute('data-am-changed'),'false');
+     const visible=await scale.locator('b').textContent();
+     if(typeof frame.values.delta==='number')assert.ok(Math.abs(Number(visible)-frame.values.delta)<1e-6);else assert.equal(visible,frame.values.delta);
+    }
+    if(frame.refs[0].line===373)frame.values.o.forEach((x,d)=>assert.ok(Math.abs(x-frame.scene.oldO[d]*frame.scene.alpha*frame.scene.oldL/frame.scene.lNew)<1e-12));
+    const refs=await numeric.locator('[data-am-sources] a').evaluateAll(a=>a.map(x=>[x.dataset.ref,Number(x.dataset.line)]));
+    assert.deepEqual(refs,frame.refs.map(r=>[r.key,r.line]));
+   }
+   assert.equal(maxReached&&alphaReached,true);assert.equal(frame.scene.match,true);
+   assert.match(await numeric.locator('[data-am-reference]').textContent(),/MATCH/);
+   const q=query==='actual'?[1,0]:[0,1],keys=[[1,0],[0,1],[3,0],[2,1]],values=[[1,0],[0,2],[2,1],[1,3]],scores=keys.map(k=>q.reduce((t,x,d)=>t+x*k[d],0)),max=Math.max(...scores),exps=scores.map(x=>Math.exp(x-max)),denom=exps.reduce((a,b)=>a+b,0);
+   const ref=[0,1].map(d=>values.reduce((sum,v,j)=>sum+exps[j]/denom*v[d],0));frame.values.o.forEach((x,d)=>assert.ok(Math.abs(x-ref[d])<1e-12));
+   await numeric.locator('[data-am-action="back"]').click();assert.equal((await visibleFrame(c)).index,frame.length-2);
+   await numeric.locator('[data-am-action="reset"]').click();assert.deepEqual((await visibleFrame(c)).values.o,[0,0]);
   }
-  assert.equal(f.match,true);assert.match(await numeric.locator('[data-am-reference]').textContent(),/MATCH/);
-  const expected=[0,1].map(j=>[1,0,3,2].reduce((s,x,i)=>s+Math.exp(x-3)/[1,0,3,2].reduce((t,y)=>t+Math.exp(y-3),0)*[[1,0],[0,2],[2,1],[1,3]][i][j],0));
-  f.O.forEach((x,j)=>assert.ok(Math.abs(x-expected[j])<1e-12));
-  await numeric.locator('[data-am-action="back"]').click();assert.equal((await visibleFrame(c)).index,10);
-  await numeric.locator('[data-am-action="reset"]').click();assert.deepEqual((await visibleFrame(c)).O,[0,0]);
-  checks.push('attention: every numeric step, growing maximum, alpha rescaling, result/reference, Back and Reset agree');
-  await numeric.locator('.attention-motion-transcript > summary').click();
-  await numeric.locator('[data-am-seek="9"]').click();
-  await numeric.locator('.attention-motion-transcript > summary').click();
-  await c.locator('.call-explanation-card-body').evaluate(el=>el.scrollTop=0);
+  checks.push('attention: every source-order recurrence operation, growing/unchanged maxima, bounded exponentials, visible output-scale scratch with identity-based highlighting, exact prior-output rescaling and two independent query references pass');
+  await numeric.locator('[data-am-scenario]').selectOption('actual');await cardSeek(numeric,42);
   await c.screenshot({path:path.join(task,'validation/compiler_attention_online_card.png')});screenshots.push('compiler_attention_online_card.png');
   await c.locator('[data-window-hold]').click();assert.equal(await c.getAttribute('data-card-held'),'true');
   await c.locator('.reader-window-header').focus();await p.keyboard.press('ArrowRight');
@@ -79,13 +96,38 @@ const closeSource=async page=>page.locator('#source-dialog #source-close').click
   const next=stack.locator('[data-call-explanation="toolchain-call-graph-custom-verify"]').first();await next.scrollIntoViewIfNeeded();await next.click();
   const held=p.locator('[data-held-window="true"]');assert.equal(await held.count(),1);assert.equal((await held.locator('[data-attention-mechanism]').evaluate(el=>attentionMechanismSnapshot(el))).index,heldIndex);
   assert.match(await c.locator('#call-explanation-title').textContent(),/Kernel validation/);await held.locator('[data-window-close]').click();await closeCard(p);
-  checks.push('attention: Expand, keyboard movement, Hold preserves the active numeric frame when another card opens, and Close removes it');
-  c=await openCard(p,'toolchain-call-graph-custom-insert');await c.locator('[data-window-expand]').click();
-  const custom=c.locator('[data-attention-mechanism]');for(let i=0;i<5;i++)await custom.locator('[data-am-action="step"]').click();
-  const customFrame=await visibleFrame(c);assert.equal(customFrame.fields.result,'ONE symbolic wrapper');assert.match(await custom.locator('[data-am-after]').textContent(),/TensorValue/);
-  await closeCard(p);c=await openCard(p,'toolchain-call-graph-custom-verify');await c.locator('[data-window-expand]').click();
-  const validation=c.locator('[data-attention-mechanism]');for(let i=0;i<5;i++)await validation.locator('[data-am-action="step"]').click();assert.equal((await visibleFrame(c)).fields.mapping,'passed');await closeCard(p);
-  checks.push('attention: Python attributes and operand/result mapping visibly become verified MO fields');
+  checks.push('attention: Expand, keyboard movement, Hold preserves detailed scene/index while another card opens, and Close removes it');
+  for(const id of JSON.parse(await p.locator('#compiler-examples-data').textContent()).toolchain.calltrees.cards){
+   c=await openCard(p,id);await c.locator('[data-window-expand]').click();const motion=c.locator('[data-attention-mechanism]');
+   const cases=await motion.locator('[data-am-scenario] option').evaluateAll(a=>a.map(x=>x.value));
+   for(const key of cases){
+    await motion.locator('[data-am-scenario]').selectOption(key);
+    const initial=await visibleFrame(c);
+    for(const i of [...new Set([0,Math.floor(initial.length/2),initial.length-1])]){
+     await cardSeek(motion,i);const frame=await visibleFrame(c);
+     assert.equal(await motion.locator('[data-am-step-input]').textContent(),frame.input);
+     assert.equal(await motion.locator('[data-am-step-action]').textContent(),frame.action);
+     assert.equal(await motion.locator('[data-am-step-output]').textContent(),frame.output);
+     assert.equal(await motion.locator('[data-am-step-why]').textContent(),frame.why);
+     for(const field of frame.focus)assert.equal(await motion.locator('[data-am-node="'+field+'"]').getAttribute('data-am-changed'),'true');
+     for(const field of await motion.locator('[data-am-field]').evaluateAll(a=>a.map(x=>({keys:x.dataset.amField.split(' '),changed:x.dataset.amChanged}))))assert.equal(field.changed,String(field.keys.some(k=>frame.focus.includes(k))));
+    }
+   }
+   assert.ok(await c.locator('[data-call-tree-id] a[data-caller-source]').count()>0,id);
+   if(['toolchain-call-graph-native-builder','toolchain-call-graph-retain-body','toolchain-call-kernel-mma','toolchain-call-kernel-launch','toolchain-call-kernel-storage','toolchain-call-compile-kernels','toolchain-call-init-gates'].includes(id)){
+    await motion.locator('[data-am-scenario]').selectOption('actual');const shotFrame=await visibleFrame(c);await cardSeek(motion,Math.floor(shotFrame.length/2));
+    const name='compiler_attention_'+id.replace('toolchain-call-','')+'.png';await c.screenshot({path:path.join(task,'validation',name)});screenshots.push(name);
+   }
+   await closeCard(p);
+  }
+  checks.push('attention: every card and alternate case exposes consistent IN/action/OUT/why, retained objects, changed fields and a source-linked internal tree');
+  c=await openCard(p,'toolchain-call-graph-custom-verify');await c.locator('[data-window-expand]').click();const validation=c.locator('[data-attention-mechanism]');
+  await validation.locator('[data-am-scenario]').selectOption('invalid');let vf=await visibleFrame(c);await cardSeek(validation,vf.length-1);vf=await visibleFrame(c);assert.match(vf.values.gate,/ERROR.*BX/);await closeCard(p);
+  c=await openCard(p,'toolchain-call-init-gates');await c.locator('[data-window-expand]').click();const initGate=c.locator('[data-attention-mechanism]');await initGate.locator('[data-am-scenario]').selectOption('error');let ig=await visibleFrame(c);await cardSeek(initGate,ig.length-1);ig=await visibleFrame(c);assert.match(ig.values.execute,/init failed; M1 not returned/);assert.match(ig.values.setup,/failed init AsyncValue/);await closeCard(p);
+  c=await openCard(p,'toolchain-call-kernel-mma');await c.locator('[data-window-expand]').click();const mma=c.locator('[data-attention-mechanism]');let mf=await visibleFrame(c);await cardSeek(mma,mf.length-1);mf=await visibleFrame(c);assert.equal(mf.scene.acc,20);assert.deepEqual(mf.scene.partials,[8,16,4,-8]);await closeCard(p);
+  c=await openCard(p,'toolchain-call-kernel-launch');await c.locator('[data-window-expand]').click();const launch=c.locator('[data-attention-mechanism]');await launch.locator('[data-am-scenario]').selectOption('other-block');let lf=await visibleFrame(c);await cardSeek(launch,lf.length-1);lf=await visibleFrame(c);assert.deepEqual(lf.scene.blockXY,[1,1]);assert.deepEqual(lf.scene.grid,[4,2]);assert.equal(lf.scene.stored,true);await closeCard(p);
+  checks.push('attention: invalid parameter stops verification, four MMA partials accumulate to20, and alternate output block retains disjoint ownership');
+  const expected=[0,1].map(j=>[1,0,3,2].reduce((s,x,i)=>s+Math.exp(x-3)/[1,0,3,2].reduce((t,y)=>t+Math.exp(y-3),0)*[[1,0],[0,2],[2,1],[1,3]][i][j],0));
   await p.locator('#toolchain-animation-tab').click();
   for(const target of ['cuda','rocm','cpu']){
    await p.selectOption('#target-select',target);for(const lesson of ['toolchain','build','compile','run'])await seek(p,lesson,Number(await p.locator('#'+lesson).getAttribute('data-frames'))-1);
@@ -106,14 +148,19 @@ const closeSource=async page=>page.locator('#source-dialog #source-close').click
   checks.push('attention: 320/390px trees scroll internally and expanded cards remain inside the mobile viewport');
   const live=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'no-preference'}),lp=await live.newPage();lp.on('pageerror',e=>errors.push(e.message));await lp.goto(url('attention'));await lp.locator('#toolchain-callstack-tab').click();
   const lc=await openCard(lp,'toolchain-call-graph-custom-insert');await lc.locator('[data-window-expand]').click();const lm=lc.locator('[data-attention-mechanism]');
-  await lm.locator('[data-am-action="step"]').click();await lm.locator('[data-am-action="play"]').click();await lp.waitForTimeout(130);await lm.locator('[data-am-action="play"]').click();
-  const pose=()=>lm.locator('[data-am-packet]').evaluate(el=>getComputedStyle(el).transform),paused=await pose();await lp.waitForTimeout(250);assert.equal(await pose(),paused);assert.equal((await visibleFrame(lc)).playing,false);
-  await lm.locator('[data-am-action="play"]').click();await lp.waitForTimeout(120);assert.notEqual(await pose(),paused);await lp.waitForTimeout(1800);assert.ok((await visibleFrame(lc)).index>=2);
+  await lm.locator('[data-am-speed]').selectOption('1600');
+  await lm.locator('[data-am-action="step"]').click();await lm.locator('[data-am-action="play"]').click();await lp.waitForTimeout(110);await lm.locator('[data-am-action="play"]').click();
+  const pose=()=>lm.locator('.attention-changed').first().evaluate(el=>getComputedStyle(el).transform),paused=await pose(),pausedIndex=(await visibleFrame(lc)).index;
+  await lp.waitForTimeout(230);assert.equal(await pose(),paused);assert.equal((await visibleFrame(lc)).index,pausedIndex);assert.equal((await visibleFrame(lc)).playing,false);
+  await lm.locator('[data-am-action="play"]').click();await lp.waitForTimeout(110);assert.notEqual(await pose(),paused);await lp.waitForTimeout(1650);assert.ok((await visibleFrame(lc)).index>pausedIndex);
   await closeCard(lp);await lp.waitForTimeout(60);assert.equal(await lc.isVisible(),false);await live.close();
-  checks.push('attention: real Play/Pause freezes and resumes the same moving payload; hidden cards stop playback');
+  checks.push('attention: Play/Pause freezes/resumes field-transform motion and semantic time; hidden cards stop playback');
   const plain=await browser.newContext({javaScriptEnabled:false,viewport:{width:1200,height:1000}}),np=await plain.newPage();await np.goto(url('attention'));
-  assert.equal(await np.locator('#toolchain-callstack').isVisible(),true);const offline=np.locator('#toolchain-call-kernel-online');await offline.locator(':scope > summary').click();assert.match(await offline.textContent(),/alpha\*l_old/);assert.equal(await offline.locator('[data-am-action="play"]').isVisible(),false);await plain.close();
+  assert.equal(await np.locator('#toolchain-callstack').isVisible(),true);const offline=np.locator('#toolchain-call-kernel-online');await offline.locator(':scope > summary').click();assert.match(await offline.textContent(),/alpha\*old_l/);assert.equal(await offline.locator('[data-am-action="play"]').isVisible(),false);await plain.close();
   checks.push('attention: source trees, native explanation disclosures and portable transcripts remain readable without JavaScript');
+  const printContext=await browser.newContext({viewport:{width:1200,height:1000},reducedMotion:'reduce'}),printPage=await printContext.newPage();await printPage.goto(url('attention'));await printPage.emulateMedia({media:'print'});
+  const printCard=printPage.locator('#toolchain-call-kernel-online'),printTranscript=printCard.locator('.attention-motion-transcript');assert.equal(await printCard.isVisible(),true);assert.equal(await printTranscript.locator('li').first().isVisible(),true);assert.equal(await printCard.locator('[data-am-action="play"]').isVisible(),false);assert.equal(await printCard.locator('[data-call-tree-id]').isVisible(),true);await printContext.close();
+  checks.push('attention: print exposes source trees and portable per-step transcripts while hiding interactive controls');
   assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);
   const report={result:'PASS',checks,errors,externalRequests:requests.length,screenshots,evidence:'Browser/source illustrations only; no MAX/Mojo build or GPU workload'};
   fs.writeFileSync(path.join(task,'validation/compiler_example_readers_browser.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));
