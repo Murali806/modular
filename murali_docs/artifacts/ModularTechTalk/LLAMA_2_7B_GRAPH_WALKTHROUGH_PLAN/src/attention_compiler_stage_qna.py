@@ -120,6 +120,7 @@ SOURCES = {
     'test-mo-device': 'GraphCompiler/test/mo-opt/MODialect/ValidateDevicesPass/f8e5m2-cpu-errors.mlir',
 }
 TOKEN = re.compile(r'\[\[([a-z-]+):(\d+)\]\]')
+FRAGMENT_LINK = re.compile(r'\[([^\]\n]+)\]\(#(qna-[a-z0-9-]+)\)')
 EXCERPT = re.compile(r'^\{\{excerpt:([a-z-]+):(\d+):(\d+)\}\}$', re.MULTILINE)
 QNA = re.compile(r'^## QnA (\d+) · (.+?)(?: \{#([a-z][a-z0-9-]*)\})?$',
                  re.MULTILINE)
@@ -164,7 +165,11 @@ def render(markdown_text, evidence):
     # Resolve after fenced-code escaping, so call-tree links work inside <pre>.
     rendered = render_answer(expanded, evidence, markdown_in_html=True,
                              link_code_sources=True)
-    return TOKEN.sub(lambda m: source_link(m[1], m[2], evidence), rendered)
+    rendered = TOKEN.sub(lambda m: source_link(m[1], m[2], evidence), rendered)
+    # Markdown leaves fragment links literal inside escaped call-tree fences.
+    return FRAGMENT_LINK.sub(
+        lambda m: (f'<a class="qna-example-link" href="#{m[2]}">'
+                   f'{html.escape(html.unescape(m[1]))}</a>'), rendered)
 
 
 def build(stage_ids=None):

@@ -1,0 +1,115 @@
+{
+  "result": "PASS",
+  "checked_at_utc": "2026-11-21T11:18:19.259676+00:00",
+  "documentation_base_commit": "4be9558d4fd6e732ef99774c09be7575b482e1a7",
+  "source_revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "page": "link_htmls/max_example_04_c1_mo_contracts_and_canonicalization.html",
+  "call_stack_fragment": "qna-mo-2",
+  "examples_fragment": "qna-mo-2-examples",
+  "model": "MO compiler documentation; all 16 pre-existing QnA2 examples",
+  "device": "CPU host; headless Chromium; no accelerator execution",
+  "mapping": {
+    "1": [
+      "RMO reshape legalization",
+      "symbolic shape/result handling",
+      "parameter-expression hoisting in the separate test path"
+    ],
+    "2": [
+      "shape propagation followed by static-broadcast canonicalization"
+    ],
+    "3": [
+      "shape_of replacement at the end of shape propagation"
+    ],
+    "4": [
+      "constant-subgraph folding: full arithmetic"
+    ],
+    "5": [
+      "constant-subgraph folding: transpose, retaining runtime matmul"
+    ],
+    "6": [
+      "constant-subgraph folding within runtime branches"
+    ],
+    "7": [
+      "constant-subgraph discovery excludes external constants"
+    ],
+    "8": [
+      "symbolic preparation",
+      "PatternFusion LayerNorm rewrite"
+    ],
+    "9": [
+      "PatternFusion matmul and bias rewrite"
+    ],
+    "10": [
+      "PatternFusion multiple-use guard"
+    ],
+    "11": [
+      "ElideRedundantMutableOps load/store forwarding"
+    ],
+    "12": [
+      "ValidateDevices target metadata"
+    ],
+    "13": [
+      "ValidateDevices dtype rejection"
+    ],
+    "14": [
+      "PatternFusion architecture guard"
+    ],
+    "15": [
+      "canonicalizer: generic local-fold illustration"
+    ],
+    "16": [
+      "CSE: equivalent constant producers"
+    ]
+  },
+  "browser": {
+    "result": "PASS",
+    "links": 19,
+    "examples": 16,
+    "source_anchors": 242,
+    "source_files": 54,
+    "viewports": [
+      1440,
+      390,
+      320
+    ],
+    "qna2_text_preserved": true,
+    "other_qna_text_preserved": true,
+    "initially_collapsed": true,
+    "all_links_clickable": true,
+    "all_example_fragments_open_qna2": true,
+    "repeated_fragment_click": true,
+    "existing_nested_fragment": true,
+    "no_javascript_navigation": true,
+    "blue_bold_italic_links": true,
+    "dark_background_preserved": true,
+    "source_explorer_smoke_checks": 2,
+    "javascript_errors": [],
+    "external_requests": []
+  },
+  "preserved": {
+    "qna2_text": "Only non-visible span anchors were added.",
+    "other_questions_and_original_fragment_ids": true,
+    "other_six_pages_and_manifest_entries": true,
+    "all_source_references_and_pinned_files": true,
+    "preexisting_blank_source_reference": "GraphCompiler/lib/MODialect/Transforms/ValidateDevicesPass.cpp:45"
+  },
+  "visual_review": [
+    "1440px desktop connected call stack",
+    "390px mobile call stack and blue annotations"
+  ],
+  "commands": {
+    "build_cwd": "/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN",
+    "build": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/tmp/max-mo-q2-e5lre65r/python-deps python3 src/attention_compiler_stage_qna.py --stages mo",
+    "browser_cwd": "/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular",
+    "browser": "NODE_PATH=/tmp/codex-inference-session-playwright/node_modules node /local/mnt/workspace/MyTools/.codex-tmp/max-mo-qna-example-map-r56cn9ix/check_mapping.cjs",
+    "browser_script_sha256": "3c683dbc5e465eb7e3f3f5e7ee979713052b611d6ecada2d278b77025398c827"
+  },
+  "artifacts_sha256": {
+    "src/attention_c1_mo_contracts_and_canonicalization.md": "b1b6c3fa21064b2366b95ef0f423fd8bb6ba7057295efcfe0794c6c56db58326",
+    "src/attention_compiler_stage_qna.py": "965325f6f5361d0e435126fcbaf4ea8b93acbe4cfb757bf25d28687b2b08bb5b",
+    "src/attention_compiler_stage_qna.html": "cb68e406b0153ea3c1af5524b9d254bb9e187b715fbec44fec1e93a14ae57b98",
+    "link_htmls/max_example_04_c1_mo_contracts_and_canonicalization.html": "756c1edafb5e4a3d870a7eb4ed3eae3166e86acfaf898491efaa11372f5c10dc",
+    "attention_compiler_stage_qna_manifest.json": "fe61b9f3344c74596389ba792d872db8b1de818d827439580e493e64b73174b8"
+  },
+  "evidence": "SOURCE: existing example explanations mapped to the native pass schedule. Documentation generation and browser/source-link checks only; no compiler tests, MAX compilation, inference or GPU execution."
+}

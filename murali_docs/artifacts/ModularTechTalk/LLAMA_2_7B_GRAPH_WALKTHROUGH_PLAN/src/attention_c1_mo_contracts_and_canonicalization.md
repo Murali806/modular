@@ -85,7 +85,7 @@ Thus, `[]` means **scalar shape**, rather than unknown shape. Also, a shape vect
 
 With **shape inference**, the compiler determines dimensions and relationships between dimensions. Those dimensions can remain symbolic.
 
-**1. Flattening a symbolic tensor.** Suppose the input has shape `[B,4]`:
+**<span id="qna-mo-2-example-1">1. Flattening a symbolic tensor.</span>** Suppose the input has shape `[B,4]`:
 
 ```text
 # BEFORE
@@ -267,7 +267,7 @@ mo-opt %s --mo-shape-inference --mo-hoist-param-exprs | FileCheck %s --enable-va
 </div>
 </details>
 
-**2. Moving shape arithmetic into a broadcast’s result type.**
+**<span id="qna-mo-2-example-2">2. Moving shape arithmetic into a broadcast’s result type.</span>**
 
 ```text
 # BEFORE: N=3, M=5, scalar=9
@@ -327,7 +327,7 @@ Once the output parameters are resolved, [BroadcastToOp::canonicalize():455](/pr
 
 The test’s `CHECK-NEXT` lines require that static broadcast and its output, with the dimension expressions recorded in the type.
 
-**3. Removing a tensor dependency when only its shape is needed.**
+**<span id="qna-mo-2-example-3">3. Removing a tensor dependency when only its shape is needed.</span>**
 
 ```text
 # BEFORE
@@ -367,7 +367,7 @@ The original shape-tensor result type is passed to `ToTensorOp`, so consumers re
 
 With **constant folding**, the compiler precomputes eligible expressions whose inputs are known constants and replaces their results with constant data.
 
-**4. Folding an entire constant arithmetic sequence.**
+**<span id="qna-mo-2-example-4">4. Folding an entire constant arithmetic sequence.</span>**
 
 ```text
 # BEFORE
@@ -414,7 +414,7 @@ Finally, [replaceConstantOps():669](/prj/adsp-platform/mur/Murali/aisw/Qgen/Conf
 
 The test expects the constant immediately followed by `mo.output`, demonstrating the intended disappearance of the arithmetic sequence.
 
-**5. Precomputing a weight transpose while retaining runtime matmul.**
+**<span id="qna-mo-2-example-5">5. Precomputing a weight transpose while retaining runtime matmul.</span>**
 
 ```text
 # BEFORE
@@ -456,7 +456,7 @@ The transposed weight is a boundary result: it is produced by the constant subgr
 
 The referenced test actually uses broadcasted `-1.0` weights. Its checks require a `[3,2]` constant, followed by matmul and output. The varied matrix values above illustrate the same transpose transformation.
 
-**6. Folding computations inside branches without selecting a branch.**
+**<span id="qna-mo-2-example-6">6. Folding computations inside branches without selecting a branch.</span>**
 
 ```text
 # BEFORE
@@ -496,7 +496,7 @@ Replacement redirects the branches’ `mo.yield` operands to those constants. Th
 
 The relevant checks require both constant results, the conditional, and the corresponding yields. The schematic example places constants inside the branches; their precise placement in compiler output can differ while the branch results remain equivalent.
 
-**7. An external constant can prevent this folding route.**
+**<span id="qna-mo-2-example-7">7. An external constant can prevent this folding route.</span>**
 
 ```text
 # BEFORE
@@ -531,7 +531,7 @@ After discovery, `policy->shouldFold(...)` can further filter candidate subgraph
 
 With **fusion**, the compiler replaces a matched operation sequence with a combined representation. Enabling a fusion pass gives it an opportunity to inspect the graph; its individual matching conditions still apply.
 
-**8. Recognizing LayerNorm from arithmetic.**
+**<span id="qna-mo-2-example-8">8. Recognizing LayerNorm from arithmetic.</span>**
 
 Suppose `x` has shape `[4,3,2]`, and `gamma` and `beta` each have shape `[2]`:
 
@@ -584,7 +584,7 @@ At [Fusion.cpp:1154](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings
 
 The test’s earlier shape inference and symbolic optimization prepare operation forms that the matcher recognizes.
 
-**9. Combining matrix multiplication and bias addition.**
+**<span id="qna-mo-2-example-9">9. Combining matrix multiplication and bias addition.</span>**
 
 ```text
 # BEFORE
@@ -637,7 +637,7 @@ replace final add with its result
 
 The old matmul and broadcast become unused and can be erased.
 
-**10. Skipping fusion when the matmul result has multiple users.**
+**<span id="qna-mo-2-example-10">10. Skipping fusion when the matmul result has multiple users.</span>**
 
 ```text
 # BEFORE
@@ -670,7 +670,7 @@ Here, `m` is used by both `add` and `output`, so `hasOneUse()` is false.
 
 `notifyMatchFailure` declines this particular rewrite. It does not report a compilation failure. No composite replacement is created, explaining the test’s expected surviving matmul and add.
 
-**11. Removing an intermediate buffer store and reload.**
+**<span id="qna-mo-2-example-11">11. Removing an intermediate buffer store and reload.</span>**
 
 This explains the cleanup enabled by `fuseJitKernels`. Here, `load`/`store` abbreviate `mo.mutable.load`/`mo.mutable.store`, and `ch*` are ordering tokens.
 
@@ -723,7 +723,7 @@ In that function, MAP’s fusion pass is added separately to the pass manager. C
 
 With **device settings**, the compiler receives target information that influences validation and applicable rewrites. The result can be a metadata change, a different optimization decision, or a compilation error.
 
-**12. Attaching CPU target metadata to a graph.**
+**<span id="qna-mo-2-example-12">12. Attaching CPU target metadata to a graph.</span>**
 
 ```text
 triple = "x86_64-unknown-linux"    # Target platform: x86-64, unknown vendor, Linux.
@@ -757,7 +757,7 @@ The setter in [MOOps.cpp:1011](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluenc
 
 That is the metadata change shown in the example. If neither new nor existing target information is available, the validator returns before examining dtypes.
 
-**13. Rejecting an unsupported device/dtype combination.**
+**<span id="qna-mo-2-example-13">13. Rejecting an unsupported device/dtype combination.</span>**
 
 ```text
 # BEFORE
@@ -797,7 +797,7 @@ These describe this pass’s validation rules. See [ValidateDevicesPass.cpp:45](
 
 The helper first accepts BF16 for x86-64/AArch64 and F16 for x86-64. It then rejects other floating types narrower than 32 bits on those CPU architectures. The order of these conditions produces the table above.
 
-**14. Using architecture to determine whether fusion applies.**
+**<span id="qna-mo-2-example-14">14. Using architecture to determine whether fusion applies.</span>**
 
 Assume the other requirements of the BF16 matmul/add pattern are satisfied:
 
@@ -839,7 +839,7 @@ This lookup uses the module’s `mo.device_info_mapping`. The `target_info` attr
 
 The **canonicalizer and CSE** around these passes perform smaller cleanups.
 
-**15. Simplifying an integer identity.**
+**<span id="qna-mo-2-example-15">15. Simplifying an integer identity.</span>**
 
 ```text
 # BEFORE
@@ -866,7 +866,7 @@ if (matchPattern(adaptor.getRhs(), m_Zero()))
 
 The [canonicalizer implementation](https://mlir.llvm.org/doxygen/Canonicalizer_8cpp_source.html) gathers dialect/operation canonicalization patterns and applies greedy rewriting and folding. An unused zero constant can also disappear during cleanup.
 
-**16. Eliminating equivalent constants with CSE.**
+**<span id="qna-mo-2-example-16">16. Eliminating equivalent constants with CSE.</span>**
 
 ```text
 # BEFORE
@@ -906,6 +906,8 @@ Canonicalization and CSE recur around the main transformations because a rewrite
 
 The tree follows the route that actually runs the graph compiler. **EXAMPLE** rows describe comparison graphs or possible rewrites; **ATTENTION** rows describe the recorded Q/K/V custom-call structure. They are source walkthroughs, not captured pass dumps.
 
+**QnA 2 example map:** blue links below jump to each of the 16 examples. They mark the pass that implements or prepares that example, subject to its gates and matching conditions. Constant folding, canonicalization and CSE recur; their examples can fit at later occurrences too. Steps without a link have no dedicated QnA 2 example.
+
 ```calltree
 MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
 ├─ ModuleOp::getFromOpaquePointer(source).clone() creates new operations/regions/SSA values [[frontend:381]]
@@ -936,31 +938,42 @@ MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
       │  ├─ optional tensor debug printing; legalize RMO operations [[gc:236]] [[gc:239]]
       │  │  ├─ debugPrintAllTensors gates instrumentation; it is not a request to print Q now
       │  │  ├─ LegalizeRMOOps registers analogue/composite/shape patterns and applies them greedily [[rmo-legalize:1203]] [[rmo-legalize:1244]]
-      │  │  │  └─ EXAMPLE: an RMO arithmetic analogue becomes MO operations with explicit shape handling
+      │  │  │  ├─ EXAMPLE: an RMO arithmetic analogue becomes MO operations with explicit shape handling
+      │  │  │  └─ [↗ QnA 2 · Example 1](#qna-mo-2-example-1): RMO reshape → mo.static.reshape; Python already resolved -1 to B*4
       │  │  └─ ATTENTION: the authored call is already mo.custom, with no RMO arithmetic body
       │  ├─ graph CSE → canonicalizer → CanonicalizeChainSequences [[gc:241]] [[gc:243]]
       │  │  ├─ CSE shares eligible equivalent producers; consumers reference the retained SSA value
-      │  │  │  └─ EXAMPLE: two identical shape constants → one producer used twice
+      │  │  │  ├─ EXAMPLE: two identical shape constants → one producer used twice
+      │  │  │  └─ [↗ QnA 2 · Example 16](#qna-mo-2-example-16): constant(3), constant(3) → one producer; output(a,a)
       │  │  ├─ canonicalizer invokes operation folds/patterns [[mo-fold:419]] [[mo-fold:1252]]
-      │  │  │  └─ EXAMPLE: cast(%q):T0→T0 → %q; redirect the custom call's input
+      │  │  │  ├─ EXAMPLE: cast(%q):T0→T0 → %q; redirect the custom call's input
+      │  │  │  └─ [↗ QnA 2 · Example 15](#qna-mo-2-example-15): generic arith.addi(x,0) → x; illustrates the local-fold mechanism
       │  │  └─ CanonicalizeBufferOpSequences::matchAndRewrite examines mutable chains [[mo-chains:115]]
       │  │     ├─ collect write effects; reject overlaps, region crossings and unsafe aliases [[mo-chains:45]] [[mo-chains:70]] [[mo-chains:132]]
       │  │     ├─ independent A→B: make A/B depend on the earlier chain; join their results [[mo-chains:138]]
       │  │     └─ ATTENTION: this immutable custom call has no such mutable-operation pair
       │  ├─ graph canonicalizer → CSE [[gc:245]]
-      │  │  └─ clean up values exposed by the chain rewrite; see QnA 5 for SSA examples
+      │  │  ├─ clean up values exposed by the chain rewrite; see QnA 5 for SSA examples
+      │  │  └─ QnA 2 Examples 15/16: the same local-fold / duplicate-producer cleanup can recur here
       │  ├─ optional shape inference and constant folding [[gc:256]] [[gc:261]]
       │  │  ├─ useShapeInference → buildShapeInferencePipeline [[gc:657]]
       │  │  │  ├─ canonicalizer → PropagateShapes → CSE → canonicalizer → VerifyParameters
       │  │  │  ├─ PropagateShapesPass → propagateShape → shapeInferOp [[mo-propagate:1206]] [[mo-propagate:881]]
       │  │  │  │  ├─ ordinary inputs contribute type shapes; data-dependent inputs must be staticizable [[mo-propagate:892]]
-      │  │  │  │  └─ substitute/solve parameter expressions and update affected types [[mo-propagate:1075]]
+      │  │  │  │  ├─ substitute/solve parameter expressions and update affected types [[mo-propagate:1075]]
+      │  │  │  │  ├─ [↗ QnA 2 · Example 1](#qna-mo-2-example-1): handle the existing B*4 result/signature; the test starts with mo.static.reshape
+      │  │  │  │  ├─ [↗ QnA 2 · Example 2](#qna-mo-2-example-2): shape_of + [1,2] → [N+1,M+2]; following canonicalizer makes a static broadcast
+      │  │  │  │  └─ [↗ QnA 2 · Example 3](#qna-mo-2-example-3): final shape_of cleanup → param.to_value + shape.to_tensor; drop x's tensor edge
       │  │  │  └─ EXAMPLE: (N+4)-4 → N; ATTENTION: [32,32] has no unresolved dimension names
       │  │  └─ constantFold → ConstantFoldPass::runOnOperation [[mo-constant-fold:815]]
       │  │     ├─ constantSubgraphs: follow constants; a block argument stops constant propagation [[mo-constant-fold:445]] [[mo-constant-fold:480]]
       │  │     ├─ policy selects candidates; clone them into temporary constant_fold_subgraphs [[mo-constant-fold:823]] [[mo-constant-fold:836]]
       │  │     ├─ lowerSubgraphs: run a host pipeline with constantFold=false to prevent recursion [[mo-constant-fold:757]] [[mo-constant-fold:776]]
       │  │     ├─ executeModel on CPU → await results → replaceConstantOps in IR1 [[mo-constant-fold:343]] [[mo-constant-fold:669]]
+      │  │     ├─ [↗ QnA 2 · Example 4](#qna-mo-2-example-4): the complete constant mul/sub/add sequence → constant([0,5])
+      │  │     ├─ [↗ QnA 2 · Example 5](#qna-mo-2-example-5): precompute W's transpose; matmul still consumes runtime_x
+      │  │     ├─ [↗ QnA 2 · Example 6](#qna-mo-2-example-6): branch arithmetic → [0,9] / [0,6]; retain the runtime condition
+      │  │     ├─ [↗ QnA 2 · Example 7](#qna-mo-2-example-7): external W is excluded during discovery; dependent multiplication stays
       │  │     └─ ATTENTION: %q/%k/%v are block arguments; shapes alone cannot supply O's numbers
       │  ├─ hoist constant subgraphs → CSE [[gc:265]]
       │  │  ├─ buildCallGraphAndSortGraphs → processGraph, callees before callers [[mo-hoist:112]] [[mo-hoist:127]]
@@ -971,6 +984,7 @@ MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
       │  ├─ SymbolicOptimization → canonicalizer → CSE [[gc:273]]
       │  │  ├─ populate algebraic/shape patterns; apply top-down greedy rewrites [[mo-symbolic:49]] [[mo-symbolic:60]]
       │  │  ├─ core → forward mathematical rewrites → core → backward rewrites → core [[mo-symbolic:94]]
+      │  │  ├─ [↗ QnA 2 · Example 8](#qna-mo-2-example-8): prepare LayerNorm's arithmetic form; PatternFusion below creates the combined operation
       │  │  ├─ EXAMPLE: sub(x,x) → broadcast(0) under the fast-math pattern gate [[mo-algebra:2254]]
       │  │  └─ ATTENTION: no graph-visible sub/matmul/softmax arithmetic inside mo.custom
       │  ├─ merge shape materializations; add fallback shape functions [[gc:277]]
@@ -982,7 +996,7 @@ MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
       │  │  │  └─ ATTENTION: static output [32,32], output parameter declarations=[] → skip
       │  │  └─ SymbolicOptimization → canonicalizer → CSE runs again after this shape work [[gc:279]]
       │  ├─ optional constant folding; infer layouts [[gc:283]] [[gc:287]]
-      │  │  ├─ retry enabled constant folding after newly exposed constants
+      │  │  ├─ retry enabled constant folding after newly exposed constants — QnA 2 Examples 4–7 apply again
       │  │  └─ InferLayoutPass: seed constraints → propagate → assign inferred layouts [[mo-layouts:204]]
       │  │     ├─ EXAMPLE: matmul B gets KN; 2-D convolution input/filter get NHWC/FCRS [[mo-layouts:90]] [[mo-layouts:137]]
       │  │     ├─ clone affected tensor types with layout metadata; synchronize graph metadata [[mo-layouts:196]]
@@ -991,6 +1005,10 @@ MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
       │  │  ├─ usePatterns → PatternFusionPass::runOnOperation [[mo-patterns:40]]
       │  │  │  ├─ collect enabled fusion patterns with target/MHA options; rewrite matches [[mo-patterns:81]]
       │  │  │  ├─ eligible example: matmul + residual add → mo.composite.matmul_add [[test-mo-fusion:6]]
+      │  │  │  ├─ [↗ QnA 2 · Example 8](#qna-mo-2-example-8): rank-3 CPU normalization arithmetic → mo.reduce.layer_norm
+      │  │  │  ├─ [↗ QnA 2 · Example 9](#qna-mo-2-example-9): eligible BF16 matmul + bias on sm_100a → mo.composite.matmul_add
+      │  │  │  ├─ [↗ QnA 2 · Example 10](#qna-mo-2-example-10): multiple matmul users → decline this fusion; retain matmul + add
+      │  │  │  ├─ [↗ QnA 2 · Example 14](#qna-mo-2-example-14): module device-info arch guard; sm_100a permits the match, sm_90 skips it
       │  │  │  └─ ATTENTION: one named custom call; no separate QK/softmax/PV pattern to match
       │  │  ├─ InvokeShapePackingFunctions resolves supported packing helpers [[mo-pack-shapes:154]]
       │  │  │  ├─ known dimensions → KGEN parameter declarations with those integer values [[mo-pack-shapes:179]]
@@ -998,20 +1016,24 @@ MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
       │  │  └─ PropagateShapes → graph canonicalizer → CSE [[gc:303]]
       │  ├─ ValidateDevices → canonicalizer → CSE [[gc:312]] [[gc:314]]
       │  │  ├─ read graph target; explicit triple+arch can supply it; absent target → return [[mo-devices:126]]
+      │  │  │  └─ [↗ QnA 2 · Example 12](#qna-mo-2-example-12): attach target_info from the supplied CPU triple and architecture
       │  │  ├─ scan tensor arguments/results for this target's supported dtypes [[mo-devices:80]]
+      │  │  │  └─ [↗ QnA 2 · Example 13](#qna-mo-2-example-13): CPU f8e5m2 result → diagnostic / pass failure; no replacement dtype
       │  │  ├─ EXAMPLE: f8e5m2 on x86_64 CPU is rejected; f32 passes this dtype guard [[mo-devices:46]]
       │  │  └─ this is an IR/target check, not CUDA device initialization
       │  ├─ parallel-region cleanup; optional mutable-op cleanup [[gc:320]] [[gc:329]]
       │  │  ├─ CreateParallelFromUnbundle wraps structurally identical per-device consumers [[mo-parallel:16]] [[mo-parallel:313]]
       │  │  ├─ canonicalize bundle(unbundle(X)) → X; MergeAdjacentParallels joins eligible bodies [[mo-merge-parallel:16]]
       │  │  │  └─ EXAMPLE: two per-device add consumers become one parallel body after its producer
-      │  │  ├─ optional ConstantFold runs again after parallel cleanup [[gc:325]]
+      │  │  ├─ optional ConstantFold runs again after parallel cleanup — QnA 2 Examples 4–7 [[gc:325]]
       │  │  ├─ fuseJitKernels → ElideRedundantMutableOps [[mo-mutable:121]]
-      │  │  │  └─ same-buffer store→load with exclusive chain: forward stored tensor; erase load [[mo-mutable:49]]
+      │  │  │  ├─ same-buffer store→load with exclusive chain: forward stored tensor; erase load [[mo-mutable:49]]
+      │  │  │  └─ [↗ QnA 2 · Example 11](#qna-mo-2-example-11): remove the intermediate store/reload; forward v1 and reconnect the final store's chain
       │  │  └─ ATTENTION: one GPU, immutable inputs; no unbundle/parallel/store-load pattern here
       │  └─ hoist parameter expressions → canonicalizer → RemoveUnusedOps [[gc:333]]
       │     ├─ HoistParameterExpressions aliases complex dimension expressions per region [[mo-hoist-params:242]]
       │     │  ├─ EXAMPLE: [N*2,32] → declare p=N*2 → [p,32], with rebinds at boundaries [[mo-hoist-params:76]] [[mo-hoist-params:161]]
+      │     │  ├─ [↗ QnA 2 · Example 1](#qna-mo-2-example-1): its separate MLIR test also runs mo-hoist-param-exprs after shape inference
       │     │  └─ ATTENTION: [32,32] is already literal; BN/BD are separate custom-op attributes
       │     ├─ canonicalizer removes redundant rebinds and other local simplifications
       │     └─ RemoveUnusedOps has a restricted safe-to-erase list [[mo-remove:31]] [[mo-remove:37]]

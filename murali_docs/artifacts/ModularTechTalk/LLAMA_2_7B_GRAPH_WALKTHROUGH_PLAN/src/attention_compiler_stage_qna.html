@@ -16,6 +16,9 @@
 .qna-answer .code-scroll code.language-state,.qna-answer .code-scroll code.language-transform{color:var(--blue);font-weight:800}
 .qna-answer .code-scroll code.language-calltree{line-height:1.85}
 .qna-answer .code-scroll .source-link{font-size:11px;font-style:normal}
+.qna-answer .code-scroll .qna-example-link{color:var(--blue);font-weight:800;font-style:italic;text-decoration:none;border-bottom:1px dotted currentColor}
+.qna-example-link:hover{text-decoration:underline!important}
+.qna-example-link:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
 .qna-answer li{margin-bottom:8px}
 .qna-answer strong code{color:var(--blue)}
 .stage-navigation{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:22px 0}
@@ -47,8 +50,8 @@
 (function(){
   function openLinkedQna(){
     const target=document.getElementById(location.hash.slice(1));
-    if(target?.matches('.qna-cell')){
-      for(let cell=target;cell;cell=cell.parentElement?.closest('.qna-cell')){
+    if(target?.closest('.qna-cell')){
+      for(let cell=target.closest('.qna-cell');cell;cell=cell.parentElement?.closest('.qna-cell')){
         cell.open=true;
       }
       target.scrollIntoView({block:'start'});
