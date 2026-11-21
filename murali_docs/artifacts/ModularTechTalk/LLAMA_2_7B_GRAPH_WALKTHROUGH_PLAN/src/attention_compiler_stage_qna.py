@@ -162,7 +162,8 @@ def render(markdown_text, evidence):
         evidence.references[f'{path}:{line}'] = dict(
             file=path, line=line, label=label, needle=lines[line - 1].strip())
     # Resolve after fenced-code escaping, so call-tree links work inside <pre>.
-    rendered = render_answer(expanded, evidence)
+    rendered = render_answer(expanded, evidence, markdown_in_html=True,
+                             link_code_sources=True)
     return TOKEN.sub(lambda m: source_link(m[1], m[2], evidence), rendered)
 
 
