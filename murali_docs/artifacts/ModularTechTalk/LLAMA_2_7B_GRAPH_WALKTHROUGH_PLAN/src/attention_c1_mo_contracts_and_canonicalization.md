@@ -136,6 +136,137 @@ rmo.ReshapeOp
 
 The referenced `.mlir` test already contains a static reshape with `mul_no_wrap(D0,4)`; it checks symbolic result/signature handling. Native [materializeReshapeShape():1192](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MODialect/ShapeFunctions.cpp:1192) verifies equal element counts and explicitly rejects a target shape that still contains literal `-1`.
 
+<details class="qna-cell" id="qna-mo-2-example-1-reshape-test">
+<summary>QnA 2.1 · Example 1: how does reshape() in reshape.py become mo.static.reshape, and how is it related to the .mlir test named @reshape_flatten_const_shape? Does lowering call that test graph? Explain the Python path, the independent test path and lines 786–793.</summary>
+<div class="qna-answer">
+
+<p><strong>SOURCE · Combined explanation of the Python reshape path and the independent compiler test.</strong></p>
+
+<p><strong>The .mlir test does not call reshape() in reshape.py, and C++ lowering does not continue into that test file.</strong> A Python application builds compiler operations programmatically. The test supplies text describing a separate graph with the same kind of reshape operation.</p>
+
+```transform
+Your Python application                 Separate compiler test
+───────────────────────                 ──────────────────────
+ops.reshape(x, [-1])                     Supplied .mlir text already
+          │                             contains mo.static.reshape
+          ▼                                       │
+reshape.py resolves the shape                     ▼
+          │                             Parser creates that operation
+          ▼                             in the test's compiler memory
+Construct rmo.reshape                             │
+          │                                       ▼
+          ▼                             Run compiler test passes
+C++ creates mo.static.reshape                     │
+          │                                       ▼
+          ▼                             FileCheck checks printed IR
+Compile your graph
+```
+
+<p><strong>Python calculates the requested shape.</strong> Assume <code>x.shape = [B, 4]</code> and your application calls:</p>
+
+```python
+y = ops.reshape(x, [-1])  # Flatten; infer the single output dimension.
+```
+
+<p>Inside [reshape.py:89](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/python/max/graph/ops/reshape.py:89), the calculations are schematically:</p>
+
+```text
+total   = B * 4          # Number of input elements.
+known   = 1              # No other requested dimensions; empty product is 1.
+missing = total // known # B * 4.
+shape   = [B * 4]        # Replace -1 with this dimension expression.
+```
+
+<p>When <code>B</code> is symbolic, this remains a dimension expression. The multiplication becomes <code>mul_no_wrap</code> through [Dim.__mul__():139](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/python/max/graph/dim.py:139).</p>
+
+<p><strong>Python records a native RMO reshape operation.</strong> The function ends with this call; its first result is returned as a <code>TensorValue</code>. [reshape.py:94](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/python/max/graph/ops/reshape.py:94)</p>
+
+```python
+Graph.current._add_op_generated(
+    rmo.ReshapeOp, input=x, new_shape=shape
+)
+```
+
+<p>This records an operation in the graph. Its native type-inference implementation uses the requested shape to determine the result type. [ReshapeOp::inferReturnTypes():507](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/RMODialect/RMOOps.cpp:507)</p>
+
+<p><strong>C++ lowering changes the compiler representation.</strong> [LowerReshape:710](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/RMODialect/Transforms/LegalizeRMOOps.cpp:710) executes:</p>
+
+```cpp
+rewriter.replaceOpWithNewOp<MO::Static::ReshapeOp>(
+    op, op.getResult().getType(), op.getInput());
+```
+
+<p>It replaces <code>rmo.reshape</code> with <code>mo.static.reshape</code>, retaining the existing input and result type. <strong>The resulting operation lives in your graph's compiler memory.</strong> This code does not call <code>reshape_flatten_const_shape</code> or read the test file.</p>
+
+<p><strong>The referenced test independently supplies that later representation.</strong> Its [input at shape-inference-e2e.mlir:790](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/test/mo-opt/MODialect/Transforms/shape-inference-e2e.mlir:790) already contains this graph. The following is the same input with line breaks added for readability:</p>
+
+```mlir
+mo.graph @reshape_flatten_const_shape<D0 -> D2>(
+    %arg0: !mo.tensor<[D0, 4], si32>
+) -> !mo.tensor<[D2], si32> {
+    %0 = mo.static.reshape(%arg0)
+        : !mo.tensor<[D0, 4], si32>
+          -> !mo.tensor<[mul_no_wrap(D0, 4)], si32>
+    mo.output<mul_no_wrap(D0, 4)> %0
+        : !mo.tensor<[mul_no_wrap(D0, 4)], si32>
+}
+```
+
+<p><strong>@reshape_flatten_const_shape names the enclosing test graph.</strong> Line 790 <em>defines</em> that graph; line 791 places the reshape operation inside its body. MAX defines <code>mo.graph</code> as a computation with typed inputs, a body of operations and a terminating <code>mo.output</code>. [GraphOp definition:224](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/include/GraphCompiler/MODialect/MOOps.td:224)</p>
+
+```transform
+test graph: @reshape_flatten_const_shape
+├─ input: %arg0, shape [D0,4]
+├─ operation: mo.static.reshape(%arg0)
+│  └─ result: %0, shape [D0*4]
+└─ output: %0
+```
+
+<p>The names in the Python example and the test correspond as follows:</p>
+
+<table>
+<thead><tr><th>Python example</th><th>MLIR test</th></tr></thead>
+<tbody>
+<tr><td>Symbolic dimension <code>B</code></td><td><code>D0</code></td></tr>
+<tr><td>Input <code>x</code></td><td><code>%arg0</code></td></tr>
+<tr><td>Result <code>y</code></td><td><code>%0</code></td></tr>
+<tr><td>Output length <code>B * 4</code></td><td><code>mul_no_wrap(D0, 4)</code></td></tr>
+<tr><td>Named graph output dimension</td><td><code>D2</code>, bound by <code>mo.output</code> to <code>D0 * 4</code></td></tr>
+</tbody>
+</table>
+
+<p>For <code>D0 = 5</code>, this describes reshaping <code>[5,4]</code> into <code>[20]</code>. For <code>D0 = 8</code>, the corresponding shapes are <code>[8,4]</code> and <code>[32]</code>.</p>
+
+<p>Reading the test lines:</p>
+
+<table>
+<thead><tr><th>Lines</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><strong>786–789</strong></td><td>Comments specifying the graph header expected in the compiler's printed output.</td></tr>
+<tr><td><strong>790</strong></td><td><strong>Defines</strong> the test graph named <code>reshape_flatten_const_shape</code>.</td></tr>
+<tr><td><strong>791</strong></td><td>Places a reshape operation inside that graph.</td></tr>
+<tr><td><strong>792</strong></td><td>Declares the reshape result as the graph's output.</td></tr>
+<tr><td><strong>793</strong></td><td>Ends the graph definition.</td></tr>
+</tbody>
+</table>
+
+<p>The file's [RUN command:6](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/test/mo-opt/MODialect/Transforms/shape-inference-e2e.mlir:6) sends this supplied IR through shape-inference and parameter-expression passes:</p>
+
+```text
+mo-opt %s --mo-shape-inference --mo-hoist-param-exprs | FileCheck %s --enable-var-scope
+```
+
+<p>Here <code>%s</code> means the test file. <code>mo-opt</code> parses and transforms the supplied IR; FileCheck compares the printed output with the <code>CHECK</code> comments. These lines do not invoke the Python reshape function or numerically execute the test graph.</p>
+
+<p><strong>The test already contains the inferred output length before its passes run.</strong> It checks compiler handling of that symbolic reshape. Python's <code>-1 → B*4</code> calculation happens earlier and is not exercised by this particular test.</p>
+
+<p><strong>The connection is that both paths give the compiler the same kind of reshape operation.</strong> The test graph is an independently supplied example; it is not a function called after your Python reshape is lowered.</p>
+
+<p>General references: <a href="https://mlir.llvm.org/docs/Tutorials/Toy/Ch-2/">MLIR construction and textual IR</a> · <a href="https://llvm.org/docs/CommandGuide/FileCheck.html">FileCheck directives</a>.</p>
+
+</div>
+</details>
+
 **2. Moving shape arithmetic into a broadcast’s result type.**
 
 ```text

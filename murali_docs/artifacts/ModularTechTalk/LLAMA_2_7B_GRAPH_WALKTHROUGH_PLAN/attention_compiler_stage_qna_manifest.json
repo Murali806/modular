@@ -5,7 +5,7 @@
       "id": "mo",
       "page": "link_htmls/max_example_04_c1_mo_contracts_and_canonicalization.html",
       "source": "src/attention_c1_mo_contracts_and_canonicalization.md",
-      "source_sha256": "2f4c8a407e2a434eb534fa4269634f8ad7d85c92e6cb9520c68576c19cdad072",
+      "source_sha256": "45dea170ef6f37756f1606fdad71f5fd60634f0528e2d7f698263daafe02a5c6",
       "qnas": [
         {
           "id": "qna-mo-1",
@@ -36,8 +36,8 @@
           "question": "What leaves MO, and what remains for later stages?"
         }
       ],
-      "source_files": 51,
-      "source_anchors": 235,
+      "source_files": 54,
+      "source_anchors": 242,
       "references": {
         "max/examples/custom_ops/fused_attention.py:57": {
           "file": "max/examples/custom_ops/fused_attention.py",
@@ -128,6 +128,48 @@
           "line": 1192,
           "label": "materializeReshapeShape():1192",
           "needle": "ShapeMaterializeResult materializeReshapeShape(GraphOp graphOp, Location loc,"
+        },
+        "max/python/max/graph/ops/reshape.py:89": {
+          "file": "max/python/max/graph/ops/reshape.py",
+          "line": 89,
+          "label": "reshape.py:89",
+          "needle": "total = _product(x.shape)"
+        },
+        "max/python/max/graph/dim.py:139": {
+          "file": "max/python/max/graph/dim.py",
+          "line": 139,
+          "label": "Dim.__mul__():139",
+          "needle": "def __mul__(self, rhs: DimLike) -> Dim:"
+        },
+        "max/python/max/graph/ops/reshape.py:94": {
+          "file": "max/python/max/graph/ops/reshape.py",
+          "line": 94,
+          "label": "reshape.py:94",
+          "needle": "return Graph.current._add_op_generated("
+        },
+        "GraphCompiler/lib/RMODialect/RMOOps.cpp:507": {
+          "file": "GraphCompiler/lib/RMODialect/RMOOps.cpp",
+          "line": 507,
+          "label": "ReshapeOp::inferReturnTypes():507",
+          "needle": "ReshapeOp::inferReturnTypes(MLIRContext *context,"
+        },
+        "GraphCompiler/test/mo-opt/MODialect/Transforms/shape-inference-e2e.mlir:790": {
+          "file": "GraphCompiler/test/mo-opt/MODialect/Transforms/shape-inference-e2e.mlir",
+          "line": 790,
+          "label": "input at shape-inference-e2e.mlir:790",
+          "needle": "mo.graph @reshape_flatten_const_shape<D0 -> D2>(%arg0: !mo.tensor<[D0, 4], si32>) -> !mo.tensor<[D2], si32> {"
+        },
+        "GraphCompiler/include/GraphCompiler/MODialect/MOOps.td:224": {
+          "file": "GraphCompiler/include/GraphCompiler/MODialect/MOOps.td",
+          "line": 224,
+          "label": "GraphOp definition:224",
+          "needle": "let summary = \"Computation graph operation\";"
+        },
+        "GraphCompiler/test/mo-opt/MODialect/Transforms/shape-inference-e2e.mlir:6": {
+          "file": "GraphCompiler/test/mo-opt/MODialect/Transforms/shape-inference-e2e.mlir",
+          "line": 6,
+          "label": "RUN command:6",
+          "needle": "// RUN: mo-opt %s --mo-shape-inference --mo-hoist-param-exprs | FileCheck %s --enable-var-scope"
         },
         "GraphCompiler/test/mo-opt/MODialect/Transforms/StaticizeOperations/add.mlir:28": {
           "file": "GraphCompiler/test/mo-opt/MODialect/Transforms/StaticizeOperations/add.mlir",
@@ -1451,6 +1493,7 @@
         }
       },
       "files": {
+        "GraphCompiler/include/GraphCompiler/MODialect/MOOps.td": "0cf3f8400e5dace9def88de0c46e45cd40a0f57dd4d677d80ce9faa18be27ed1",
         "GraphCompiler/include/GraphCompiler/Passes.h": "efad7592c8d0d4b2b16e162f486fe137f474bc0c75d8002778904d82413abde2",
         "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp": "600a4d99e45a854a92d4da99455bae4daaffae87a36ff621918d53aa5f892034",
         "GraphCompiler/lib/Conversion/OperandInference.cpp": "960d088b1724d0daa59371b5e351a8f43066c886d53580e220dcccdcb52c2c8d",
@@ -1482,6 +1525,7 @@
         "GraphCompiler/lib/MOGGDialect/Analysis/MojoRegistry.cpp": "4a93890d8959b3bb821addb80ec2191a6baa1b900ceeacd1afb96617e29c9468",
         "GraphCompiler/lib/MOGGDialect/Transforms/RewriteOpaqueTypes.cpp": "3e5a4a8ebf75b8523fffd8fea1d7ef5b681e1ea55ed69663f5d42927369ec295",
         "GraphCompiler/lib/MOGGDialect/VerifyKernels.cpp": "aac2f6e051b4b7d42b0ef73af8f0703a45309d26ca6b262416dabe0ccc6c1ffd",
+        "GraphCompiler/lib/RMODialect/RMOOps.cpp": "8f9c1a236031d6f289ab7e5ad665e0d94b6ad8ef0a5facfefd97e3bf5917183f",
         "GraphCompiler/lib/RMODialect/Transforms/LegalizeRMOOps.cpp": "72b37060a7f78f72b7b5899779d47933de50f8a487251ddbb65032799e7a721c",
         "GraphCompiler/test/mo-opt/MODialect/Transforms/PatternFusion/matmul-add-pattern-fusion.mlir": "671773638fb9b606af7c6b39805faf127c42d1fa5c5fd85c7f3c887beb66e5aa",
         "GraphCompiler/test/mo-opt/MODialect/Transforms/StaticizeOperations/add.mlir": "3b0eefab3bad7e69bc1f13f744a94e32d3b02cdea0098ae66f2d4171c969b37d",
@@ -1499,6 +1543,7 @@
         "max/examples/custom_ops/fused_attention.py": "e5874ab1b10e723df30f868d8c73dd3a272eee49fee0bc35bc4620aa52ba7b69",
         "max/examples/custom_ops/kernels/fused_attention.mojo": "2cd136d39ce0240ef2a6fd4505f74e03e0f163047645d1c8c1b1056cb0b55aff",
         "max/python/max/engine/api.py": "97f0592962c1853c884c8d8145a0faf4aa9ca622262271de4b080990b47da017",
+        "max/python/max/graph/dim.py": "c6b900a8014cbf0a6b430d972fc8ade68d07480a448fe95bbdb77aa8f0f19841",
         "max/python/max/graph/graph.py": "1d22145baa183f535d9e707aa959b7cb833ef4c150d39e2ebccf66e24923edb4",
         "max/python/max/graph/ops/custom.py": "fe92b0f35a5b839fe6807be4e9982cc191a59b667af6700cca795c2817f0ca7c",
         "max/python/max/graph/ops/reshape.py": "af8ddb601a668498bd84d618af0d5a2b3af519b5c012134f6bfb5e0fe4a371f1"
