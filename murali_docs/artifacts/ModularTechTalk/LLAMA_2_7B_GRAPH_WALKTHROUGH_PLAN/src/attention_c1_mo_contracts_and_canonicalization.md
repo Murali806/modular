@@ -906,12 +906,15 @@ Canonicalization and CSE recur around the main transformations because a rewrite
 
 The tree follows the route that actually runs the graph compiler. **EXAMPLE** rows describe comparison graphs or possible rewrites; **ATTENTION** rows describe the recorded Q/K/V custom-call structure. They are source walkthroughs, not captured pass dumps.
 
-**QnA 2 example map:** blue links below jump to each of the 16 examples. They mark the pass that implements or prepares that example, subject to its gates and matching conditions. Constant folding, canonicalization and CSE recur; their examples can fit at later occurrences too. Steps without a link have no dedicated QnA 2 example.
+**Example links** connect QnA 2 and QnA 4–7 to the matching checks, rewrites and handoffs. Canonicalization, CSE and constant folding recur, so an example can apply at several occurrences when its conditions hold.
 
 ```calltree
 MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
 ├─ ModuleOp::getFromOpaquePointer(source).clone() creates new operations/regions/SSA values [[frontend:381]]
 │  ├─ G1 keeps its source GraphOp and body; IR1 owns the compilation copy
+│  │  ├─ [↗ QnA 4 · Example 3.1](#qna-mo-4-example-1) — entry contract checked by Graph.output: graph result and terminator agree
+│  │  ├─ [↗ QnA 4 · Example 3.2](#qna-mo-4-example-2) — ops.custom already checked registration, device and positional operand roles
+│  │  └─ [↗ QnA 4 · Example 3.3](#qna-mo-4-example-3) — custom-call validation already checked BN/BD names and integer attribute kinds
 │  └─ clone stays in the same MLIRContext; register the shared MAXContext there [[frontend:384]]
 ├─ GCPipelineOptions → overrideLoweringOptions → detect seeded declaration marker [[frontend:397]]
 │  └─ ATTENTION: Python seeded P1; kernelDeclsPrePopulated=true [[api:1042]] [[frontend:402]]
@@ -924,7 +927,8 @@ MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
       │  │  ├─ import package declarations so registration names can be resolved
       │  │  ├─ VerifyKernelsPass::runOnOperation → MojoRegistry → visit KernelDeclOps [[verify-kernels:979]]
       │  │  │  ├─ check declared entry points and compatible execute/shape/build_graph roles [[verify-kernels:998]] [[verify-kernels:1021]]
-      │  │  │  └─ EXAMPLE: a declaration missing its required entry point fails here
+      │  │  │  ├─ EXAMPLE: a declaration missing its required entry point fails here
+      │  │  │  └─ [↗ QnA 4 · Example 3.5](#qna-mo-4-example-5) — unseeded route verifies execute / shape / build_graph declaration contracts
       │  │  └─ ATTENTION: skip this initial pair; already seeded does not mean skip all later checks
       │  ├─ RewriteOpaqueTypes → VerifyParameters [[gc:233]] [[gc:234]]
       │  │  ├─ RewriteOpaqueTypesPass reads mogg.opaque_type_mapping [[rewrite-opaque:34]]
@@ -934,6 +938,7 @@ MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
       │  │  └─ VerifyParametersPass builds a ParameterUseDefGraph for each declaration region [[verify-params:182]] [[verify-params:203]]
       │  │     ├─ verify parameter references, definitions and their scopes
       │  │     ├─ EXAMPLE: a type uses N with no valid declaration/definition → failure
+      │  │     ├─ [↗ QnA 4 · Example 3.4](#qna-mo-4-example-4) — dimension references need in-scope definitions and output bindings
       │  │     └─ simplifyParameters also permits substitution; otherwise preserve analyses [[verify-params:232]] [[verify-params:242]]
       │  ├─ optional tensor debug printing; legalize RMO operations [[gc:236]] [[gc:239]]
       │  │  ├─ debugPrintAllTensors gates instrumentation; it is not a request to print Q now
@@ -944,16 +949,23 @@ MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
       │  ├─ graph CSE → canonicalizer → CanonicalizeChainSequences [[gc:241]] [[gc:243]]
       │  │  ├─ CSE shares eligible equivalent producers; consumers reference the retained SSA value
       │  │  │  ├─ EXAMPLE: two identical shape constants → one producer used twice
-      │  │  │  └─ [↗ QnA 2 · Example 16](#qna-mo-2-example-16): constant(3), constant(3) → one producer; output(a,a)
+      │  │  │  ├─ [↗ QnA 2 · Example 16](#qna-mo-2-example-16): constant(3), constant(3) → one producer; output(a,a)
+      │  │  │  └─ [↗ QnA 5 · Example 4.3](#qna-mo-5-example-3) — equivalent [32,32] constants share one producer and its SSA result
       │  │  ├─ canonicalizer invokes operation folds/patterns [[mo-fold:419]] [[mo-fold:1252]]
       │  │  │  ├─ EXAMPLE: cast(%q):T0→T0 → %q; redirect the custom call's input
-      │  │  │  └─ [↗ QnA 2 · Example 15](#qna-mo-2-example-15): generic arith.addi(x,0) → x; illustrates the local-fold mechanism
+      │  │  │  ├─ [↗ QnA 2 · Example 15](#qna-mo-2-example-15): generic arith.addi(x,0) → x; illustrates the local-fold mechanism
+      │  │  │  ├─ [↗ QnA 5 · Example 4.1](#qna-mo-5-example-1) — identity cast forwards %q into the custom call
+      │  │  │  ├─ [↗ QnA 5 · Example 4.2](#qna-mo-5-example-2) — same-type rebind and round-trip reshape cleanup expose each other
+      │  │  │  ├─ [↗ QnA 5 · Example 4.4](#qna-mo-5-example-4) — local ChainCreateOp fold deduplicates / forwards chain operands
+      │  │  │  └─ [↗ QnA 6 · Example 5.1](#qna-mo-6-example-1) — known shape_of(Q) → shape-value conversion → constant([32,32])
       │  │  └─ CanonicalizeBufferOpSequences::matchAndRewrite examines mutable chains [[mo-chains:115]]
       │  │     ├─ collect write effects; reject overlaps, region crossings and unsafe aliases [[mo-chains:45]] [[mo-chains:70]] [[mo-chains:132]]
       │  │     ├─ independent A→B: make A/B depend on the earlier chain; join their results [[mo-chains:138]]
+      │  │     ├─ [↗ QnA 5 · Example 4.4](#qna-mo-5-example-4) — the chain-sequence pattern relaxes independent writes and joins their chains
       │  │     └─ ATTENTION: this immutable custom call has no such mutable-operation pair
       │  ├─ graph canonicalizer → CSE [[gc:245]]
       │  │  ├─ clean up values exposed by the chain rewrite; see QnA 5 for SSA examples
+      │  │  ├─ [↗ QnA 7 · Example 6.2](#qna-mo-7-example-2) — cast / rebind / reshape rewrites compose around custom: six shown operations → two
       │  │  └─ QnA 2 Examples 15/16: the same local-fold / duplicate-producer cleanup can recur here
       │  ├─ optional shape inference and constant folding [[gc:256]] [[gc:261]]
       │  │  ├─ useShapeInference → buildShapeInferencePipeline [[gc:657]]
@@ -963,7 +975,9 @@ MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
       │  │  │  │  ├─ substitute/solve parameter expressions and update affected types [[mo-propagate:1075]]
       │  │  │  │  ├─ [↗ QnA 2 · Example 1](#qna-mo-2-example-1): handle the existing B*4 result/signature; the test starts with mo.static.reshape
       │  │  │  │  ├─ [↗ QnA 2 · Example 2](#qna-mo-2-example-2): shape_of + [1,2] → [N+1,M+2]; following canonicalizer makes a static broadcast
-      │  │  │  │  └─ [↗ QnA 2 · Example 3](#qna-mo-2-example-3): final shape_of cleanup → param.to_value + shape.to_tensor; drop x's tensor edge
+      │  │  │  │  ├─ [↗ QnA 2 · Example 3](#qna-mo-2-example-3): final shape_of cleanup → param.to_value + shape.to_tensor; drop x's tensor edge
+      │  │  │  │  ├─ [↗ QnA 6 · Example 5.2](#qna-mo-6-example-2) — substitute (N+4)-4 → N; following cleanup removes the identity reshape
+      │  │  │  │  └─ [↗ QnA 6 · Example 5.3](#qna-mo-6-example-3) — known reshape target entries resolve dimensions; runtime entries retain pending dimensions
       │  │  │  └─ EXAMPLE: (N+4)-4 → N; ATTENTION: [32,32] has no unresolved dimension names
       │  │  └─ constantFold → ConstantFoldPass::runOnOperation [[mo-constant-fold:815]]
       │  │     ├─ constantSubgraphs: follow constants; a block argument stops constant propagation [[mo-constant-fold:445]] [[mo-constant-fold:480]]
@@ -974,6 +988,8 @@ MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
       │  │     ├─ [↗ QnA 2 · Example 5](#qna-mo-2-example-5): precompute W's transpose; matmul still consumes runtime_x
       │  │     ├─ [↗ QnA 2 · Example 6](#qna-mo-2-example-6): branch arithmetic → [0,9] / [0,6]; retain the runtime condition
       │  │     ├─ [↗ QnA 2 · Example 7](#qna-mo-2-example-7): external W is excluded during discovery; dependent multiplication stays
+      │  │     ├─ [↗ QnA 5 · Example 4.5](#qna-mo-5-example-5) — evaluate the constant broadcast / transpose subgraph; retain runtime matmul
+      │  │     ├─ [↗ QnA 7 · Example 6.3](#qna-mo-7-example-3) — MO exit retains a constant weight and matmul consuming runtime %x
       │  │     └─ ATTENTION: %q/%k/%v are block arguments; shapes alone cannot supply O's numbers
       │  ├─ hoist constant subgraphs → CSE [[gc:265]]
       │  │  ├─ buildCallGraphAndSortGraphs → processGraph, callees before callers [[mo-hoist:112]] [[mo-hoist:127]]
@@ -986,13 +1002,17 @@ MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
       │  │  ├─ core → forward mathematical rewrites → core → backward rewrites → core [[mo-symbolic:94]]
       │  │  ├─ [↗ QnA 2 · Example 8](#qna-mo-2-example-8): prepare LayerNorm's arithmetic form; PatternFusion below creates the combined operation
       │  │  ├─ EXAMPLE: sub(x,x) → broadcast(0) under the fast-math pattern gate [[mo-algebra:2254]]
+      │  │  ├─ [↗ QnA 5 · Example 4.6](#qna-mo-5-example-6) — the enabled fast-math pattern rewrites x-x → broadcast(0)
       │  │  └─ ATTENTION: no graph-visible sub/matmul/softmax arithmetic inside mo.custom
       │  ├─ merge shape materializations; add fallback shape functions [[gc:277]]
       │  │  ├─ MergeDuplicateShapeMaterializations keys on operation name + operands [[mo-merge-shapes:112]]
       │  │  │  ├─ require the candidate to define its referenced parameters [[mo-merge-shapes:103]]
-      │  │  │  └─ EXAMPLE: duplicate broadcasts define D1 and D2 → D2 remaps to D1; erase duplicate [[mo-merge-shapes:118]]
+      │  │  │  ├─ EXAMPLE: duplicate broadcasts define D1 and D2 → D2 remaps to D1; erase duplicate [[mo-merge-shapes:118]]
+      │  │  │  └─ [↗ QnA 6 · Example 5.4](#qna-mo-6-example-4) — merge equivalent broadcasts while remapping dimension definitions D2 → D1
       │  │  ├─ AddFallbackShapeFunctions visits operations still declaring output dimensions [[mo-fallback:158]]
       │  │  │  ├─ EXAMPLE: data-dependent custom output needs a registered shape function [[mo-fallback:225]]
+      │  │  │  ├─ [↗ QnA 6 · Example 5.3](#qna-mo-6-example-3) — pending runtime reshape dimensions take the supported fallback path
+      │  │  │  ├─ [↗ QnA 6 · Example 5.5](#qna-mo-6-example-5) — nonzero_indices needs a registered shape helper to define output length K
       │  │  │  └─ ATTENTION: static output [32,32], output parameter declarations=[] → skip
       │  │  └─ SymbolicOptimization → canonicalizer → CSE runs again after this shape work [[gc:279]]
       │  ├─ optional constant folding; infer layouts [[gc:283]] [[gc:287]]
@@ -1000,6 +1020,7 @@ MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
       │  │  └─ InferLayoutPass: seed constraints → propagate → assign inferred layouts [[mo-layouts:204]]
       │  │     ├─ EXAMPLE: matmul B gets KN; 2-D convolution input/filter get NHWC/FCRS [[mo-layouts:90]] [[mo-layouts:137]]
       │  │     ├─ clone affected tensor types with layout metadata; synchronize graph metadata [[mo-layouts:196]]
+      │  │     ├─ [↗ QnA 6 · Example 5.6](#qna-mo-6-example-6) — matmul / convolution constraints assign KN or NHWC/FCRS type layouts
       │  │     └─ ATTENTION: no matmul/conv seed exposed by this custom call
       │  ├─ optional PatternFusion + shape propagation + cleanup [[gc:288]]
       │  │  ├─ usePatterns → PatternFusionPass::runOnOperation [[mo-patterns:40]]
@@ -1009,6 +1030,7 @@ MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
       │  │  │  ├─ [↗ QnA 2 · Example 9](#qna-mo-2-example-9): eligible BF16 matmul + bias on sm_100a → mo.composite.matmul_add
       │  │  │  ├─ [↗ QnA 2 · Example 10](#qna-mo-2-example-10): multiple matmul users → decline this fusion; retain matmul + add
       │  │  │  ├─ [↗ QnA 2 · Example 14](#qna-mo-2-example-14): module device-info arch guard; sm_100a permits the match, sm_90 skips it
+      │  │  │  ├─ [↗ QnA 6 · Example 5.7](#qna-mo-6-example-7) — eligible matmul / add patterns fuse; use and layout guards can decline a match
       │  │  │  └─ ATTENTION: one named custom call; no separate QK/softmax/PV pattern to match
       │  │  ├─ InvokeShapePackingFunctions resolves supported packing helpers [[mo-pack-shapes:154]]
       │  │  │  ├─ known dimensions → KGEN parameter declarations with those integer values [[mo-pack-shapes:179]]
@@ -1018,7 +1040,8 @@ MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
       │  │  ├─ read graph target; explicit triple+arch can supply it; absent target → return [[mo-devices:126]]
       │  │  │  └─ [↗ QnA 2 · Example 12](#qna-mo-2-example-12): attach target_info from the supplied CPU triple and architecture
       │  │  ├─ scan tensor arguments/results for this target's supported dtypes [[mo-devices:80]]
-      │  │  │  └─ [↗ QnA 2 · Example 13](#qna-mo-2-example-13): CPU f8e5m2 result → diagnostic / pass failure; no replacement dtype
+      │  │  │  ├─ [↗ QnA 2 · Example 13](#qna-mo-2-example-13): CPU f8e5m2 result → diagnostic / pass failure; no replacement dtype
+      │  │  │  └─ [↗ QnA 4 · Example 3.6](#qna-mo-4-example-6) — target information selects the dtype checks; CPU f8e5m2 is rejected
       │  │  ├─ EXAMPLE: f8e5m2 on x86_64 CPU is rejected; f32 passes this dtype guard [[mo-devices:46]]
       │  │  └─ this is an IR/target check, not CUDA device initialization
       │  ├─ parallel-region cleanup; optional mutable-op cleanup [[gc:320]] [[gc:329]]
@@ -1028,19 +1051,24 @@ MOFContext::compileToBinary → clone source module as IR1 [[frontend:377]]
       │  │  ├─ optional ConstantFold runs again after parallel cleanup — QnA 2 Examples 4–7 [[gc:325]]
       │  │  ├─ fuseJitKernels → ElideRedundantMutableOps [[mo-mutable:121]]
       │  │  │  ├─ same-buffer store→load with exclusive chain: forward stored tensor; erase load [[mo-mutable:49]]
-      │  │  │  └─ [↗ QnA 2 · Example 11](#qna-mo-2-example-11): remove the intermediate store/reload; forward v1 and reconnect the final store's chain
+      │  │  │  ├─ [↗ QnA 2 · Example 11](#qna-mo-2-example-11): remove the intermediate store/reload; forward v1 and reconnect the final store's chain
+      │  │  │  └─ [↗ QnA 5 · Example 4.7](#qna-mo-5-example-7) — same-buffer store→load forwards both the tensor and chain results
       │  │  └─ ATTENTION: one GPU, immutable inputs; no unbundle/parallel/store-load pattern here
       │  └─ hoist parameter expressions → canonicalizer → RemoveUnusedOps [[gc:333]]
       │     ├─ HoistParameterExpressions aliases complex dimension expressions per region [[mo-hoist-params:242]]
       │     │  ├─ EXAMPLE: [N*2,32] → declare p=N*2 → [p,32], with rebinds at boundaries [[mo-hoist-params:76]] [[mo-hoist-params:161]]
       │     │  ├─ [↗ QnA 2 · Example 1](#qna-mo-2-example-1): its separate MLIR test also runs mo-hoist-param-exprs after shape inference
+      │     │  ├─ [↗ QnA 7 · Example 6.4](#qna-mo-7-example-4) — alias N*2 as a named parameter expression and repair type boundaries
       │     │  └─ ATTENTION: [32,32] is already literal; BN/BD are separate custom-op attributes
       │     ├─ canonicalizer removes redundant rebinds and other local simplifications
       │     └─ RemoveUnusedOps has a restricted safe-to-erase list [[mo-remove:31]] [[mo-remove:37]]
       │        └─ unused AllReduceSum/DistributedBroadcast/DistributedScatter qualify; arbitrary side effects do not
       └─ pm.run(IR1) executes the configured sequence [[gc:654]]
          ├─ pass failure propagates to "Graph compilation failed" [[frontend:361]]
+         │  └─ [↗ QnA 7 · Example 6.5](#qna-mo-7-example-5) — verification / pass failure propagates through pm.run and stops the handoff
          └─ on success, this same run continues through MAP/MOGG/MGP; MO is its first stage
+            ├─ [↗ QnA 7 · Example 6.1](#qna-mo-7-example-1) — MO hands a typed attention custom-call contract to MOToMAP
+            └─ [↗ QnA 4 · Example 3.7](#qna-mo-4-example-7) — later Mojo execute specialization evaluates the rank == 2 assertion
 ```
 
 **For this Graph API route, seeded declarations skip the initial import and VerifyKernels pair.** The earlier custom-call validation used G1's library analysis; later lowering again resolves the declaration and maps operands. A constant-folding submodule, if one is needed, has its own lowering path. [[frontend:397]] [[gc:224]] [[mo-to-map:705]] [[mo-constant-fold:757]]
@@ -1087,7 +1115,7 @@ Validation lifecycle
 
 Sources for the table: graph output verification, kernel resolution, operand mapping and parameter validation. [[mo-ops:1117]] [[registry:650]] [[registry:677]] [[registry:477]] [[registry:492]] [[kernel:74]]
 
-**Example 3.1 · a graph result must match its terminator.**
+**<span id="qna-mo-4-example-1">Example 3.1 · a graph result must match its terminator.</span>**
 
 `OutputOp::verify` first pairs result-parameter declarations with their bindings, substitutes those bindings into the declared result types, then calls `checkOperandTypes`. Shape, dtype and device are part of a tensor type. [[mo-ops:1085]] [[mo-ops:1103]] [[mo-ops:1117]]
 
@@ -1110,7 +1138,7 @@ Also inconsistent:
 
 These failures diagnose a malformed contract; the verifier does not reshape, cast or transfer `%o` to repair it. Python's normal `Graph.output()` derives the signature from the supplied values, which is why the unmodified example agrees. [[graph:1449]] [[graph:1459]] [[mo-ops:1117]]
 
-**Example 3.2 · registration lookup and positional operand mapping.**
+**<span id="qna-mo-4-example-2">Example 3.2 · registration lookup and positional operand mapping.</span>**
 
 ```transform
 PASS
@@ -1132,7 +1160,7 @@ FAIL: operands = [%q,%k,%v,%extra]
 
 The mapper skips launch arguments, matches tensor roles by position, then detects missing or extra operands. Supplying `[%q,%v,%k]` with identical types can pass these structural checks: the compiler cannot infer that the user meant to exchange the semantic roles back. [[operand-inference:116]] [[operand-inference:202]] [[operand-inference:244]] [[operand-inference:253]] [[registry:642]]
 
-**Example 3.3 · integer metadata versus a misspelled or mistyped parameter.**
+**<span id="qna-mo-4-example-3">Example 3.3 · integer metadata versus a misspelled or mistyped parameter.</span>**
 
 The native validator builds a name-to-declaration map, finds each supplied name and checks its attribute kind. Mojo `Int` parameters here are checked through the KGEN index-type branch. [[registry:470]] [[registry:477]] [[registry:492]] [[kernel:78]]
 
@@ -1156,7 +1184,7 @@ IR state on success:
 
 Accepting an integer attribute proves its kind, not every numerical precondition of a tiling algorithm. Those requirements belong to the implementation and later specialization. [[registry:492]] [[kernel:78]] [[kernel:105]]
 
-**Example 3.4 · shape names need declarations and bindings.**
+**<span id="qna-mo-4-example-4">Example 3.4 · shape names need declarations and bindings.</span>**
 
 ```transform
 PASS — static fused attention
@@ -1179,7 +1207,7 @@ FAIL — malformed symbolic graph
 
 The first failure concerns the parameter use/definition graph; the second fails the output binding-count check before type comparison. Naming `N` does not assign it the value 32. [[verify-params:202]] [[mo-ops:984]] [[mo-ops:1087]]
 
-**Example 3.5 · a kernel declaration must describe a usable implementation.**
+**<span id="qna-mo-4-example-5">Example 3.5 · a kernel declaration must describe a usable implementation.</span>**
 
 ```state
 Unseeded compilation path
@@ -1198,7 +1226,7 @@ This attention route:
 
 `declVerifyShapeFunctionReturnsShape` allows an absent shape function; it rejects a present function with no shape result. Static output dimensions do not require every custom kernel to provide a shape function. [[verify-kernels:46]] [[verify-kernels:1021]] [[mo-fallback:158]] [[gc:224]]
 
-**Example 3.6 · target/dtype validation is narrower than GPU readiness.**
+**<span id="qna-mo-4-example-6">Example 3.6 · target/dtype validation is narrower than GPU readiness.</span>**
 
 | Comparison input | Result of this pass |
 | --- | --- |
@@ -1208,7 +1236,7 @@ This attention route:
 
 **TEST · inspected expectation:** the CPU test contains a cast to `f8e5m2` and expects a diagnostic naming `cpu:0`. It is not a GPU support test and was not executed for this walkthrough. The implementation neither creates a device context nor queries CUDA. [[test-mo-device:3]] [[test-mo-device:7]] [[mo-devices:46]] [[mo-devices:126]]
 
-**Example 3.7 · rank 2 is a later implementation assertion.**
+**<span id="qna-mo-4-example-7">Example 3.7 · rank 2 is a later implementation assertion.</span>**
 
 ```transform
 Fused-attention types:
@@ -1238,7 +1266,7 @@ Sources: local folds/patterns, the scheduled CSE pass and the host constant-subg
 
 The added mini-graphs below are **illustrative comparisons** unless marked TEST. Operation counts cover only the displayed operations.
 
-**Example 4.1 · identity cast rewires the custom call.**
+**<span id="qna-mo-5-example-1">Example 4.1 · identity cast rewires the custom call.</span>**
 
 ```transform
 T0 = float32[32,32] on gpu:0
@@ -1264,7 +1292,7 @@ If q[0,0] were 1.25, that value would still be 1.25.
 
 `float32[32,32] → float16[32,32]` is not an identity: the complete types differ, so this particular return-input rule cannot apply. A real conversion or a separate constant-conversion rule must account for the dtype change. [[mo-fold:420]] [[mo-fold:427]]
 
-**Example 4.2 · rebind and reshape cleanup can expose each other.**
+**<span id="qna-mo-5-example-2">Example 4.2 · rebind and reshape cleanup can expose each other.</span>**
 
 ```transform
 Same-type rebind:
@@ -1292,7 +1320,7 @@ With no other uses, the two added reshape operations disappear.
 
 The implementation explicitly forwards through a preceding static reshape, then its fold can return the input on type equality. A rebind that changes layout or unresolved shape information does not satisfy the simple same-type rule. [[mo-fold:1252]] [[mo-fold:1591]] [[mo-fold:1597]]
 
-**Example 4.3 · duplicate constants share a producer, not tensor arguments.**
+**<span id="qna-mo-5-example-3">Example 4.3 · duplicate constants share a producer, not tensor arguments.</span>**
 
 ```transform
 BEFORE
@@ -1316,7 +1344,7 @@ COUNTEREXAMPLES
 
 CSE can perform this sharing; constant uniquing in the canonicalizer may expose the same result earlier. Native attribute uniquing and removing a producer operation are different changes: two operations can reference one attribute before either operation is erased. The original attention graph stores its dimensions in tensor types and needs no pair of these shape-constant operations. [[gc:241]] [[mo-fold:658]] [[entry:43]]
 
-**Example 4.4 · simplify a chain expression, or relax a dependency safely.**
+**<span id="qna-mo-5-example-4">Example 4.4 · simplify a chain expression, or relax a dependency safely.</span>**
 
 ```transform
 Local ChainCreateOp fold:
@@ -1337,7 +1365,7 @@ The rewrite changes dependency edges; no GPU command runs here.
 
 The local fold deduplicates operands and forwards a sole chain. The separate chain-sequence pass checks write effects, mutable operands, opaque alias risks, multi-device rendezvous and region boundaries before changing dependencies. An unused initial chain may disappear through other cleanup; the zero-input fold itself returns no replacement. [[mo-fold:470]] [[mo-fold:478]] [[mo-chains:70]] [[mo-chains:132]] [[mo-chains:138]]
 
-**Example 4.5 · real constant-subgraph evaluation, with a variable input left live.**
+**<span id="qna-mo-5-example-5">Example 4.5 · real constant-subgraph evaluation, with a variable input left live.</span>**
 
 **TEST · inspected expectation:** `@multiple_internal_ops` builds a matrix from a constant `-1.0`, then uses it in a matmul with a graph argument. The expected output keeps the matmul and replaces its constant operand subgraph. [[test-mo-constant:17]]
 
@@ -1376,7 +1404,7 @@ ConstantFoldPass::runOnOperation [[mo-constant-fold:815]]
 
 This pass can allocate host buffers and execute constant work during compilation. That does not imply the caller's attention computation has run. Candidates with parameterized shapes, transfers or unsupported results are filtered, and the folding policy can decline a candidate even when its values are known. [[mo-constant-fold:174]] [[mo-constant-fold:836]]
 
-**Example 4.6 · algebraic simplification needs its stated assumptions.**
+**<span id="qna-mo-5-example-6">Example 4.6 · algebraic simplification needs its stated assumptions.</span>**
 
 ```transform
 Source pattern under enableFastMath:
@@ -1395,7 +1423,7 @@ With this fast-math pattern disabled, do not attribute x-x→0 to it.
 
 The pattern is registered inside `if (enableFastMath)`. The inspected elementwise test enables the symbolic math options explicitly and checks for the scalar-zero/broadcast replacement. This is an algebraic rewrite, unlike the CPU evaluation in Example 4.5. [[mo-algebra:2254]] [[test-mo-symbolic:1]] [[test-mo-symbolic:62]]
 
-**Example 4.7 · store-to-load forwarding preserves the stored value and chain.**
+**<span id="qna-mo-5-example-7">Example 4.7 · store-to-load forwarding preserves the stored value and chain.</span>**
 
 ```transform
 BEFORE — same buffer, store chain used only by this load
@@ -1441,7 +1469,7 @@ These are different transformation scopes.
 
 The shape pipeline canonicalizes, propagates shapes, eliminates duplicate expressions and verifies parameter declarations. It reasons about dimensions separately from tensor contents. The following examples show where that distinction permits a rewrite and where it leaves work for runtime. [[gc:657]] [[gc:663]] [[mo-propagate:881]]
 
-**Example 5.1 · extract a known shape without reading Q's numbers.**
+**<span id="qna-mo-6-example-1">Example 5.1 · extract a known shape without reading Q's numbers.</span>**
 
 ```transform
 Teaching addition to the attention graph:
@@ -1460,7 +1488,7 @@ Unknown: q[0,0], q[0,1], …, q[31,31].
 
 `ShapeOfOp::canonicalize` obtains the shape from the input type and creates the shape-value conversion. `Shape::ToTensorOp::canonicalize` materializes an integer constant when that shape is constant. This does not convert Q's float32 data into integers. The original custom call needs no explicit `mo.shape_of` at this point. [[mo-fold:1337]] [[mo-fold:1396]] [[entry:57]]
 
-**Example 5.2 · symbolic inference can simplify an expression without finding N.**
+**<span id="qna-mo-6-example-2">Example 5.2 · symbolic inference can simplify an expression without finding N.</span>**
 
 **TEST · inspected expectation:** `@param_expr_dce` simplifies a reshape whose dimension is `(D0+4)-4` back to its input. Renaming the input dimension to N makes the value flow easier to read. [[test-mo-shapes:50]]
 
@@ -1488,7 +1516,7 @@ Compilation need not choose either value to simplify the expression.
 
 The propagator substitutes and folds parameter expressions, updates attributes/types, and simplifies graph result metadata. In the actual attention graph, N and D were already Python integers equal to 32 before the TensorTypes were recorded. [[mo-propagate:1075]] [[mo-propagate:1149]] [[entry:36]]
 
-**Example 5.3 · a constant reshape target versus a runtime shape tensor.**
+**<span id="qna-mo-6-example-3">Example 5.3 · a constant reshape target versus a runtime shape tensor.</span>**
 
 ```transform
 Case A — target entries known
@@ -1511,7 +1539,7 @@ Two possible valid runtime targets:
 
 `shapeInferOp` tries to staticize inputs whose **values** determine shape. If such an input cannot be staticized, it leaves the operation for further handling. `AddFallbackShapeFunctions` supplies helpers for supported operations that still declare output dimensions. The fixed output type of this attention call avoids that unresolved reshape case. [[mo-propagate:883]] [[mo-propagate:895]] [[mo-fallback:158]] [[mo-fallback:194]]
 
-**Example 5.4 · merge dimension definitions that ordinary CSE cannot equate.**
+**<span id="qna-mo-6-example-4">Example 5.4 · merge dimension definitions that ordinary CSE cannot equate.</span>**
 
 **TEST · inspected expectation:** the duplicate-materialization test contains two broadcasts with identical operands, but fresh result dimension names D1 and D2. The dedicated pass remaps the names as well as the SSA results. [[test-mo-shape-merge:3]]
 
@@ -1539,7 +1567,7 @@ Example runtime length N=32:
 
 Different declaration names initially make the operations' parameterized forms unequal. This pass builds a parameter use/definition graph, records the correspondence, then calls `remapTypesAndAttrs`. If operands differ or parameter ownership does not meet its test, it does not use this merge. [[mo-merge-shapes:77]] [[mo-merge-shapes:103]] [[mo-merge-shapes:112]] [[mo-merge-shapes:127]]
 
-**Example 5.5 · a data-dependent custom output needs a shape function.**
+**<span id="qna-mo-6-example-5">Example 5.5 · a data-dependent custom output needs a shape function.</span>**
 
 This is an **illustrative custom kernel**, `demo::nonzero_indices`, whose output contains the indices of nonzero input elements. It is not the fused-attention registration.
 
@@ -1565,7 +1593,7 @@ Without that shape-function registration:
 
 The pass first skips calls whose output parameter declarations are empty. For a remaining custom call, it requires the registered shape function, forwards matching compile-time parameters and includes the output index when building the helper invocation. Static attention has output `[32,32]` and no such pending output dimension declarations. [[mo-fallback:158]] [[mo-fallback:225]] [[mo-fallback:559]] [[graph:1351]]
 
-**Example 5.6 · layout inference attaches meaning to axes.**
+**<span id="qna-mo-6-example-6">Example 5.6 · layout inference attaches meaning to axes.</span>**
 
 ```transform
 Comparison graph with an explicit matmul:
@@ -1589,7 +1617,7 @@ Actual attention:
 
 For another comparison, the convolution branch assigns `NHWC` to a rank-4 input such as `[1,8,8,16]` and `FCRS` to a filter such as `[32,16,3,3]`. Existing explicit layouts are handled separately; incompatible newly inferred constraints produce an error. [[mo-layouts:34]] [[mo-layouts:59]] [[mo-layouts:100]] [[mo-layouts:137]] [[mo-layouts:196]]
 
-**Example 5.7 · fusion needs visible operations and satisfied guards.**
+**<span id="qna-mo-6-example-7">Example 5.7 · fusion needs visible operations and satisfied guards.</span>**
 
 **TEST · inspected expectations:** the matmul/add fusion tests supply CUDA `sm_100a` device metadata and explicit eligible graph shapes. They check replacement by `mo.composite.matmul_add`; this walkthrough did not run those tests. [[test-mo-fusion:1]] [[test-mo-fusion:4]]
 
@@ -1641,7 +1669,7 @@ The pass builds a target-aware pattern set and applies matches greedily; a succe
 
 **MO hands onward a typed computation, with whatever simplifications its enabled passes proved.** It does not replace the attention custom call with measured output data. These exit examples distinguish the actual attention structure from comparison graphs that offer more work to the optimizer. [[gc:574]] [[gc:581]] [[entry:78]]
 
-**Example 6.1 · the live fused-attention contract remains recognizable.**
+**<span id="qna-mo-7-example-1">Example 6.1 · the live fused-attention contract remains recognizable.</span>**
 
 ```state
 IR1 after MO cleanup, schematic live computation
@@ -1673,7 +1701,7 @@ This is the live data path, not an exact textual compiler dump. It omits declara
 
 The operation clone separates G1's recording objects from IR1. The opaque-type rewrite consumes its mapping attribute, while MOToMAP later resolves the custom implementation using the declarations. [[frontend:381]] [[rewrite-opaque:87]] [[mo-to-map:705]] [[entry:78]]
 
-**Example 6.2 · several cleanup rules compose around an attention call.**
+**<span id="qna-mo-7-example-2">Example 6.2 · several cleanup rules compose around an attention call.</span>**
 
 ```transform
 Comparison IR1 BEFORE
@@ -1701,7 +1729,7 @@ The output still depends on all three runtime inputs.
 
 This is why repeated canonicalization is useful: rewiring an earlier value exposes equality to a later rule. The actual attention source already starts without these four extra operations. [[mo-fold:419]] [[mo-fold:1252]] [[mo-fold:1591]] [[mo-fold:1597]] [[entry:57]]
 
-**Example 6.3 · only the constant part of a graph disappears.**
+**<span id="qna-mo-7-example-3">Example 6.3 · only the constant part of a graph disappears.</span>**
 
 ```transform
 Comparison graph entering MO:
@@ -1723,7 +1751,7 @@ It cannot pick either result before the runtime x is supplied.
 
 This is the boundary checked by the repository's constant-folding example: the final matmul still consumes a graph argument. Likewise, the attention graph's static dimensions and BN/BD do not make its three input tensors constant. [[test-mo-constant:17]] [[mo-constant-fold:480]] [[entry:78]]
 
-**Example 6.4 · an unresolved dimension can leave MO as a named expression.**
+**<span id="qna-mo-7-example-4">Example 6.4 · an unresolved dimension can leave MO as a named expression.</span>**
 
 ```transform
 Illustrative local tensor type before the final hoisting pass:
@@ -1748,7 +1776,7 @@ Actual attention local types:
 
 The pass reuses existing expression aliases per region where possible, otherwise creates a fresh name, replaces references and repairs type boundaries with rebinds. The spelling `param_expr_1` is illustrative; the real suffix comes from the graph's parameter counter. [[mo-hoist-params:76]] [[mo-hoist-params:161]] [[mo-hoist-params:227]] [[mo-ops:996]]
 
-**Example 6.5 · verification failure stops the handoff.**
+**<span id="qna-mo-7-example-5">Example 6.5 · verification failure stops the handoff.</span>**
 
 ```state
 Comparison: output expects [32,16] but returns a [32,32] tensor
