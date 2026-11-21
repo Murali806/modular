@@ -2,6 +2,8 @@
 
 **One `mo.custom` becomes one `map.iter.opaque` containing a `map.call.opaque`.** The surrounding `mo.graph` still has three tensor arguments and one tensor result. The new nested region makes the implementation's inputs and output destination explicit. [[mo-to-map:159]] [[mo-to-map:179]] [[mo-to-map:238]]
 
+<span id="qna-mo-to-map-1-illustration-1"></span>
+
 ```transform
 BEFORE · IR1 graph body
   %o = mo.custom(%q, %k, %v)
@@ -28,6 +30,8 @@ The actual fully qualified symbol comes from the imported declaration; `PKG` abo
 
 ## QnA 2 · Which native calls construct this region?
 
+**Example links** map the earlier Q&A illustrations and the worked examples to their native checks, rewrites and handoffs. Links marked “later” describe a subsequent stage; a listed rewrite still requires its matching conditions.
+
 ```calltree
 gcPipelineImpl [[gc:578]]
 ├─ buildStage: schedule MarkStableTensors, then MOToMAP [[gc:578]] [[gc:580]] [[gc:581]]
@@ -45,29 +49,44 @@ gcPipelineImpl [[gc:578]]
       │  ├─ registration + device → resolved kernel declaration [[registry-support:76]]
       │  └─ lookup/adaptor error → return null success; leave this op [[mo-to-map:708]]
       ├─ MutableStore → lowerMutableStoreToForeach; chain result, buffer store [[mo-to-map:711]]
+      │  └─ [↗ QnA 7 · Example 9 — store to buffer; return an ordering chain](#qna-mo-to-map-example-mutable-store-chain)
       ├─ reduction registration → lowerReductionToRowwise [[mo-to-map:718]] [[mo-to-map:646]]
+      │  └─ [↗ QnA 7 · Example 8 — rowwise iterator and nested reduction fold](#qna-mo-to-map-example-rowwise-reduction)
       ├─ elementwise registration → lowerElementwiseToForeach [[mo-to-map:725]] [[mo-to-map:265]]
+      │  ├─ [↗ QnA 5 · scalar Add example — A(1,2)=4 + B(1,2)=5 → C(1,2)=9](#qna-mo-to-map-5-illustration-1)
+      │  └─ [↗ QnA 7 · Example 4 — result-shaped loop, scalar loads/call/store](#qna-mo-to-map-example-elementwise-add)
       └─ ordinary execute registration [[mo-to-map:731]]
          ├─ require executeFunction; map operands/results to declaration roles [[mo-to-map:736]]
          │  └─ bad mapping → diagnostic + failed pass [[mo-to-map:738]]
          ├─ Slice → lowerSliceToForeach: output index → input index [[mo-to-map:747]] [[mo-to-map:389]]
+         │  └─ [↗ QnA 7 · Example 7 — normalized bounds map output indices to input](#qna-mo-to-map-example-slice-bounds)
          ├─ BroadcastTo → lowerBroadcastToForeach: project output index [[mo-to-map:749]] [[mo-to-map:486]]
+         │  └─ [↗ QnA 7 · Example 6 — project broadcast indices; reshape preserves linear position](#qna-mo-to-map-example-broadcast-reshape-ranks)
          ├─ Reshape → lowerReshapeToForeach: preserve linear position [[mo-to-map:751]] [[mo-to-map:538]]
+         │  └─ [↗ QnA 7 · Example 6 — reshape index rank changes, element order stays](#qna-mo-to-map-example-broadcast-reshape-ranks)
          ├─ Transpose → lowerTransposeToForeach: permute coordinates [[mo-to-map:753]] [[mo-to-map:589]]
+         │  └─ [↗ QnA 7 · Example 5 — coordinate permutation and immediate dispatch](#qna-mo-to-map-example-transpose-index)
          └─ attention and other ordinary calls → lowerToOpaque [[mo-to-map:756]] [[mo-to-map:135]]
             ├─ inputFusible/outputFusible from mapped argument roles [[mo-to-map:137]]
             ├─ split trailing input chain from non-chain operands [[mo-to-map:152]]
             ├─ create iterator with original result types and inputs [[mo-to-map:159]]
             ├─ attach device, fusion leaf, read/write effects, dispatch [[mo-to-map:171]]
             ├─ create one block: non-chain inputs, then DPS outputs [[mo-to-map:179]]
+            │  ├─ [↗ QnA 3 · ownership example — three graph inputs, four local body arguments](#qna-mo-to-map-3-illustration-1)
+            │  ├─ [↗ QnA 7 · Example 1 — Q/K/V plus the output destination](#qna-mo-to-map-example-attention-destinations)
             │  └─ !mo.opaque by-value result → no output block argument [[mo-to-map:189]]
             ├─ plain input → block argument; fused input → load prologue [[mo-to-map:201]] [[mo-to-map:210]]
+            │  └─ [↗ QnA 7 · Example 3 — fused gather inputs receive load prologues](#qna-mo-to-map-example-gather-prologues)
             ├─ plain output → block argument; fused output → store epilogue [[mo-to-map:215]] [[mo-to-map:224]]
+            │  └─ [↗ QnA 7 · Example 2 — ordinary output versus fused store epilogue](#qna-mo-to-map-example-fused-output-contract)
             ├─ inferParameters; infer opaque-type parameters when present [[mo-to-map:229]] [[mo-to-map:232]]
             ├─ create CallOpaqueOp with resolved symbol + parameters + I/O [[mo-to-map:238]]
+            │  └─ [↗ QnA 4 · metadata example — BD=8, BN=16, resolved symbol and device](#qna-mo-to-map-4-metadata-example)
             ├─ preserve equal-length variadic-group marker [[mo-to-map:248]]
             ├─ by-value opaque result only → map.yield [[mo-to-map:251]]
             └─ replace all old result uses; erase old op from IR1 [[mo-to-map:255]]
+               ├─ [↗ QnA 1 · before/after attention — mo.custom → iterator and nested call](#qna-mo-to-map-1-illustration-1)
+               └─ [↗ QnA 6 · handoff example — typed MAP contract; pointers/storage come later](#qna-mo-to-map-6-illustration-1)
 ```
 
 This kernel is an ordinary `execute` registration, not an elementwise or reduction registration. It therefore follows `lowerToOpaque`, rather than the branches that create a scalar elementwise loop or a row reduction body. [[kernel:74]] [[mo-to-map:717]] [[mo-to-map:724]] [[mo-to-map:756]]
@@ -88,6 +107,8 @@ The `FailureOr<Operation *>` return deserves care: a null **successful** value a
 ## QnA 3 · Why are there now four body arguments? Did G1 gain an input?
 
 **The four arguments belong to a new nested MAP body.** Three shadow inputs; the fourth denotes where this implementation writes the output. The outer graph's caller still supplies only Q, K and V. [[mo-to-map:179]] [[entry:61]]
+
+<span id="qna-mo-to-map-3-illustration-1"></span>
 
 ```state
 IR1 : builtin.module
@@ -114,6 +135,8 @@ A `!mo.opaque` by-value result has a different branch: it has no destination blo
 
 ## QnA 4 · What metadata is copied, inferred or preserved?
 
+<span id="qna-mo-to-map-4-metadata-example"></span>
+
 | Field | Example value after lowering | Source |
 | --- | --- | --- |
 | Inputs / result types | three T0 inputs, one T0 result | [[mo-to-map:157]] |
@@ -132,6 +155,8 @@ The original custom call has no explicit input/output chain. `stampAsyncLaunch` 
 ## QnA 5 · When does MAP expose scalar loads and stores? Give an example.
 
 For an **elementwise** registered operation, the other MOToMAP branch exposes scalar computation indexed over the tensor. The original attention registration does not use that branch. [[mo-to-map:260]] [[mo-to-map:724]]
+
+<span id="qna-mo-to-map-5-illustration-1"></span>
 
 ```transform
 ILLUSTRATIVE elementwise operation, separate from attention
@@ -155,6 +180,8 @@ For an opaque implementation, the declaration can instead request **FusedInputTe
 **TEST · inspected expectation:** the repository's plain-output test expects `map.call.opaque` to write the raw output argument and explicitly rejects an epilogue. Its fused-output comparison expects a `map.iter.epilogue`. [[test-mo-map:41]] [[test-mo-map:20]]
 
 ## QnA 6 · What does the next stage receive?
+
+<span id="qna-mo-to-map-6-illustration-1"></span>
 
 ```state
 MAP optimization input, attention path

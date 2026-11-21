@@ -1553,7 +1553,7 @@
       "id": "mo-to-map",
       "page": "link_htmls/max_example_04_c1_mo_to_map_access_and_compute.html",
       "source": "src/attention_c1_mo_to_map_access_and_compute.md",
-      "source_sha256": "0cfa32805baa14cb1ba5205b60e69417e201986b0ba43d6870824d4809ebd033",
+      "source_sha256": "982109749fda112804a7a63fc965892d289c8fa06e68c8926570c1508466ad0f",
       "qnas": [
         {
           "id": "qna-mo-to-map-1",
@@ -2623,7 +2623,7 @@
       "id": "map",
       "page": "link_htmls/max_example_04_c1_map_fusion_and_access_optimization.html",
       "source": "src/attention_c1_map_fusion_and_access_optimization.md",
-      "source_sha256": "5d62f5e1d6f33280e7305d39009d01c296b51aa49d8670022b93b357b1a2d692",
+      "source_sha256": "8ae902da656cacaec475b56a06471f826e17907f025cd9ce748527a923ccdc56",
       "qnas": [
         {
           "id": "qna-map-1",
@@ -3701,7 +3701,7 @@
       "id": "map-to-mogg",
       "page": "link_htmls/max_example_04_c1_map_to_mogg_implementation_calls.html",
       "source": "src/attention_c1_map_to_mogg_implementation_calls.md",
-      "source_sha256": "55a22dd04070b2bcbc98616ba6bbc251373db3b1dc59943b3833118865e53a63",
+      "source_sha256": "bd00ef13bc06b7f94ff0ab0cf539c9ab65c1c94b65e77fbcb4dc835c23b89ac9",
       "qnas": [
         {
           "id": "qna-map-to-mogg-1",
@@ -3733,7 +3733,7 @@
         }
       ],
       "source_files": 27,
-      "source_anchors": 140,
+      "source_anchors": 142,
       "references": {
         "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp:928": {
           "file": "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp",
@@ -3998,6 +3998,24 @@
           "line": 692,
           "label": "MAPOpsLowerableToMOGG.cpp:692",
           "needle": "// map.index.slice.stride -> mogg.tensor.create.slice."
+        },
+        "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp:777": {
+          "file": "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp",
+          "line": 777,
+          "label": "MAPOpsLowerableToMOGG.cpp:777",
+          "needle": "LogicalResult TransposeStrideOp::lowerToMOGG(MAPToMOGGState &state) {"
+        },
+        "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp:722": {
+          "file": "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp",
+          "line": 722,
+          "label": "MAPOpsLowerableToMOGG.cpp:722",
+          "needle": "MLIRContext *ctx = getContext();"
+        },
+        "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp:693": {
+          "file": "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp",
+          "line": 693,
+          "label": "MAPOpsLowerableToMOGG.cpp:693",
+          "needle": "LogicalResult SliceStrideOp::lowerToMOGG(MAPToMOGGState &state) {"
         },
         "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp:793": {
           "file": "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp",
@@ -4292,12 +4310,6 @@
           "line": 1,
           "label": "transpose-stride.mlir:1",
           "needle": "// RUN: mo-opt %s --pass-pipeline='builtin.module(mogg-import-packages, mo-to-map, map-outline-structured-kernel-bodies, mo.graph(map-livm, map.iter.opaque(canonicalize)), map-to-mogg)' | FileCheck %s"
-        },
-        "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp:777": {
-          "file": "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp",
-          "line": 777,
-          "label": "MAPOpsLowerableToMOGG.cpp:777",
-          "needle": "LogicalResult TransposeStrideOp::lowerToMOGG(MAPToMOGGState &state) {"
         },
         "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp:824": {
           "file": "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp",
@@ -4610,7 +4622,7 @@
       "id": "mogg",
       "page": "link_htmls/max_example_04_c1_mogg_call_conformance_and_outlining.html",
       "source": "src/attention_c1_mogg_call_conformance_and_outlining.md",
-      "source_sha256": "54514e30fd57ec2b648623a00580514dd9098ea173aa269bc57213dbb04d8639",
+      "source_sha256": "0c78d8a858bbd6077de42282e90334b5aae8ff47998d36dec76b5d46087d3285",
       "qnas": [
         {
           "id": "qna-mogg-1",
@@ -5646,7 +5658,7 @@
       "id": "mogg-to-mgp",
       "page": "link_htmls/max_example_04_c1_mogg_to_mgp_models_buffers_and_chains.html",
       "source": "src/attention_c1_mogg_to_mgp_models_buffers_and_chains.md",
-      "source_sha256": "9bc53f5d546949df35cdeaca104639a742025cecedd48878379bbcab700a4080",
+      "source_sha256": "7c6a87be059603bc890077c8b6001895fc6c56e29b74c13b9a699979626429be",
       "qnas": [
         {
           "id": "qna-mogg-to-mgp-1",
@@ -5881,6 +5893,30 @@
           "line": 1717,
           "label": "MOGGToMGP.cpp:1717",
           "needle": "LogicalResult MOGraphLowering::lowerOp(Operation &op, Region *parentRegion) {"
+        },
+        "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp:931": {
+          "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
+          "line": 931,
+          "label": "Complete reshape lowerer",
+          "needle": "static LogicalResult lowerReshapeImpl(MGP::MOOpLoweringState &opLoweringState,"
+        },
+        "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp:1086": {
+          "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
+          "line": 1086,
+          "label": "Transfer validation and rewrite",
+          "needle": "LogicalResult MOGraphLowering::lower(MO::TransferOp transferOp) {"
+        },
+        "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp:850": {
+          "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
+          "line": 850,
+          "label": "External-constant lowerer",
+          "needle": "LogicalResult MOGraphLowering::lower(MO::ConstantExternalOp constExternalOp) {"
+        },
+        "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp:2283": {
+          "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
+          "line": 2283,
+          "label": "Callee-model lookup",
+          "needle": "auto targetModel = moduleOp.lookupSymbol<MGP::ModelOp>(targetModelName);"
         },
         "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp:1749": {
           "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
@@ -6290,12 +6326,6 @@
           "label": "Dispatch",
           "needle": ".Case<MO::Static::ReshapeOp>([this](auto op) {"
         },
-        "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp:931": {
-          "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
-          "line": 931,
-          "label": "Complete reshape lowerer",
-          "needle": "static LogicalResult lowerReshapeImpl(MGP::MOOpLoweringState &opLoweringState,"
-        },
         "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp:934": {
           "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
           "line": 934,
@@ -6320,12 +6350,6 @@
           "label": "Transfer test",
           "needle": "// RUN: mo-opt %s --mogg-to-mgp | FileCheck %s"
         },
-        "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp:1086": {
-          "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
-          "line": 1086,
-          "label": "Transfer validation and rewrite",
-          "needle": "LogicalResult MOGraphLowering::lower(MO::TransferOp transferOp) {"
-        },
         "GraphCompiler/lib/MGPDialect/Dialect/BufferBuilder.cpp:178": {
           "file": "GraphCompiler/lib/MGPDialect/Dialect/BufferBuilder.cpp",
           "line": 178,
@@ -6343,12 +6367,6 @@
           "line": 1,
           "label": "External-weight test",
           "needle": "// RUN: mo-opt %s --mogg-to-mgp | FileCheck %s"
-        },
-        "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp:850": {
-          "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
-          "line": 850,
-          "label": "External-constant lowerer",
-          "needle": "LogicalResult MOGraphLowering::lower(MO::ConstantExternalOp constExternalOp) {"
         },
         "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp:809": {
           "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
@@ -6379,12 +6397,6 @@
           "line": 1,
           "label": "Test input and RUN",
           "needle": "// RUN: mo-opt --mogg-import-packages --mo-to-map --map-outline-structured-kernel-bodies --map-to-mogg --mogg-to-mgp %s | FileCheck %s"
-        },
-        "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp:2283": {
-          "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
-          "line": 2283,
-          "label": "Callee-model lookup",
-          "needle": "auto targetModel = moduleOp.lookupSymbol<MGP::ModelOp>(targetModelName);"
         },
         "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp:2288": {
           "file": "GraphCompiler/lib/Conversion/MOGGToMGP/MOGGToMGP.cpp",
@@ -6462,7 +6474,7 @@
       "id": "mgp",
       "page": "link_htmls/max_example_04_c1_mgp_optimization_and_mojo_emission.html",
       "source": "src/attention_c1_mgp_optimization_and_mojo_emission.md",
-      "source_sha256": "d050899440b38319378e12e4cfc0b3ae4b7095a1a31588b5c4cbc4741e6aed04",
+      "source_sha256": "4aae839529d08facd1f60af8bd5ae70d060a6be7e096368b2c429297b3825a5b",
       "qnas": [
         {
           "id": "qna-mgp-1",
@@ -6502,7 +6514,7 @@
         }
       ],
       "source_files": 38,
-      "source_anchors": 195,
+      "source_anchors": 203,
       "references": {
         "GraphCompiler/lib/MGPDialect/Transforms/SimplifyChainsPass.cpp:103": {
           "file": "GraphCompiler/lib/MGPDialect/Transforms/SimplifyChainsPass.cpp",
@@ -6894,6 +6906,42 @@
           "label": "ABI selection",
           "needle": "LogicalResult FuncOp::emitMojo(EmitMojoState &state) {"
         },
+        "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp:1462": {
+          "file": "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp",
+          "line": 1462,
+          "label": "MOGGOps.cpp:1462",
+          "needle": "return state.lowerOpToMojo(&op).failed();"
+        },
+        "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp:1482": {
+          "file": "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp",
+          "line": 1482,
+          "label": "MOGGOps.cpp:1482",
+          "needle": "LogicalResult ShapeCreateOp::emitMojo(EmitMojoState &state) {"
+        },
+        "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp:1504": {
+          "file": "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp",
+          "line": 1504,
+          "label": "Tensor emission",
+          "needle": "LogicalResult TensorCreateOp::emitMojo(EmitMojoState &state) {"
+        },
+        "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp:1886": {
+          "file": "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp",
+          "line": 1886,
+          "label": "Output-first call assembly",
+          "needle": "LogicalResult CallOpaqueOp::emitMojo(EmitMojoState &state) {"
+        },
+        "GraphCompiler/lib/Interfaces/EmitMojoState.cpp:540": {
+          "file": "GraphCompiler/lib/Interfaces/EmitMojoState.cpp",
+          "line": 540,
+          "label": "EmitMojoState.cpp:540",
+          "needle": "else if (auto intAttr = dyn_cast<IntegerAttr>(customParam))"
+        },
+        "GraphCompiler/lib/Interfaces/EmitMojoState.cpp:582": {
+          "file": "GraphCompiler/lib/Interfaces/EmitMojoState.cpp",
+          "line": 582,
+          "label": "EmitMojoState.cpp:582",
+          "needle": "if (paramName == MOGG::kMoggTargetParameterName) {"
+        },
         "GraphCompiler/lib/MOGGDialect/Transforms/EmitMojo.cpp:204": {
           "file": "GraphCompiler/lib/MOGGDialect/Transforms/EmitMojo.cpp",
           "line": 204,
@@ -6935,6 +6983,84 @@
           "line": 284,
           "label": "EmitMojo.cpp:284",
           "needle": "moduleOp->removeAttr(MO::DeviceInfoMapping::kAttrName);"
+        },
+        "GraphCompiler/lib/GraphCompiler.cpp:618": {
+          "file": "GraphCompiler/lib/GraphCompiler.cpp",
+          "line": 618,
+          "label": "GraphCompiler.cpp:618",
+          "needle": "p.addPass(MOGG::createJitCompileKernels(jitOpts));"
+        },
+        "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp:371": {
+          "file": "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp",
+          "line": 371,
+          "label": "FrameworkFrontend.cpp:371",
+          "needle": "auto bufOr = MO::convertMGPToMEF(moduleOp, enableMEFMetadata);"
+        },
+        "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:547": {
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "line": 547,
+          "label": "JitCompileKernels.cpp:547",
+          "needle": "auto parsedMojoModuleOr = parseMojoText(ctx, maxContext, opts);"
+        },
+        "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:575": {
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
+          "line": 575,
+          "label": "JitCompileKernels.cpp:575",
+          "needle": "auto objectCompiler = KGEN::ObjectCompiler::create("
+        },
+        "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp:102": {
+          "file": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
+          "line": 102,
+          "label": "LowerCompiledRoutines.cpp:102",
+          "needle": "void LowerCompiledRoutinesPass::runOnOperation() {"
+        },
+        "GraphCompiler/lib/GraphCompiler.cpp:692": {
+          "file": "GraphCompiler/lib/GraphCompiler.cpp",
+          "line": 692,
+          "label": "GraphCompiler.cpp:692",
+          "needle": "ErrorOr<BufferRef> M::MO::convertMGPToMEF(ModuleOp module,"
+        },
+        "GraphCompiler/lib/GraphCompiler.cpp:697": {
+          "file": "GraphCompiler/lib/GraphCompiler.cpp",
+          "line": 697,
+          "label": "GraphCompiler.cpp:697",
+          "needle": "BlobMap resources = getDenseResources(*moduleToRewrite);"
+        },
+        "GraphCompiler/lib/GraphCompiler.cpp:700": {
+          "file": "GraphCompiler/lib/GraphCompiler.cpp",
+          "line": 700,
+          "label": "GraphCompiler.cpp:700",
+          "needle": "pm.addPass(MGP::createPrepareDevicePrimitivesPass());"
+        },
+        "GraphCompiler/lib/GraphCompiler.cpp:702": {
+          "file": "GraphCompiler/lib/GraphCompiler.cpp",
+          "line": 702,
+          "label": "GraphCompiler.cpp:702",
+          "needle": "if (failed(pm.run(*moduleToRewrite)))"
+        },
+        "GraphCompiler/lib/GraphCompiler.cpp:706": {
+          "file": "GraphCompiler/lib/GraphCompiler.cpp",
+          "line": 706,
+          "label": "GraphCompiler.cpp:706",
+          "needle": "translateMLIRToMEF(*moduleToRewrite, enableMEFMetadata);"
+        },
+        "GraphCompiler/lib/GraphCompiler.cpp:707": {
+          "file": "GraphCompiler/lib/GraphCompiler.cpp",
+          "line": 707,
+          "label": "GraphCompiler.cpp:707",
+          "needle": "if (result.getSize() == 0) {"
+        },
+        "GraphCompiler/lib/GraphCompiler.cpp:711": {
+          "file": "GraphCompiler/lib/GraphCompiler.cpp",
+          "line": 711,
+          "label": "GraphCompiler.cpp:711",
+          "needle": "M::WriteableBufferRef outputBuffer = WriteableBuffer::get("
+        },
+        "GraphCompiler/lib/GraphCompiler.cpp:713": {
+          "file": "GraphCompiler/lib/GraphCompiler.cpp",
+          "line": 713,
+          "label": "GraphCompiler.cpp:713",
+          "needle": "result.traverse([&](ArrayRef<uint8_t> data) {"
         },
         "GraphCompiler/lib/GraphCompiler.cpp:451": {
           "file": "GraphCompiler/lib/GraphCompiler.cpp",
@@ -7068,35 +7194,11 @@
           "label": "EmitMojo.cpp:182",
           "needle": "for (auto kernelDecl : moduleOp.getOps<MOGG::KernelDeclOp>()) {"
         },
-        "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp:1462": {
-          "file": "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp",
-          "line": 1462,
-          "label": "MOGGOps.cpp:1462",
-          "needle": "return state.lowerOpToMojo(&op).failed();"
-        },
-        "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp:1482": {
-          "file": "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp",
-          "line": 1482,
-          "label": "MOGGOps.cpp:1482",
-          "needle": "LogicalResult ShapeCreateOp::emitMojo(EmitMojoState &state) {"
-        },
         "GraphCompiler/lib/Interfaces/EmitMojoState.cpp:618": {
           "file": "GraphCompiler/lib/Interfaces/EmitMojoState.cpp",
           "line": 618,
           "label": "Coordinate components",
           "needle": "MojoValue EmitMojoState::getShapeAsCoordMojoValue(MOSH::ShapeAttr shapeAttr,"
-        },
-        "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp:1504": {
-          "file": "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp",
-          "line": 1504,
-          "label": "Tensor emission",
-          "needle": "LogicalResult TensorCreateOp::emitMojo(EmitMojoState &state) {"
-        },
-        "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp:1886": {
-          "file": "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp",
-          "line": 1886,
-          "label": "Output-first call assembly",
-          "needle": "LogicalResult CallOpaqueOp::emitMojo(EmitMojoState &state) {"
         },
         "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp:1887": {
           "file": "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp",
@@ -7115,18 +7217,6 @@
           "line": 1915,
           "label": "MOGGOps.cpp:1915",
           "needle": "for (Value ctx : getDeviceContexts())"
-        },
-        "GraphCompiler/lib/Interfaces/EmitMojoState.cpp:540": {
-          "file": "GraphCompiler/lib/Interfaces/EmitMojoState.cpp",
-          "line": 540,
-          "label": "EmitMojoState.cpp:540",
-          "needle": "else if (auto intAttr = dyn_cast<IntegerAttr>(customParam))"
-        },
-        "GraphCompiler/lib/Interfaces/EmitMojoState.cpp:582": {
-          "file": "GraphCompiler/lib/Interfaces/EmitMojoState.cpp",
-          "line": 582,
-          "label": "EmitMojoState.cpp:582",
-          "needle": "if (paramName == MOGG::kMoggTargetParameterName) {"
         },
         "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp:1937": {
           "file": "GraphCompiler/lib/MOGGDialect/MOGGOps.cpp",
@@ -7194,41 +7284,11 @@
           "label": "MOGGOps.cpp:1453",
           "needle": "/*raises=*/isThrows(), /*isAlwaysInline=*/false,"
         },
-        "GraphCompiler/lib/GraphCompiler.cpp:618": {
-          "file": "GraphCompiler/lib/GraphCompiler.cpp",
-          "line": 618,
-          "label": "GraphCompiler.cpp:618",
-          "needle": "p.addPass(MOGG::createJitCompileKernels(jitOpts));"
-        },
-        "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:547": {
-          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
-          "line": 547,
-          "label": "JitCompileKernels.cpp:547",
-          "needle": "auto parsedMojoModuleOr = parseMojoText(ctx, maxContext, opts);"
-        },
         "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:567": {
           "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
           "line": 567,
           "label": "JitCompileKernels.cpp:567",
           "needle": "auto litResult = runLITToKGEN(compiler, *parsedMojoModule);"
-        },
-        "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp:575": {
-          "file": "GraphCompiler/lib/MOGGDialect/Transforms/JitCompileKernels.cpp",
-          "line": 575,
-          "label": "JitCompileKernels.cpp:575",
-          "needle": "auto objectCompiler = KGEN::ObjectCompiler::create("
-        },
-        "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp:102": {
-          "file": "GraphCompiler/lib/MOGGDialect/Transforms/LowerCompiledRoutines.cpp",
-          "line": 102,
-          "label": "LowerCompiledRoutines.cpp:102",
-          "needle": "void LowerCompiledRoutinesPass::runOnOperation() {"
-        },
-        "GraphCompiler/lib/GraphCompiler.cpp:692": {
-          "file": "GraphCompiler/lib/GraphCompiler.cpp",
-          "line": 692,
-          "label": "GraphCompiler.cpp:692",
-          "needle": "ErrorOr<BufferRef> M::MO::convertMGPToMEF(ModuleOp module,"
         },
         "max/examples/custom_ops/fused_attention.py:74": {
           "file": "max/examples/custom_ops/fused_attention.py",

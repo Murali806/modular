@@ -2,25 +2,38 @@
 
 **MGP optimizes the runtime model plan and prepares its routines for code generation.** The compiler can now reason about storage, dependency chains and work shared across executions. The stage ends by emitting Mojo source for the later kernel compiler. It operates on IR1; G1 remains the caller's original graph. [[gc:382]] [[gc:484]] [[frontend:377]]
 
+**Example links** map the earlier Q&A illustrations and the worked examples to their native checks, rewrites and handoffs. Links marked “later” describe a subsequent stage; a listed rewrite still requires its matching conditions.
+
 ```calltree
 gcPipelineImpl → buildMgpPipeline [[gc:616]] [[gc:382]]
 ├─ CSE → canonicalizer, nested on each ModelOp [[gc:387]]
+│  ├─ [↗ QnA 1 · entry values — four 4096-byte tensor roles, ordinary graph mode](#qna-mgp-1-illustration-1)
 │  └─ TensorSpecGetDimOp::fold: static attr / create operand / no fold [[mgp-ops:484]]
+│     ├─ [↗ QnA 2 · static query example — extents 32,32; payload arithmetic 4096](#qna-mgp-2-illustration-1)
+│     └─ [↗ QnA 9 · Example 1 — constant, dynamic-operand forwarding or retained query](#qna-mgp-example-spec-folding)
 ├─ SimplifyChainsPass::runOnOperation [[gc:389]]
 │  ├─ flatten chain creates; remove dependencies implied by strict producers [SimplifyChainsPass.cpp:103](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MGPDialect/Transforms/SimplifyChainsPass.cpp:103)
 │  └─ update operands, then run chain canonicalization patterns [SimplifyChainsPass.cpp:165](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MGPDialect/Transforms/SimplifyChainsPass.cpp:165)
+│     ├─ [↗ QnA 2 · chain examples — remove duplicate/implied merge dependencies](#qna-mgp-2-illustration-2)
+│     └─ [↗ QnA 9 · Example 2 — retain required dependencies and side effects](#qna-mgp-example-chain-simplification)
 ├─ ConcatInPlace → ExecInvariantCodeMotion [[gc:390]] [[gc:391]]
 │  ├─ fixed point: depends-on-args / trivial-only / mutated-by-unliftable [ExecInvariantCodeMotionPass.cpp:693](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MGPDialect/Transforms/ExecInvariantCodeMotionPass.cpp:693)
 │  ├─ clone pure producers when both blocks need them [ExecInvariantCodeMotionPass.cpp:769](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MGPDialect/Transforms/ExecInvariantCodeMotionPass.cpp:769)
 │  └─ move eligible work to init; cache buffers/indices for execute [[invariant:822]] [[invariant:846]]
+│     ├─ [↗ QnA 4 · invariant example — init caches W; execute reads its model slot](#qna-mgp-4-illustration-1)
+│     └─ [↗ QnA 9 · Example 4 — lift eligible work; inputs/mutation keep other work in execute](#qna-mgp-example-invariant-cache)
 ├─ SimpleBufferReuse, AFTER invariant motion [[gc:393]] [[gc:394]]
 │  ├─ group allocation ops by size SSA value, device and alignment [[reuse:112]]
 │  ├─ reject shared-operation uses or unproved lifetime order [[reuse:77]] [[reuse:157]]
 │  └─ replace later allocation uses with candidate; erase allocation [[reuse:169]]
+│     ├─ [↗ QnA 3 · reuse example — A/B/C 12288 bytes → A/B 8192 bytes](#qna-mgp-3-illustration-1)
+│     └─ [↗ QnA 9 · Example 3 — safe lifetime order; shared users reject reuse](#qna-mgp-example-buffer-reuse)
 ├─ DynamicMemoryPlanning → DeferAllocs [[gc:396]]
 │  ├─ group eligible execute-block GPU allocations; compute canShare [DynamicMemoryPlanningPass.cpp:111](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MGPDialect/Transforms/DynamicMemoryPlanningPass.cpp:111)
 │  ├─ create buffer.plan, one pool allocation and bulk_slice [DynamicMemoryPlanningPass.cpp:199](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MGPDialect/Transforms/DynamicMemoryPlanningPass.cpp:199)
+│  │  └─ [↗ QnA 9 · Example 5 — GPU pool with planned slices, lifetime constraints](#qna-mgp-example-gpu-memory-plan)
 │  └─ unique writer → move allocation before writer and add its guards [DeferAllocsPass.cpp:61](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MGPDialect/Transforms/DeferAllocsPass.cpp:61)
+│     └─ [↗ QnA 9 · Example 6 — defer storage to writer guards without changing values](#qna-mgp-example-defer-allocations)
 ├─ VerifyModelArguments → PredicateAssertDependencies → SimplifyChains [[gc:398]]
 │  └─ model canonicalizer → CSE [[gc:401]]
 ├─ AttachPythonStackTraces BEFORE fusion [[gc:405]]
@@ -28,6 +41,8 @@ gcPipelineImpl → buildMgpPipeline [[gc:616]] [[gc:382]]
 ├─ LowerPrimitives(kernelLibraryPaths,minimumCpuAlignment) [[gc:411]] [[gc:414]]
 │  └─ eligible runtime primitives become code-generating async regions [LowerPrimitives.cpp:153](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/Conversion/MOGGToMGP/LowerPrimitives.cpp:153)
 ├─ Device-graph passes scheduled for all models; marker gates actual staging [[gc:417]] [[stage-device:197]]
+│  ├─ [↗ QnA 5 · marker comparison — gpu:0 alone does not enable capture](#qna-mgp-5-illustration-1)
+│  ├─ [↗ QnA 9 · Example 9 — marked staging/build/execute rewrites; unmarked attention skips](#qna-mgp-example-device-graph-staging-finalization)
 │  ├─ Stage → PartitionCollective → ComputeDependencies [[gc:417]]
 │  ├─ canonicalize → SimplifyDependencies → canonicalize → CSE [[gc:420]]
 │  └─ GenerateBuildGraphStubs → canonicalize → Finalize → reconcile casts [[gc:424]] [[finalize-device:381]]
@@ -39,6 +54,7 @@ gcPipelineImpl → buildMgpPipeline [[gc:616]] [[gc:382]]
 │  ├─ new module FuncOp uses async BODY argument types, ABI=MGP [OutlineAsyncRoutines.cpp:72](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MOGGDialect/Transforms/OutlineAsyncRoutines.cpp:72)
 │  ├─ takeBody moves the region into that function; register unique symbol [OutlineAsyncRoutines.cpp:91](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MOGGDialect/Transforms/OutlineAsyncRoutines.cpp:91)
 │  └─ replace routine with compiled.call, preserving operands/results/device [OutlineAsyncRoutines.cpp:102](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MOGGDialect/Transforms/OutlineAsyncRoutines.cpp:102)
+│     └─ [↗ QnA 9 · Example 7 — move async body into exported MGP-ABI function](#qna-mgp-example-outlining-and-async-abi)
 ├─ LookupConstantResources → LiftBufferCacheSlots [[gc:441]] [[gc:445]]
 │  └─ cache-slot literals become caller operands to enable helper merging [EmitMojo.cpp:118](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MOGGDialect/Transforms/EmitMojo.cpp:118)
 ├─ CanonicalizeFuncsForMerge → canonicalizer → CSE → MergeIdenticalFuncs [[gc:449]] [[gc:454]]
@@ -46,13 +62,29 @@ gcPipelineImpl → buildMgpPipeline [[gc:616]] [[gc:382]]
 ├─ optional profile scopes, controlled by enableProfileScopeTracing [[gc:467]]
 ├─ AddTryExceptBlocks AFTER final raising operations are known [[gc:476]]
 │  └─ MGP ABI failures publish async error results; MOGG ABI can re-raise [AddTryExceptBlocks.cpp:44](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MOGGDialect/Transforms/AddTryExceptBlocks.cpp:44)
-└─ EmitMojo(options) → optional DumpMojo [[gc:478]] [[gc:484]] [[gc:486]]
-   ├─ registry + EmitMojoState; built-in/custom/package-submodule imports [[emit:152]] [[emit:158]] [[emit:172]]
-   ├─ FuncOp::emitMojo selects direct MOGG ABI or exported MGP ABI [[emit:193]] [[mogg-ops:1319]]
-   ├─ append deferred struct definitions; optional .mojo dump [[emit:204]] [[emit:223]]
-   ├─ allocate/copy text bytes into resource "mojo"; update existing resource [[emit:228]] [[emit:241]]
-   ├─ collect each model's called symbols; insert compiled.load in init [[emit:255]]
-   └─ erase emitted functions and consumed device-info mapping [[emit:276]] [[emit:284]]
+├─ EmitMojo(options) → optional DumpMojo [[gc:478]] [[gc:484]] [[gc:486]]
+│  ├─ registry + EmitMojoState; built-in/custom/package-submodule imports [[emit:152]] [[emit:158]] [[emit:172]]
+│  ├─ FuncOp::emitMojo selects direct MOGG ABI or exported MGP ABI [[emit:193]] [[mogg-ops:1319]]
+│  │  ├─ [↗ QnA 7 · ABI example — direct pointer helper versus runtime pointer-to-slots entry](#qna-mgp-7-illustration-1)
+│  │  └─ helper body → lowerOpToMojo [[mogg-ops:1462]]
+│  │     ├─ ShapeCreate → Coord; TensorCreate → typed row-major views [[mogg-ops:1482]] [[mogg-ops:1504]]
+│  │     │  └─ [↗ QnA 6 · emission example — Coord(32,32), strides (32,1), typed views/parameters](#qna-mgp-6-illustration-1)
+│  │     └─ CallOpaque → outputs first; integer BN/BD; target from device label [[mogg-ops:1886]] [[emit-state:540]] [[emit-state:582]]
+│  │        └─ [↗ QnA 6 · emitted call example — execute(BN=16,BD=8,target="gpu")](#qna-mgp-6-illustration-2)
+│  ├─ append deferred struct definitions; optional .mojo dump [[emit:204]] [[emit:223]]
+│  ├─ allocate/copy text bytes into resource "mojo"; update existing resource [[emit:228]] [[emit:241]]
+│  │  ├─ [↗ QnA 8 · resource before/after — helpers become source bytes; plan remains IR](#qna-mgp-8-illustration-1)
+│  │  └─ [↗ QnA 9 · Example 8 — attention shapes/parameters → Mojo text → resource/load](#qna-mgp-example-attention-mojo-resource)
+│  ├─ collect each model's called symbols; insert compiled.load in init [[emit:255]]
+│  └─ erase emitted functions and consumed device-info mapping [[emit:276]] [[emit:284]]
+└─ normal JIT route continues AFTER MGP/EmitMojo [[gc:618]] [[frontend:371]]
+   ├─ JitCompileKernels: compile Mojo/P1, or reuse eligible native-code cache [[jit:547]] [[jit:575]]
+   ├─ LowerCompiledRoutines: replace compiled load/call with runtime primitives [[lower-routines:102]]
+   └─ convertMGPToMEF: clone MGP plan; collect dense resources [[gc:692]] [[gc:697]]
+      ├─ PrepareDevicePrimitives; run pass manager on this serialization clone [[gc:700]] [[gc:702]]
+      └─ translateMLIRToMEF → ConcatenationTree for program/resources [[gc:706]]
+         ├─ empty serialization result → diagnostic and error [[gc:707]]
+         └─ allocate WriteableBuffer; traverse and copy serialized bytes [[gc:711]] [[gc:713]]
 ```
 
 This ordering has a concrete reason: execution-invariant motion runs before buffer reuse because reuse can prevent hoisting. Helper cleanup precedes merging so redundant operations do not make otherwise identical functions look different. [[gc:393]] [[gc:451]]
@@ -74,6 +106,8 @@ This ordering has a concrete reason: execution-invariant motion runs before buff
 
 The options are copied in `gcPipelineImpl` and forwarded at the actual pass-construction sites. `skipJit` surrounds the later JIT passes, not the MGP transformations or `EmitMojo` itself. [Option copies](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/GraphCompiler.cpp:543) [Emitter/profile options](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/GraphCompiler.cpp:467) [JIT branch](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/GraphCompiler.cpp:614)
 
+<span id="qna-mgp-1-illustration-1"></span>
+
 ```state
 Attention values entering this stage
   model          = @fused_attention
@@ -94,6 +128,8 @@ The page's small before/after examples show eligible transformations. Exact fina
 
 **A static dimension query can become an integer constant.** `TensorSpecGetDimOp::fold` reads the static dimension from the spec type and returns an `IntegerAttr(index,dim)`. For a dynamic dimension created from an SSA operand, it can instead forward that operand. [[mgp-ops:484]]
 
+<span id="qna-mgp-2-illustration-1"></span>
+
 ```transform
 Static attention spec: <[32,32], f32>
 
@@ -109,6 +145,8 @@ constant definitions. Q/K/V/O still identify different tensor storage.
 ```
 
 **TEST · inspected expectation:** the chain tests eliminate duplicate dependencies, flatten nested merges and remove dependencies already implied by another chain. A chain is a completion dependency; simplifying its graph does not evaluate attention. [[test-chains:11]] [[test-chains:108]] [[test-chains:134]]
+
+<span id="qna-mgp-2-illustration-2"></span>
 
 ```transform
 BEFORE                             AFTER simplifying dependencies
@@ -138,6 +176,8 @@ SimpleBufferReusePass::runOnOperation [[reuse:95]]
 
 **TEST · inspected expectation:** a serial three-kernel example reuses the first temporary for the third temporary. The middle temporary remains separate. A companion case retains all three allocations when sizes differ. [[test-reuse:3]] [[test-reuse:29]] [[test-reuse:53]]
 
+<span id="qna-mgp-3-illustration-1"></span>
+
 ```transform
 Comparison graph · three serial kernels, 4096-byte temporaries
 
@@ -163,6 +203,8 @@ For the single attention call, Q/K/V/O are used by the same computation. Their e
 
 Execution-invariant motion can lift eligible work out of the repeated execute region. When later execution still needs a lifted buffer, the pass stores it through the init context and replaces execute-side uses with a cached-buffer lookup. It also supports cached indices, allocating a slot by increasing `numSlots`. [[invariant:80]] [[invariant:822]]
 
+<span id="qna-mgp-4-illustration-1"></span>
+
 ```transform
 Comparison · eligible invariant buffer, schematic
 
@@ -184,6 +226,8 @@ The slot contains runtime model state when init later executes; the compiler is 
 ## QnA 5 · Does gpu:0 automatically enable device-graph capture?
 
 **No. Device placement and device-graph mode are separate settings.** `Graph.__init__` defaults `is_device_graph=False`; it adds the graph marker only when requested. The fused-attention caller omits this option. [[graph:831]] [[graph:915]] [[entry:41]]
+
+<span id="qna-mgp-5-illustration-1"></span>
 
 ```state
 This fused-attention example
@@ -222,6 +266,8 @@ EmitMojo::emitMojoText() [[emit:147]]
 └─ builder text + deferred struct definitions → mojoText [[emit:204]]
 ```
 
+<span id="qna-mgp-6-illustration-1"></span>
+
 ```transform
 Shape
   [32,32] → Coord containing Idx[32], Idx[32]
@@ -246,6 +292,8 @@ The output-first kernel call follows the registered `OutputTensor` signature. Th
 
 **Illustrative emitted call**, with module qualification, variable names and view setup abbreviated:
 
+<span id="qna-mgp-6-illustration-2"></span>
+
 ```mojo
 FusedAttention.execute[BN=16, BD=8, target="gpu"](
     output, query, key, value, ctx
@@ -257,6 +305,8 @@ The infer-only dtype/rank parameters are resolved from the tensor argument types
 ## QnA 7 · Why are there two helper ABIs, and what does the runtime receive?
 
 `FuncOp::emitMojo` distinguishes the direct **MOGG ABI** helper from the **MGP ABI** entry obtained from an asynchronous routine. The direct helper accepts pointers/dimensions/context. The runtime-facing entry takes a pointer to argument slots and handles async-value ownership and return slots. [[mogg-ops:1326]] [[mogg-ops:1334]] [[mogg-ops:1420]]
+
+<span id="qna-mgp-7-illustration-1"></span>
 
 ```state
 Schematic call relationship
@@ -278,6 +328,8 @@ The MGP entry is exported and non-raising; preceding passes arrange error handli
 ## QnA 8 · What replaces the helper IR, and when do machine code and MEF appear?
 
 **The emitted text becomes an MLIR resource named `mojo`.** The pass stores its bytes in a `DenseResourceElementsAttr`, collects the symbols referenced by each model's `mogg.compiled.call` operations and inserts a `mogg.compiled.load` at the start of that model's init block. It then erases the emitted `mogg.func` operations. [[emit:228]] [[emit:241]] [[emit:255]] [[emit:276]]
+
+<span id="qna-mgp-8-illustration-1"></span>
 
 ```transform
 BEFORE EmitMojo

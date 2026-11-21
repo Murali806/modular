@@ -2,6 +2,8 @@
 
 **The graph becomes a runtime model plan with two regions: init and execute.** Its tensors become runtime tensor/storage representations, and its implementation call gains explicit buffers and dependency handling. These are IR construction steps during C1 compilation; runtime allocation and execution happen when that plan is used later. [[mogg-to-mgp:296]] [[mgp-ops:1141]] [[entry:74]]
 
+<span id="qna-mogg-to-mgp-1-illustration-1"></span>
+
 ```transform
 BEFORE · inside compiler clone IR1
   mo.graph @fused_attention : (T0,T0,T0) → T0
@@ -31,12 +33,15 @@ The new model takes the graph's symbol name. The lowering removes the old graph 
 
 **SOURCE · The pass consumes graphs and already-outlined routines in IR1.** `gcPipelineImpl` copies `minimumCpuAlignment` and, when supplied, `compiledFrameworkLabel` into `MOGGToMGPOptions`, then schedules the conversion. `runGCPipeline` later calls `pm.run(moduleOp)`; that is when the following native bodies rewrite the module. [Options and scheduling](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/GraphCompiler.cpp:538) [[gc:611]] [[gc:654]]
 
+**Example links** map the earlier Q&A illustrations and the worked examples to their native checks, rewrites and handoffs. Links marked “later” describe a subsequent stage; a listed rewrite still requires its matching conditions.
+
 ```calltree
 gcPipelineImpl → MOGGToMGPPass::runOnOperation [[gc:611]] [[mogg-to-mgp:2406]]
 ├─ obtain the module's cached SymbolTable; retain it through lowering [[mogg-to-mgp:2409]]
 ├─ worklist + graphDependencies + completedGraphs [[mogg-to-mgp:2414]]
 │  ├─ gather each MO::CallOp callee; this is graph-call ordering [[mogg-to-mgp:2423]]
 │  ├─ unmet dependencies → put caller back on the worklist [[mogg-to-mgp:2445]]
+│  │  └─ [↗ QnA 8 · Example 7 — lower callee first; graph calls forward model state](#qna-mogg-mgp-example-subgraph-calls)
 │  └─ full sweep without progress → diagnostic + signalPassFailure [[mogg-to-mgp:2433]]
 ├─ MOGraphLowering(graph, frameworkLabel, minimumCpuAlignment, symbolTable).run() [[mogg-to-mgp:2451]]
 │  ├─ createModelOp() [[mogg-to-mgp:1950]]
@@ -45,6 +50,8 @@ gcPipelineImpl → MOGGToMGPPass::runOnOperation [[gc:611]] [[mogg-to-mgp:2406]]
 │  │  ├─ convert inputs/results; preserve original argument locations [[mogg-to-mgp:308]]
 │  │  ├─ carry names + device indices + subgraph/device-graph flags [[mogg-to-mgp:328]] [[mogg-to-mgp:379]]
 │  │  ├─ ModelOp::create → init block + execute block, including implicit args [[mgp-ops:1141]]
+│  │  │  ├─ [↗ QnA 1 · model before/after — graph becomes init/execute plan](#qna-mogg-to-mgp-1-illustration-1)
+│  │  │  └─ [↗ QnA 3 · argument example — three implicit init args, eight execute args](#qna-mogg-to-mgp-3-illustration-1)
 │  │  ├─ hand graph's symbol name to model in the cached symbol table [[mogg-to-mgp:393]]
 │  │  ├─ init builder: chain.create + context.create 0 [[mogg-to-mgp:403]]
 │  │  ├─ execute builder: arg0=root/current chain; arg1=model context [[mogg-to-mgp:412]]
@@ -53,25 +60,40 @@ gcPipelineImpl → MOGGToMGPPass::runOnOperation [[gc:611]] [[mogg-to-mgp:2406]]
 │  ├─ lowerArg(original arg, execute input) [[mogg-to-mgp:1953]]
 │  │  ├─ static shape → direct value map; no dynamic-dimension operands [LoweringState.cpp:180](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/Interfaces/LoweringState.cpp:180)
 │  │  └─ symbolic shape → extract dims, bind params, guard repeated-param checks [LoweringState.cpp:191](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/Interfaces/LoweringState.cpp:191)
+│  │     └─ [↗ QnA 8 · Example 2 — extract runtime dimensions and preserve helper ABI](#qna-mogg-mgp-example-dynamic-dimensions)
 │  ├─ lowerBlock → levelwiseTopologicalSort → lowerOp for every op [[mogg-to-mgp:1758]]
 │  │  ├─ reshape/rebind/constant/transfer/call/control flow → dedicated lowerer [[mogg-to-mgp:1717]]
+│  │  │  ├─ Static::ReshapeOp → lowerReshapeImpl; reuse input buffer [[mogg-to-mgp:931]]
+│  │  │  │  └─ [↗ QnA 8 · Example 4 — same storage, new (3,4) tensor spec](#qna-mogg-mgp-example-reshape-view)
+│  │  │  ├─ TransferOp → lowerTransferImpl; allocate target, copy and retain lifetime [[mogg-to-mgp:1086]]
+│  │  │  │  └─ [↗ QnA 8 · Example 5 — D2H copy, synchronization chain and lifetime hold](#qna-mogg-mgp-example-device-to-host-transfer)
+│  │  │  ├─ ConstantExternalOp → registry lookup; copy CPU weight to target if needed [[mogg-to-mgp:850]]
+│  │  │  │  └─ [↗ QnA 8 · Example 6 — registry name/size; GPU-resident weight avoids H2D copy](#qna-mogg-mgp-example-external-weights)
+│  │  │  └─ MO::CallOp → callee model; prepend state/devices; advance execute chain [[mogg-to-mgp:2283]]
+│  │  │     └─ [↗ QnA 8 · Example 7 — prepend implicit arguments; map leading chain result](#qna-mogg-mgp-example-subgraph-calls)
 │  │  ├─ LowerableToMGPInterface → RoutineOp::lower → lowerToAsync [[mogg-to-mgp:1749]] [[mogg-ops:723]]
 │  │  │  ├─ validate pointer/output/context block-argument count [[mogg-ops:734]]
 │  │  │  ├─ use explicit op chain when present; merge input producer guards [[mogg-ops:751]] [[lower-state:753]]
 │  │  │  ├─ tensor/buffer operands → extract storage; mutable inputs get m [[mogg-ops:769]] [[lower-state:808]]
+│  │  │  │  └─ [↗ QnA 8 · Example 3 — mutable read/write flags preserve dependency ordering](#qna-mogg-mgp-example-mutable-write-order)
 │  │  │  ├─ createOutputStorage: spec + byte size + aligned allocation [[mogg-ops:789]] [[lower-state:826]]
+│  │  │  │  ├─ [↗ QnA 4 · storage example — (32,32) f32 spec and 4096-byte output allocation](#qna-mogg-to-mgp-4-illustration-1)
+│  │  │  │  └─ [↗ QnA 8 · Example 1 — borrowed Q/K/V buffers and new O storage](#qna-mogg-mgp-example-attention-storage)
 │  │  │  ├─ materialize named dynamic dims; anonymous/missing name fails here [[mogg-ops:803]]
 │  │  │  ├─ append one context, or validate multiple unique device contexts [[mogg-ops:825]]
 │  │  │  ├─ construct AsyncRoutineOp + one async body arg per operand [[mogg-ops:865]] [[mogg-ops:878]]
+│  │  │  │  └─ [↗ QnA 5 · async example — guard + four buffers + context; one chain result](#qna-mogg-to-mgp-5-illustration-1)
 │  │  │  ├─ unpack args 1..N; rebind storage/dim/context to direct handles [[mogg-ops:894]]
 │  │  │  ├─ IRMapping: original body arguments → handles; clone stub call [[mogg-ops:913]]
 │  │  │  ├─ embedded buffer constants → MGP resources carried by region [[mogg-ops:920]]
 │  │  │  ├─ emit ready chain; pack shape-function/opaque results if present [[mogg-ops:951]]
 │  │  │  └─ register tensor guards + explicit output chain; bind returned dims [[mogg-ops:980]] [[mogg-ops:999]]
+│  │  │     └─ [↗ QnA 6 · result-chain example — O guard versus ambient execute chain](#qna-mogg-to-mgp-6-illustration-1)
 │  │  └─ MO::OutputOp → init state tuple + execute chain/results [[mogg-to-mgp:460]]
 │  └─ fixupIsolatedFromAbove; erase temporary model and old graph [[mogg-to-mgp:1974]]
 ├─ deferSideStreamJoins: move side-stream joins to first consumer when present [[mogg-to-mgp:2346]]
 └─ nested AnonymizeDimNames pass; failure propagates to parent pass [[mogg-to-mgp:2462]]
+   └─ [↗ QnA 7 · next-stage examples — spec folding and guarded buffer reuse become possible](#qna-mogg-to-mgp-7-illustration-1)
 ```
 
 This example contains one top-level graph and no graph-to-graph calls, so the dependency worklist has one graph to lower. The general implementation also handles subgraphs and detects cycles. [[entry:41]] [[mogg-to-mgp:2423]] [[mogg-to-mgp:2433]]
@@ -90,6 +112,8 @@ The final isolation repair can create a replacement model, so the first `ModelOp
 ## QnA 3 · What are the model's exact argument positions for this example?
 
 The device collector always includes the host and sorts it first. It discovers `gpu:0` from the attention types/device attributes, giving `[cpu:0,gpu:0]`. These are model-plan device entries; their ordering need not match the Python session's original device-list order. [[mogg-to-mgp:217]] [[mogg-to-mgp:238]]
+
+<span id="qna-mogg-to-mgp-3-illustration-1"></span>
 
 ```state
 Model name = "fused_attention"
@@ -127,6 +151,8 @@ Model builders prepend implicit state/device arguments, then append the converte
 
 The output spec retains **shape `[32,32]` and dtype `float32`**. Its payload size is `32 × 32 × 4 = 4096` bytes. Buffer creation records this size, a device-specific alignment and the GPU context. The allocation op describes future runtime work. [[lower-state:826]] [[lower-state:871]] [[mgp-types:413]] [[mgp-types:423]]
 
+<span id="qna-mogg-to-mgp-4-illustration-1"></span>
+
 ```transform
 MO/MOGG value
   %o : T0 = float32[32,32] on gpu:0
@@ -149,6 +175,8 @@ The compiler chooses alignment through the driver helper. The diagram leaves it 
 ## QnA 5 · What goes into the asynchronous routine, and why is there a chain?
 
 For this static, non-mutating tensor call, the async routine receives a leading guard chain, three input buffers, one output buffer and the GPU context. Its body wraps those operands as async values. The helper itself still takes five direct handles, so the chain does not become an extra argument to `FusedAttention.execute`. [[mogg-ops:763]] [[mogg-ops:788]] [[mogg-ops:878]]
+
+<span id="qna-mogg-to-mgp-5-illustration-1"></span>
 
 ```state
 mogg.routine.async operands: SIX
@@ -180,6 +208,8 @@ Input guards order the call after producers that supply its buffers. Output tens
 
 **The result tensor's guard and the model's current execute chain are separately tracked.** For this chainless custom call, `createOutputs(regionResultChain, storage)` registers the tensor against the call's chain. The output lowering separately emits the current execute chain and the lowered tensor. [[mogg-ops:999]] [[lower-state:891]] [[mogg-to-mgp:472]]
 
+<span id="qna-mogg-to-mgp-6-illustration-1"></span>
+
 ```state
 %chA   = asynchronous attention routine's chain result
 %out   = tensor(%bufO, %specO), guarded by %chA
@@ -198,6 +228,8 @@ The init terminator returns the initialization chain, model state context, weigh
 ## QnA 7 · Which optimizations become possible now?
 
 MGP exposes facts the earlier tensor graph did not: storage size, buffer lifetimes, ordering edges and the separation between one-time init work and per-call execute work. The following stage can fold static spec queries, simplify chains and reuse eligible buffers. [[gc:387]] [[gc:391]] [[gc:394]]
+
+<span id="qna-mogg-to-mgp-7-illustration-1"></span>
 
 ```transform
 Example enabled by the new static spec

@@ -1,0 +1,801 @@
+{
+  "result": "PASS",
+  "checked_at_utc": "2026-11-21T12:08:50.983380+00:00",
+  "documentation_base_commit": "1fcce8f805be637be8a073f921b1490f69c656fd",
+  "source_revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "request": "Map examples to the matching main call stack across every MO-to-MEF compiler-stage HTML; expand native branches where needed.",
+  "scope": "Six remaining compiler-stage pages; existing complete MO mapping retained. Final MGP tree includes the subsequent JIT, runtime-primitives and MEF serialization handoff.",
+  "added_examples": 94,
+  "added_links": 96,
+  "existing_mo_mapping": {
+    "examples": 42,
+    "links": 47,
+    "source_and_html_unchanged": true
+  },
+  "pages": {
+    "mo-to-map": {
+      "stem": "mo_to_map_access_and_compute",
+      "callstack": "qna-mo-to-map-2",
+      "targets": [
+        "qna-mo-to-map-1-illustration-1",
+        "qna-mo-to-map-3-illustration-1",
+        "qna-mo-to-map-5-illustration-1",
+        "qna-mo-to-map-6-illustration-1",
+        "qna-mo-to-map-4-metadata-example",
+        "qna-mo-to-map-example-attention-destinations",
+        "qna-mo-to-map-example-fused-output-contract",
+        "qna-mo-to-map-example-gather-prologues",
+        "qna-mo-to-map-example-elementwise-add",
+        "qna-mo-to-map-example-transpose-index",
+        "qna-mo-to-map-example-broadcast-reshape-ranks",
+        "qna-mo-to-map-example-slice-bounds",
+        "qna-mo-to-map-example-rowwise-reduction",
+        "qna-mo-to-map-example-mutable-store-chain"
+      ],
+      "links": [
+        {
+          "target": "qna-mo-to-map-example-mutable-store-chain",
+          "branch": "MutableStore →",
+          "label": "QnA 7 · Example 9 — store to buffer; return an ordering chain"
+        },
+        {
+          "target": "qna-mo-to-map-example-rowwise-reduction",
+          "branch": "reduction registration →",
+          "label": "QnA 7 · Example 8 — rowwise iterator and nested reduction fold"
+        },
+        {
+          "target": "qna-mo-to-map-5-illustration-1",
+          "branch": "elementwise registration →",
+          "label": "QnA 5 · scalar Add example — A(1,2)=4 + B(1,2)=5 → C(1,2)=9"
+        },
+        {
+          "target": "qna-mo-to-map-example-elementwise-add",
+          "branch": "elementwise registration →",
+          "label": "QnA 7 · Example 4 — result-shaped loop, scalar loads/call/store"
+        },
+        {
+          "target": "qna-mo-to-map-example-slice-bounds",
+          "branch": "Slice →",
+          "label": "QnA 7 · Example 7 — normalized bounds map output indices to input"
+        },
+        {
+          "target": "qna-mo-to-map-example-broadcast-reshape-ranks",
+          "branch": "BroadcastTo →",
+          "label": "QnA 7 · Example 6 — project broadcast indices; reshape preserves linear position"
+        },
+        {
+          "target": "qna-mo-to-map-example-broadcast-reshape-ranks",
+          "branch": "Reshape →",
+          "label": "QnA 7 · Example 6 — reshape index rank changes, element order stays"
+        },
+        {
+          "target": "qna-mo-to-map-example-transpose-index",
+          "branch": "Transpose →",
+          "label": "QnA 7 · Example 5 — coordinate permutation and immediate dispatch"
+        },
+        {
+          "target": "qna-mo-to-map-3-illustration-1",
+          "branch": "create one block:",
+          "label": "QnA 3 · ownership example — three graph inputs, four local body arguments"
+        },
+        {
+          "target": "qna-mo-to-map-example-attention-destinations",
+          "branch": "create one block:",
+          "label": "QnA 7 · Example 1 — Q/K/V plus the output destination"
+        },
+        {
+          "target": "qna-mo-to-map-example-gather-prologues",
+          "branch": "plain input →",
+          "label": "QnA 7 · Example 3 — fused gather inputs receive load prologues"
+        },
+        {
+          "target": "qna-mo-to-map-example-fused-output-contract",
+          "branch": "plain output →",
+          "label": "QnA 7 · Example 2 — ordinary output versus fused store epilogue"
+        },
+        {
+          "target": "qna-mo-to-map-4-metadata-example",
+          "branch": "create CallOpaqueOp",
+          "label": "QnA 4 · metadata example — BD=8, BN=16, resolved symbol and device"
+        },
+        {
+          "target": "qna-mo-to-map-1-illustration-1",
+          "branch": "replace all old result uses",
+          "label": "QnA 1 · before/after attention — mo.custom → iterator and nested call"
+        },
+        {
+          "target": "qna-mo-to-map-6-illustration-1",
+          "branch": "replace all old result uses",
+          "label": "QnA 6 · handoff example — typed MAP contract; pointers/storage come later"
+        }
+      ],
+      "source": "src/attention_c1_mo_to_map_access_and_compute.md",
+      "html": "link_htmls/max_example_04_c1_mo_to_map_access_and_compute.html"
+    },
+    "map": {
+      "stem": "map_fusion_and_access_optimization",
+      "callstack": "qna-map-2",
+      "targets": [
+        "qna-map-1-illustration-1",
+        "qna-map-3-illustration-1",
+        "qna-map-3-illustration-2",
+        "qna-map-4-illustration-1",
+        "qna-map-4-illustration-2",
+        "qna-map-5-illustration-1",
+        "qna-map-6-illustration-1",
+        "qna-map-opt-example-attention-fixed-point",
+        "qna-map-opt-example-elementwise-splice",
+        "qna-map-opt-example-duplication-budget",
+        "qna-map-opt-example-gather-prologue-fusion",
+        "qna-map-opt-example-matmul-epilogue-fusion",
+        "qna-map-opt-example-input-capture-cleanup",
+        "qna-map-opt-example-accumulation-storage",
+        "qna-map-opt-example-contiguous-view-raising",
+        "qna-map-opt-example-structured-body-outlining",
+        "qna-map-opt-example-view-motion-store-guard"
+      ],
+      "links": [
+        {
+          "target": "qna-map-1-illustration-1",
+          "branch": "graph canonicalizer → CSE",
+          "label": "QnA 1 · attention entry — one opaque iterator; Q/K/V remain distinct"
+        },
+        {
+          "target": "qna-map-3-illustration-1",
+          "branch": "spliceIntoForeach]",
+          "label": "QnA 3 · Add/Mul before/after — intermediate element becomes a local scalar"
+        },
+        {
+          "target": "qna-map-3-illustration-2",
+          "branch": "spliceIntoForeach]",
+          "label": "QnA 3 · ownership example — two iterator groups → one"
+        },
+        {
+          "target": "qna-map-opt-example-elementwise-splice",
+          "branch": "spliceIntoForeach]",
+          "label": "QnA 7 · Example 2 — splice producer arithmetic into consumer body"
+        },
+        {
+          "target": "qna-map-opt-example-duplication-budget",
+          "branch": "spliceIntoForeach]",
+          "label": "QnA 7 · Example 3 — multi-use duplication budget: matched/skipped; shared fuseInput guard"
+        },
+        {
+          "target": "qna-map-opt-example-gather-prologue-fusion",
+          "branch": "spliceIntoClosure]",
+          "label": "QnA 7 · Example 4 — gather receives Add computation in its prologue"
+        },
+        {
+          "target": "qna-map-opt-example-matmul-epilogue-fusion",
+          "branch": "fuseOutputOnce]",
+          "label": "QnA 7 · Example 5 — Matmul/Add output callback; retain guarded boundary"
+        },
+        {
+          "target": "qna-map-opt-example-attention-fixed-point",
+          "branch": "repeat only while fused > 0",
+          "label": "QnA 7 · Example 1 — attention fixed point: 1 → 1, fused=0"
+        },
+        {
+          "target": "qna-map-opt-example-accumulation-storage",
+          "branch": "dtype changes + accumulating kernel",
+          "label": "QnA 7 · Example 7 — scratch storage retains accumulation dtype"
+        },
+        {
+          "target": "qna-map-opt-example-contiguous-view-raising",
+          "branch": "pure reshape/contiguous slice chain",
+          "label": "QnA 7 · Example 8 — raise contiguous views outside scalar iteration"
+        },
+        {
+          "target": "qna-map-opt-example-structured-body-outlining",
+          "branch": "move original body into a capturing body closure",
+          "label": "QnA 7 · Example 9 — structured body gains an opaque owner"
+        },
+        {
+          "target": "qna-map-4-illustration-1",
+          "branch": "canonicalize iterator inputs/captures",
+          "label": "QnA 4 · duplicate operand example — same SSA input shares one slot"
+        },
+        {
+          "target": "qna-map-4-illustration-2",
+          "branch": "canonicalize iterator inputs/captures",
+          "label": "QnA 4 · attention comparison — equal types do not merge Q/K/V"
+        },
+        {
+          "target": "qna-map-opt-example-input-capture-cleanup",
+          "branch": "canonicalize iterator inputs/captures",
+          "label": "QnA 7 · Example 6 — deduplicate inputs and remove dead captures"
+        },
+        {
+          "target": "qna-map-5-illustration-1",
+          "branch": "create strided views outside closure",
+          "label": "QnA 5 · 2×3 transpose example — addressing moves outside the loop"
+        },
+        {
+          "target": "qna-map-opt-example-view-motion-store-guard",
+          "branch": "create strided views outside closure",
+          "label": "QnA 7 · Example 10 — hoist load views; retain store-feeding transforms"
+        },
+        {
+          "target": "qna-map-6-illustration-1",
+          "branch": "unify duplicate views before duplicate captures",
+          "label": "QnA 6 · handoff example — one attention call, no exposed QK/softmax/PV body"
+        }
+      ],
+      "source": "src/attention_c1_map_fusion_and_access_optimization.md",
+      "html": "link_htmls/max_example_04_c1_map_fusion_and_access_optimization.html"
+    },
+    "map-to-mogg": {
+      "stem": "map_to_mogg_implementation_calls",
+      "callstack": "qna-map-to-mogg-2",
+      "targets": [
+        "qna-map-to-mogg-1-illustration-1",
+        "qna-map-to-mogg-3-illustration-1",
+        "qna-map-to-mogg-4-illustration-1",
+        "qna-map-to-mogg-5-illustration-1",
+        "qna-map-to-mogg-6-illustration-1",
+        "qna-map-to-mogg-5-metadata-example",
+        "qna-map-to-mogg-example-attention-pointers",
+        "qna-map-to-mogg-example-dynamic-dimensions",
+        "qna-map-to-mogg-example-transpose-view",
+        "qna-map-to-mogg-example-broadcast-view",
+        "qna-map-to-mogg-example-slice-offsets",
+        "qna-map-to-mogg-example-compute-epilogue",
+        "qna-map-to-mogg-example-shape-function",
+        "qna-map-to-mogg-example-opaque-values"
+      ],
+      "links": [
+        {
+          "target": "qna-map-to-mogg-1-illustration-1",
+          "branch": "create mogg.routine with same outer",
+          "label": "QnA 1 · boundary example — three tensor inputs, five local handles"
+        },
+        {
+          "target": "qna-map-to-mogg-example-attention-pointers",
+          "branch": "create mogg.routine with same outer",
+          "label": "QnA 7 · Example 1 — Q/K/V/O pointers and the required GPU context"
+        },
+        {
+          "target": "qna-map-to-mogg-4-illustration-1",
+          "branch": "deduplicate by attribute",
+          "label": "QnA 4 · dimension example — (32,32) adds zero dims; shared N adds one"
+        },
+        {
+          "target": "qna-map-to-mogg-example-dynamic-dimensions",
+          "branch": "deduplicate by attribute",
+          "label": "QnA 7 · Example 2 — collect dynamic and hidden view dimensions"
+        },
+        {
+          "target": "qna-map-to-mogg-3-illustration-1",
+          "branch": "TensorCreateOp: pointer",
+          "label": "QnA 3 · value-map example — reconstruct input/output views from pointers"
+        },
+        {
+          "target": "qna-map-to-mogg-5-metadata-example",
+          "branch": "create call with callee, parameters, flags",
+          "label": "QnA 5 · parameter example — preserve BN/BD; typed operands support later inference"
+        },
+        {
+          "target": "qna-map-to-mogg-5-illustration-1",
+          "branch": "create call with callee, parameters, flags",
+          "label": "QnA 5 · later emitted call — output-first execute order; this pass prepares fields"
+        },
+        {
+          "target": "qna-map-to-mogg-example-transpose-view",
+          "branch": "TransposeStrideOp → TensorCreateTransposeOp",
+          "label": "QnA 7 · Example 3 — transpose view and loop indices"
+        },
+        {
+          "target": "qna-map-to-mogg-example-broadcast-view",
+          "branch": "BroadcastStrideOp → TensorCreateBroadcastOp",
+          "label": "QnA 7 · Example 4 — 64 input elements → 512 logical output elements"
+        },
+        {
+          "target": "qna-map-to-mogg-example-slice-offsets",
+          "branch": "SliceStrideOp → TensorCreateSliceOp",
+          "label": "QnA 7 · Example 5 — slice bounds, offsets and hint guards"
+        },
+        {
+          "target": "qna-map-to-mogg-example-compute-epilogue",
+          "branch": "epilogue → classify lambda",
+          "label": "QnA 7 · Example 6 — lambda returns scalar or retains the store"
+        },
+        {
+          "target": "qna-map-to-mogg-example-opaque-values",
+          "branch": "by-value opaque yield →",
+          "label": "QnA 7 · Example 8 — opaque value crosses routine boundary by value"
+        },
+        {
+          "target": "qna-map-to-mogg-6-illustration-1",
+          "branch": "replace outer SSA uses",
+          "label": "QnA 6 · handoff example — routine, reconstructed views and registered call"
+        },
+        {
+          "target": "qna-map-to-mogg-example-shape-function",
+          "branch": "call.shape → mogg.output",
+          "label": "QnA 7 · Example 7 — host shape helper returns dimensions by value"
+        }
+      ],
+      "source": "src/attention_c1_map_to_mogg_implementation_calls.md",
+      "html": "link_htmls/max_example_04_c1_map_to_mogg_implementation_calls.html"
+    },
+    "mogg": {
+      "stem": "mogg_call_conformance_and_outlining",
+      "callstack": "qna-mogg-2",
+      "targets": [
+        "qna-mogg-2-illustration-1",
+        "qna-mogg-3-illustration-1",
+        "qna-mogg-3-illustration-2",
+        "qna-mogg-4-illustration-1",
+        "qna-mogg-4-illustration-2",
+        "qna-mogg-5-illustration-1",
+        "qna-mogg-6-illustration-1",
+        "qna-mogg-5-metadata-example",
+        "qna-mogg-example-attention-helper",
+        "qna-mogg-example-scalar-packing",
+        "qna-mogg-example-variadic-packing",
+        "qna-mogg-example-trait-and-tensor-tuple",
+        "qna-mogg-example-mutable-input-repair",
+        "qna-mogg-example-unfused-overload",
+        "qna-mogg-example-outline-constant-resource",
+        "qna-mogg-example-trace-return-and-cleanup",
+        "qna-mogg-example-rowwise-reduction"
+      ],
+      "links": [
+        {
+          "target": "qna-mogg-example-rowwise-reduction",
+          "branch": "setLaunchParams: validate stores",
+          "label": "QnA 7 · Example 9 — sum-of-squares rowwise phases, guards and errors"
+        },
+        {
+          "target": "qna-mogg-example-mutable-input-repair",
+          "branch": "read-only parameter fed by mutable view",
+          "label": "QnA 7 · Example 5 — repair read permission with cloneWithMut(false)"
+        },
+        {
+          "target": "qna-mogg-5-illustration-1",
+          "branch": "scalar → scalar.create",
+          "label": "QnA 5 · scalar/variadic examples — scalar payload 5.0 and tuple(A,B,C)"
+        },
+        {
+          "target": "qna-mogg-example-scalar-packing",
+          "branch": "scalar → scalar.create",
+          "label": "QnA 7 · Example 2 — rank-zero tensor becomes a scalar argument"
+        },
+        {
+          "target": "qna-mogg-example-variadic-packing",
+          "branch": "scalar → scalar.create",
+          "label": "QnA 7 · Example 3 — consecutive tensor operands become one tuple"
+        },
+        {
+          "target": "qna-mogg-5-metadata-example",
+          "branch": "ordinary trait →",
+          "label": "QnA 5 · conformance comparison — scalar, variadic, trait and ordinary tensor roles"
+        },
+        {
+          "target": "qna-mogg-example-trait-and-tensor-tuple",
+          "branch": "ordinary trait →",
+          "label": "QnA 7 · Example 4 — trait/TensorTuple packing preserves tensor references"
+        },
+        {
+          "target": "qna-mogg-example-unfused-overload",
+          "branch": "requires advertised overload",
+          "label": "QnA 7 · Example 6 — unfused overload requires pass-through outputs and guards"
+        },
+        {
+          "target": "qna-mogg-2-illustration-1",
+          "branch": "changed=false →",
+          "label": "QnA 2 · attention before/after — no packing, unchanged call fields"
+        },
+        {
+          "target": "qna-mogg-3-illustration-2",
+          "branch": "function args = body args",
+          "label": "QnA 3 · helper signature example — four pointers + context; no tensor return"
+        },
+        {
+          "target": "qna-mogg-example-outline-constant-resource",
+          "branch": "function args = body args",
+          "label": "QnA 7 · Example 7 — constant resource gains a trailing helper pointer"
+        },
+        {
+          "target": "qna-mogg-3-illustration-1",
+          "branch": "takeBody: move OLD block",
+          "label": "QnA 3 · ownership before/after — move body; rebuild forwarding call"
+        },
+        {
+          "target": "qna-mogg-example-attention-helper",
+          "branch": "takeBody: move OLD block",
+          "label": "QnA 7 · Example 1 — attention helper beside graph, retained tensor boundary"
+        },
+        {
+          "target": "qna-mogg-4-illustration-1",
+          "branch": "yield original return values",
+          "label": "QnA 4 · tracing example — setup stays outside; dispatch enters with_trace"
+        },
+        {
+          "target": "qna-mogg-example-trace-return-and-cleanup",
+          "branch": "yield original return values",
+          "label": "QnA 7 · Example 8 — returned shape crosses trace; cleanup/CSE follows"
+        },
+        {
+          "target": "qna-mogg-4-illustration-2",
+          "branch": "module canonicalizer → module CSE",
+          "label": "QnA 4 · cleanup example — share equivalent shapes, keep distinct tensor pointers"
+        },
+        {
+          "target": "qna-mogg-6-illustration-1",
+          "branch": "module canonicalizer → module CSE",
+          "label": "QnA 6 · handoff example — graph routine + module helper, storage comes next"
+        }
+      ],
+      "source": "src/attention_c1_mogg_call_conformance_and_outlining.md",
+      "html": "link_htmls/max_example_04_c1_mogg_call_conformance_and_outlining.html"
+    },
+    "mogg-to-mgp": {
+      "stem": "mogg_to_mgp_models_buffers_and_chains",
+      "callstack": "qna-mogg-to-mgp-2",
+      "targets": [
+        "qna-mogg-to-mgp-1-illustration-1",
+        "qna-mogg-to-mgp-3-illustration-1",
+        "qna-mogg-to-mgp-4-illustration-1",
+        "qna-mogg-to-mgp-5-illustration-1",
+        "qna-mogg-to-mgp-6-illustration-1",
+        "qna-mogg-to-mgp-7-illustration-1",
+        "qna-mogg-mgp-example-attention-storage",
+        "qna-mogg-mgp-example-dynamic-dimensions",
+        "qna-mogg-mgp-example-mutable-write-order",
+        "qna-mogg-mgp-example-reshape-view",
+        "qna-mogg-mgp-example-device-to-host-transfer",
+        "qna-mogg-mgp-example-external-weights",
+        "qna-mogg-mgp-example-subgraph-calls"
+      ],
+      "links": [
+        {
+          "target": "qna-mogg-mgp-example-subgraph-calls",
+          "branch": "unmet dependencies →",
+          "label": "QnA 8 · Example 7 — lower callee first; graph calls forward model state"
+        },
+        {
+          "target": "qna-mogg-to-mgp-1-illustration-1",
+          "branch": "ModelOp::create →",
+          "label": "QnA 1 · model before/after — graph becomes init/execute plan"
+        },
+        {
+          "target": "qna-mogg-to-mgp-3-illustration-1",
+          "branch": "ModelOp::create →",
+          "label": "QnA 3 · argument example — three implicit init args, eight execute args"
+        },
+        {
+          "target": "qna-mogg-mgp-example-dynamic-dimensions",
+          "branch": "symbolic shape →",
+          "label": "QnA 8 · Example 2 — extract runtime dimensions and preserve helper ABI"
+        },
+        {
+          "target": "qna-mogg-mgp-example-reshape-view",
+          "branch": "Static::ReshapeOp →",
+          "label": "QnA 8 · Example 4 — same storage, new (3,4) tensor spec"
+        },
+        {
+          "target": "qna-mogg-mgp-example-device-to-host-transfer",
+          "branch": "TransferOp → lowerTransferImpl",
+          "label": "QnA 8 · Example 5 — D2H copy, synchronization chain and lifetime hold"
+        },
+        {
+          "target": "qna-mogg-mgp-example-external-weights",
+          "branch": "ConstantExternalOp →",
+          "label": "QnA 8 · Example 6 — registry name/size; GPU-resident weight avoids H2D copy"
+        },
+        {
+          "target": "qna-mogg-mgp-example-subgraph-calls",
+          "branch": "MO::CallOp → callee model",
+          "label": "QnA 8 · Example 7 — prepend implicit arguments; map leading chain result"
+        },
+        {
+          "target": "qna-mogg-mgp-example-mutable-write-order",
+          "branch": "tensor/buffer operands →",
+          "label": "QnA 8 · Example 3 — mutable read/write flags preserve dependency ordering"
+        },
+        {
+          "target": "qna-mogg-to-mgp-4-illustration-1",
+          "branch": "createOutputStorage: spec",
+          "label": "QnA 4 · storage example — (32,32) f32 spec and 4096-byte output allocation"
+        },
+        {
+          "target": "qna-mogg-mgp-example-attention-storage",
+          "branch": "createOutputStorage: spec",
+          "label": "QnA 8 · Example 1 — borrowed Q/K/V buffers and new O storage"
+        },
+        {
+          "target": "qna-mogg-to-mgp-5-illustration-1",
+          "branch": "construct AsyncRoutineOp",
+          "label": "QnA 5 · async example — guard + four buffers + context; one chain result"
+        },
+        {
+          "target": "qna-mogg-to-mgp-6-illustration-1",
+          "branch": "register tensor guards +",
+          "label": "QnA 6 · result-chain example — O guard versus ambient execute chain"
+        },
+        {
+          "target": "qna-mogg-to-mgp-7-illustration-1",
+          "branch": "nested AnonymizeDimNames pass",
+          "label": "QnA 7 · next-stage examples — spec folding and guarded buffer reuse become possible"
+        }
+      ],
+      "source": "src/attention_c1_mogg_to_mgp_models_buffers_and_chains.md",
+      "html": "link_htmls/max_example_04_c1_mogg_to_mgp_models_buffers_and_chains.html"
+    },
+    "mgp": {
+      "stem": "mgp_optimization_and_mojo_emission",
+      "callstack": "qna-mgp-1",
+      "targets": [
+        "qna-mgp-1-illustration-1",
+        "qna-mgp-2-illustration-1",
+        "qna-mgp-2-illustration-2",
+        "qna-mgp-3-illustration-1",
+        "qna-mgp-4-illustration-1",
+        "qna-mgp-5-illustration-1",
+        "qna-mgp-6-illustration-1",
+        "qna-mgp-6-illustration-2",
+        "qna-mgp-7-illustration-1",
+        "qna-mgp-8-illustration-1",
+        "qna-mgp-example-spec-folding",
+        "qna-mgp-example-chain-simplification",
+        "qna-mgp-example-buffer-reuse",
+        "qna-mgp-example-invariant-cache",
+        "qna-mgp-example-gpu-memory-plan",
+        "qna-mgp-example-defer-allocations",
+        "qna-mgp-example-outlining-and-async-abi",
+        "qna-mgp-example-attention-mojo-resource",
+        "qna-mgp-example-device-graph-staging-finalization"
+      ],
+      "links": [
+        {
+          "target": "qna-mgp-1-illustration-1",
+          "branch": "CSE → canonicalizer, nested",
+          "label": "QnA 1 · entry values — four 4096-byte tensor roles, ordinary graph mode"
+        },
+        {
+          "target": "qna-mgp-2-illustration-1",
+          "branch": "TensorSpecGetDimOp::fold:",
+          "label": "QnA 2 · static query example — extents 32,32; payload arithmetic 4096"
+        },
+        {
+          "target": "qna-mgp-example-spec-folding",
+          "branch": "TensorSpecGetDimOp::fold:",
+          "label": "QnA 9 · Example 1 — constant, dynamic-operand forwarding or retained query"
+        },
+        {
+          "target": "qna-mgp-2-illustration-2",
+          "branch": "update operands, then run chain",
+          "label": "QnA 2 · chain examples — remove duplicate/implied merge dependencies"
+        },
+        {
+          "target": "qna-mgp-example-chain-simplification",
+          "branch": "update operands, then run chain",
+          "label": "QnA 9 · Example 2 — retain required dependencies and side effects"
+        },
+        {
+          "target": "qna-mgp-4-illustration-1",
+          "branch": "cache buffers/indices for execute",
+          "label": "QnA 4 · invariant example — init caches W; execute reads its model slot"
+        },
+        {
+          "target": "qna-mgp-example-invariant-cache",
+          "branch": "cache buffers/indices for execute",
+          "label": "QnA 9 · Example 4 — lift eligible work; inputs/mutation keep other work in execute"
+        },
+        {
+          "target": "qna-mgp-3-illustration-1",
+          "branch": "replace later allocation uses",
+          "label": "QnA 3 · reuse example — A/B/C 12288 bytes → A/B 8192 bytes"
+        },
+        {
+          "target": "qna-mgp-example-buffer-reuse",
+          "branch": "replace later allocation uses",
+          "label": "QnA 9 · Example 3 — safe lifetime order; shared users reject reuse"
+        },
+        {
+          "target": "qna-mgp-example-gpu-memory-plan",
+          "branch": "create buffer.plan, one pool",
+          "label": "QnA 9 · Example 5 — GPU pool with planned slices, lifetime constraints"
+        },
+        {
+          "target": "qna-mgp-example-defer-allocations",
+          "branch": "unique writer → move allocation",
+          "label": "QnA 9 · Example 6 — defer storage to writer guards without changing values"
+        },
+        {
+          "target": "qna-mgp-5-illustration-1",
+          "branch": "Device-graph passes scheduled",
+          "label": "QnA 5 · marker comparison — gpu:0 alone does not enable capture"
+        },
+        {
+          "target": "qna-mgp-example-device-graph-staging-finalization",
+          "branch": "Device-graph passes scheduled",
+          "label": "QnA 9 · Example 9 — marked staging/build/execute rewrites; unmarked attention skips"
+        },
+        {
+          "target": "qna-mgp-example-outlining-and-async-abi",
+          "branch": "replace routine with compiled.call",
+          "label": "QnA 9 · Example 7 — move async body into exported MGP-ABI function"
+        },
+        {
+          "target": "qna-mgp-7-illustration-1",
+          "branch": "FuncOp::emitMojo selects direct",
+          "label": "QnA 7 · ABI example — direct pointer helper versus runtime pointer-to-slots entry"
+        },
+        {
+          "target": "qna-mgp-6-illustration-1",
+          "branch": "ShapeCreate → Coord;",
+          "label": "QnA 6 · emission example — Coord(32,32), strides (32,1), typed views/parameters"
+        },
+        {
+          "target": "qna-mgp-6-illustration-2",
+          "branch": "CallOpaque → outputs first;",
+          "label": "QnA 6 · emitted call example — execute(BN=16,BD=8,target=\"gpu\")"
+        },
+        {
+          "target": "qna-mgp-8-illustration-1",
+          "branch": "allocate/copy text bytes",
+          "label": "QnA 8 · resource before/after — helpers become source bytes; plan remains IR"
+        },
+        {
+          "target": "qna-mgp-example-attention-mojo-resource",
+          "branch": "allocate/copy text bytes",
+          "label": "QnA 9 · Example 8 — attention shapes/parameters → Mojo text → resource/load"
+        }
+      ],
+      "source": "src/attention_c1_mgp_optimization_and_mojo_emission.md",
+      "html": "link_htmls/max_example_04_c1_mgp_optimization_and_mojo_emission.html"
+    }
+  },
+  "browser": {
+    "result": "PASS",
+    "pages": [
+      {
+        "stage": "mo-to-map",
+        "result": "PASS",
+        "links": 15,
+        "examples": 14,
+        "source_anchors": 168
+      },
+      {
+        "stage": "map",
+        "result": "PASS",
+        "links": 17,
+        "examples": 17,
+        "source_anchors": 167
+      },
+      {
+        "stage": "map-to-mogg",
+        "result": "PASS",
+        "links": 14,
+        "examples": 14,
+        "source_anchors": 142
+      },
+      {
+        "stage": "mogg",
+        "result": "PASS",
+        "links": 17,
+        "examples": 17,
+        "source_anchors": 161
+      },
+      {
+        "stage": "mogg-to-mgp",
+        "result": "PASS",
+        "links": 14,
+        "examples": 13,
+        "source_anchors": 125
+      },
+      {
+        "stage": "mgp",
+        "result": "PASS",
+        "links": 19,
+        "examples": 19,
+        "source_anchors": 203
+      }
+    ],
+    "viewports": [
+      1440,
+      390,
+      320
+    ],
+    "all_links_clickable": true,
+    "all_direct_fragments_open": true,
+    "nested_disclosures": true,
+    "source_explorer": true,
+    "no_javascript_navigation": true,
+    "no_javascript_nested_answers_open_with_native_summary": true,
+    "blue_bold_italic_links": true,
+    "javascript_errors": [],
+    "external_requests": []
+  },
+  "source_checks": {
+    "result": "PASS",
+    "pages": [
+      {
+        "stage": "mo-to-map",
+        "examples": 14,
+        "links": 15,
+        "questions": 7,
+        "source_anchors": 168,
+        "existing_text_preserved": true
+      },
+      {
+        "stage": "map",
+        "examples": 17,
+        "links": 17,
+        "questions": 7,
+        "source_anchors": 167,
+        "existing_text_preserved": true
+      },
+      {
+        "stage": "map-to-mogg",
+        "examples": 14,
+        "links": 14,
+        "questions": 7,
+        "source_anchors": 142,
+        "existing_text_preserved": true
+      },
+      {
+        "stage": "mogg",
+        "examples": 17,
+        "links": 17,
+        "questions": 7,
+        "source_anchors": 161,
+        "existing_text_preserved": true
+      },
+      {
+        "stage": "mogg-to-mgp",
+        "examples": 13,
+        "links": 14,
+        "questions": 8,
+        "source_anchors": 125,
+        "existing_text_preserved": true
+      },
+      {
+        "stage": "mgp",
+        "examples": 19,
+        "links": 19,
+        "questions": 9,
+        "source_anchors": 203,
+        "existing_text_preserved": true
+      }
+    ],
+    "mo_page_preserved": true
+  },
+  "preservation": {
+    "questions_and_original_fragment_ids": true,
+    "existing_example_text": true,
+    "pinned_sources_and_references": true,
+    "unrelated_working_tree_status": true
+  },
+  "visual_review": [
+    "MO→MAP connected tree, blue/bold/italic links",
+    "MAP→MOGG connected body/argument branches and example links"
+  ],
+  "device": "CPU host; headless Chromium; no MAX compiler, inference or GPU workload",
+  "commands": {
+    "build_cwd": "/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN",
+    "build": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/tmp/max-mo-q2-e5lre65r/python-deps python3 src/attention_compiler_stage_qna.py --stages mo-to-map map map-to-mogg mogg mogg-to-mgp mgp",
+    "source_check": "python3 /local/mnt/workspace/MyTools/.codex-tmp/max-stage-example-links-uj7ncnn_/check.py",
+    "browser": "NODE_PATH=/tmp/codex-inference-session-playwright/node_modules node /local/mnt/workspace/MyTools/.codex-tmp/max-stage-example-links-uj7ncnn_/check_browser.cjs",
+    "browser_script_sha256": "e1b74fd302aaa05215f26361dd98aaafa9a1ecb1d5108d4fcb75085afe3fa5fb",
+    "diff_check": "git diff --check -- <explicit changed file whitelist>"
+  },
+  "artifacts_sha256": {
+    "src/attention_c1_mo_to_map_access_and_compute.md": "982109749fda112804a7a63fc965892d289c8fa06e68c8926570c1508466ad0f",
+    "link_htmls/max_example_04_c1_mo_to_map_access_and_compute.html": "1e998c6fd200d48c932c091baa0e4185a5a3c75a92edcf6c1c484f9b88896421",
+    "src/attention_c1_map_fusion_and_access_optimization.md": "8ae902da656cacaec475b56a06471f826e17907f025cd9ce748527a923ccdc56",
+    "link_htmls/max_example_04_c1_map_fusion_and_access_optimization.html": "1d2d9d5513c8dda9f8f21358230bcb03710c9ad018c03c273db5e7dd72a6ec57",
+    "src/attention_c1_map_to_mogg_implementation_calls.md": "bd00ef13bc06b7f94ff0ab0cf539c9ab65c1c94b65e77fbcb4dc835c23b89ac9",
+    "link_htmls/max_example_04_c1_map_to_mogg_implementation_calls.html": "64fb0565de3c2c4a10e01875b6fac34ef2f2dfa6e953b05e9b051eec19a1ff43",
+    "src/attention_c1_mogg_call_conformance_and_outlining.md": "0c78d8a858bbd6077de42282e90334b5aae8ff47998d36dec76b5d46087d3285",
+    "link_htmls/max_example_04_c1_mogg_call_conformance_and_outlining.html": "e4fc618ac1c134806052139d1f4f9941bbb1de19ae7962a5d772da5f20b3fc76",
+    "src/attention_c1_mogg_to_mgp_models_buffers_and_chains.md": "7c6a87be059603bc890077c8b6001895fc6c56e29b74c13b9a699979626429be",
+    "link_htmls/max_example_04_c1_mogg_to_mgp_models_buffers_and_chains.html": "6b79844a148f4a328f99f4a9ecc4addee2b6e8f23b2a1fca424bb34a300b6984",
+    "src/attention_c1_mgp_optimization_and_mojo_emission.md": "4aae839529d08facd1f60af8bd5ae70d060a6be7e096368b2c429297b3825a5b",
+    "link_htmls/max_example_04_c1_mgp_optimization_and_mojo_emission.html": "03888208373ee0ae02898e3c8bead7f349a95fff9bd671cde950bfdcafb68da1",
+    "attention_compiler_stage_qna_manifest.json": "cb58752b32f94812d36c1d1109033b072fa7c9b59b99baad513ba7ede6e78dcf"
+  },
+  "evidence": "SOURCE mapping of existing SOURCE/TEST examples. Browser and authoring checks only; repository compiler tests were inspected, not executed."
+}

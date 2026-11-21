@@ -2,6 +2,8 @@
 
 **There is one opaque attention computation, with ordinary tensor inputs and output.** Its internal attention loops remain inside P1. MAP can simplify the surrounding representation, but it has no separate graph-level matmul, softmax or PV producer/consumer pair to fuse here. [[entry:57]] [[kernel:82]] [[mo-to-map:201]] [[mo-to-map:215]]
 
+<span id="qna-map-1-illustration-1"></span>
+
 ```state
 IR1's attention path at MAP entry
   Q ─┐
@@ -19,21 +21,31 @@ Identical **types** do not make `%q`, `%k` and `%v` identical **values**. All th
 
 ## QnA 2 · What is the expanded optimization pipeline?
 
+**Example links** map the earlier Q&A illustrations and the worked examples to their native checks, rewrites and handoffs. Links marked “later” describe a subsequent stage; a listed rewrite still requires its matching conditions.
+
 ```calltree
 gcPipelineImpl → buildMapPipeline [[gc:585]] [[gc:338]]
 ├─ mapOpts.fuseMutableLoadStore copied from compilation options [[gc:533]]
 ├─ graph canonicalizer → CSE [[gc:340]]
+│  └─ [↗ QnA 1 · attention entry — one opaque iterator; Q/K/V remain distinct](#qna-map-1-illustration-1)
 ├─ FuseKernelsPass::runOnOperation [[gc:343]] [[map-fuse:37]]
 │  ├─ construct fusePm for mo.graph; schedule one ordered fusion round [[map-fuse:46]]
 │  │  ├─ FuseElementwise: pure elementwise producer + consumer [[map-fuse:47]]
 │  │  │  └─ [fuseInput](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/InputFusion.cpp:437) → [findEligibleProducer](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/InputFusion.cpp:315) → [spliceIntoForeach](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/InputFusion.cpp:185) → [spliceProducer](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/InputFusion.cpp:394)
+│  │  │     ├─ [↗ QnA 7 · Example 3 — multi-use duplication budget: matched/skipped; shared fuseInput guard](#qna-map-opt-example-duplication-budget)
+│  │  │     ├─ [↗ QnA 3 · Add/Mul before/after — intermediate element becomes a local scalar](#qna-map-3-illustration-1)
+│  │  │     ├─ [↗ QnA 3 · ownership example — two iterator groups → one](#qna-map-3-illustration-2)
+│  │  │     └─ [↗ QnA 7 · Example 2 — splice producer arithmetic into consumer body](#qna-map-opt-example-elementwise-splice)
 │  │  ├─ FuseViews: producer computes through a view [[map-fuse:48]]
 │  │  │  └─ fuseInput; pure view may duplicate, compute-containing view has cost guards
+│  │  │     └─ findEligibleProducer + multi-use cost/large-operand guards [InputFusion.cpp:315](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/InputFusion.cpp:315)
 │  │  ├─ FusePrologue: elementwise producer enters an opaque input callback [[map-fuse:49]]
 │  │  │  └─ fuseInput → [findExistingPrologueCapture](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/InputFusion.cpp:122) → [spliceIntoClosure](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/InputFusion.cpp:206)
+│  │  │     └─ [↗ QnA 7 · Example 4 — gather receives Add computation in its prologue](#qna-map-opt-example-gather-prologue-fusion)
 │  │  ├─ FuseReductions: findProducer/fuseProducer, then findConsumer/fuseConsumer [[map-fuse:50]]
 │  │  ├─ FuseEpilogue: consumer reads at the original loop index [[map-fuse:51]]
 │  │  │  └─ [fuseOutput](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/OutputFusion.cpp:406) → [findFusibleEdge](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/OutputFusion.cpp:125) → [fuseOutputOnce](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/OutputFusion.cpp:249) → erase consumer
+│  │  │     └─ [↗ QnA 7 · Example 5 — Matmul/Add output callback; retain guarded boundary](#qna-map-opt-example-matmul-epilogue-fusion)
 │  │  ├─ FuseReshapeEpilogue: reshape read plus compute, with the same output-fusion driver [[map-fuse:52]]
 │  │  └─ FuseHorizontal: combine eligible siblings after producer/consumer fusion [[map-fuse:55]]
 │  ├─ construct cleanupPm containing CSE only [[map-fuse:60]]
@@ -43,6 +55,7 @@ gcPipelineImpl → buildMapPipeline [[gc:585]] [[gc:338]]
 │     ├─ fused = before - kernelCount(); record statistic [[map-fuse:80]]
 │     ├─ runPipeline(cleanupPm, graphOp) [[map-fuse:82]]
 │     └─ repeat only while fused > 0 [[map-fuse:84]]
+│        └─ [↗ QnA 7 · Example 1 — attention fixed point: 1 → 1, fused=0](#qna-map-opt-example-attention-fixed-point)
 ├─ if fuseMutableLoadStore: FuseMutableLoads [[gc:344]]
 │  ├─ split eligible multi-user mutable loads; recollect MO::MutableLoadOp candidates
 │  └─ compatible same-block kernel → replace tensor snapshot input by buffer + ordering
@@ -50,16 +63,25 @@ gcPipelineImpl → buildMapPipeline [[gc:585]] [[gc:338]]
 ├─ AllocateAccumulatingBuffers → [assignIntermediateTensors](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/AllocateAccumulatingBuffers.cpp:133) [[gc:351]]
 │  ├─ existing intermediate / no direct store target → skip
 │  ├─ dtype changes + accumulating kernel → [addScratchResult](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/AllocateAccumulatingBuffers.cpp:89); reconnect results
+│  │  └─ [↗ QnA 7 · Example 7 — scratch storage retains accumulation dtype](#qna-map-opt-example-accumulation-storage)
 │  └─ otherwise → point intermediateTensor at the existing store target
 ├─ RaiseBackContiguousViews → [matchViewChain](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/RaiseBackContiguousViews.cpp:51) → [raiseViewChain](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/RaiseBackContiguousViews.cpp:134) [[gc:356]]
 │  └─ pure reshape/contiguous slice chain → mo.static.reshape / mogg.slice
+│     └─ [↗ QnA 7 · Example 8 — raise contiguous views outside scalar iteration](#qna-map-opt-example-contiguous-view-raising)
 ├─ OutlineStructuredKernelBodies → [outline](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/OutlineStructuredKernelBodies.cpp:37) each structured iterator [[gc:358]]
 │  └─ new map.iter.opaque → move original body into a capturing body closure
+│     └─ [↗ QnA 7 · Example 9 — structured body gains an opaque owner](#qna-map-opt-example-structured-body-outlining)
 ├─ canonicalize iterator inputs/captures, including constants/dead slots [[gc:361]]
+│  ├─ [↗ QnA 4 · duplicate operand example — same SSA input shares one slot](#qna-map-4-illustration-1)
+│  ├─ [↗ QnA 4 · attention comparison — equal types do not merge Q/K/V](#qna-map-4-illustration-2)
+│  └─ [↗ QnA 7 · Example 6 — deduplicate inputs and remove dead captures](#qna-map-opt-example-input-capture-cleanup)
 ├─ LoopInvariantViewMotion [[gc:362]]
 │  └─ [collectIndexTransformChain](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/LoopInvariantViewMotion.cpp:42) → [hoistablePrefixLen](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/LoopInvariantViewMotion.cpp:76) → [hoistChain](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/LoopInvariantViewMotion.cpp:88)
 │     └─ create strided views outside closure; load through newly captured view
+│        ├─ [↗ QnA 5 · 2×3 transpose example — addressing moves outside the loop](#qna-map-5-illustration-1)
+│        └─ [↗ QnA 7 · Example 10 — hoist load views; retain store-feeding transforms](#qna-map-opt-example-view-motion-store-guard)
 └─ CSE → canonicalizer: unify duplicate views before duplicate captures [[gc:366]]
+   └─ [↗ QnA 6 · handoff example — one attention call, no exposed QK/softmax/PV body](#qna-map-6-illustration-1)
 ```
 
 In a one-iterator attention path, there is no second iterator to fuse. The round can inspect candidates and stop with `before=1`, `after=1`, `fused=0`. This is a source-derived expectation for this path, not a measured compiler dump. The source terminates its loop using that exact count comparison. [[map-fuse:77]] [[map-fuse:84]]
@@ -85,6 +107,8 @@ After this builder's passes, `gcPipelineImpl` may add NaN checks, then an option
 
 **TEST · inspected repository expectation:** the `basic_add_mul` test starts with `(X + Y) * Z` over eight elements. It expects one MAP elementwise iterator containing both registered scalar calls. This is an eligible comparison graph, not a rewrite of the attention custom call. [[test-map-fusion:3]] [[test-map-fusion:13]]
 
+<span id="qna-map-3-illustration-1"></span>
+
 ```transform
 BEFORE
   iterator A: T[i] = X[i] + Y[i]       i = 0..7
@@ -106,6 +130,8 @@ Example lane i=0: X=2, Y=3, Z=4
 
 The intermediate tensor's eight stores and eight reloads can be removed from this representation. At four bytes per float32, that is **64 bytes of illustrative intermediate traffic**; it excludes all X/Y/Z/O accesses and says nothing about measured cache or bus traffic. The test checks the combined loads, calls and final store. [[test-map-fusion:17]]
 
+<span id="qna-map-3-illustration-2"></span>
+
 ```state
 Kernel groups: 2 → 1
 Intermediate tensor T: materialized edge → local scalar computation
@@ -118,6 +144,8 @@ The native pass keeps provenance in `fusionInfo`; fusion is more than changing a
 ## QnA 4 · What does canonicalization do to operands and captured values?
 
 **TEST · repeated input:** a MAP body that receives the *same SSA value* twice can have one incoming slot while its call still uses that slot twice. This does not change the callee from an Add into a unary operation. [[test-map-dedup:20]]
+
+<span id="qna-map-4-illustration-1"></span>
 
 ```transform
 BEFORE
@@ -134,6 +162,8 @@ Outer incoming slots: 2 → 1; call's mathematical inputs: still 2.
 
 For a capturing closure, the implementation identifies duplicate captured **Values**, redirects uses of duplicate block arguments, then erases those arguments. Dead captures can also be removed. [[map-fold:40]] [[map-fold:56]] [[map-fold:69]]
 
+<span id="qna-map-4-illustration-2"></span>
+
 ```state
 Attention: [%q,%k,%v] → [%q,%k,%v]
 Reason: three distinct live SSA values, despite the same shape and dtype.
@@ -147,6 +177,8 @@ The repository also checks that deduplicating prologue captures leaves a now-unu
 ## QnA 5 · How does view motion simplify addressing? Use a 2×3 tensor.
 
 **TEST · inspected transpose-view example:** a per-element index permutation is moved to a strided view outside the loop body. The loop then loads with its own index. The final output store remains. [[test-view:3]] [[test-view:16]]
+
+<span id="qna-map-5-illustration-1"></span>
 
 ```transform
 X = [[0,1,2],
@@ -175,6 +207,8 @@ The hoisted view is an addressing description; it does not require copying the i
 For attention, Kᵀ is part of the authored kernel computation. This MAP view example does not imply that a graph-level K transpose exists or gets hoisted for `FusedAttention`. [[entry:61]] [[kernel:346]]
 
 ## QnA 6 · What is the outgoing MAP representation, and why run this stage anyway?
+
+<span id="qna-map-6-illustration-1"></span>
 
 ```state
 Fused-attention path leaving MAP, schematic

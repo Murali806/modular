@@ -27,6 +27,8 @@ The registered signature uses three ordinary `InputTensor` arguments, one ordina
 
 **SOURCE · native work inside the five scheduled steps.** `buildMoggPipeline` currently ignores its `MoggPipelineOptions` argument and schedules the same pass sequence. The rowwise legalization pass has its own default cost threshold of 16; that threshold classifies its reduction body and has no effect on this opaque attention call. [[gc:370]] [MOGGPasses.td:226](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/include/GraphCompiler/MOGGDialect/MOGGPasses.td:226)
 
+**Example links** map the earlier Q&A illustrations and the worked examples to their native checks, rewrites and handoffs. Links marked “later” describe a subsequent stage; a listed rewrite still requires its matching conditions.
+
 ```calltree
 gcPipelineImpl → buildMoggPipeline(pm,moggOpts) [[gc:600]] [[gc:370]]
 ├─ LegalizeRowwiseKernelsPass::runOnOperation [[rowwise:315]]
@@ -34,6 +36,7 @@ gcPipelineImpl → buildMoggPipeline(pm,moggOpts) [[gc:600]] [[gc:370]]
 │  ├─ bindMonoids: validate result fields/dtypes; record params and accumulator dtype [[rowwise:128]]
 │  ├─ groupRowStores: move stores at the row index into rowwise.emit [[rowwise:188]]
 │  └─ setLaunchParams: validate stores, set phase/cost/column attributes [[rowwise:222]]
+│     ├─ [↗ QnA 7 · Example 9 — sum-of-squares rowwise phases, guards and errors](#qna-mogg-example-rowwise-reduction)
 │     └─ this attention body has no call.rowwise → no rowwise mutation [[rowwise:260]]
 │
 ├─ ConformCallOperandsPass::runOnOperation on the module [[conform:369]]
@@ -43,15 +46,23 @@ gcPipelineImpl → buildMoggPipeline(pm,moggOpts) [[gc:600]] [[gc:370]]
 │  │  ├─ copy execute adaptor and output list for local conformance [[conform:270]]
 │  │  ├─ optional selectUnfusedExecute [[conform:273]]
 │  │  │  └─ requires advertised overload, no computed epilogue, single-use pass-through outputs [[conform:234]]
+│  │  │     └─ [↗ QnA 7 · Example 6 — unfused overload requires pass-through outputs and guards](#qna-mogg-example-unfused-overload)
 │  │  ├─ packAgainstSignature → mapToKernelImplementation [[conform:279]] [[conform:155]]
 │  │  │  ├─ operand/result mappings; launch context is handled separately [[operand-inference:310]]
 │  │  │  ├─ read-only parameter fed by mutable view → cloneWithMut(false) [[conform:170]]
+│  │  │  │  └─ [↗ QnA 7 · Example 5 — repair read permission with cloneWithMut(false)](#qna-mogg-example-mutable-input-repair)
 │  │  │  └─ packOperands(inputs), then packOperands(outputs) [[conform:188]]
 │  │  │     ├─ scalar → scalar.create; variadic run → tuple.create [[conform:83]] [[conform:91]]
+│  │  │     │  ├─ [↗ QnA 5 · scalar/variadic examples — scalar payload 5.0 and tuple(A,B,C)](#qna-mogg-5-illustration-1)
+│  │  │     │  ├─ [↗ QnA 7 · Example 2 — rank-zero tensor becomes a scalar argument](#qna-mogg-example-scalar-packing)
+│  │  │     │  └─ [↗ QnA 7 · Example 3 — consecutive tensor operands become one tuple](#qna-mogg-example-variadic-packing)
 │  │  │     ├─ ordinary trait → trait.create; fused trait retains its producer [[conform:61]]
+│  │  │     │  ├─ [↗ QnA 5 · conformance comparison — scalar, variadic, trait and ordinary tensor roles](#qna-mogg-5-metadata-example)
+│  │  │     │  └─ [↗ QnA 7 · Example 4 — trait/TensorTuple packing preserves tensor references](#qna-mogg-example-trait-and-tensor-tuple)
 │  │  │     └─ ordinary tensor → same SSA value [[conform:134]]
 │  │  ├─ DeviceContextArray signature → pack contexts into one tuple [[conform:293]]
 │  │  ├─ changed=false → keep the existing call (attention takes this branch) [[conform:305]]
+│  │  │  └─ [↗ QnA 2 · attention before/after — no packing, unchanged call fields](#qna-mogg-2-illustration-1)
 │  │  └─ otherwise create replacement; retain callee/params/fusion flag/results [[conform:311]]
 │  │     └─ rewire uses, erase old call, erase dropped epilogues/dead pure producers [[conform:317]]
 │  ├─ CallShapeOp → packShapeCall; no output operand, result leaves by value [[conform:338]]
@@ -62,9 +73,13 @@ gcPipelineImpl → buildMoggPipeline(pm,moggOpts) [[gc:600]] [[gc:370]]
 │  └─ outlineKernel(builder,symtab,routine) [[outline:44]]
 │     ├─ capture body argument types, nested constants and return operand types [[outline:49]]
 │     ├─ function args = body args + trailing constant pointers [[outline:62]]
+│     │  ├─ [↗ QnA 3 · helper signature example — four pointers + context; no tensor return](#qna-mogg-3-illustration-2)
+│     │  └─ [↗ QnA 7 · Example 7 — constant resource gains a trailing helper pointer](#qna-mogg-example-outline-constant-resource)
 │     ├─ preserve provenance; derive helper name; insert beside graph [[outline:79]]
 │     ├─ create FuncOp with ABI=MOGG and device label; unique via symtab.insert [[outline:95]]
 │     ├─ takeBody: move OLD block and all operations into helper [[outline:109]]
+│     │  ├─ [↗ QnA 3 · ownership before/after — move body; rebuild forwarding call](#qna-mogg-3-illustration-1)
+│     │  └─ [↗ QnA 7 · Example 1 — attention helper beside graph, retained tensor boundary](#qna-mogg-example-attention-helper)
 │     ├─ constants' uses → new helper args; create empty output only if needed [[outline:114]]
 │     └─ create NEW routine block; move constants back; call helper with fresh args [[outline:124]]
 │
@@ -72,12 +87,18 @@ gcPipelineImpl → buildMoggPipeline(pm,moggOpts) [[gc:600]] [[gc:370]]
 │  ├─ ABI != MOGG → return; no dispatch after setup → return [[trace:38]] [[trace:57]]
 │  ├─ collect from first CallLike op onward, excluding terminator/existing trace [[trace:48]]
 │  └─ move dispatch into with_trace; yield original return values to outer output [[trace:65]]
+│     ├─ [↗ QnA 4 · tracing example — setup stays outside; dispatch enters with_trace](#qna-mogg-4-illustration-1)
+│     └─ [↗ QnA 7 · Example 8 — returned shape crosses trace; cleanup/CSE follows](#qna-mogg-example-trace-return-and-cleanup)
 │
 └─ module canonicalizer → module CSE, including helper siblings of mo.graph [[gc:377]]
+   ├─ [↗ QnA 4 · cleanup example — share equivalent shapes, keep distinct tensor pointers](#qna-mogg-4-illustration-2)
+   └─ [↗ QnA 6 · handoff example — graph routine + module helper, storage comes next](#qna-mogg-6-illustration-1)
 ```
 
 `packCall` copies the declaration's function adaptor before changing output contracts; it does not rewrite P1's registered API. The SSA call is replaced only when conformance changes something. Outlining subsequently **moves** its body objects into a helper and creates new forwarding objects in the graph-local routine. [[conform:270]] [[conform:305]] [[outline:109]] [[outline:124]]
 
+
+<span id="qna-mogg-2-illustration-1"></span>
 
 ```state
 Attention call before conformance
@@ -100,6 +121,8 @@ The implementation also has an unfused-overload path for eligible fused-output k
 ## QnA 3 · Show exactly what outlining moves and what it leaves behind.
 
 **Outlining creates a named function from an existing region body.** For readability, `@F_attention` below names the new helper; the real symbol is derived from fusion provenance and uniqued by the module symbol table. [[outline:83]] [[outline:105]]
+
+<span id="qna-mogg-3-illustration-1"></span>
 
 ```transform
 BEFORE · one graph-local routine body
@@ -125,6 +148,8 @@ IR1 : builtin.module
 
 The implementation literally transfers the body using `takeBody`. It then creates fresh arguments for the retained routine's forwarding call. This move changes ownership of IR blocks; it does not copy Q/K/V data. [[outline:109]] [[outline:124]]
 
+<span id="qna-mogg-3-illustration-2"></span>
+
 ```state
 F_attention signature
   (!mogg.pointer, !mogg.pointer, !mogg.pointer,
@@ -146,6 +171,8 @@ The source obtains the helper's signature from the routine body's argument types
 
 Trace wrapping leaves setup before the first call outside the trace and moves the operations from that call onward into a `mogg.with_trace` region. This records an instrumentation boundary; it is not a GPU execution event during compilation. [[trace:44]] [[trace:65]]
 
+<span id="qna-mogg-4-illustration-1"></span>
+
 ```transform
 BEFORE tracing
   shape/tensor setup
@@ -162,6 +189,8 @@ AFTER tracing
 ```
 
 For the static attention body, four calls to `buildShape([32,32])` initially create equivalent shape descriptions. CSE can share their eligible shape-producing operations. The Q/K/V/O tensor views remain distinct because they reference different pointers and output mutability differs. [[map-lowering:102]] [[gc:378]]
+
+<span id="qna-mogg-4-illustration-2"></span>
 
 ```transform
 BEFORE cleanup                         AFTER eligible CSE
@@ -184,12 +213,16 @@ Identical computation with side effects is not automatically redundant. In parti
 
 These are **comparison signatures**, showing what the same pass supports. They are not changes to the attention registration. [[conform:41]]
 
+<span id="qna-mogg-5-metadata-example"></span>
+
 | Callee requires | Incoming representation | Transformation |
 | --- | --- | --- |
 | scalar argument | one tensor representing a scalar | `mogg.scalar.create(%tensor)` |
 | variadic tensor argument | several consecutive tensor operands | `mogg.tuple.create(%a,%b,...)` |
 | non-fused tensor trait | plain tensor view | `mogg.trait.create` with the declared contract |
 | ordinary `InputTensor` | ordinary tensor view | keep the operand |
+
+<span id="qna-mogg-5-illustration-1"></span>
 
 ```transform
 Example scalar input, conceptual values
@@ -206,6 +239,8 @@ Example variadic input
 The generated code later converts the scalar tensor through the registered scalar primitive. Tuple packing describes a call argument aggregate; it does not imply concatenation of the tensor elements. [[mogg-ops:1944]] [[mogg-ops:1960]]
 
 ## QnA 6 · What reaches MOGG→MGP?
+
+<span id="qna-mogg-6-illustration-1"></span>
 
 ```state
 IR1

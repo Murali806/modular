@@ -2,6 +2,8 @@
 
 **The outer tensor interface is retained, while the routine body receives pointers, shapes and a context handle.** For this static example, its body has **five arguments: Q pointer, K pointer, V pointer, output pointer, device context**. There are no dynamic-dimension arguments. [[map-lowering:928]] [[map-lowering:942]] [[map-lowering:963]] [[map-lowering:996]]
 
+<span id="qna-map-to-mogg-1-illustration-1"></span>
+
 ```state
 BEFORE · map.iter.opaque
   outer operands: Q:T0, K:T0, V:T0
@@ -27,6 +29,8 @@ T0 = float32[32,32] on gpu:0
 
 **SOURCE · the pass rewrites IR1, the compiler-owned clone.** `gcPipelineImpl` copies `opts.enableComputeLambdas` into the MAP→MOGG pass options; the default is `true`. Scheduling the pass only installs this recipe. Its `runOnOperation()` executes when the pass manager runs IR1. The option affects eligible output epilogues; the ordinary attention output has no such epilogue. [[gc:595]] [[gc:654]] [MAPToMOGG.td:28](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/include/GraphCompiler/Conversion/MAPToMOGG/MAPToMOGG.td:28)
 
+**Example links** map the earlier Q&A illustrations and the worked examples to their native checks, rewrites and handoffs. Links marked “later” describe a subsequent stage; a listed rewrite still requires its matching conditions.
+
 ```calltree
 gcPipelineImpl → add MAPToMOGG(mapToMoggOpts) [[gc:595]] [[gc:597]]
 └─ MAPToMOGGPass::runOnOperation() on IR1's module [[map-to-mogg:56]]
@@ -41,9 +45,13 @@ gcPipelineImpl → add MAPToMOGG(mapToMoggOpts) [[gc:595]] [[gc:597]]
    │        ├─ read inputs, result types, input/output chain and full device ref [[map-lowering:910]]
    │        ├─ reuse fusion provenance; create a leaf only when absent [[map-lowering:921]]
    │        ├─ create mogg.routine with same outer operands/results [[map-lowering:928]]
+   │        │  ├─ [↗ QnA 1 · boundary example — three tensor inputs, five local handles](#qna-map-to-mogg-1-illustration-1)
+   │        │  ├─ [↗ QnA 7 · Example 1 — Q/K/V/O pointers and the required GPU context](#qna-map-to-mogg-example-attention-pointers)
    │        │  └─ copy read/write effects and dispatch; preserve gpu:0 [[map-lowering:930]]
    │        ├─ collect dynamic dimensions from attributes/types throughout body [[map-lowering:939]]
    │        │  └─ deduplicate by attribute in first-seen order; static SIMD attrs skipped [[map-lowering:41]]
+   │        │     ├─ [↗ QnA 4 · dimension example — (32,32) adds zero dims; shared N adds one](#qna-map-to-mogg-4-illustration-1)
+   │        │     └─ [↗ QnA 7 · Example 2 — collect dynamic and hidden view dimensions](#qna-map-to-mogg-example-dynamic-dimensions)
    │        ├─ create NEW body block and its arguments [[map-lowering:942]]
    │        │  ├─ tensor/buffer input → pointer; opaque input → its own type [[map-lowering:945]]
    │        │  ├─ ordinary tensor result → output pointer; chain/opaque result → none [[map-lowering:954]]
@@ -55,18 +63,30 @@ gcPipelineImpl → add MAPToMOGG(mapToMoggOpts) [[gc:595]] [[gc:597]]
    │        │  └─ tensor output → buildTensor(Output, mut = true) [[map-lowering:1018]]
    │        │     ├─ buildShape: constants in attr, dynamic dims as SSA operands [[map-lowering:79]]
    │        │     └─ TensorCreateOp: pointer, shape, dtype, device label, io, mut, stable [[map-lowering:102]]
+   │        │        └─ [↗ QnA 3 · value-map example — reconstruct input/output views from pointers](#qna-map-to-mogg-3-illustration-1)
    │        ├─ lowerRegionBody in source order, excluding final map.yield [[map-lowering:1024]] [[map-state:28]]
    │        │  ├─ map.call.opaque → CallOpaqueOp::lowerToMOGG [[map-lowering:645]]
    │        │  │  ├─ lookup mapped input/output values and optional opaque result type [[map-lowering:646]]
    │        │  │  ├─ compute hasEpilogueFusion from output producers [[map-lowering:657]]
    │        │  │  ├─ declaration lookup → append contexts only when required [[map-lowering:665]]
    │        │  │  └─ create call with callee, parameters, flags; map its by-value result [[map-lowering:675]]
+   │        │  │     ├─ [↗ QnA 5 · parameter example — preserve BN/BD; typed operands support later inference](#qna-map-to-mogg-5-metadata-example)
+   │        │  │     └─ [↗ QnA 5 · later emitted call — output-first execute order; this pass prepares fields](#qna-map-to-mogg-5-illustration-1)
    │        │  ├─ stride view → tensor.create.slice/broadcast/reshape/transpose [[map-lowering:692]]
+   │        │  │  ├─ TransposeStrideOp → TensorCreateTransposeOp: shape + permutation [[map-lowering:777]]
+   │        │  │  │  └─ [↗ QnA 7 · Example 3 — transpose view and loop indices](#qna-map-to-mogg-example-transpose-view)
+   │        │  │  ├─ BroadcastStrideOp → TensorCreateBroadcastOp: output shape [[map-lowering:722]]
+   │        │  │  │  └─ [↗ QnA 7 · Example 4 — 64 input elements → 512 logical output elements](#qna-map-to-mogg-example-broadcast-view)
+   │        │  │  └─ SliceStrideOp → TensorCreateSliceOp: offset + conditional static bound hints [[map-lowering:693]]
+   │        │  │     └─ [↗ QnA 7 · Example 5 — slice bounds, offsets and hint guards](#qna-map-to-mogg-example-slice-offsets)
    │        │  ├─ elementwise body → call.foreach; remap captures then index [[map-lowering:793]]
    │        │  ├─ rowwise body/reduction → call.rowwise / rowwise.reduce [[map-lowering:841]]
    │        │  └─ epilogue → classify lambda; lower stores or yield computed value [[map-lowering:473]]
+   │        │     └─ [↗ QnA 7 · Example 6 — lambda returns scalar or retains the store](#qna-map-to-mogg-example-compute-epilogue)
    │        ├─ by-value opaque yield → mogg.output; DPS output needs no value return [[map-lowering:1028]]
+   │        │  └─ [↗ QnA 7 · Example 8 — opaque value crosses routine boundary by value](#qna-map-to-mogg-example-opaque-values)
    │        └─ replace outer SSA uses with routine results; erase old iterator/body [[map-lowering:1038]]
+   │           └─ [↗ QnA 6 · handoff example — routine, reconstructed views and registered call](#qna-map-to-mogg-6-illustration-1)
    │
    └─ post-order walk of remaining mo.invoke_shape_func operations [[map-to-mogg:73]]
       └─ fresh state → lowerInvokeShapeFuncToMOGG [[map-lowering:126]]
@@ -75,6 +95,7 @@ gcPipelineImpl → add MAPToMOGG(mapToMoggOpts) [[gc:595]] [[gc:597]]
          ├─ input pointers, unique dims, context; reconstruct input views [[map-lowering:158]]
          ├─ params = output_rank + normalized kgenParams; preserve throwing flag [[map-lowering:177]]
          └─ call.shape → mogg.output; erase old invocation [[map-lowering:187]]
+            └─ [↗ QnA 7 · Example 7 — host shape helper returns dimensions by value](#qna-map-to-mogg-example-shape-function)
 ```
 
 The declaration was already selected during MO→MAP. Here the callee-symbol lookup supplies the signature needed for call construction. A fresh lowering state maps old body Values to their new representations. [[mo-to-map:705]] [[mo-to-map:241]] [[map-lowering:1002]]
@@ -95,6 +116,8 @@ The physical block-argument order is **inputs → output destinations → dimens
 ## QnA 3 · Show the actual shape, tensor and value mappings.
 
 The following is **source-derived schematic IR**, with shortened attribute spelling and package names. The pass initially calls `buildShape` for each tensor; a later cleanup can share identical shape operations. [[map-lowering:102]]
+
+<span id="qna-map-to-mogg-3-illustration-1"></span>
 
 ```transform
 %o = mogg.routine(%q:T0,%k:T0,%v:T0) -> T0
@@ -138,6 +161,8 @@ The mapping is populated for inputs and destinations before lowering the nested 
 
 The collector treats a concrete `KGEN::SIMDAttr` dimension as static. All eight dimension entries across Q/K/V/O are the constant 32, so none needs a runtime dimension argument. This scalar dimension attribute is separate from the tensors' float32 element type. [[map-lowering:41]] [[map-lowering:48]]
 
+<span id="qna-map-to-mogg-4-illustration-1"></span>
+
 ```state
 This example: Q,K,V,O each [32,32]
   unique dynamic dimensions = {}
@@ -156,6 +181,8 @@ The dynamic shape attribute uses a common `dyn` spelling; the operand `%n` retai
 
 **The phases are different.** MAP→MOGG preserves the explicit parameter dictionary and prepares typed call operands; it does not turn BN/BD into tensor inputs. [[map-lowering:675]] [[params:63]]
 
+<span id="qna-map-to-mogg-5-metadata-example"></span>
+
 | Item | Value | Where it comes from / when consumed |
 | --- | --- | --- |
 | BN | `16` | Python caller → custom dict → MAP/MOGG call attribute |
@@ -169,6 +196,8 @@ Sources: example arguments, infer-only parameter handling, emitter default infer
 
 The eventual implementation call can be understood as this **abbreviated Mojo call**, with module qualification and setup omitted:
 
+<span id="qna-map-to-mogg-5-illustration-1"></span>
+
 ```mojo
 FusedAttention.execute[BN=16, BD=8, target="gpu"](
     output, query, key, value, ctx
@@ -178,6 +207,8 @@ FusedAttention.execute[BN=16, BD=8, target="gpu"](
 Notice the implementation's **output-first** order. `mogg.call.opaque` keeps separate input/output lists, and the emitter puts outputs first when it writes Mojo. Dtype and rank are inferred; explicitly supplying those infer-only parameters is unnecessary. [[mogg-ops:1892]] [[mogg-ops:1918]] [[kernel:77]]
 
 ## QnA 6 · What is ready for the MOGG refinement stage?
+
+<span id="qna-map-to-mogg-6-illustration-1"></span>
 
 ```state
 IR1
