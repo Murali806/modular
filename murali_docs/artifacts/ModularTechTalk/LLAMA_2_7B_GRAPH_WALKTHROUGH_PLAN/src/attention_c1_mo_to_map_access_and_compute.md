@@ -40,6 +40,7 @@ gcPipelineImpl [[gc:578]]
    ├─ MojoRegistry registry(IR1)                   ← resolves imported declarations [[mo-to-map:768]]
    ├─ walk IR1 before rewriting; save native Operation* in worklist [[mo-to-map:770]]
    │  ├─ MO tensor/buffer rank exceeds kMaxRank → diagnostic + interrupt [[mo-to-map:773]]
+   │  │  └─ [↗ QnA 9 · what “runtime” means for this rank limit](#qna-mo-to-map-9-runtime-rank)
    │  └─ shouldLower(op) [[mo-to-map:63]]
    │     ├─ preserved MO op / InvokeShapeFunc / other dialect → leave for later [[mo-to-map:64]]
    │     └─ eligible MO operation → append to worklist [[mo-to-map:780]]
@@ -891,3 +892,11 @@ The illustrative final buffer is `[[11,22],[33,44]]`. MO→MAP still represents 
 
 </div>
 </details>
+
+## QnA 9 · What does “runtime” mean here? {#qna-mo-to-map-9-runtime-rank}
+
+Yes—**“runtime” here means the MAX execution/runtime side**, but more specifically, it means the tensor-shape representation that execution supports. It doesn’t mean the whole MAX framework, and it doesn’t mean a tensor is already running when this check happens.
+
+The compiler checks the rank *during compilation* because later execution structures have to represent the tensor. In this checkout, [`kMaxRank` is 8](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/Support/include/Support/ML/TensorShape.h:31); the comment says it must match the rank limit used by the Mojo `Buffer` type. So MO→MAP rejects a known rank above 8 before lowering it into representations that cannot support it.
+
+For example, `float32[32,32]` has rank 2 and passes this check. A tensor with nine axes has rank 9 and triggers the compile error. The MAX repository includes both MAX and Mojo, which is why the compiler and execution-side limit are coordinated. ([github.com](https://github.com/modular/modular/tree/main))

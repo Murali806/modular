@@ -1638,7 +1638,7 @@
       "id": "mo-to-map",
       "page": "link_htmls/max_example_04_c1_mo_to_map_access_and_compute.html",
       "source": "src/attention_c1_mo_to_map_access_and_compute.md",
-      "source_sha256": "a5fdd1c4678aaeddcc0c8b183476ff7336ef3dd608cdf64d602e70dc37ebd27d",
+      "source_sha256": "e9e24118480b6e96fb7c3a7ec305992d9a830b7de5dc2e3ae0855447cd6424ae",
       "qnas": [
         {
           "id": "qna-mo-to-map-1",
@@ -1671,10 +1671,14 @@
         {
           "id": "qna-mo-to-map-8-iter-opaque-call-opaque",
           "question": "What are `map.iter.opaque` and `map.call.opaque`, what do they do, and how do they support fusion?"
+        },
+        {
+          "id": "qna-mo-to-map-9-runtime-rank",
+          "question": "What does \u201cruntime\u201d mean here?"
         }
       ],
-      "source_files": 23,
-      "source_anchors": 176,
+      "source_files": 24,
+      "source_anchors": 177,
       "references": {
         "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:159": {
           "file": "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp",
@@ -2731,6 +2735,12 @@
           "line": 379,
           "label": "MOToMAP.cpp:379",
           "needle": "MAP::StoreOp::create(bodyBuilder, loc, bufferArg, idxArg, scalar);"
+        },
+        "Support/include/Support/ML/TensorShape.h:31": {
+          "file": "Support/include/Support/ML/TensorShape.h",
+          "line": 31,
+          "label": "`kMaxRank` is 8",
+          "needle": "constexpr size_t kMaxRank = 8;"
         }
       },
       "files": {
@@ -2755,6 +2765,7 @@
         "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reshape-view.mlir": "9b6562b00e6eb4504340ac70ca64b64674658569d79796df31dfc4d813ab0249",
         "GraphCompiler/test/mo-opt/Conversion/MOToMAP/slice-view.mlir": "8400e4af2db27d477bd1f3ebeca911fd8d058093ca27bf2bb68aab1d7fef9375",
         "GraphCompiler/test/mo-opt/Conversion/MOToMAP/transpose-view.mlir": "f50d05a19b343947b5e3df0161b30ceca9614d16a0f997dadaa9a2d3c610db8a",
+        "Support/include/Support/ML/TensorShape.h": "45447492725acb18b19e60175044c19352ca1227261208fa4b3a3758a90404f9",
         "max/examples/custom_ops/fused_attention.py": "e5874ab1b10e723df30f868d8c73dd3a272eee49fee0bc35bc4620aa52ba7b69",
         "max/examples/custom_ops/kernels/fused_attention.mojo": "2cd136d39ce0240ef2a6fd4505f74e03e0f163047645d1c8c1b1056cb0b55aff"
       }
