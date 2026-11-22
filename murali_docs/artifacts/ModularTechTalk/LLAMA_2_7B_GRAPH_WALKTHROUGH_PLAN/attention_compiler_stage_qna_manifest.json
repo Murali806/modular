@@ -1638,7 +1638,7 @@
       "id": "mo-to-map",
       "page": "link_htmls/max_example_04_c1_mo_to_map_access_and_compute.html",
       "source": "src/attention_c1_mo_to_map_access_and_compute.md",
-      "source_sha256": "982109749fda112804a7a63fc965892d289c8fa06e68c8926570c1508466ad0f",
+      "source_sha256": "a5fdd1c4678aaeddcc0c8b183476ff7336ef3dd608cdf64d602e70dc37ebd27d",
       "qnas": [
         {
           "id": "qna-mo-to-map-1",
@@ -1667,10 +1667,14 @@
         {
           "id": "qna-mo-to-map-7",
           "question": "How does MO\u2192MAP rewrite concrete attention, fused-tensor, elementwise, view, reduction and mutable-store operations? For each example, show the input values and shapes, before/after IR, changed operands and blocks, native implementation, and the test or guard that establishes the result."
+        },
+        {
+          "id": "qna-mo-to-map-8-iter-opaque-call-opaque",
+          "question": "What are `map.iter.opaque` and `map.call.opaque`, what do they do, and how do they support fusion?"
         }
       ],
-      "source_files": 20,
-      "source_anchors": 168,
+      "source_files": 23,
+      "source_anchors": 176,
       "references": {
         "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:159": {
           "file": "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp",
@@ -1681,7 +1685,7 @@
         "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:179": {
           "file": "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp",
           "line": 179,
-          "label": "MOToMAP.cpp:179",
+          "label": "body construction",
           "needle": "// Body block args shadow the non-chain inputs then the non-chain outputs."
         },
         "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:238": {
@@ -1933,13 +1937,13 @@
         "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:135": {
           "file": "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp",
           "line": 135,
-          "label": "MOToMAP.cpp:135",
+          "label": "lowerToOpaque()",
           "needle": "lowerToOpaque(Operation *op, const MOGG::KernelDeclAdaptor &adaptor,"
         },
         "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:137": {
           "file": "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp",
           "line": 137,
-          "label": "MOToMAP.cpp:137",
+          "label": "fusible argument handling",
           "needle": "llvm::DenseMap<uint64_t, bool> inputFusible;"
         },
         "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:152": {
@@ -2035,7 +2039,7 @@
         "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:705": {
           "file": "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp",
           "line": 705,
-          "label": "MOToMAP.cpp:705",
+          "label": "the lowering branches",
           "needle": "FailureOr<Operation *> lowerOp(Operation *op, MOGG::MojoRegistry &registry) {"
         },
         "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:205": {
@@ -2236,102 +2240,6 @@
           "label": "Test graph",
           "needle": "mo.graph @gather(%data: !mo.tensor<[3, 3], f32>, %indices: !mo.tensor<[2, 2], si32>) -> !mo.tensor<[2, 2, 3], f32> {"
         },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/opaque-kernels-prologue.mlir:39": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/opaque-kernels-prologue.mlir",
-          "line": 39,
-          "label": "Partial-input test",
-          "needle": "// CHECK-LABEL: mo.graph @partial_fused"
-        },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/transpose-view.mlir:1": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/transpose-view.mlir",
-          "line": 1,
-          "label": "RUN",
-          "needle": "// RUN: mo-opt %s --mogg-import-packages --mo-to-map | FileCheck %s"
-        },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/transpose-view.mlir:11": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/transpose-view.mlir",
-          "line": 11,
-          "label": "Input and expectation",
-          "needle": "// CHECK-LABEL: mo.graph @transposeSwap"
-        },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/transpose-view.mlir:63": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/transpose-view.mlir",
-          "line": 63,
-          "label": "Dynamic test",
-          "needle": "// Dynamic perm: the permutation comes from a graph argument, not a"
-        },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/broadcast-view.mlir:1": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/broadcast-view.mlir",
-          "line": 1,
-          "label": "Broadcast RUN",
-          "needle": "// RUN: mo-opt %s --mogg-import-packages --mo-to-map | FileCheck %s"
-        },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/broadcast-view.mlir:28": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/broadcast-view.mlir",
-          "line": 28,
-          "label": "Broadcast expectations",
-          "needle": "// CHECK-LABEL: mo.graph @broadcastRankExpanding"
-        },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reshape-view.mlir:1": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reshape-view.mlir",
-          "line": 1,
-          "label": "Reshape RUN",
-          "needle": "// RUN: mo-opt %s --mogg-import-packages --mo-to-map | FileCheck %s"
-        },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reshape-view.mlir:10": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reshape-view.mlir",
-          "line": 10,
-          "label": "Reshape expectations",
-          "needle": "// CHECK-LABEL: mo.graph @reshapeFlatten"
-        },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/slice-view.mlir:1": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/slice-view.mlir",
-          "line": 1,
-          "label": "RUN",
-          "needle": "// RUN: mo-opt %s --mogg-import-packages --mo-to-map | FileCheck %s"
-        },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/slice-view.mlir:70": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/slice-view.mlir",
-          "line": 70,
-          "label": "Reverse-slice input and CHECK",
-          "needle": "// A negative step walks the axis backwards. MO clamps such a slice to"
-        },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/slice-view.mlir:49": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/slice-view.mlir",
-          "line": 49,
-          "label": "Mixed-bound CHECK",
-          "needle": "// starts/stops are mo.constant but step is a graph argument: only the steps"
-        },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reductions.mlir:1": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reductions.mlir",
-          "line": 1,
-          "label": "RUN and sum expectation",
-          "needle": "// RUN: mo-opt %s --mogg-import-packages=\"mojo-pkg-paths=%kernel_api_test_lib\" --mo-to-map | FileCheck %s"
-        },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reductions.mlir:44": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reductions.mlir",
-          "line": 44,
-          "label": "ArgMax expectation",
-          "needle": "// A monoid with several output fields has one result per field, each stored"
-        },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-kernels.mlir:1": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-kernels.mlir",
-          "line": 1,
-          "label": "RUN",
-          "needle": "// RUN: mo-opt %s --mogg-import-packages=\"mojo-pkg-paths=%kernel_api_test_lib\" --mo-to-map | FileCheck %s"
-        },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-kernels.mlir:113": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-kernels.mlir",
-          "line": 113,
-          "label": "Input and expectations",
-          "needle": "// CHECK-LABEL: mo.graph @mutable_store"
-        },
-        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-kernels.mlir:115": {
-          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-kernels.mlir",
-          "line": 115,
-          "label": "Two-iterator CHECK",
-          "needle": "// CHECK:       %[[ADD9:.*]] = map.iter.elementwise<[2, 2]>"
-        },
         "max/examples/custom_ops/fused_attention.py:35": {
           "file": "max/examples/custom_ops/fused_attention.py",
           "line": 35,
@@ -2445,6 +2353,150 @@
           "line": 111,
           "label": "MOToMAP.cpp:111",
           "needle": "Value loaded = MAP::LoadOp::create(builder, loc, inType.getElementType(),"
+        },
+        "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPOps.td:50": {
+          "file": "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPOps.td",
+          "line": 50,
+          "label": "iterator definition",
+          "needle": "def MAP_IterOpaqueOp : MAP_Op<\"iter.opaque\", ["
+        },
+        "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPOps.td:263": {
+          "file": "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPOps.td",
+          "line": 263,
+          "label": "call definition",
+          "needle": "def MAP_CallOpaqueOp : MAP_Op<\"call.opaque\", ["
+        },
+        "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPOps.td:269": {
+          "file": "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPOps.td",
+          "line": 269,
+          "label": "call\u2019s attributes and description",
+          "needle": "let description = [{"
+        },
+        "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPOps.td:180": {
+          "file": "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPOps.td",
+          "line": 180,
+          "label": "callback operations",
+          "needle": "def MAP_IterEpilogueOp : MAP_Op<\"iter.epilogue\", ["
+        },
+        "GraphCompiler/lib/MAPDialect/Transforms/OutputFusion.cpp:125": {
+          "file": "GraphCompiler/lib/MAPDialect/Transforms/OutputFusion.cpp",
+          "line": 125,
+          "label": "fusion checks",
+          "needle": "findFusibleEdge(IterOpaqueOp dst, const OutputFusionConfig &config) {"
+        },
+        "GraphCompiler/lib/MAPDialect/Transforms/OutputFusion.cpp:249": {
+          "file": "GraphCompiler/lib/MAPDialect/Transforms/OutputFusion.cpp",
+          "line": 249,
+          "label": "the rewrite",
+          "needle": "IterOpaqueOp fuseOutputOnce(const OutputFusionEdge &edge,"
+        },
+        "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp:907": {
+          "file": "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp",
+          "line": 907,
+          "label": "routine lowering",
+          "needle": "LogicalResult IterOpaqueOp::lowerToMOGG(MAPToMOGGState &state) {"
+        },
+        "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp:645": {
+          "file": "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp",
+          "line": 645,
+          "label": "call/context lowering",
+          "needle": "LogicalResult CallOpaqueOp::lowerToMOGG(MAPToMOGGState &state) {"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/opaque-kernels-prologue.mlir:39": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/opaque-kernels-prologue.mlir",
+          "line": 39,
+          "label": "Partial-input test",
+          "needle": "// CHECK-LABEL: mo.graph @partial_fused"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/transpose-view.mlir:1": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/transpose-view.mlir",
+          "line": 1,
+          "label": "RUN",
+          "needle": "// RUN: mo-opt %s --mogg-import-packages --mo-to-map | FileCheck %s"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/transpose-view.mlir:11": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/transpose-view.mlir",
+          "line": 11,
+          "label": "Input and expectation",
+          "needle": "// CHECK-LABEL: mo.graph @transposeSwap"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/transpose-view.mlir:63": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/transpose-view.mlir",
+          "line": 63,
+          "label": "Dynamic test",
+          "needle": "// Dynamic perm: the permutation comes from a graph argument, not a"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/broadcast-view.mlir:1": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/broadcast-view.mlir",
+          "line": 1,
+          "label": "Broadcast RUN",
+          "needle": "// RUN: mo-opt %s --mogg-import-packages --mo-to-map | FileCheck %s"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/broadcast-view.mlir:28": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/broadcast-view.mlir",
+          "line": 28,
+          "label": "Broadcast expectations",
+          "needle": "// CHECK-LABEL: mo.graph @broadcastRankExpanding"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reshape-view.mlir:1": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reshape-view.mlir",
+          "line": 1,
+          "label": "Reshape RUN",
+          "needle": "// RUN: mo-opt %s --mogg-import-packages --mo-to-map | FileCheck %s"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reshape-view.mlir:10": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reshape-view.mlir",
+          "line": 10,
+          "label": "Reshape expectations",
+          "needle": "// CHECK-LABEL: mo.graph @reshapeFlatten"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/slice-view.mlir:1": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/slice-view.mlir",
+          "line": 1,
+          "label": "RUN",
+          "needle": "// RUN: mo-opt %s --mogg-import-packages --mo-to-map | FileCheck %s"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/slice-view.mlir:70": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/slice-view.mlir",
+          "line": 70,
+          "label": "Reverse-slice input and CHECK",
+          "needle": "// A negative step walks the axis backwards. MO clamps such a slice to"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/slice-view.mlir:49": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/slice-view.mlir",
+          "line": 49,
+          "label": "Mixed-bound CHECK",
+          "needle": "// starts/stops are mo.constant but step is a graph argument: only the steps"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reductions.mlir:1": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reductions.mlir",
+          "line": 1,
+          "label": "RUN and sum expectation",
+          "needle": "// RUN: mo-opt %s --mogg-import-packages=\"mojo-pkg-paths=%kernel_api_test_lib\" --mo-to-map | FileCheck %s"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reductions.mlir:44": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/reductions.mlir",
+          "line": 44,
+          "label": "ArgMax expectation",
+          "needle": "// A monoid with several output fields has one result per field, each stored"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-kernels.mlir:1": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-kernels.mlir",
+          "line": 1,
+          "label": "RUN",
+          "needle": "// RUN: mo-opt %s --mogg-import-packages=\"mojo-pkg-paths=%kernel_api_test_lib\" --mo-to-map | FileCheck %s"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-kernels.mlir:113": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-kernels.mlir",
+          "line": 113,
+          "label": "Input and expectations",
+          "needle": "// CHECK-LABEL: mo.graph @mutable_store"
+        },
+        "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-kernels.mlir:115": {
+          "file": "GraphCompiler/test/mo-opt/Conversion/MOToMAP/elementwise-kernels.mlir",
+          "line": 115,
+          "label": "Two-iterator CHECK",
+          "needle": "// CHECK:       %[[ADD9:.*]] = map.iter.elementwise<[2, 2]>"
         },
         "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:267": {
           "file": "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp",
@@ -2682,11 +2734,14 @@
         }
       },
       "files": {
+        "GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPOps.td": "12c6b6deb7fa583608e579126298ed049ea11862c416048e26b4ea27140d3f9a",
         "GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp": "600a4d99e45a854a92d4da99455bae4daaffae87a36ff621918d53aa5f892034",
         "GraphCompiler/lib/Conversion/ParameterInference.cpp": "134780a7950d7904bf90a59237b50df9eeb89415c19f5c503038ac424008d1ac",
         "GraphCompiler/lib/FrameworkFrontend/FrameworkFrontend.cpp": "b868f959d3b486102face53b85cd3f31ab68ff139fb3345d3222194b066facc2",
         "GraphCompiler/lib/GraphCompiler.cpp": "1faafd01fd4dbe42b00ae48a6ccb7df85f93162890f2d6d97272bdf347693ee8",
         "GraphCompiler/lib/Interfaces/EmitMojoState.cpp": "9f7ec102b3487c0c67dca0068f0073a846d8dc2c9680a6d820968f67a9394329",
+        "GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp": "80413ce3616955003fe18ddeddb50272c70b77dbb6409427091b9f819874201e",
+        "GraphCompiler/lib/MAPDialect/Transforms/OutputFusion.cpp": "2676f28e9a62c85e16d79566d5f93abd1b512992a0147f6b8a9c9177970d181b",
         "GraphCompiler/lib/MODialect/MOUtils.cpp": "9d01eada579e7edb8bd004fd81ebbaff8ebdd6c31949412fa3546614cca85871",
         "GraphCompiler/lib/MODialect/Transforms/MarkStableTensorsPass.cpp": "81181f10187d178bedd8d6b73bd314faa2fe60aa58b512a072d13c1830189790",
         "GraphCompiler/lib/MOGGDialect/Analysis/Support.cpp": "47da59cdb429657aaec02e04b1479c590b3159ef9d6922a65a7f9c8182227d69",

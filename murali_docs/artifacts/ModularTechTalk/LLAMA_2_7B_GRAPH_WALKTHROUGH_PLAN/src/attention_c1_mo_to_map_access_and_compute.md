@@ -70,6 +70,7 @@ gcPipelineImpl [[gc:578]]
             ├─ inputFusible/outputFusible from mapped argument roles [[mo-to-map:137]]
             ├─ split trailing input chain from non-chain operands [[mo-to-map:152]]
             ├─ create iterator with original result types and inputs [[mo-to-map:159]]
+            │  └─ [↗ QnA 8 · what the opaque iterator owns and how it exposes the tensor interface](#qna-mo-to-map-8-iter-opaque-call-opaque)
             ├─ attach device, fusion leaf, read/write effects, dispatch [[mo-to-map:171]]
             ├─ create one block: non-chain inputs, then DPS outputs [[mo-to-map:179]]
             │  ├─ [↗ QnA 3 · ownership example — three graph inputs, four local body arguments](#qna-mo-to-map-3-illustration-1)
@@ -81,7 +82,8 @@ gcPipelineImpl [[gc:578]]
             │  └─ [↗ QnA 7 · Example 2 — ordinary output versus fused store epilogue](#qna-mo-to-map-example-fused-output-contract)
             ├─ inferParameters; infer opaque-type parameters when present [[mo-to-map:229]] [[mo-to-map:232]]
             ├─ create CallOpaqueOp with resolved symbol + parameters + I/O [[mo-to-map:238]]
-            │  └─ [↗ QnA 4 · metadata example — BD=8, BN=16, resolved symbol and device](#qna-mo-to-map-4-metadata-example)
+            │  ├─ [↗ QnA 4 · metadata example — BD=8, BN=16, resolved symbol and device](#qna-mo-to-map-4-metadata-example)
+            │  └─ [↗ QnA 8 · what the nested opaque call records and how it differs from the iterator](#qna-mo-to-map-8-iter-opaque-call-opaque)
             ├─ preserve equal-length variadic-group marker [[mo-to-map:248]]
             ├─ by-value opaque result only → map.yield [[mo-to-map:251]]
             └─ replace all old result uses; erase old op from IR1 [[mo-to-map:255]]
@@ -358,6 +360,246 @@ MAP::YieldOp::create(builder, loc, loaded);
 ```
 
 The enclosing `lowerToOpaque` input loop calls this builder only for fused tensor roles. It preserves each input's own rank and scalar element type: the data callback yields f32, the indices callback yields si32. The output callback separately uses rank 3. At output coordinate `[0,0,2]`, the indices callback supplies `I[0,0]=2`, the data callback supplies `D[2,2]=8`, and the output callback stores `8`. These are illustrative callback values, not operations run by the pass. [[mo-to-map:98]] [[mo-to-map:108]] [[mo-to-map:111]] [[mo-to-map:210]]
+
+## QnA 8 · What are `map.iter.opaque` and `map.call.opaque`, what do they do, and how do they support fusion? {#qna-mo-to-map-8-iter-opaque-call-opaque}
+
+**`map.iter.opaque` describes a kernel’s enclosing region and tensor interface. `map.call.opaque` identifies the Mojo implementation invoked inside that region.** Together, they let the compiler work with the kernel’s inputs, outputs and surrounding access paths while retaining its handwritten computation in Mojo.
+
+| Operation | Main responsibility |
+|---|---|
+| `map.iter.opaque` | Own the body region, expose tensor inputs/results, and carry device, dispatch and memory-effect metadata |
+| `map.call.opaque` | Record the selected kernel symbol, compile-time parameters, inputs and output destinations |
+
+These roles are defined in the [iterator definition](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPOps.td:50) and [call definition](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPOps.td:263).
+
+**Start with your fused-attention graph.** Before MO→MAP, the relevant operation is schematically:
+
+```transform
+%o = mo.custom(%q, %k, %v)
+     symbol     = "modular_ops::fused_attention_custom"
+     parameters = {BD=8, BN=16}
+     device     = gpu:0
+
+mo.output %o
+
+%q, %k, %v, %o : float32[32,32] on gpu:0
+```
+
+This says: apply the registered custom operation to Q, K and V, producing one tensor. MO→MAP replaces that operation with an enclosing iterator and a nested call:
+
+```transform
+mo.graph @fused_attention
+│
+├─ graph input arguments
+│  ├─ %q : T0
+│  ├─ %k : T0
+│  └─ %v : T0
+│
+└─ graph body — relevant operations
+   │
+   ├─ %o_map = map.iter.opaque
+   │  ├─ inputs: %q, %k, %v
+   │  ├─ result: %o_map : T0
+   │  ├─ device: gpu:0
+   │  └─ body region → one block
+   │     │
+   │     ├─ %qi : T0 ← local Q input
+   │     ├─ %ki : T0 ← local K input
+   │     ├─ %vi : T0 ← local V input
+   │     ├─ %oi : T0 ← local output destination
+   │     │
+   │     └─ map.call.opaque
+   │        ├─ callee: @PKG.fused_attention.FusedAttention
+   │        ├─ parameters: {BD=8, BN=16}
+   │        ├─ inputs: %qi, %ki, %vi
+   │        └─ outputs: %oi
+   │
+   └─ mo.output %o_map
+
+T0 = float32[32,32] on gpu:0
+PKG = illustrative prefix for the imported P1 package
+```
+
+The pass constructs these native IR objects, redirects users of the original result to `%o_map`, and erases the original `mo.custom` from IR1. See [lowerToOpaque()](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:135).
+
+**Why introduce `%qi`, `%ki` and `%vi`?** The iterator’s region has its own local arguments. Each corresponds to an incoming tensor:
+
+```transform
+Outside the region             Inside the region
+
+%q ──────────────────────────► %qi
+%k ──────────────────────────► %ki
+%v ──────────────────────────► %vi
+
+Three incoming tensors         Three local names for those inputs
+```
+
+These are different SSA values in different scopes. Introducing local arguments does not copy the tensor contents or add new user inputs. The constructor creates block arguments with the corresponding input types. See [body construction](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:179).
+
+**The fourth local argument, `%oi`, describes where the kernel writes its result.** This is *destination-passing style*.
+
+Your Mojo implementation accepts an output tensor alongside its three input tensors:
+
+```transform
+Mojo execute interface, schematically:
+
+execute(
+    output,
+    query,
+    key,
+    value,
+    context
+)
+```
+
+MAP records the corresponding groups as:
+
+```transform
+map.call.opaque
+    inputs (%qi, %ki, %vi)
+    outputs(%oi)
+
+Mapping to Mojo parameters:
+    %qi → query
+    %ki → key
+    %vi → value
+    %oi → output
+```
+
+The actual signature is at [FusedAttention.execute](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/examples/custom_ops/kernels/fused_attention.mojo:74).
+
+| Value | Meaning |
+|---|---|
+| `%q`, `%k`, `%v` | Inputs available in the surrounding graph |
+| `%qi`, `%ki`, `%vi` | Corresponding inputs available inside the iterator |
+| `%oi` | Destination argument the nested call will write |
+| `%o_map` | Result exposed by the enclosing iterator to subsequent graph operations |
+
+For this tensor-result case, the nested call writes `%oi`; it does not produce another tensor-valued SSA result. The enclosing iterator exposes `%o_map`. At MAP construction time, `%oi` is a typed IR argument describing the destination—the construction shown above creates IR, rather than allocating and filling a GPU array.
+
+**The nested call also preserves the selected implementation.** Its fields answer concrete compiler questions:
+
+| Field | Attention example | Meaning |
+|---|---|---|
+| `callee` | `@PKG.fused_attention.FusedAttention` | Which imported kernel declaration implements the operation? |
+| `kernelName` | `"modular_ops::fused_attention_custom"` | Under which operation name was it registered? |
+| `parameters` | `{BD=8, BN=16}` | Which compile-time choices apply to this call? |
+| `inputs` | `%qi, %ki, %vi` | Which input values does it consume? |
+| `outputs` | `%oi` | Where does it write its tensor result? |
+
+The registration name and qualified callee have different purposes: multiple implementation structs can register under one operation name. MAP therefore preserves both. See the [call’s attributes and description](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPOps.td:269).
+
+**“Opaque” describes the computation boundary.** MAP retains the kernel’s declared interface while the internal attention algorithm remains in its Mojo implementation:
+
+```transform
+Visible to MAP                     Implemented inside Mojo
+┌──────────────────────────┐       ┌──────────────────────────┐
+│ Inputs: Q, K, V          │       │ Attention algorithm      │
+│ Output destination: O    │──────►│ Internal loops and tiles │
+│ Parameters: BD, BN       │       │ CPU/GPU implementation   │
+│ Selected kernel symbol   │       │ Writes output O          │
+└──────────────────────────┘       └──────────────────────────┘
+```
+
+Q/K/V/O still have tensor types. The name `iter` denotes this kernel-region form; the handwritten kernel supplies its internal iteration. For ordinary registered execution kernels, MO→MAP selects this opaque form, while other branches expose elementwise or rowwise computation. See [the lowering branches](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:705).
+
+**A major benefit of the enclosing region is that eligible kernels can expose input-load and output-store callbacks.** MAP calls these a *prologue* and an *epilogue*:
+
+```transform
+map.iter.opaque
+│
+├─ prologue: describe how an input element is obtained
+│
+├─ map.call.opaque: retain the handwritten kernel computation
+│
+└─ epilogue: describe how an output element is transformed and stored
+```
+
+A prologue receives an index and yields an input value. An epilogue receives a computed value and index, then transforms or stores it. These interfaces are defined in the [callback operations](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/include/GraphCompiler/MAPDialect/Dialect/MAPOps.td:180).
+
+**For an illustrative output-fusion example, consider matmul followed by bias addition.** Assume the selected kernel supports the required output callback and the fusion conditions permit the transformation.
+
+```transform
+A = [[1,2],           B = [[5,6],
+     [3,4]]                [7,8]]
+
+bias = [10,20]
+
+R = matmul(A,B)       # row-by-column products
+  = [[19,22],
+     [43,50]]
+
+Y = R + bias          # add bias[n] to each element in column n
+  = [[29,42],
+     [53,70]]
+```
+
+A separate output path could materialize and reread R:
+
+```transform
+Matmul computes 22 at index (0,1)
+                │
+                ▼
+Store R[0,1] = 22
+                │
+                ▼
+Add operation reads R[0,1] and bias[1]
+                │
+                ▼
+Store Y[0,1] = 22 + 20 = 42
+```
+
+An eligible fused epilogue instead receives the computed value directly:
+
+```transform
+Matmul computes 22 at index (0,1)
+                │
+                ▼
+Epilogue(value=22, index=(0,1))
+├─ load bias[1] → 20
+├─ add → 42
+└─ store Y[0,1] = 42
+```
+
+The surrounding store path changes while the handwritten matmul computation remains in its implementation. This can avoid the separate intermediate store/read on that fused edge. The source checks conditions such as an existing epilogue and a suitable consumer before performing the rewrite. See [fusion checks](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/OutputFusion.cpp:125) and [the rewrite](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Transforms/OutputFusion.cpp:249).
+
+**An input prologue provides the corresponding capability on the read side.** For an illustrative kernel supporting a fused input callback:
+
+```transform
+Original expression:
+    shifted_A = A + 1
+    R = matmul(shifted_A, B)
+
+Example A element:
+    A[0,1] = 2
+    shifted_A[0,1] = 3
+```
+
+The eligible input path can supply that transformed value when requested:
+
+```transform
+Kernel requests input at index (0,1)
+                │
+                ▼
+Prologue(index=(0,1))
+├─ load A[0,1] → 2
+├─ add 1 → 3
+└─ yield 3 to the kernel
+```
+
+This illustrates what a supported callback enables; it does not establish that every matmul implementation accepts such fusion. The MO→MAP constructor consults the mapped kernel argument roles before creating load/store callbacks. See [fusible argument handling](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/Conversion/MOToMAP/MOToMAP.cpp:137).
+
+**Your current attention call uses plain tensor arguments and a plain output destination.** Its nested body therefore contains the direct call shown earlier. The prologue/epilogue examples explain capabilities of the representation, rather than transformations automatically applied to this attention kernel.
+
+During the following compiler stage, the two levels lower together:
+
+```transform
+MAP                                  MOGG
+map.iter.opaque ────────────────────► mogg.routine
+└─ map.call.opaque ─────────────────► └─ mogg.call.opaque
+```
+
+The routine body introduces pointer arguments and reconstructs typed tensor descriptions. Call lowering also supplies the device context when the selected declaration requires one—as `FusedAttention.execute` does. These are further compiler transformations toward the eventual Mojo invocation; attention values are computed later during execution. See [routine lowering](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp:907) and [call/context lowering](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/lib/MAPDialect/Dialect/MAPOpsLowerableToMOGG.cpp:645).
 
 **Matched and skipped inputs can coexist.** In `@partial_fused`, only input 0 has a fused role. The test expects one prologue and passes input 1 directly to the call. A plain attention input takes that same direct branch. A fused non-tensor input is rejected before a load closure is constructed. [Partial-input test](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/test/mo-opt/Conversion/MOToMAP/opaque-kernels-prologue.mlir:39) [[mo-to-map:201]] [[mo-to-map:205]]
 
