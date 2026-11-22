@@ -5,7 +5,7 @@
       "id": "mo",
       "page": "link_htmls/max_example_04_c1_mo_contracts_and_canonicalization.html",
       "source": "src/attention_c1_mo_contracts_and_canonicalization.md",
-      "source_sha256": "22c85dea6d1ad6d3322af0f629ac5d9b38b27e855079bc0d9f8d0aac4c31a1d6",
+      "source_sha256": "db8feec78d90ab9a7ed6a2d3ba08a90ea1b1183616e2af84f51b95823bb2ba85",
       "qnas": [
         {
           "id": "qna-mo-1",
@@ -36,8 +36,8 @@
           "question": "What leaves MO, and what remains for later stages?"
         }
       ],
-      "source_files": 54,
-      "source_anchors": 242,
+      "source_files": 55,
+      "source_anchors": 256,
       "references": {
         "max/examples/custom_ops/fused_attention.py:57": {
           "file": "max/examples/custom_ops/fused_attention.py",
@@ -1299,6 +1299,24 @@
           "label": "fused_attention.py:60",
           "needle": "parameters={\"BD\": BD, \"BN\": BN},"
         },
+        "GraphCompiler/test/mo-opt/MODialect/Transforms/infer-layouts.mlir:216": {
+          "file": "GraphCompiler/test/mo-opt/MODialect/Transforms/infer-layouts.mlir",
+          "line": 216,
+          "label": "infer-layouts.mlir:216",
+          "needle": "// CHECK-LABEL: mo.graph @matmul_dyn_weights_in_output("
+        },
+        "GraphCompiler/test/mo-opt/MODialect/Transforms/infer-layouts.mlir:218": {
+          "file": "GraphCompiler/test/mo-opt/MODialect/Transforms/infer-layouts.mlir",
+          "line": 218,
+          "label": "infer-layouts.mlir:218",
+          "needle": "// CHECK-SAME:   %[[W1:.*]]: !mo.tensor<[?, ?], f32, {layout = #mo.layout<KN>}>,"
+        },
+        "GraphCompiler/test/mo-opt/MODialect/Transforms/infer-layouts.mlir:227": {
+          "file": "GraphCompiler/test/mo-opt/MODialect/Transforms/infer-layouts.mlir",
+          "line": 227,
+          "label": "infer-layouts.mlir:227",
+          "needle": "// CHECK-NEXT: %[[WEIGHTS:.*]] = mo.add(%[[W1]], %[[W2]]) : !mo.tensor<[?, ?], f32, {layout = #mo.layout<KN>}>"
+        },
         "max/examples/custom_ops/kernels/fused_attention.mojo:67": {
           "file": "max/examples/custom_ops/kernels/fused_attention.mojo",
           "line": 67,
@@ -1389,11 +1407,71 @@
           "label": "graph.py:1351",
           "needle": "_set_output_param_decls(Operation._from_cmlir(staged_op), self._params)"
         },
-        "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp:34": {
+        "GraphCompiler/include/GraphCompiler/MODialect/MOOps.td:4240": {
+          "file": "GraphCompiler/include/GraphCompiler/MODialect/MOOps.td",
+          "line": 4240,
+          "label": "MOOps.td:4240",
+          "needle": "def MO_MatmulOp : MO_DotBase<\"matmul\"> {"
+        },
+        "GraphCompiler/include/GraphCompiler/MODialect/MOOps.td:4259": {
+          "file": "GraphCompiler/include/GraphCompiler/MODialect/MOOps.td",
+          "line": 4259,
+          "label": "MOOps.td:4259",
+          "needle": "DefaultValuedAttr<BoolAttr, \"false\">:$transpose_b,"
+        },
+        "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp:32": {
           "file": "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp",
-          "line": 34,
-          "label": "InferLayouts.cpp:34",
-          "needle": "if (value.getType().getLayoutAttr())"
+          "line": 32,
+          "label": "InferLayouts.cpp:32",
+          "needle": "LogicalResult addLayoutConstraint(Operation *op, TensorValue value,"
+        },
+        "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp:37": {
+          "file": "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp",
+          "line": 37,
+          "label": "InferLayouts.cpp:37",
+          "needle": "auto [iter, inserted] = valueToInferredLayout.insert({value, layout});"
+        },
+        "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp:165": {
+          "file": "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp",
+          "line": 165,
+          "label": "InferLayouts.cpp:165",
+          "needle": "SmallVector<Operation *> affectedOps(value.getUsers());"
+        },
+        "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp:170": {
+          "file": "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp",
+          "line": 170,
+          "label": "InferLayouts.cpp:170",
+          "needle": "// Could also propagate through ops like transpose."
+        },
+        "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp:173": {
+          "file": "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp",
+          "line": 173,
+          "label": "InferLayouts.cpp:173",
+          "needle": "if (isa<MO::GuardOp>(op)) {"
+        },
+        "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp:176": {
+          "file": "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp",
+          "line": 176,
+          "label": "InferLayouts.cpp:176",
+          "needle": "} else if (isa<MO::TransferOp>(op) ||"
+        },
+        "GraphCompiler/lib/MODialect/MOOps.cpp:641": {
+          "file": "GraphCompiler/lib/MODialect/MOOps.cpp",
+          "line": 641,
+          "label": "MOOps.cpp:641",
+          "needle": "void M::MO::synchronizeMetadataUpdates(GraphOp op) {"
+        },
+        "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp:93": {
+          "file": "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp",
+          "line": 93,
+          "label": "InferLayouts.cpp:93",
+          "needle": "graphOp.walk([&](Operation *op) {"
+        },
+        "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp:51": {
+          "file": "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp",
+          "line": 51,
+          "label": "InferLayouts.cpp:51",
+          "needle": "return \"FCRS\";"
         },
         "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp:59": {
           "file": "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp",
@@ -1406,6 +1484,12 @@
           "line": 100,
           "label": "InferLayouts.cpp:100",
           "needle": "if (isSupportedConv(inputRank, filterRank)) {"
+        },
+        "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp:34": {
+          "file": "GraphCompiler/lib/MODialect/Transforms/InferLayouts.cpp",
+          "line": 34,
+          "label": "InferLayouts.cpp:34",
+          "needle": "if (value.getType().getLayoutAttr())"
         },
         "GraphCompiler/test/mo-opt/MODialect/Transforms/PatternFusion/matmul-add-pattern-fusion.mlir:1": {
           "file": "GraphCompiler/test/mo-opt/MODialect/Transforms/PatternFusion/matmul-add-pattern-fusion.mlir",
@@ -1534,6 +1618,7 @@
         "GraphCompiler/test/mo-opt/MODialect/Transforms/constant-fold-mogg.mlir": "049317e285e6e39ac82d26cd7b710c7bd1fb3ccbf0db29eaf9764f8bfa7dca05",
         "GraphCompiler/test/mo-opt/MODialect/Transforms/constant-fold.mlir": "acccfc1b1e0c062fca04b811d492383b03180cf3ed313e78173b5ab76e7475aa",
         "GraphCompiler/test/mo-opt/MODialect/Transforms/elide-redundant-mutable-ops.mlir": "9cc938baf1c7cdfd3f70c6c3711f6996b08e6eadbb2db581d1d23ee1f560c701",
+        "GraphCompiler/test/mo-opt/MODialect/Transforms/infer-layouts.mlir": "737ed78c3d9cdc331f77c47738378c546f5ce326274de82f0b3395cb335794ca",
         "GraphCompiler/test/mo-opt/MODialect/Transforms/merge-duplicate-shape-materializations.mlir": "709a58d1f433e851569e6d656696294a32a3eb2bbb84c2c944e2713acf85c922",
         "GraphCompiler/test/mo-opt/MODialect/Transforms/propagate-shapes.mlir": "b35b1977f398ccbaf64cb18bfc42707791e62c0986d007045d745f137cfd7beb",
         "GraphCompiler/test/mo-opt/MODialect/Transforms/shape-inference-e2e.mlir": "fc2bcec1ef7eb5a5a859ab6b83c7554c8128294f1aa816f0500173334ad7b320",

@@ -1595,27 +1595,226 @@ The pass first skips calls whose output parameter declarations are empty. For a 
 
 **<span id="qna-mo-6-example-6">Example 5.6 · layout inference attaches meaning to axes.</span>**
 
+**SOURCE · `KN` names the two logical axes of matmul's right-hand tensor.** `K` is the dimension summed over; `N` is the dimension of output columns. The matrix values below are **illustrative**. Use different axis lengths so their roles are visible: `M=2`, `K=3`, `N=4`. Ordinary matmul here uses `transpose_b=false`. [[mo-td:4240]] [[mo-td:4259]]
+
+**1. Read the axes before reading the layout attribute.**
+
 ```transform
-Comparison graph with an explicit matmul:
-  A : float32[32,32]
-  B : float32[32,32], no explicit layout
-  C = mo.matmul(A,B)
+A[M,K] × B[K,N] → C[M,N]
+  [2,3]    [3,4]    [2,4]
+       └────┘
+       K=3 must match: each output sums THREE products.
 
-InferLayouts:
-  seed constraint on B → layout KN
-  B's type → float32[32,32] with layout=KN
-  propagate compatible layout constraints; synchronize graph metadata
+A: axis 0 = M (2 rows)        B: axis 0 = K (3 rows)
+   axis 1 = K (3 columns)       axis 1 = N (4 columns)
 
-Meaning: B's two axes represent reduction K and output N.
-This pass sets type metadata; it does not itself transpose B's data.
+          K columns →                  N columns →
+          k0  k1  k2                    n0  n1  n2  n3
+        ┌────────────┐                ┌────────────────┐
+M    m0 │  1   2   3 │         K   k0 │  7   8   9  10 │
+rows m1 │  4   5   6 │        rows k1 │ 11  12  13  14 │
+ ↓      └────────────┘          ↓  k2 │ 15  16  17  18 │
+                                      └────────────────┘
 
-Actual attention:
-  Q/K/V → mo.custom
-  no visible mo.matmul / mo.conv seed
-  this seeding logic does not infer KN from the name "fused_attention"
+Choose row m0 from A and column n0 from B:
+
+  A[m0,:] = [ 1,  2,  3]
+               ×   ×   ×
+  B[:,n0] = [ 7, 11, 15]
+               └───┬───┘
+                   ▼
+  C[m0,n0] = 1×7 + 2×11 + 3×15 = 74
+
+General rule: C[m,n] = sum over k of A[m,k] × B[k,n]
+  m selects ONE row; n selects ONE column; k visits all THREE pairs.
+
+C: axis 0 = M (2 rows), axis 1 = N (4 columns)
+
+                 N columns →
+                   n0   n1   n2   n3
+               ┌─────────────────────┐
+M rows ↓    m0 │   74   80   86   92 │
+            m1 │  173  188  203  218 │
+               └─────────────────────┘
+
+The summed-over K axis does not become an output axis.
 ```
 
-For another comparison, the convolution branch assigns `NHWC` to a rank-4 input such as `[1,8,8,16]` and `FCRS` to a filter such as `[32,16,3,3]`. Existing explicit layouts are handled separately; incompatible newly inferred constraints produce an error. [[mo-layouts:34]] [[mo-layouts:59]] [[mo-layouts:100]] [[mo-layouts:137]] [[mo-layouts:196]]
+| Letter | Meaning in this matmul | Example size |
+| --- | --- | --- |
+| M | rows of A and C | 2 |
+| K | columns of A = rows of B; summed over | 3 |
+| N | columns of B and C | 4 |
+
+**2. What does `InferLayouts` actually change?**
+
+The pass creates the `KN` constraint and applies it to `matmulOp.getTensorB()`. In this graph, that is **B**. The `M/K/N` labels on the diagrams explain the mathematics; this matmul branch seeds **B's KN metadata**. It does not assign `MK` to A or `MN` to C. [[mo-layouts:90]] [[mo-layouts:137]]
+
+{{excerpt:mo-layouts:137:140}}
+
+`getTensorB()` selects the right-hand operand. `addLayoutConstraint` records its required layout in the pass's value-to-layout map. After propagation, `cloneWith(layout)` creates the updated tensor type and `value.setType(...)` assigns it to the existing SSA value. [[mo-layouts:32]] [[mo-layouts:37]]
+
+{{excerpt:mo-layouts:196:201}}
+
+```transform
+BEFORE InferLayouts                    AFTER InferLayouts
+B : !mo.tensor<[3,4], f32>             B : !mo.tensor<[3,4], f32,
+                                                   {layout = #mo.layout<KN>}>
+
+Axis position     Length              Axis position     Length + meaning
+0                 3        ────────►  0                 3, reduction K
+1                 4        ────────►  1                 4, output columns N
+
+Contents before:                      Contents after:
+┌────────────────┐                    ┌────────────────┐
+│  7   8   9  10 │                    │  7   8   9  10 │
+│ 11  12  13  14 │                    │ 11  12  13  14 │
+│ 15  16  17  18 │                    │ 15  16  17  18 │
+└────────────────┘                    └────────────────┘
+
+Same [3,4] shape, float32 dtype, element positions and values.
+The pass adds a logical-axis label; it inserts no transpose or data copy.
+
+For comparison, an actual transpose Bᵀ would have shape [4,3]:
+┌────────────┐
+│  7  11  15 │
+│  8  12  16 │
+│  9  13  17 │
+│ 10  14  18 │
+└────────────┘
+That is a different operation from attaching layout=KN.
+```
+
+`KN` states the **logical axis order**. This pass does not specify or alter the tensor's byte strides. With the original `[32,32]` example, both lengths happen to be 32; the first axis still serves reduction K and the second serves output N.
+
+**3. Why propagate the label through other operations?**
+
+**TEST · inspected expectation:** `@matmul_dyn_weights_in_output` computes `weights = mo.add(w1,w2)`, uses weights as matmul's B operand, then returns both the matmul result and weights. Its dimensions are dynamic. The numbers and static shapes below illustrate the same data flow. [infer-layouts.mlir:216](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/test/mo-opt/MODialect/Transforms/infer-layouts.mlir:216)
+
+```transform
+DATA FLOW: arrows carry tensor values.
+
+W1[3,4] ──┐
+          ├─ mo.add ──► B[3,4] ──► right operand ──┐
+W2[3,4] ──┘                                        ├─ mo.matmul ──► C[2,4]
+A[2,3] ───────────────────────────► left operand ──┘
+
+W1 = [[ 6, 7, 8, 9],      W2 = [[1,1,1,1],
+      [10,11,12,13],             [1,1,1,1],
+      [14,15,16,17]]             [1,1,1,1]]
+
+B = mo.add(W1,W2)          # elementwise sum; B[0,0] = 6+1 = 7
+C = mo.matmul(A,B)         # row-by-column products; C[0,0] = 74
+mo.output(C,B)             # return TWO tensors: C and the computed weights
+
+LAYOUT INFERENCE: arrows carry compiler constraints, not tensor data.
+
+Step 1: mo.matmul seeds its right operand B → KN.
+
+Step 2: follow B back to its defining mo.add.
+        This add requires the same operand/result type.
+
+        W1 ◄── KN ──┐
+                    ├── B already constrained to KN
+        W2 ◄── KN ──┘
+
+Step 3: assign KN to W1, W2 and B; refresh the graph signature.
+
+Value     BEFORE type        AFTER type
+A         float32[2,3]       float32[2,3]
+W1        float32[3,4]       float32[3,4], layout KN
+W2        float32[3,4]       float32[3,4], layout KN
+B         float32[3,4]       float32[3,4], layout KN
+C         float32[2,4]       float32[2,4]
+
+Graph signature AFTER, with layouts shown schematically:
+  (A: plain[2,3], W1: KN[3,4], W2: KN[3,4])
+      → (C: plain[2,4], B: KN[3,4])
+```
+
+The propagation worklist visits a constrained value's **users and defining operation**. It crosses supported guard/transfer operations and operations with the `SameOperandsAndResultType` trait, which requires compatible operand/result types. That is how B's label reaches both add operands. This implementation has no transpose propagation rule. [[mo-layouts:165]] [[mo-layouts:170]] [[mo-layouts:173]] [[mo-layouts:176]]
+
+`synchronizeMetadataUpdates(graphOp)` reads the updated block-argument and output-operand types, rebuilds the graph's function type and KGEN signature, and sets both attributes. This keeps the graph's public input/output metadata consistent with its body. [[mo-ops:641]]
+
+The test's `CHECK` lines expect KN on **w1, w2, weights and the returned weights type**; the input and matmul result retain their types without added MK/MN labels. These expectations were inspected, not executed here. [infer-layouts.mlir:218](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/test/mo-opt/MODialect/Transforms/infer-layouts.mlir:218) [infer-layouts.mlir:227](/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/GraphCompiler/test/mo-opt/MODialect/Transforms/infer-layouts.mlir:227)
+
+**4. How do these axis roles relate to attention?**
+
+**Illustrative attention dimensions:** 2 queries, 4 keys, feature width 3, value width 5. Here `Key` names the attention key tensor. The letter `K` in **GEMM's KN layout** means the reduction dimension; its size depends on which multiplication we are discussing.
+
+```transform
+Q[Sq,D]                  Key[Sk,D]                 V[Sk,Dv]
+   D=3 columns →            D=3 columns →             Dv=5 columns →
+┌────────────────┐       ┌────────────────┐       ┌──────────────────┐
+│ query 0        │       │ key 0          │       │ value for key 0  │
+│ query 1        │       │ key 1          │       │ value for key 1  │
+└────────────────┘       │ key 2          │       │ value for key 2  │
+Sq=2 rows ↓              │ key 3          │       │ value for key 3  │
+                         └────────────────┘       └──────────────────┘
+                         Sk=4 rows ↓              Sk=4 rows ↓
+
+FIRST MATMUL: compare each query with each key.
+
+Q[2,3] × Keyᵀ[3,4] → scores[2,4]
+  M=2      K=3, N=4       M=2, N=4
+   └─ Sq   └─ D  └─ Sk
+
+Keyᵀ axes: rows are FEATURES D; columns are KEYS Sk.
+Each score sums D=3 feature products for one query/key pair.
+
+                      key columns →
+                       key0 key1 key2 key3
+                    ┌─────────────────────┐
+query rows ↓ query0 │  s00  s01  s02  s03 │
+             query1 │  s10  s11  s12  s13 │
+                    └─────────────────────┘
+
+Scale + row softmax → probabilities P[2,4], with the same query/key axes.
+
+SECOND MATMUL: use each query's probabilities to weight the values.
+
+P[2,4] × V[4,5] → O[2,5]
+  M=2     K=4, N=5    M=2, N=5
+   └─ Sq  └─ Sk └─ Dv
+
+V axes: rows are KEYS Sk; columns are VALUE FEATURES Dv.
+O[q,dv] = sum over key t of P[q,t] × V[t,dv]
+Each output feature sums Sk=4 weighted value contributions.
+
+GEMM right operand    KN axis meanings       Reduction length
+First:  Keyᵀ[D,Sk]    K=D,  N=Sk             D=3
+Second: V[Sk,Dv]      K=Sk, N=Dv             Sk=4
+```
+
+Those diagrams show the **mathematics inside attention**. The MO graph visible to this pass has a single custom call:
+
+```transform
+Actual walkthrough: Sq=Sk=D=Dv=32
+
+Q[32,32] ──┐
+Key[32,32] ┼──► mo.custom("modular_ops::fused_attention_custom") ──► O[32,32]
+V[32,32] ──┘
+
+InferLayouts sees mo.custom and its tensor operands/result.
+Its seeding walk matches explicit mo.matmul, mo.conv and mo.conv_transpose.
+The custom call exposes no separate MO matmul for either multiplication.
+```
+
+The pass therefore does not infer these KN roles by reading the registration name `fused_attention` or inspecting the Mojo kernel's mathematics. The attention axis diagrams explain possible explicit matmuls; they do not claim this pass inserts those operations or transposes Key. [[mo-layouts:93]] [[mo-layouts:137]] [[entry:57]]
+
+**5. The same idea for convolution axes.**
+
+For a supported rank-4 convolution, the pass seeds `NHWC` on the input and `FCRS` on the filter. Each letter identifies a logical axis position. [[mo-layouts:51]] [[mo-layouts:59]] [[mo-layouts:100]]
+
+```transform
+Input [1,8,8,16] + NHWC           Filter [32,16,3,3] + FCRS
+axis 0: N=1,  batch               axis 0: F=32, output filters
+axis 1: H=8,  image height        axis 1: C=16, input channels
+axis 2: W=8,  image width         axis 2: R=3,  kernel height
+axis 3: C=16, input channels      axis 3: S=3,  kernel width
+```
+
+Existing explicit layout attributes are retained. Conflicting newly inferred constraints report an error, so the compiler cannot silently assign two incompatible axis conventions to the same inferred value. [[mo-layouts:34]] [[mo-layouts:37]]
 
 **<span id="qna-mo-6-example-7">Example 5.7 · fusion needs visible operations and satisfied guards.</span>**
 
