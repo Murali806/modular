@@ -1,0 +1,184 @@
+[
+  {
+    "slug": "index",
+    "title": "Llama 2 7B: from session to generated token",
+    "group": "Orientation",
+    "events": 8,
+    "sections": 4
+  },
+  {
+    "slug": "architecture",
+    "title": "The exact Llama 2 7B being explained",
+    "group": "Model and construction",
+    "events": 8,
+    "sections": 4
+  },
+  {
+    "slug": "build_startup",
+    "title": "Build, packages and the serving acceptance gate",
+    "group": "Model and construction",
+    "events": 6,
+    "sections": 4
+  },
+  {
+    "slug": "session",
+    "title": "S1: session, devices and runtime context",
+    "group": "Model and construction",
+    "events": 7,
+    "sections": 4
+  },
+  {
+    "slug": "graph_scaffold",
+    "title": "G1: MLIR context, module, graph and block",
+    "group": "Model and construction",
+    "events": 8,
+    "sections": 5
+  },
+  {
+    "slug": "decoder_trace",
+    "title": "Trace all 32 decoder layers and bind weights",
+    "group": "Model and construction",
+    "events": 8,
+    "sections": 4
+  },
+  {
+    "slug": "attention_rope",
+    "title": "Attention: QKV, RoPE, paged reads and online softmax",
+    "group": "Model and construction",
+    "events": 8,
+    "sections": 7
+  },
+  {
+    "slug": "kv_cache",
+    "title": "KV pages: layout, addressing, capacity and ownership",
+    "group": "Model and construction",
+    "events": 7,
+    "sections": 4
+  },
+  {
+    "slug": "inputs_shapes",
+    "title": "Input leaves, symbolic shapes and staging",
+    "group": "Model and construction",
+    "events": 6,
+    "sections": 4
+  },
+  {
+    "slug": "compile_cache",
+    "title": "Compilation entry, IR1 and the three cache levels",
+    "group": "Compiler transformations",
+    "events": 7,
+    "sections": 4
+  },
+  {
+    "slug": "mo_contracts",
+    "title": "MO: contracts, shape inference and canonicalization",
+    "group": "Compiler transformations",
+    "events": 7,
+    "sections": 4
+  },
+  {
+    "slug": "mo_to_map",
+    "title": "MO \u2192 MAP: separate tensor access from computation",
+    "group": "Compiler transformations",
+    "events": 7,
+    "sections": 4
+  },
+  {
+    "slug": "map_optimization",
+    "title": "MAP fusion: access, legality and materialization",
+    "group": "Compiler transformations",
+    "events": 7,
+    "sections": 4
+  },
+  {
+    "slug": "map_to_mogg",
+    "title": "MAP \u2192 MOGG: implementation calls and shape arguments",
+    "group": "Compiler transformations",
+    "events": 7,
+    "sections": 4
+  },
+  {
+    "slug": "mogg_conformance",
+    "title": "MOGG: exact signatures, mutability and outlined routines",
+    "group": "Compiler transformations",
+    "events": 6,
+    "sections": 4
+  },
+  {
+    "slug": "mgp_plan",
+    "title": "MOGG \u2192 MGP: model phases, buffers and dependency plans",
+    "group": "Compiler transformations",
+    "events": 8,
+    "sections": 5
+  },
+  {
+    "slug": "mojo_codegen",
+    "title": "Generated Mojo, specialization, KGEN and LLVM",
+    "group": "Compiler transformations",
+    "events": 10,
+    "sections": 7
+  },
+  {
+    "slug": "gpu_artifacts",
+    "title": "Host objects, device images and two loading boundaries",
+    "group": "Compiler transformations",
+    "events": 7,
+    "sections": 5
+  },
+  {
+    "slug": "initialization",
+    "title": "C1 \u2192 M1: weights, host loading and model setup",
+    "group": "Initialization and runtime",
+    "events": 7,
+    "sections": 5
+  },
+  {
+    "slug": "asyncrt_values",
+    "title": "AsyncRT I: AsyncValues, continuations and readiness",
+    "group": "Initialization and runtime",
+    "events": 7,
+    "sections": 5
+  },
+  {
+    "slug": "asyncrt_workers",
+    "title": "AsyncRT II: queues, await donation and the wakeup race",
+    "group": "Initialization and runtime",
+    "events": 7,
+    "sections": 5
+  },
+  {
+    "slug": "asyncrt_execution",
+    "title": "AsyncRT III: one Model.execute through MEF readiness",
+    "group": "Initialization and runtime",
+    "events": 8,
+    "sections": 6
+  },
+  {
+    "slug": "driver",
+    "title": "Driver: launch ABI, streams, events and host visibility",
+    "group": "Initialization and runtime",
+    "events": 7,
+    "sections": 5
+  },
+  {
+    "slug": "prefill_decode",
+    "title": "Prefill \u2192 decode: the same model, different active rows",
+    "group": "Repeated serving and lifetime",
+    "events": 8,
+    "sections": 4
+  },
+  {
+    "slug": "sampler_serving",
+    "title": "Sampling graphs and the returned response",
+    "group": "Repeated serving and lifetime",
+    "events": 8,
+    "sections": 5
+  },
+  {
+    "slug": "lifetime",
+    "title": "Reuse, ownership and release: one complete lifetime map",
+    "group": "Repeated serving and lifetime",
+    "events": 7,
+    "sections": 5
+  }
+]

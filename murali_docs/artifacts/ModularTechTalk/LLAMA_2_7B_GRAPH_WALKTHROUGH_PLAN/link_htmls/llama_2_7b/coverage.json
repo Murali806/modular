@@ -1,0 +1,278 @@
+[
+  {
+    "example": "max_example_04_asyncrt_runtime_deep_dive.html",
+    "lessons": [
+      "asyncrt_values",
+      "asyncrt_workers",
+      "asyncrt_execution"
+    ],
+    "adaptation": "AsyncValue state machine, queues, await donation, wakeup race and model readiness."
+  },
+  {
+    "example": "max_example_04_c1_jit_compilation_and_gpu_toolchain_qna.html",
+    "lessons": [
+      "mojo_codegen",
+      "gpu_artifacts"
+    ],
+    "adaptation": "Kernel specialization, cache keys, LLVM, host object and GPU image production."
+  },
+  {
+    "example": "max_example_04_c1_map_fusion_and_access_optimization.html",
+    "lessons": [
+      "map_optimization"
+    ],
+    "adaptation": "Fusion legality around residuals, mutable KV and opaque production kernels."
+  },
+  {
+    "example": "max_example_04_c1_map_to_mogg_implementation_calls.html",
+    "lessons": [
+      "map_to_mogg"
+    ],
+    "adaptation": "Kernel declarations, typed implementation calls and captured accesses."
+  },
+  {
+    "example": "max_example_04_c1_mgp_optimization_and_mojo_emission.html",
+    "lessons": [
+      "mgp_plan",
+      "mojo_codegen"
+    ],
+    "adaptation": "Ordered memory/code passes, async outlining and host stub generation."
+  },
+  {
+    "example": "max_example_04_c1_mo_contracts_and_canonicalization.html",
+    "lessons": [
+      "mo_contracts"
+    ],
+    "adaptation": "Cloned IR1 contracts, pass predicates, shape/layout inference and cleanup."
+  },
+  {
+    "example": "max_example_04_c1_mo_to_map_access_and_compute.html",
+    "lessons": [
+      "mo_to_map"
+    ],
+    "adaptation": "Model tensor operations split into access/view and computation representations."
+  },
+  {
+    "example": "max_example_04_c1_mogg_call_conformance_and_outlining.html",
+    "lessons": [
+      "mogg_conformance"
+    ],
+    "adaptation": "Operand adaptation, parameter bindings and outlined routines."
+  },
+  {
+    "example": "max_example_04_c1_mogg_to_mgp_models_buffers_and_chains.html",
+    "lessons": [
+      "mgp_plan"
+    ],
+    "adaptation": "Executable model, typed buffer slots, dependencies and memory lifetimes."
+  },
+  {
+    "example": "max_example_04_custom_op_g1_b0_state_changes.html",
+    "lessons": [
+      "graph_scaffold",
+      "attention_rope",
+      "mo_to_map"
+    ],
+    "adaptation": "Record production rope/store and paged MHA operations with concrete input contracts."
+  },
+  {
+    "example": "max_example_04_device_ref_attribute_placement_qna.html",
+    "lessons": [
+      "graph_scaffold",
+      "session"
+    ],
+    "adaptation": "Placement metadata versus live driver resources."
+  },
+  {
+    "example": "max_example_04_float32_dtype_vs_i64_shape_dimensions.html",
+    "lessons": [
+      "graph_scaffold",
+      "inputs_shapes"
+    ],
+    "adaptation": "Element dtype and signed-64-bit shape-parameter representation."
+  },
+  {
+    "example": "max_example_04_fused_attention_online_softmax.html",
+    "lessons": [
+      "index",
+      "attention_rope"
+    ],
+    "adaptation": "Whole-model lifecycle; production paged attention and numerical softmax recurrence."
+  },
+  {
+    "example": "max_example_04_gpu_artifacts_abi_and_driver.html",
+    "lessons": [
+      "gpu_artifacts",
+      "driver"
+    ],
+    "adaptation": "Host/device artifacts, two argument packs, retained function handles and buffer ownership."
+  },
+  {
+    "example": "max_example_04_graph_enter_context_manager.html",
+    "lessons": [
+      "graph_scaffold"
+    ],
+    "adaptation": "Graph enter/exit and forward closure tracing for the model path."
+  },
+  {
+    "example": "max_example_04_graph_init_context_decorator.html",
+    "lessons": [
+      "graph_scaffold"
+    ],
+    "adaptation": "Context decorator scope and Graph construction order."
+  },
+  {
+    "example": "max_example_04_graph_regions_blocks_and_arguments_qna.html",
+    "lessons": [
+      "graph_scaffold",
+      "decoder_trace"
+    ],
+    "adaptation": "Module \u2192 GraphOp \u2192 region \u2192 block \u2192 arguments \u2192 operations."
+  },
+  {
+    "example": "max_example_04_graph_weights_and_ordering_chains_qna.html",
+    "lessons": [
+      "decoder_trace",
+      "graph_scaffold",
+      "mgp_plan"
+    ],
+    "adaptation": "Weight registries, mutable KV ordering and execution lifetime."
+  },
+  {
+    "example": "max_example_04_m1_host_code_loading_memory_and_execution.html",
+    "lessons": [
+      "initialization",
+      "asyncrt_execution",
+      "lifetime"
+    ],
+    "adaptation": "ORC/JITLink, bound resources, initialized model reuse and safe release."
+  },
+  {
+    "example": "max_example_04_max_context_creation_and_mlir_qna.html",
+    "lessons": [
+      "session",
+      "graph_scaffold"
+    ],
+    "adaptation": "MAX engine context and MLIR compilation context are separate objects."
+  },
+  {
+    "example": "max_example_04_mlir_context_and_worker_threads.html",
+    "lessons": [
+      "session",
+      "graph_scaffold"
+    ],
+    "adaptation": "Compiler pool versus AsyncRT workers, thread-local compiler scope."
+  },
+  {
+    "example": "max_example_04_mlir_context_constructor_internals.html",
+    "lessons": [
+      "graph_scaffold"
+    ],
+    "adaptation": "Context ownership, type/attribute/affine uniquers and thread pool setup."
+  },
+  {
+    "example": "max_example_04_moduleop_create_deep_dive.html",
+    "lessons": [
+      "graph_scaffold"
+    ],
+    "adaptation": "Module ownership, GraphOp insertion and CAPI view over the same operation."
+  },
+  {
+    "example": "max_example_04_nvml_cuda_mig_and_fork.html",
+    "lessons": [
+      "session",
+      "driver"
+    ],
+    "adaptation": "Discovery versus CUDA execution; process and device-scope boundaries."
+  },
+  {
+    "example": "max_example_04_post_c1_d1_gpu_code_loading_qna.html",
+    "lessons": [
+      "gpu_artifacts",
+      "initialization",
+      "driver"
+    ],
+    "adaptation": "Compiled bytes versus runtime CUDA module/function handles; lazy first use."
+  },
+  {
+    "example": "max_example_04_runtime_config_sources_and_llama_qna.html",
+    "lessons": [
+      "build_startup",
+      "session"
+    ],
+    "adaptation": "Actual serving caller, resolved policies and encoding acceptance gate."
+  },
+  {
+    "example": "max_example_04_runtime_ready_chain_vs_graph_chain_qna.html",
+    "lessons": [
+      "graph_scaffold",
+      "asyncrt_values",
+      "asyncrt_execution"
+    ],
+    "adaptation": "Symbolic ordering, runtime AsyncValue readiness and GPU completion."
+  },
+  {
+    "example": "max_example_04_session_constructor_and_runtime_state.html",
+    "lessons": [
+      "session"
+    ],
+    "adaptation": "Device normalization, CPU addition, native config and shared runtime ownership."
+  },
+  {
+    "example": "max_example_04_session_custom_extensions_qna.html",
+    "lessons": [
+      "build_startup",
+      "session"
+    ],
+    "adaptation": "Built-in P1 packages, empty explicit GraphSpec extensions and possible overlays."
+  },
+  {
+    "example": "max_example_04_session_device_spec_and_context_qna.html",
+    "lessons": [
+      "session",
+      "driver"
+    ],
+    "adaptation": "Target description, runtime context, streams, device handles and retention."
+  },
+  {
+    "example": "max_example_04_session_num_threads_qna.html",
+    "lessons": [
+      "session",
+      "asyncrt_workers"
+    ],
+    "adaptation": "Requested thread hint versus existing CPUDevice; worker/foreign await branches."
+  },
+  {
+    "example": "max_example_04_shape_ape_type_explanation.html",
+    "lessons": [
+      "graph_scaffold",
+      "inputs_shapes",
+      "mo_contracts"
+    ],
+    "adaptation": "Symbolic dimension expressions, static values and runtime shape materialization."
+  },
+  {
+    "example": "max_example_04_shape_dimension_simd_and_constant_folding.html",
+    "lessons": [
+      "inputs_shapes",
+      "mo_contracts"
+    ],
+    "adaptation": "One-lane shape integer types and conditional folding without tensor-value inference."
+  },
+  {
+    "example": "max_example_04_tensor_type_to_mlir.html",
+    "lessons": [
+      "graph_scaffold",
+      "inputs_shapes"
+    ],
+    "adaptation": "Typed model/KV inputs and dtype/shape/device conversion."
+  },
+  {
+    "example": "max_example_04_virtual_device_count_and_slots.html",
+    "lessons": [
+      "session",
+      "driver"
+    ],
+    "adaptation": "Symbolic/virtual device identity versus physical device context and execution."
+  }
+]

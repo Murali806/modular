@@ -1,0 +1,97 @@
+{
+  "evidence": "CPU-RUN — documentation, browser and numerical teaching checks only",
+  "validated_on": "2026-11-24",
+  "source_revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "checkout_before_change": "7d2a2c5f4596839873231b59f5265aa38658423f",
+  "model_id": "meta-llama/Llama-2-7b-hf",
+  "device": "Host Python/Node/Chromium; no MAX or GPU model execution",
+  "scope": "Single-device compatible unquantized Llama 2 7B source path; original FP16 checkpoint acceptance is explicitly gated",
+  "python": "3.10.12",
+  "markdown": "3.3.6",
+  "commands": [
+    "PYTHONDONTWRITEBYTECODE=1 python3 murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/build.py",
+    "PYTHONDONTWRITEBYTECODE=1 python3 murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify.py",
+    "node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_model.cjs",
+    "NODE_PATH=/tmp/max-os-playwright/node_modules node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_browser.cjs",
+    "NODE_PATH=/tmp/max-os-playwright/node_modules node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_browser.cjs --navigation-only",
+    "git diff --check"
+  ],
+  "static": {
+    "lessons": 26,
+    "routes": 31,
+    "states": 204,
+    "author_anchors": 962,
+    "rendered_source_links": 966,
+    "local_links": 1693,
+    "complete_sources": 76,
+    "provenance": {
+      "git_revision": 75,
+      "saved_snapshot": 1
+    },
+    "example_04_companions": 35,
+    "files": 222,
+    "total_bytes": 4988133,
+    "largest_file_bytes": 37931,
+    "largest_html_bytes": 37931
+  },
+  "numerical": {
+    "snapshots": 408,
+    "addressCases": 648,
+    "softmaxCases": 447,
+    "parameters": 6738415616,
+    "result": "PASS"
+  },
+  "browser": {
+    "checks": [
+      "All lesson/scenario states: Step, Back, Reset, seek, direct call-tree source links",
+      "Real timed Play/Pause/resume, automatic end stop, replay, offscreen pause, stable moving DOM identity",
+      "Hold preserves content; held-source paging/all-file controls; Close/Escape; pointer/keyboard drag and resize; Expand/Restore; all source hashes loaded offline; search",
+      "Fullscreen source windows and stable deltas; numerical labs and page selection; every lesson at 390px; mobile source card; reduced motion",
+      "Every lesson readable without JavaScript; original source fallback links; no-JavaScript print; real PDF print/restored disclosures"
+    ],
+    "desktopStates": 204,
+    "mobilePages": 26,
+    "sourceFiles": 76,
+    "chromium": "156.0.8078.4",
+    "node": "v22.11.0",
+    "playwright": "1.64.1",
+    "offline": true,
+    "pageErrors": [],
+    "networkRequests": [],
+    "result": "PASS"
+  },
+  "startup_navigation": {
+    "checks": [
+      "Real startup InferenceSession link opens index; lesson selector; coverage navigation; offline source-file selector/history/search"
+    ],
+    "desktopStates": 0,
+    "mobilePages": 0,
+    "sourceFiles": 0,
+    "chromium": "156.0.8078.4",
+    "node": "v22.11.0",
+    "playwright": "1.64.1",
+    "offline": true,
+    "pageErrors": [],
+    "networkRequests": [],
+    "result": "PASS"
+  },
+  "deterministic_rebuild": {
+    "result": "PASS",
+    "output_tree_sha256": "23e8ef08a4f588b866082964658281bdd5b7741cc4683f11aa07960ea986094f",
+    "files": 222
+  },
+  "syntax": "All authoring Python files parse; Node --check passes for all authored JavaScript/CJS files",
+  "visual_review": [
+    "Desktop source window",
+    "KV page addressing and byte offsets",
+    "390px KV layout",
+    "Driver actor scene"
+  ],
+  "startup_consistency": "Visible link, both embedded representations and TXT synchronized; replacement-only changes verified",
+  "limits": [
+    "No actual Llama compiler dumps",
+    "No model inference or CUDA run",
+    "No measured performance or model parity claims"
+  ],
+  "screenshots_and_print": "Temporary screenshots and the print-check PDF remain outside Git under /tmp"
+}
