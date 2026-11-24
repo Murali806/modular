@@ -1,0 +1,23 @@
+
+../evidence/cross_compile/cross_compile_lesson_hexagon.o:	file format elf32-hexagon
+
+
+Disassembly of section .text:
+
+00000000 <sum_to>:
+       0:	c3 7f e0 bf	bfe07fc3 { 	r3 = add(r0,#-2)
+       4:	e2 7f e0 bf	bfe07fe2   	r2 = add(r0,#-1)
+       8:	10 c0 c0 10	10c0c010   	p0 = cmp.gt(r0,#0); if (!p0.new) jump:nt 0x20 <sum_to+0x20> } 
+       c:	02 43 42 e5	e5424302 { 	r3:2 = mpyu(r2,r3)
+      10:	44 c1 00 8c	8c00c144   	r4 = asl(r0,#1) } 
+      14:	20 c1 02 80	8002c120 { 	r1:0 = lsr(r3:2,#1) } 
+      18:	e0 60 64 db	db6460e0 { 	r0 = add(r4,add(r0,#-1))
+      1c:	00 c0 9f 52	529fc000   	jumpr r31 } 
+      20:	c0 3f 00 48	48003fc0 { 	r0 = #0; 	jumpr r31 } 
+      24:	00 c0 00 7f	7f00c000 { 	nop } 
+
+00000028 <main>:
+      28:	00 40 00 5a	5a004000 { 	call 0x28 <main>
+      2c:	00 c0 9d a0	a09dc000   	allocframe(#0) } 
+      30:	e0 61 60 73	736061e0 { 	r0 = !cmp.eq(r0,#15)
+      34:	1e c0 1e 96	961ec01e   	dealloc_return } 

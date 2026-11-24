@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="description" content="An observed C-to-Hexagon cross compile showing Clang, LLVM IR, target code generation, ELF relocations and linking.">
+<title>From C to Hexagon · Cross compilation with LLVM</title>
+<style>:root{color-scheme:light;--ink:#233d50;--muted:#4e6575;--rule:#b8c9d2;--accent:#285e6a;--source:#3458a1;--ir:#644895;--target:#235f68;--artifact:#6d6220;--boundary:#9b373e}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth;scroll-padding-top:78px}
+body{margin:0;background:#eef3f5;color:var(--ink);font:15px/1.6 ui-sans-serif,system-ui,sans-serif;background-image:radial-gradient(ellipse at 8% 0,#fff9ed 0,transparent 45%)}
+a{color:#245369;text-underline-offset:3px}
+button,input,select{font:inherit}
+button,select{color:#284c60;background:#fffefa;border:1px solid #617e90;border-radius:6px;padding:7px 10px;font-size:12px}
+button{cursor:pointer}
+button:hover{background:#e6f0f2}
+button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:3px solid #36789a;outline-offset:4px}
+.skip-link{position:fixed;top:-80px;left:16px;padding:10px;background:#fff;z-index:200}
+.skip-link:focus{top:10px}
+.topbar{max-width:1480px;margin:auto;padding:18px 36px 15px;display:flex;align-items:center;gap:20px;border-bottom:1px solid var(--rule)}
+.brand{display:flex;align-items:center;gap:10px;font:600 11px/1.2 ui-monospace,monospace;letter-spacing:.07em;text-decoration:none;color:#305369}
+.brand-mark{display:grid;place-items:center;width:36px;height:29px;border:1px solid #467083;border-radius:6px;font-size:10px}
+.back-link{margin-left:auto;font-size:12px}
+.menu{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;padding:8px max(24px,calc((100vw - 1408px)/2));border-bottom:1px solid var(--rule);background:#f4f8f7f2;backdrop-filter:blur(10px)}
+.menu nav{display:flex;flex:1;gap:24px;overflow-x:auto;white-space:nowrap;font-size:12px}
+.menu nav a{text-decoration:none}
+.legend-button{flex:0 0 35px;border-radius:50%;padding:0;width:35px;height:35px;font:600 23px Georgia,serif;background:#fffcf4}
+main{max-width:1480px;margin:auto;padding:0 36px}
+.hero{padding:65px 0 32px}
+.kicker{font:600 10px/1.6 ui-monospace,monospace;color:#476471;letter-spacing:.09em}
+h1{max-width:1050px;margin:16px 0 23px;font:400 clamp(48px,6.6vw,88px)/1.03 Georgia,"Times New Roman",serif;letter-spacing:-.05em}
+h1 em{color:#2b6570}
+.lead{max-width:860px;font-size:18px;line-height:1.65;color:#4d6470;margin-bottom:22px}
+.hero-flow{display:flex;gap:14px;align-items:center;padding:26px 0 10px;font:600 11px ui-monospace,monospace;overflow-x:auto}
+.hero-flow i{font-style:normal;color:#58727e}
+.paper-icon{flex:0 0 76px;width:76px;height:58px;display:grid;place-items:center;border:1.5px solid #55769d;border-radius:3px;background:#fff;box-shadow:4px 4px 0 #dfe7ec;transform:rotate(-2deg)}
+.ir-icon{color:#674987;border-color:#886a9f;transform:rotate(2deg)}
+.asm-icon{color:#235f68;border-color:#598086;transform:rotate(-1deg)}
+.cartridge-icon{flex:0 0 84px;display:grid;place-items:center;width:84px;height:48px;border:2px solid #817338;border-radius:7px;background:repeating-linear-gradient(90deg,#f4efda 0 12px,#d1caaa 12px 14px);color:#534b16;box-shadow:3px 3px 0 #dadbc7}
+.hardware-icon{flex:0 0 83px;display:grid;place-items:center;width:83px;height:57px;border:5px double #587786;border-radius:8px;background:#e4edf1;color:#304e60}
+.evidence-note{margin:17px 0 0;padding:10px 12px;border-left:3px solid #6d6220;background:#f7f3e4;color:#4d4d37;font-size:11px;max-width:900px}
+.key{display:flex;flex-wrap:wrap;gap:11px 20px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:14px 0;font-size:11px;color:#4a6272}
+.key span{display:flex;align-items:center;gap:7px}
+.swatch{display:inline-block;width:13px;height:19px;border-radius:4px;flex:0 0 13px}
+.source-color{background:#3458a1}.ir-color{background:#644895}.target-color{background:#235f68}.artifact-color{background:#8c7b27}.boundary-color{background:#9b373e}
+.nojs-note{padding:13px;border:1px solid #a8bac6;background:#fff;font-size:13px}
+.lesson{padding:25px 0 34px;scroll-margin-top:74px}
+.experiment{border:1px solid #b3c7d3;border-radius:15px;background:#fffefa;box-shadow:0 4px 0 #dbe5e9;overflow:hidden}
+.experiment-top{display:flex;align-items:center;gap:14px;padding:15px 18px;border-bottom:1px solid #d2dee5}
+.lesson-badge{flex:0 0 39px;width:39px;height:39px;border-radius:50%;font:600 12px ui-monospace,monospace;background:#f4f7f8}
+.experiment-top h2{font:600 13px ui-monospace,monospace;color:#36576c;letter-spacing:.025em;margin:0}
+.experiment-top>span{margin-left:auto;font:10px ui-monospace,monospace;color:#536d7b;text-align:right}
+.intro{font-size:12px;color:#4c6575;padding:0 19px;margin:15px 0 13px}
+.scene-hint{display:none}
+.visual{overflow-x:auto;overscroll-behavior-x:contain;border-top:1px solid #e1e8ed;border-bottom:1px solid #d6e1e7}
+.visual svg{display:block;width:100%;min-width:1110px;font-family:ui-sans-serif,system-ui,sans-serif}
+.canvas-backing{fill:#f6f9fc}
+.boundary rect{stroke-width:1.4}
+.host-boundary rect{fill:#f2f6fb;stroke:#718ba1}
+.target-boundary rect{fill:#fff5f3;stroke:#a97072;stroke-dasharray:7 5}
+.owner-title{fill:#334f63;font:700 11px ui-monospace,monospace;letter-spacing:.05em}
+.owner-subtitle{fill:#4b6373;font-size:10px}
+.toolchain rect{fill:#eaf0f5;stroke:#99acba}
+.tool-title{fill:#294c60;font:700 12px ui-monospace,monospace}
+.tool-subtitle{fill:#4d6674;font-size:10px}
+.edge{fill:none;stroke:#607783;stroke-width:2;marker-end:url(#arrow)}
+.branch-edge{stroke:#725d91;stroke-dasharray:5 4}
+.direct-object-edge{stroke:#78844c;stroke-dasharray:4 3}
+.target-edge{stroke:#9b373e;stroke-dasharray:6 5}
+.edge-label{fill:#526978;font:600 9px ui-monospace,monospace}
+.artifact-node rect{stroke-width:1.5;fill:#fffefa;stroke:#8ba0ad;transition:fill .18s,stroke-width .18s,filter .18s}
+.node-source rect{fill:#edf2ff;stroke:#5572a5}
+.node-ir rect{fill:#f2ecff;stroke:#886eaa}
+.node-target rect{fill:#eaf7f7;stroke:#4c7980}
+.node-artifact rect{fill:#fff8dd;stroke:#93833d}
+.artifact-node[data-built="true"] rect{filter:drop-shadow(2px 3px 2px #213b4d22)}
+.artifact-node[data-active="true"] rect{stroke-width:3;filter:drop-shadow(0 0 5px #55758c66)}
+.node-id{fill:#294456;font:700 12px ui-monospace,monospace}
+.node-label{fill:#4b6473;font:10px ui-monospace,monospace}
+.target-gate rect{fill:#fff0f1;stroke:#a33843;stroke-width:1.5}
+.target-gate path,.target-gate circle{fill:none;stroke:#923943;stroke-width:3}
+.target-gate circle{fill:#923943}
+.gate-title{fill:#742f38;font:700 10px ui-monospace,monospace}
+.gate-state{fill:#8c3038;font:700 12px ui-monospace,monospace}
+.gate-note{fill:#6b4b50;font-size:9px}
+#lineage-marker{pointer-events:none}
+#lineage-marker circle{fill:#fffefa;stroke:#9b373e;stroke-width:3}
+#lineage-marker text{fill:#722f39;font:700 9px ui-monospace,monospace;paint-order:stroke;stroke:#fffefa;stroke-width:4px;stroke-linejoin:round}
+.scene-foot{fill:#536a78;font:9px ui-monospace,monospace}
+.stage-nav{display:flex;overflow-x:auto;gap:7px;padding:13px 17px 2px;scrollbar-width:thin}
+.stage-nav button{white-space:nowrap;font:600 10px ui-monospace,monospace;background:#f7f9fa}
+.stage-nav button[aria-current="step"]{background:#dce9ec;border-color:#527587;color:#234a60}
+.stage-nav button[data-complete="true"]{border-left:3px solid #6d7f48}
+.playback{display:flex;align-items:center;gap:8px;padding:14px 18px;background:#edf3f3;flex-wrap:wrap}
+.play{background:#2d5867;color:#fff;border-color:#2d5867}.play:hover{background:#224958}
+.playback label{margin-left:auto;display:flex;gap:7px;align-items:center;font-size:11px}
+.playback input{width:130px;accent-color:#37617a}
+.playback output{font:10px ui-monospace,monospace;color:#4d6571;min-width:45px;text-align:right}
+.state-strip{padding:13px 18px 4px;display:flex;flex-wrap:wrap;gap:8px}
+.state-strip span{background:#edf2f7;border:1px solid #abbfcd;border-radius:4px;padding:4px 7px;font:10px/1.5 ui-monospace,monospace;color:#3f5c6e}
+.event{margin:13px 18px 10px;padding:12px 14px;background:#e8f0f3;border-left:3px solid #406e82;border-radius:4px}
+.event strong{display:block;width:fit-content;color:#22485d;font-size:15px;font-weight:700;background:#dae7ec;border-radius:4px;padding:3px 6px;margin-bottom:6px}
+.event>span{display:block;font-size:12px;color:#465e6c}
+.representation{margin:12px 18px 16px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(240px,.8fr);gap:12px;align-items:stretch}
+.representation>div,.concept-note{border:1px solid #b9c8d4;border-radius:6px;background:#f3f5fa;min-width:0}
+.pane-label{display:block;font:600 10px ui-monospace,monospace;color:#526178;padding:8px 12px;border-bottom:1px solid #ced8e1}
+[data-code-preview]{padding:12px;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;color:#394d62;font:11px/1.7 ui-monospace,monospace;max-height:245px;overflow:auto}
+.concept-note{padding:13px;font-size:12px;color:#3e596a}
+.concept-note strong{display:block;color:#284b60;margin-bottom:6px}
+.concept-note p{margin:5px 0}
+.event-sources{padding:0 18px;font-size:10px;color:#475f6f}
+.event-sources a{margin-right:10px}
+.transcript{padding:14px 18px 18px;font-size:11px}
+summary{cursor:pointer;color:#3b596b}
+.transcript pre{background:#f0f5f7;border-radius:6px;padding:12px;line-height:1.8;overflow:auto}
+.transcript li{margin:8px 0}
+.transcript li button{font-size:10px;padding:1px 6px;margin-right:7px}
+.content-section{padding:38px 0}
+.content-section h2{font:400 37px Georgia,serif;letter-spacing:-.025em;margin:.25em 0}
+.content-section>p{max-width:1040px;font-size:13px;color:#435f70}
+.concept-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:11px;margin:23px 0}
+.concept-card{border:1px solid #b5c7d1;border-radius:9px;background:#fbfdfa;padding:14px}
+.concept-card small{font:600 9px ui-monospace,monospace;color:#566d7c;letter-spacing:.07em}
+.concept-card h3{font:600 15px Georgia,serif;margin:8px 0;color:#294b60}
+.concept-card p{font-size:11px;line-height:1.55;margin:0;color:#4b6270}
+.command-list,.source-cell,.research-list{border:1px solid #b3c4cf;background:#fbfdfa;border-radius:8px;padding:13px 17px;margin:13px 0;font-size:12px}
+.command-row{padding:12px 0;border-top:1px solid #d5e0e6}
+.command-row:first-child{border-top:0}
+.command-row strong{display:block;margin-bottom:5px}
+.command-row code{display:block;padding:10px;background:#f0f5f7;border:1px solid #d3dee4;border-radius:5px;overflow-wrap:anywhere;color:#294456;font:11px/1.65 ui-monospace,monospace}
+.command-row p{font-size:11px;margin:6px 0;color:#4b6270}
+.evidence-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:18px 0}
+.evidence-card{border:1px solid #b4c6d1;background:#fbfdfa;border-radius:8px;padding:13px}
+.evidence-card{min-width:0;overflow-wrap:anywhere}
+.evidence-card strong{display:block;color:#314f62}
+.evidence-card code{font-size:11px;color:#4a5e37}
+.evidence-card p{font-size:11px;margin:7px 0 0;color:#4b6270}
+.source-cell pre{color:#294456;background:#f1f5f7;padding:13px;line-height:1.65;overflow:auto;max-width:100%;width:100%;overscroll-behavior-x:contain}
+.source-cell:not([open])>pre{display:none}
+.source-cell summary{overflow-wrap:anywhere}
+.source-cell summary code{overflow-wrap:anywhere;white-space:normal}
+.research-list li{margin:12px 0;font-size:11px}
+.research-list a{font-weight:600}
+.floating-card{position:fixed;z-index:70;width:min(470px,calc(100vw - 28px));max-height:calc(100dvh - 100px);overflow:auto;overscroll-behavior:contain;border:1px solid #96b0be;border-radius:12px;background:#fffefa;padding:20px;box-shadow:0 18px 55px #193b5140}
+.floating-card h2{margin:4px 0 10px;font:400 25px Georgia,serif}
+.floating-card p{font-size:12px;color:#3c5869}
+.card-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.legend-card{width:min(650px,calc(100vw - 28px))}
+.legend-row{display:flex;align-items:flex-start;gap:12px;border-top:1px solid #d4dfe5;padding:10px 0;font-size:11px}
+.legend-row strong{display:block;font-size:12px;color:#294958}
+.legend-row span{display:block;font:10px ui-monospace,monospace;color:#4d6577;margin-top:3px}
+dialog{max-width:min(1240px,calc(100vw - 24px));width:95vw;max-height:92dvh;padding:22px;border:1px solid #8ca6b7;border-radius:14px;background:#f8fbfc;color:#294758}
+dialog::backdrop{background:#18374e75;backdrop-filter:blur(4px)}
+.source-toolbar{display:flex;justify-content:space-between;gap:20px;align-items:center}
+.source-toolbar h2{margin:0;font-size:19px}
+#source-location{font:10px ui-monospace,monospace;overflow-wrap:anywhere;color:#506777}
+.file-select-label{display:flex;gap:8px;align-items:center;font-size:11px}
+#source-select{max-width:100%;min-width:200px}
+.source-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:11px;margin:12px 0}
+.source-tools input{width:200px;border:1px solid #8ba3b3;border-radius:4px;padding:6px;color:#2b4658;background:#fff}
+#source-file{padding:12px;max-height:56dvh;overflow:auto;background:#eef3f7;color:#254253;font:11px/1.75 ui-monospace,monospace;border:1px solid #bccdd8}
+.source-line{display:block;white-space:pre}
+.source-line>span{display:inline-block;width:44px;padding-right:12px;text-align:right;user-select:none;color:#536978}
+.source-line.selected{background:#dcebe1}
+.source-line.search-hit{outline:1px solid #73899a;outline-offset:-1px}
+footer{border-top:1px solid var(--rule);padding:25px 0 45px;font-size:12px;color:#4b6372}
+footer p{font-size:10px}
+@media(max-width:900px){.concept-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.evidence-summary{grid-template-columns:1fr 1fr}}
+@media(max-width:800px){main{padding:0 15px}.topbar{padding:13px 15px;flex-wrap:wrap;gap:10px}.brand{font-size:9px}.back-link{font-size:10px}.menu{padding:8px 14px}.menu nav{gap:18px}.hero{padding:43px 0 24px}.lead{font-size:16px}.hero-flow{gap:10px}.experiment-top{padding:12px;gap:10px;flex-wrap:wrap}.experiment-top>span{margin-left:49px;text-align:left;flex-basis:100%}.experiment-top h2{font-size:11px}.intro{padding:0 12px}.scene-hint{display:block;padding:0 12px;margin:8px 0 10px;color:#536c7b;font:10px/1.5 ui-monospace,monospace}.playback{padding:12px;gap:7px}.playback label{margin-left:0}.playback input{width:80px}.state-strip{padding:12px 12px 0}.event{margin:12px}.representation{margin:12px;grid-template-columns:1fr}.event-sources{padding:0 12px}.transcript{padding:12px}.floating-card{padding:16px}.content-section h2{font-size:30px}dialog{padding:13px}.source-toolbar h2{font-size:14px}.source-tools input{width:145px}}
+@media(max-width:520px){.concept-grid,.evidence-summary{grid-template-columns:1fr}.hero-flow{overflow-x:auto}.key{gap:9px 13px}.concept-card{padding:12px}.file-select-label{align-items:flex-start;flex-direction:column}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.topbar,.menu,.playback,.floating-card,dialog{display:none!important}main{max-width:none;padding:0}.hero{padding:0}h1{font-size:42px}.visual{overflow:visible}.visual svg{min-width:0}.experiment{box-shadow:none;break-inside:avoid}.lesson{padding:12px 0}.stage-nav{display:none}.source-cell pre{white-space:pre-wrap;font-size:9px}details>:not(summary){display:block!important}details{break-inside:avoid}.command-row code{white-space:pre-wrap}}
+
+</style>
+</head>
+<body id="top">
+<a class="skip-link" href="#main">Skip to the cross-compilation walkthrough</a>
+<header class="topbar"><a class="brand" href="#top"><span class="brand-mark">LLVM</span><span>COMPILER WORKBENCH · CROSS COMPILE</span></a><a class="back-link" href="max_mlir_mojo_compiler_and_runtime.html">← Compiler workbench</a></header>
+<div class="menu"><nav aria-label="Cross-compilation sections"><a href="#walkthrough">Walkthrough</a><a href="#concepts">LLVM concepts</a><a href="#commands">Commands</a><a href="#evidence">Evidence &amp; sources</a></nav><button class="legend-button" id="legend-button" aria-expanded="false" aria-controls="legend-card" aria-label="Open the component legend" data-interactive hidden>L</button></div>
+<main id="main">
+<section class="hero"><p class="kicker">ONE C FILE · A DIFFERENT INSTRUCTION SET</p><h1>Cross-compile<br><em>without crossing the machine.</em></h1><p class="lead">The compiler runs on an x86_64 workstation. Its target option makes LLVM produce Hexagon v68 code and a target ELF. The generated program stays a file until Hexagon hardware or a compatible simulator runs it.</p>
+<div class="hero-flow" aria-label="C to Hexagon build flow"><span class="paper-icon">C source</span><i>→</i><span class="paper-icon ir-icon">LLVM IR</span><i>→</i><span class="paper-icon asm-icon">Hexagon asm</span><i>→</i><span class="cartridge-icon">ELF32</span><i>→</i><span class="hardware-icon">Hexagon</span></div>
+<p class="evidence-note"><b>COMPILE-ONLY · November 7, 2026.</b> This page includes output from Qualcomm Hexagon Clang 8.5.04. The ELF was linked and inspected, but it was not run on Hexagon hardware or a simulator.</p></section>
+<div class="key"><span><i class="swatch source-color"></i>C source</span><span><i class="swatch ir-color"></i>LLVM IR / optimization</span><span><i class="swatch target-color"></i>Hexagon backend output</span><span><i class="swatch artifact-color"></i>ELF files</span><span><i class="swatch boundary-color"></i>Target runtime boundary</span></div>
+<noscript><p class="nojs-note">The complete C source, command list, portable flow, evidence outputs and LLVM reference links are available below. Enable JavaScript for the step controls, moving lineage marker, legend and source explorer.</p></noscript>
+
+<section id="walkthrough" class="lesson" data-lesson aria-labelledby="lesson-title">
+<div class="experiment">
+<div class="experiment-top"><button class="lesson-badge" data-card="walkthrough" aria-label="Explain lesson 01">01</button><h2 id="lesson-title">Follow <code>sum_to</code> into a Hexagon ELF</h2><span>OBSERVED TOOLCHAIN OUTPUT · x86_64 HOST</span></div>
+<p class="intro">Each command starts from the same C file. The <code>-O0</code> and <code>-O1</code> LLVM IR snapshots are separate builds; <code>-S</code> writes an optional assembly view, while <code>-c</code> writes the object directly. The final link consumes that saved object.</p>
+<p class="scene-hint">On a narrow screen, swipe or shift-scroll inside the diagram to see both the build host and the Hexagon target.</p>
+<div class="visual" tabindex="0" aria-label="Compiler and target diagram; scroll horizontally on narrow screens"><svg viewBox="0 0 1320 490" role="img" aria-labelledby="scene-title scene-desc" xmlns="http://www.w3.org/2000/svg">
+<title id="scene-title">Cross-compiling C on an x86_64 host for a Hexagon v68 target</title><desc id="scene-desc">The Clang and LLVM toolchain runs on the host. Its Hexagon backend emits target object and ELF files. A closed execution gate marks that this host cannot run the generated program.</desc>
+<defs><pattern id="scene-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#dfe7ed" stroke-width=".7"/></pattern><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#607783"/></marker></defs>
+<rect class="canvas-backing" width="1320" height="490"/><rect width="1320" height="490" fill="url(#scene-grid)"/>
+<g class="boundary host-boundary"><rect x="24" y="48" width="962" height="400" rx="16"/><text x="44" y="77" class="owner-title">BUILD HOST · x86_64 LINUX</text><text x="44" y="96" class="owner-subtitle">Clang/LLVM and the Hexagon linker execute here · target files are written here</text></g>
+<g class="boundary target-boundary"><rect x="1004" y="48" width="292" height="400" rx="16"/><text x="1024" y="77" class="owner-title">TARGET · HEXAGON v68</text><text x="1024" y="96" class="owner-subtitle">Separate ISA · runtime unavailable</text></g>
+<g class="toolchain"><rect x="44" y="112" width="810" height="64" rx="9"/><text x="63" y="138" class="tool-title">QUALCOMM CLANG 8.5.04 · LLVM 11 toolchain</text><text x="63" y="159" class="tool-subtitle">Driver selects target → C frontend → LLVM middle-end → Hexagon backend → target linker</text></g>
+<path class="edge branch-edge" d="M176 275 C210 236 223 221 264 221"/><path class="edge main-edge" d="M176 275 C212 320 220 340 264 340"/>
+<path class="edge main-edge" d="M392 340 H463"/><path class="edge direct-object-edge" d="M392 322 C470 252 578 252 655 322"/><path class="edge main-edge" d="M778 340 H846"/><path class="edge target-edge" d="M969 340 H1040"/>
+<text class="edge-label" x="196" y="216">-O0 · compare</text><text class="edge-label" x="194" y="366">-O1 · build input</text><text class="edge-label" x="477" y="250">-c · emits object directly</text><text class="edge-label" x="981" y="324">link saved object</text>
+<g class="artifact-node node-source" data-node="source"><rect x="58" y="241" width="118" height="68" rx="7"/><text x="117" y="267" text-anchor="middle" class="node-id">C0</text><text x="117" y="289" text-anchor="middle" class="node-label">C source</text></g>
+<g class="artifact-node node-ir" data-node="ir-o0"><rect x="264" y="190" width="128" height="62" rx="7"/><text x="328" y="215" text-anchor="middle" class="node-id">IR-O0</text><text x="328" y="236" text-anchor="middle" class="node-label">loop form</text></g>
+<g class="artifact-node node-ir" data-node="ir-o1"><rect x="264" y="308" width="128" height="64" rx="7"/><text x="328" y="334" text-anchor="middle" class="node-id">LLVM1</text><text x="328" y="356" text-anchor="middle" class="node-label">optimized IR</text></g>
+<g class="artifact-node node-target" data-node="assembly"><rect x="463" y="308" width="123" height="64" rx="7"/><text x="524" y="334" text-anchor="middle" class="node-id">ASM1</text><text x="524" y="356" text-anchor="middle" class="node-label">Hexagon asm</text></g>
+<g class="artifact-node node-artifact" data-node="object"><rect x="655" y="308" width="123" height="64" rx="7"/><text x="716" y="334" text-anchor="middle" class="node-id">OBJ1</text><text x="716" y="356" text-anchor="middle" class="node-label">ELF32 .o</text></g>
+<g class="artifact-node node-artifact" data-node="elf"><rect x="846" y="308" width="123" height="64" rx="7"/><text x="907" y="334" text-anchor="middle" class="node-id">ELF1</text><text x="907" y="356" text-anchor="middle" class="node-label">linked image</text></g>
+<g class="target-gate" data-node="run"><rect x="1044" y="250" width="220" height="113" rx="12"/><path d="M1071 286v-14a19 19 0 0 1 38 0v14M1064 286h52v48h-52z"/><circle cx="1090" cy="307" r="4"/><path d="M1090 311v10"/><text x="1130" y="291" class="gate-title">EXECUTION</text><text x="1130" y="314" class="gate-state">NOT RUN</text><text x="1130" y="336" class="gate-note">needs device / simulator</text></g>
+<g id="lineage-marker" aria-hidden="true"><circle r="8"/><text x="14" y="4">sum_to lineage</text></g>
+<g class="scene-foot"><text x="46" y="420">ASM1 is a separate -S output. C0 -c emits OBJ1 directly; the link consumes OBJ1.</text><text x="1022" y="420">Code generation does not emulate Hexagon.</text></g>
+</svg></div>
+<div class="stage-nav" data-stage-nav aria-label="Walkthrough steps"></div>
+<div class="playback" data-interactive hidden><button class="play" data-action="play" aria-pressed="false">▶ Play</button><button data-action="back">Back</button><button data-action="step">Step</button><button data-action="reset">↺ Reset</button><label>Speed <select data-speed aria-label="Playback speed"><option value="0.65">0.65×</option><option value="1" selected>1×</option><option value="1.6">1.6×</option></select></label><input data-seek type="range" min="0" max="6" value="0" aria-label="Cross-compilation step"><output data-progress>1 / 7</output></div>
+<div class="state-strip" data-state-strip></div><div class="event" role="status" aria-live="polite"><strong data-event-title>Start with C source on the host</strong><span data-event-detail>The compiler starts on this workstation; the target is a separately selected environment.</span></div>
+<div class="representation"><div><span class="pane-label" data-code-label>Current representation</span><pre data-code-preview><code>int sum_to(int n) {
+    int total = 0;
+    for (int i = 1; i &lt;= n; ++i) total += i;
+    return total;
+}</code></pre></div><aside class="concept-note" data-concept-note></aside></div>
+<div class="event-sources" data-event-sources></div>
+<details class="transcript"><summary>Portable flow · all steps and outcomes</summary><pre>x86_64 host runs each Clang invocation and the target linker
+C0 cross_compile_lesson.c is the input to each compile command
+├─ -O0 -S -emit-llvm → IR-O0 (separate reference build)
+├─ -O1 -S -emit-llvm → LLVM1 snapshot (optimized module)
+├─ -O1 -S → ASM1 (sibling text output; not used as an input)
+└─ -O1 -c → OBJ1 directly (ELF32 relocatable + sum_to relocation)
+OBJ1 + target startup objects/libraries → hexagon-link → ELF1 (ELF32 executable)
+ELF1 is stored on the host. Run it only on compatible Hexagon hardware/simulator.
+Evidence here stops after linking: COMPILE-ONLY; not executed.</pre><ol data-transcript></ol></details>
+</div></section>
+
+<section id="concepts" class="content-section"><p class="kicker">WHAT LLVM ADDS TO THE TOOLCHAIN</p><h2>One representation, many backends.</h2><p>Clang gives LLVM C semantics in a typed intermediate form. LLVM’s middle-end can optimize that form; a target backend maps it to an instruction set. The linker and target runtime complete the executable.</p><div class="concept-grid"><article class="concept-card"><small>01 · DRIVER + FRONTEND</small><h3>Clang</h3><p>The driver interprets options and coordinates compiler/linker tools. Clang parses C, checks its types and semantics, then lowers the program into LLVM IR.</p></article><article class="concept-card"><small>02 · COMMON REPRESENTATION</small><h3>LLVM IR + target triple</h3><p>A typed, low-level representation shared by language frontends and LLVM’s optimization/code-generation infrastructure. The triple names the output target; here it is hexagon-unknown-unknown-elf, with Hexagon v68 selected by this toolchain. LLVM IR is not machine code.</p></article><article class="concept-card"><small>03 · VALUE FLOW</small><h3>SSA + phi</h3><p>In Static Single Assignment form, each SSA value is defined once. A phi instruction selects the incoming value associated with the control-flow edge that reached a block.</p></article><article class="concept-card"><small>04 · REUSABLE TRANSFORMS</small><h3>Optimization passes</h3><p>Target-aware LLVM passes can simplify or reshape defined C behavior. Here the -O1 snapshot replaces the loop with arithmetic; this is observed compiler output for this input and toolchain.</p></article><article class="concept-card"><small>05 · MACHINE-SPECIFIC OUTPUT</small><h3>Target backend</h3><p>The Hexagon backend lowers the LLVM module using Hexagon instructions, registers, predicates and ABI rules. A different backend can emit a different instruction set from LLVM IR.</p></article><article class="concept-card"><small>06 · TARGET SUPPORT</small><h3>Linker + runtime</h3><p>A target triple does not supply headers, libraries or a linker. Hosted OS targets commonly use a matching sysroot; this Hexagon ELF example uses the installed Qualcomm toolchain&#x27;s linker, startup objects and target libraries.</p></article></div></section>
+<section id="commands" class="content-section"><p class="kicker">REPRODUCE THE BUILD</p><h2>Commands used for these artifacts.</h2><p>Run from the directory containing <code>cross_compile_lesson.c</code> with a Clang build that includes the Hexagon backend and Qualcomm’s target toolchain. The ordinary <code>clang</code> name below was the tool installed on this host. For a hosted target such as Linux, also point Clang at that target’s headers and libraries, commonly with <code>--sysroot=/path/to/target-sysroot</code>; the target triple alone does not provide them.</p><div class="command-list"><div class="command-row"><strong>Compare the frontend-shaped LLVM IR</strong><code>clang --target=hexagon-unknown-unknown-elf -O0 -S -emit-llvm cross_compile_lesson.c -o ../evidence/cross_compile/cross_compile_lesson_O0.ll</code><p>A separate reference build. It keeps the source loop in an inspectable LLVM IR form.</p></div><div class="command-row"><strong>Capture optimized target LLVM IR</strong><code>clang --target=hexagon-unknown-unknown-elf -O1 -fno-inline -S -emit-llvm cross_compile_lesson.c -o ../evidence/cross_compile/cross_compile_lesson_O1.ll</code><p>This separate invocation saves an inspectable LLVM IR snapshot.</p></div><div class="command-row"><strong>Emit Hexagon assembly text</strong><code>clang --target=hexagon-unknown-unknown-elf -O1 -fno-inline -S cross_compile_lesson.c -o ../evidence/cross_compile/cross_compile_lesson_hexagon.s</code><p>This sibling output shows the backend result. The saved .s file is not input to the -c command.</p></div><div class="command-row"><strong>Emit a relocatable object</strong><code>clang --target=hexagon-unknown-unknown-elf -O1 -fno-inline -c cross_compile_lesson.c -o ../evidence/cross_compile/cross_compile_lesson_hexagon.o</code><p>The compiler can write the object directly. Saving a .s file first is optional.</p></div><div class="command-row"><strong>Link the saved target object</strong><code>clang --target=hexagon-unknown-unknown-elf ../evidence/cross_compile/cross_compile_lesson_hexagon.o -o ../evidence/cross_compile/cross_compile_lesson_hexagon.elf</code><p>The linker consumes OBJ1 and combines it with target startup objects and runtime libraries.</p></div><div class="command-row"><strong>Print the driver&#x27;s link plan</strong><code>clang --target=hexagon-unknown-unknown-elf -### ../evidence/cross_compile/cross_compile_lesson_hexagon.o -o ../evidence/cross_compile/cross_compile_lesson_hexagon.elf</code><p>Shows hexagon-link and target startup/runtime inputs without running the linker.</p></div><div class="command-row"><strong>Inspect the object and its unresolved call</strong><code>llvm-readobj --file-headers --relocations ../evidence/cross_compile/cross_compile_lesson_hexagon.o</code><p>Observed relocation: R_HEX_B22_PCREL sum_to. The link step resolves it.</p></div><div class="command-row"><strong>Disassemble the object for inspection</strong><code>hexagon-llvm-objdump -d ../evidence/cross_compile/cross_compile_lesson_hexagon.o</code><p>This reads existing object bytes; disassembly is an inspection view, not another compilation stage.</p></div></div></section>
+<section id="evidence" class="content-section"><p class="kicker">OBSERVED OUTPUT · COMPILE-ONLY</p><h2>Inspect what the compiler produced.</h2><p>The target object is ELF32 with machine type <code>EM_HEXAGON</code>; its call relocation names <code>sum_to</code>. The linked file is also ELF32 Hexagon. The executable was not run.</p>
+<div class="evidence-summary"><article class="evidence-card"><strong>Relocatable object · OBJ1</strong><code>ELF32 · EM_HEXAGON</code><p>../evidence/cross_compile/cross_compile_lesson_hexagon.o:   ELF 32-bit LSB relocatable, QUALCOMM DSP6, version 1 (SYSV), not stripped</p><p><code>0x28 R_HEX_B22_PCREL sum_to 0x0</code></p><a href="../evidence/cross_compile/cross_compile_lesson_hexagon.o" download>Download the compiled .o</a></article><article class="evidence-card"><strong>Linked executable · ELF1</strong><code>ELF32 · statically linked</code><p>../evidence/cross_compile/cross_compile_lesson_hexagon.elf: ELF 32-bit LSB executable, QUALCOMM DSP6, version 1 (SYSV), statically linked, not stripped</p><a href="../evidence/cross_compile/cross_compile_lesson_hexagon.elf" download>Download the target ELF</a></article><article class="evidence-card"><strong>Target run</strong><code>NOT RUN · COMPILE-ONLY</code><p>x86_64 host; Hexagon v68 target. Device/simulator execution was not available in this evidence capture.</p></article></div><details class="research-list"><summary>LLVM and Clang primary references</summary><ol><li><a href="https://clang.llvm.org/docs/CrossCompilation.html" rel="noreferrer">Clang · Cross compilation</a> · Explains the target triple and the supporting target headers, libraries and tools Clang may need.</li><li><a href="https://llvm.org/docs/LangRef.html" rel="noreferrer">LLVM · Language Reference</a> · Defines LLVM IR, SSA values, basic blocks, phi nodes, the target triple and data layout.</li><li><a href="https://llvm.org/docs/CodeGenerator.html" rel="noreferrer">LLVM · Code Generator</a> · Describes target instruction selection, machine-level representation, register allocation and code emission.</li><li><a href="https://llvm.org/docs/WritingAnLLVMBackend.html" rel="noreferrer">LLVM · Writing a Backend</a> · Describes the target-specific pieces an LLVM backend provides.</li></ol></details>
+<details class="source-cell"><summary>Complete input C source · <code>src/cross_compile_lesson.c</code></summary><pre><code>int sum_to(int n) {
+    int total = 0;
+    for (int i = 1; i &lt;= n; ++i) {
+        total += i;
+    }
+    return total;
+}
+
+int main(int argc, char **argv) {
+    return sum_to(argc) == 15 ? 0 : 1;
+}
+</code></pre></details>
+<details class="source-cell" id="evidence-ir_o0"><summary>LLVM IR · -O0 reference build · <code>evidence/cross_compile/cross_compile_lesson_O0.ll</code></summary><pre><code>; ModuleID = &#x27;cross_compile_lesson.c&#x27;
+source_filename = &quot;cross_compile_lesson.c&quot;
+target datalayout = &quot;e-m:e-p:32:32:32-a:0-n16:32-i64:64:64-i32:32:32-i16:16:16-i1:8:8-f32:32:32-f64:64:64-v32:32:32-v64:64:64-v512:512:512-v1024:1024:1024-v2048:2048:2048&quot;
+target triple = &quot;hexagon-unknown-unknown-elf&quot;
+
+; Function Attrs: noinline nounwind optnone
+define dso_local i32 @sum_to(i32 %n) #0 {
+entry:
+  %n.addr = alloca i32, align 4
+  %total = alloca i32, align 4
+  %i = alloca i32, align 4
+  store i32 %n, i32* %n.addr, align 4
+  store i32 0, i32* %total, align 4
+  store i32 1, i32* %i, align 4
+  br label %for.cond
+
+for.cond:                                         ; preds = %for.inc, %entry
+  %0 = load i32, i32* %i, align 4
+  %1 = load i32, i32* %n.addr, align 4
+  %cmp = icmp sle i32 %0, %1
+  br i1 %cmp, label %for.body, label %for.end
+
+for.body:                                         ; preds = %for.cond
+  %2 = load i32, i32* %i, align 4
+  %3 = load i32, i32* %total, align 4
+  %add = add nsw i32 %3, %2
+  store i32 %add, i32* %total, align 4
+  br label %for.inc
+
+for.inc:                                          ; preds = %for.body
+  %4 = load i32, i32* %i, align 4
+  %inc = add nsw i32 %4, 1
+  store i32 %inc, i32* %i, align 4
+  br label %for.cond
+
+for.end:                                          ; preds = %for.cond
+  %5 = load i32, i32* %total, align 4
+  ret i32 %5
+}
+
+; Function Attrs: noinline nounwind optnone
+define dso_local i32 @main(i32 %argc, i8** %argv) #0 {
+entry:
+  %retval = alloca i32, align 4
+  %argc.addr = alloca i32, align 4
+  %argv.addr = alloca i8**, align 4
+  store i32 0, i32* %retval, align 4
+  store i32 %argc, i32* %argc.addr, align 4
+  store i8** %argv, i8*** %argv.addr, align 4
+  %0 = load i32, i32* %argc.addr, align 4
+  %call = call i32 @sum_to(i32 %0)
+  %cmp = icmp eq i32 %call, 15
+  %1 = zext i1 %cmp to i64
+  %cond = select i1 %cmp, i32 0, i32 1
+  ret i32 %cond
+}
+
+attributes #0 = { noinline nounwind optnone &quot;correctly-rounded-divide-sqrt-fp-math&quot;=&quot;false&quot; &quot;disable-tail-calls&quot;=&quot;false&quot; &quot;frame-pointer&quot;=&quot;all&quot; &quot;less-precise-fpmad&quot;=&quot;false&quot; &quot;min-legal-vector-width&quot;=&quot;0&quot; &quot;no-infs-fp-math&quot;=&quot;false&quot; &quot;no-jump-tables&quot;=&quot;false&quot; &quot;no-nans-fp-math&quot;=&quot;false&quot; &quot;no-signed-zeros-fp-math&quot;=&quot;false&quot; &quot;no-trapping-math&quot;=&quot;true&quot; &quot;stack-protector-buffer-size&quot;=&quot;8&quot; &quot;target-cpu&quot;=&quot;hexagonv68&quot; &quot;target-features&quot;=&quot;+v68,-long-calls&quot; &quot;unsafe-fp-math&quot;=&quot;false&quot; &quot;use-soft-float&quot;=&quot;false&quot; }
+
+!llvm.module.flags = !{!0}
+!llvm.ident = !{!1}
+
+!0 = !{i32 1, !&quot;wchar_size&quot;, i32 4}
+!1 = !{!&quot;QuIC LLVM Hexagon Clang version 8.5.04&quot;}
+</code></pre></details><details class="source-cell" id="evidence-ir_o1"><summary>LLVM IR · -O1 target build · <code>evidence/cross_compile/cross_compile_lesson_O1.ll</code></summary><pre><code>; ModuleID = &#x27;cross_compile_lesson.c&#x27;
+source_filename = &quot;cross_compile_lesson.c&quot;
+target datalayout = &quot;e-m:e-p:32:32:32-a:0-n16:32-i64:64:64-i32:32:32-i16:16:16-i1:8:8-f32:32:32-f64:64:64-v32:32:32-v64:64:64-v512:512:512-v1024:1024:1024-v2048:2048:2048&quot;
+target triple = &quot;hexagon-unknown-unknown-elf&quot;
+
+; Function Attrs: noinline norecurse nounwind readnone
+define dso_local i32 @sum_to(i32 %n) local_unnamed_addr #0 {
+entry:
+  %cmp6 = icmp slt i32 %n, 1
+  br i1 %cmp6, label %for.cond.cleanup, label %for.body.preheader
+
+for.body.preheader:                               ; preds = %entry
+  %0 = shl i32 %n, 1
+  %1 = add i32 %n, -1
+  %2 = zext i32 %1 to i33
+  %3 = add i32 %n, -2
+  %4 = zext i32 %3 to i33
+  %5 = mul i33 %2, %4
+  %6 = lshr i33 %5, 1
+  %7 = trunc i33 %6 to i32
+  %8 = add i32 %0, %7
+  %9 = add i32 %8, -1
+  br label %for.cond.cleanup
+
+for.cond.cleanup:                                 ; preds = %for.body.preheader, %entry
+  %total.0.lcssa = phi i32 [ 0, %entry ], [ %9, %for.body.preheader ]
+  ret i32 %total.0.lcssa
+}
+
+; Function Attrs: noinline norecurse nounwind readnone
+define dso_local i32 @main(i32 %argc, i8** nocapture readnone %argv) local_unnamed_addr #0 {
+entry:
+  %call = call i32 @sum_to(i32 %argc)
+  %cmp = icmp ne i32 %call, 15
+  %cond = zext i1 %cmp to i32
+  ret i32 %cond
+}
+
+attributes #0 = { noinline norecurse nounwind readnone &quot;correctly-rounded-divide-sqrt-fp-math&quot;=&quot;false&quot; &quot;disable-tail-calls&quot;=&quot;false&quot; &quot;frame-pointer&quot;=&quot;all&quot; &quot;less-precise-fpmad&quot;=&quot;false&quot; &quot;min-legal-vector-width&quot;=&quot;0&quot; &quot;no-infs-fp-math&quot;=&quot;false&quot; &quot;no-jump-tables&quot;=&quot;false&quot; &quot;no-nans-fp-math&quot;=&quot;false&quot; &quot;no-signed-zeros-fp-math&quot;=&quot;false&quot; &quot;no-trapping-math&quot;=&quot;true&quot; &quot;stack-protector-buffer-size&quot;=&quot;8&quot; &quot;target-cpu&quot;=&quot;hexagonv68&quot; &quot;target-features&quot;=&quot;+v68,-long-calls&quot; &quot;unsafe-fp-math&quot;=&quot;false&quot; &quot;use-soft-float&quot;=&quot;false&quot; }
+
+!llvm.module.flags = !{!0}
+!llvm.ident = !{!1}
+
+!0 = !{i32 1, !&quot;wchar_size&quot;, i32 4}
+!1 = !{!&quot;QuIC LLVM Hexagon Clang version 8.5.04&quot;}
+</code></pre></details><details class="source-cell" id="evidence-assembly"><summary>Hexagon assembly · -O1 · <code>evidence/cross_compile/cross_compile_lesson_hexagon.s</code></summary><pre><code>	.text
+	.file	&quot;cross_compile_lesson.c&quot;
+	.globl	sum_to                          // -- Begin function sum_to
+	.balign 16
+	.type	sum_to,@function
+sum_to:                                 // @sum_to
+// %bb.0:                               // %entry
+	{
+		r3 = add(r0,#-2)
+		r2 = add(r0,#-1)
+		p0 = cmp.gt(r0,#0); if (!p0.new) jump:nt .LBB0_2
+	}
+// %bb.1:                               // %for.body.preheader
+	{
+		r3:2 = mpyu(r2,r3)
+		r4 = asl(r0,#1)
+	}
+	{
+		r1:0 = lsr(r3:2,#1)
+	}
+	{
+		r0 = add(r4,add(r0,#-1))
+		jumpr r31
+	}
+	.falign
+.LBB0_2:
+	{
+		r0 = #0
+		jumpr r31
+	}
+.Lfunc_end0:
+	.size	sum_to, .Lfunc_end0-sum_to
+                                        // -- End function
+	.globl	main                            // -- Begin function main
+	.balign 8
+	.type	main,@function
+main:                                   // @main
+// %bb.0:                               // %entry
+	{
+		call sum_to
+		allocframe(r29,#0):raw
+	}
+	{
+		r0 = !cmp.eq(r0,#15)
+		r31:30 = dealloc_return(r30):raw
+	}
+.Lfunc_end1:
+	.size	main, .Lfunc_end1-main
+                                        // -- End function
+	.ident	&quot;QuIC LLVM Hexagon Clang version 8.5.04&quot;
+	.section	&quot;.note.GNU-stack&quot;,&quot;&quot;,@progbits
+	.addrsig
+</code></pre></details><details class="source-cell" id="evidence-object_report"><summary>ELF object headers and relocations · <code>evidence/cross_compile/object_headers_and_relocations.txt</code></summary><pre><code>
+File: ../evidence/cross_compile/cross_compile_lesson_hexagon.o
+Format: elf32-hexagon
+Arch: hexagon
+AddressSize: 32bit
+LoadName: &lt;Not found&gt;
+ElfHeader {
+  Ident {
+    Magic: (7F 45 4C 46)
+    Class: 32-bit (0x1)
+    DataEncoding: LittleEndian (0x1)
+    FileVersion: 1
+    OS/ABI: SystemV (0x0)
+    ABIVersion: 0
+    Unused: (00 00 00 00 00 00 00)
+  }
+  Type: Relocatable (0x1)
+  Machine: EM_HEXAGON (0xA4)
+  Version: 1
+  Entry: 0x0
+  ProgramHeaderOffset: 0x0
+  SectionHeaderOffset: 0x154
+  Flags [ (0x68)
+    0x8
+    0x20
+    0x40
+  ]
+  HeaderSize: 52
+  ProgramHeaderEntrySize: 0
+  ProgramHeaderCount: 0
+  SectionHeaderEntrySize: 40
+  SectionHeaderCount: 8
+  StringTableSectionIndex: 1
+}
+Relocations [
+  Section (3) .rela.text {
+    0x28 R_HEX_B22_PCREL sum_to 0x0
+  }
+]
+</code></pre></details><details class="source-cell" id="evidence-disassembly"><summary>Hexagon object disassembly · <code>evidence/cross_compile/object_disassembly.txt</code></summary><pre><code>
+../evidence/cross_compile/cross_compile_lesson_hexagon.o:	file format elf32-hexagon
+
+
+Disassembly of section .text:
+
+00000000 &lt;sum_to&gt;:
+       0:	c3 7f e0 bf	bfe07fc3 { 	r3 = add(r0,#-2)
+       4:	e2 7f e0 bf	bfe07fe2   	r2 = add(r0,#-1)
+       8:	10 c0 c0 10	10c0c010   	p0 = cmp.gt(r0,#0); if (!p0.new) jump:nt 0x20 &lt;sum_to+0x20&gt; } 
+       c:	02 43 42 e5	e5424302 { 	r3:2 = mpyu(r2,r3)
+      10:	44 c1 00 8c	8c00c144   	r4 = asl(r0,#1) } 
+      14:	20 c1 02 80	8002c120 { 	r1:0 = lsr(r3:2,#1) } 
+      18:	e0 60 64 db	db6460e0 { 	r0 = add(r4,add(r0,#-1))
+      1c:	00 c0 9f 52	529fc000   	jumpr r31 } 
+      20:	c0 3f 00 48	48003fc0 { 	r0 = #0; 	jumpr r31 } 
+      24:	00 c0 00 7f	7f00c000 { 	nop } 
+
+00000028 &lt;main&gt;:
+      28:	00 40 00 5a	5a004000 { 	call 0x28 &lt;main&gt;
+      2c:	00 c0 9d a0	a09dc000   	allocframe(#0) } 
+      30:	e0 61 60 73	736061e0 { 	r0 = !cmp.eq(r0,#15)
+      34:	1e c0 1e 96	961ec01e   	dealloc_return } 
+</code></pre></details><details class="source-cell" id="evidence-file_report"><summary>Host file identification output · <code>evidence/cross_compile/file_output.txt</code></summary><pre><code>../evidence/cross_compile/cross_compile_lesson_hexagon.o:   ELF 32-bit LSB relocatable, QUALCOMM DSP6, version 1 (SYSV), not stripped
+../evidence/cross_compile/cross_compile_lesson_hexagon.elf: ELF 32-bit LSB executable, QUALCOMM DSP6, version 1 (SYSV), statically linked, not stripped
+</code></pre></details><details class="source-cell" id="evidence-compiler_version"><summary>Compiler version and default target · <code>evidence/cross_compile/toolchain_version.txt</code></summary><pre><code>QuIC LLVM Hexagon Clang version 8.5.04
+Target: hexagon-unknown-unknown-elf
+Thread model: posix
+InstalledDir: /pkg/qct/software/hexagon/releases/tools/8.5.04/Tools/bin
+</code></pre></details>
+</section>
+<footer><p><a href="max_mlir_mojo_compiler_and_runtime.html">MAX / MLIR / Mojo compiler workbench</a> · <a href="../COMPILER_WORKBENCH.md">Portable workbench guide</a> · <a href="../compiler_cross_compile_manifest.json">Cross-compile evidence manifest</a></p><p>Offline HTML · no network requests · target execution marked unavailable</p></footer>
+</main>
+<aside id="explanation-card" class="floating-card" tabindex="-1" aria-labelledby="explanation-title" role="region" hidden><div class="card-toolbar"><span class="kicker">LESSON NOTE</span><button data-close-card>Close ×</button></div><h2 id="explanation-title">Follow the C function</h2><p id="explanation-body">The marker tracks <code>sum_to</code>’s representation ancestry. It does not mean a file physically moves through the compiler.</p></aside>
+<aside id="legend-card" class="floating-card legend-card" tabindex="-1" aria-labelledby="legend-title" hidden><div class="card-toolbar"><h2 id="legend-title">Read the compiler scene</h2><button data-close-legend>Close ×</button></div><p>The host is where compiler tools execute. Target labels describe generated formats and instructions.</p><div class="legend-row"><i class="swatch source-color"></i><div><strong>C0 · source code</strong><span>Host file · caller-authored program</span></div></div><div class="legend-row"><i class="swatch ir-color"></i><div><strong>IR-O0 / LLVM1 · LLVM IR</strong><span>Compiler representation · separate -O0 and -O1 compilations</span></div></div><div class="legend-row"><i class="swatch target-color"></i><div><strong>ASM1 · Hexagon assembly</strong><span>Textual target instructions · produced by the Hexagon backend</span></div></div><div class="legend-row"><i class="swatch artifact-color"></i><div><strong>OBJ1 / ELF1 · target files</strong><span>ELF32 object and statically linked ELF executable · stored on host</span></div></div><div class="legend-row"><i class="swatch boundary-color"></i><div><strong>Execution gate · target runtime</strong><span>Hexagon hardware or compatible simulator · not available for this run</span></div></div></aside>
+<dialog id="source-dialog" aria-labelledby="source-title"><div class="source-toolbar"><div><p class="kicker">COMPLETE COMPILER EVIDENCE · OFFLINE</p><h2 id="source-title">Source explorer</h2></div><button id="source-close">Close ×</button></div><label class="file-select-label">Evidence file<select id="source-select"></select></label><p id="source-location"></p><div class="source-tools"><label>Find <input type="search" id="source-search" placeholder="Symbol or text"></label><button id="source-previous" aria-label="Previous match">↑</button><button id="source-next" aria-label="Next match">↓</button><output id="source-count"></output><button id="source-copy">Copy file</button><a id="source-download" download>Download file</a></div><pre id="source-file" tabindex="0"><code></code></pre><p>Selected lines are compiler evidence. The C input is reproduced unchanged.</p></dialog>
+<script id="cross-compile-data" type="application/json">{"capture_date": "2026-11-07", "host": "x86_64 Linux", "target": "hexagon-unknown-unknown-elf", "compiler": "Qualcomm LLVM Hexagon Clang 8.5.04 (LLVM 11 based)", "frames": [{"id": "source", "title": "Start on the build host", "detail": "The x86_64 machine runs the Clang toolchain. Every compile command starts from C0; the target is selected with a compiler option.", "evidence": "INPUT · authored C", "node": "source", "built": ["source"], "artifact": "C0 · source file", "pose": [117, 220], "label": "C source · sum_to", "code": "int sum_to(int n) {\n    int total = 0;\n    for (int i = 1; i \u003c= n; ++i) {\n        total += i;\n    }\n    return total;\n}\n\nint main(int argc, char **argv) {\n    return sum_to(argc) == 15 ? 0 : 1;\n}\n", "note_title": "Build host and target are different roles", "note": "The compiler program must run on the build host. Its output can describe another CPU’s instruction set. main returns success when argc is 5 (the program name plus four arguments); it prints nothing.", "refs": ["cross_compile"]}, {"id": "frontend", "title": "Clang emits target-aware LLVM IR", "detail": "The -O0 invocation produces an inspectable loop-shaped IR module. Its triple names Hexagon; its data layout records a 32-bit pointer model.", "evidence": "COMPILE-ONLY · captured -O0 LLVM IR", "node": "ir-o0", "built": ["source", "ir-o0"], "artifact": "IR-O0 · reference module", "pose": [328, 171], "label": "LLVM IR · -O0 reference", "code": "; ModuleID = 'cross_compile_lesson.c'\nsource_filename = \"cross_compile_lesson.c\"\ntarget datalayout = \"e-m:e-p:32:32:32-a:0-n16:32-i64:64:64-i32:32:32-i16:16:16-i1:8:8-f32:32:32-f64:64:64-v32:32:32-v64:64:64-v512:512:512-v1024:1024:1024-v2048:2048:2048\"\ntarget triple = \"hexagon-unknown-unknown-elf\"\n\n; Function Attrs: noinline nounwind optnone\ndefine dso_local i32 @sum_to(i32 %n) #0 {\nentry:\n  %n.addr = alloca i32, align 4\n  %total = alloca i32, align 4\n  %i = alloca i32, align 4\n  store i32 %n, i32* %n.addr, align 4\n  store i32 0, i32* %total, align 4\n  store i32 1, i32* %i, align 4\n  br label %for.cond\n\nfor.cond:                                         ; preds = %for.inc, %entry\n  %0 = load i32, i32* %i, align 4\n  %1 = load i32, i32* %n.addr, align 4\n  %cmp = icmp sle i32 %0, %1\n  br i1 %cmp, label %for.body, label %for.end\n\nfor.body:                                         ; preds = %for.cond\n  %2 = load i32, i32* %i, align 4\n  %3 = load i32, i32* %total, align 4\n  %add = add nsw i32 %3, %2\n  store i32 %add, i32* %total, align 4\n  br label %for.inc\n\nfor.inc:                                          ; preds = %for.body\n  %4 = load i32, i32* %i, align 4\n  %inc = add nsw i32 %4, 1\n  store i32 %inc, i32* %i, align 4\n  br label %for.cond\n\nfor.end:                                          ; preds = %for.cond\n  %5 = load i32, i32* %total, align 4\n  ret i32 %5\n}", "note_title": "Target triple and data layout", "note": "The triple is hexagon-unknown-unknown-elf: Hexagon architecture, unknown vendor, unknown OS, ELF environment. The data-layout field includes p:32:32:32, describing 32-bit pointers. The LLVM module also records hexagonv68. The triple and data layout guide code generation; neither identifies the target headers and libraries a sysroot or SDK supplies.", "refs": ["cross_compile", "llvm_ir"]}, {"id": "optimize", "title": "LLVM optimization reshapes the loop", "detail": "The separate -O1 invocation transforms sum_to into arithmetic. The optimized module still carries control flow and a phi that joins the zero and calculated results.", "evidence": "COMPILE-ONLY · captured -O1 LLVM IR", "node": "ir-o1", "built": ["source", "ir-o0", "ir-o1"], "artifact": "LLVM1 · optimized module", "pose": [328, 288], "label": "LLVM IR · -O1 target module", "code": "target datalayout = \"e-m:e-p:32:32:32-a:0-n16:32-i64:64:64-i32:32:32-i16:16:16-i1:8:8-f32:32:32-f64:64:64-v32:32:32-v64:64:64-v512:512:512-v1024:1024:1024-v2048:2048:2048\"\ntarget triple = \"hexagon-unknown-unknown-elf\"\n\n; Function Attrs: noinline norecurse nounwind readnone\ndefine dso_local i32 @sum_to(i32 %n) local_unnamed_addr #0 {\nentry:\n  %cmp6 = icmp slt i32 %n, 1\n  br i1 %cmp6, label %for.cond.cleanup, label %for.body.preheader\n\nfor.body.preheader:                               ; preds = %entry\n  %0 = shl i32 %n, 1\n  %1 = add i32 %n, -1\n  %2 = zext i32 %1 to i33\n  %3 = add i32 %n, -2\n  %4 = zext i32 %3 to i33\n  %5 = mul i33 %2, %4\n  %6 = lshr i33 %5, 1\n  %7 = trunc i33 %6 to i32\n  %8 = add i32 %0, %7\n  %9 = add i32 %8, -1\n  br label %for.cond.cleanup\n\nfor.cond.cleanup:                                 ; preds = %for.body.preheader, %entry\n  %total.0.lcssa = phi i32 [ 0, %entry ], [ %9, %for.body.preheader ]\n  ret i32 %total.0.lcssa\n}", "note_title": "SSA makes value flow explicit", "note": "Each named SSA result is assigned once. The phi result chooses 0 from the entry edge or the computed value from the other predecessor. For 1 ≤ n ≤ 65535, this build reduces the loop to n(n+1)/2 without signed overflow. LLVM’s middle-end does this for this input and toolchain, not for every loop.", "refs": ["llvm_ir", "codegen"]}, {"id": "backend", "title": "LLVM selects Hexagon instructions", "detail": "A separate -S invocation maps the C program through LLVM IR onto Hexagon v68 instructions and writes ASM1 for inspection. This sibling output is not fed into the -c command.", "evidence": "COMPILE-ONLY · captured Hexagon assembly", "node": "assembly", "built": ["source", "ir-o0", "ir-o1", "assembly"], "artifact": "ASM1 · Hexagon assembly", "pose": [524, 285], "label": "Target assembly · sum_to", "code": "// %bb.0:                               // %entry\n\t{\n\t\tr3 = add(r0,#-2)\n\t\tr2 = add(r0,#-1)\n\t\tp0 = cmp.gt(r0,#0); if (!p0.new) jump:nt .LBB0_2\n\t}\n// %bb.1:                               // %for.body.preheader\n\t{\n\t\tr3:2 = mpyu(r2,r3)\n\t\tr4 = asl(r0,#1)\n\t}\n\t{\n\t\tr1:0 = lsr(r3:2,#1)\n\t}\n\t{\n\t\tr0 = add(r4,add(r0,#-1))\n\t\tjumpr r31\n\t}\n\t.falign\n.LBB0_2:\n\t{\n\t\tr0 = #0\n\t\tjumpr r31\n\t}", "note_title": "A backend is the target-specific bridge", "note": "The IR operations do not name Hexagon registers. The Hexagon backend selects instructions such as cmp.gt, mpyu and lsr, and follows this target ABI’s register conventions.", "refs": ["codegen", "llvm_backend"]}, {"id": "object", "title": "Emit a relocatable ELF32 object", "detail": "The separate -c invocation emits a relocatable Hexagon object directly from the C input. A call to sum_to remains represented by an ELF relocation until the link step.", "evidence": "COMPILE-ONLY · inspected ELF object", "node": "object", "built": ["source", "ir-o0", "ir-o1", "assembly", "object"], "artifact": "OBJ1 · elf32-hexagon", "pose": [716, 285], "label": "Object header + relocation", "code": "Machine: EM_HEXAGON (0xA4)\n0x28 R_HEX_B22_PCREL sum_to 0x0\n\n00000028 \u003cmain>:\n      28:\t00 40 00 5a\t5a004000 { \tcall 0x28 \u003cmain>\n      2c:\t00 c0 9d a0\ta09dc000   \tallocframe(#0) } \n      30:\te0 61 60 73\t736061e0 { \tr0 = !cmp.eq(r0,#15)\n      34:\t1e c0 1e 96\t961ec01e   \tdealloc_return } ", "note_title": "Object files are not final executables", "note": "OBJ1 has EM_HEXAGON and is ELF32 relocatable. R_HEX_B22_PCREL names sum_to at the call site; the linker uses that relocation to place/fix the call. The compiler can emit OBJ1 directly without saving ASM1 first.", "refs": ["codegen"]}, {"id": "link", "title": "The target linker resolves and packages the program", "detail": "The Clang driver invokes hexagon-link with startup objects and target libraries. The result is a statically linked ELF32 Hexagon executable stored on the x86_64 host.", "evidence": "COMPILE-ONLY · link succeeded; ELF inspected", "node": "elf", "built": ["source", "ir-o0", "ir-o1", "assembly", "object", "elf"], "artifact": "ELF1 · linked target executable", "pose": [907, 285], "label": "Linked output · host file", "code": "QuIC LLVM Hexagon Clang version 8.5.04\nTarget: hexagon-unknown-unknown-elf\nThread model: posix\nInstalledDir: /pkg/qct/software/hexagon/releases/tools/8.5.04/Tools/bin\n\n../evidence/cross_compile/cross_compile_lesson_hexagon.o:   ELF 32-bit LSB relocatable, QUALCOMM DSP6, version 1 (SYSV), not stripped\n../evidence/cross_compile/cross_compile_lesson_hexagon.elf: ELF 32-bit LSB executable, QUALCOMM DSP6, version 1 (SYSV), statically linked, not stripped\n\nDriver link plan: hexagon-link · OBJ1 · crt0_standalone.o · crt0.o · init.o · fini.o · -lstandalone · -lc · -lgcc", "note_title": "The linker and libraries are part of the target toolchain", "note": "Clang handles C. LLVM provides the shared IR, optimization and target code generation. The installed Hexagon toolchain supplies the linker, startup files and target libraries used here. -### showed hexagon-link consuming OBJ1 plus these inputs.", "refs": ["cross_compile"]}, {"id": "runtime", "title": "Compilation ends before target execution", "detail": "ELF1 contains Hexagon machine code, while this workstation is x86_64. A Hexagon device or compatible simulator is needed to execute it; this walkthrough stops at compile-only evidence.", "evidence": "BOUNDARY · target program not run", "node": "run", "built": ["source", "ir-o0", "ir-o1", "assembly", "object", "elf"], "artifact": "ELF1 retained · execution not attempted", "pose": [1154, 220], "label": "Execution gate · not run", "code": "NOT RUN on the x86_64 host.\n\nNeeded for execution: compatible Hexagon hardware or simulator plus the matching runtime/launch setup.", "note_title": "Cross-compile is not emulation", "note": "A successful target link proves that the toolchain produced an ELF file. It does not prove runtime behavior on Hexagon; no target execution is claimed here.", "refs": ["cross_compile"]}], "files": {"c_source": {"id": "c_source", "path": "src/cross_compile_lesson.c", "label": "C source · complete input", "target_line": 1, "sha256": "3c93f5a8e11a066f3e15bdf11c7feffc634ab1ef268781b1f0ebd98932eeb632", "bytes": 196, "text": "int sum_to(int n) {\n    int total = 0;\n    for (int i = 1; i \u003c= n; ++i) {\n        total += i;\n    }\n    return total;\n}\n\nint main(int argc, char **argv) {\n    return sum_to(argc) == 15 ? 0 : 1;\n}\n"}, "ir_o0": {"id": "ir_o0", "path": "evidence/cross_compile/cross_compile_lesson_O0.ll", "label": "LLVM IR · -O0 reference build", "target_line": 4, "sha256": "35684f14f6ab580b5714fcc115036892f71654e543489ad79931891946985fd3", "bytes": 2530, "text": "; ModuleID = 'cross_compile_lesson.c'\nsource_filename = \"cross_compile_lesson.c\"\ntarget datalayout = \"e-m:e-p:32:32:32-a:0-n16:32-i64:64:64-i32:32:32-i16:16:16-i1:8:8-f32:32:32-f64:64:64-v32:32:32-v64:64:64-v512:512:512-v1024:1024:1024-v2048:2048:2048\"\ntarget triple = \"hexagon-unknown-unknown-elf\"\n\n; Function Attrs: noinline nounwind optnone\ndefine dso_local i32 @sum_to(i32 %n) #0 {\nentry:\n  %n.addr = alloca i32, align 4\n  %total = alloca i32, align 4\n  %i = alloca i32, align 4\n  store i32 %n, i32* %n.addr, align 4\n  store i32 0, i32* %total, align 4\n  store i32 1, i32* %i, align 4\n  br label %for.cond\n\nfor.cond:                                         ; preds = %for.inc, %entry\n  %0 = load i32, i32* %i, align 4\n  %1 = load i32, i32* %n.addr, align 4\n  %cmp = icmp sle i32 %0, %1\n  br i1 %cmp, label %for.body, label %for.end\n\nfor.body:                                         ; preds = %for.cond\n  %2 = load i32, i32* %i, align 4\n  %3 = load i32, i32* %total, align 4\n  %add = add nsw i32 %3, %2\n  store i32 %add, i32* %total, align 4\n  br label %for.inc\n\nfor.inc:                                          ; preds = %for.body\n  %4 = load i32, i32* %i, align 4\n  %inc = add nsw i32 %4, 1\n  store i32 %inc, i32* %i, align 4\n  br label %for.cond\n\nfor.end:                                          ; preds = %for.cond\n  %5 = load i32, i32* %total, align 4\n  ret i32 %5\n}\n\n; Function Attrs: noinline nounwind optnone\ndefine dso_local i32 @main(i32 %argc, i8** %argv) #0 {\nentry:\n  %retval = alloca i32, align 4\n  %argc.addr = alloca i32, align 4\n  %argv.addr = alloca i8**, align 4\n  store i32 0, i32* %retval, align 4\n  store i32 %argc, i32* %argc.addr, align 4\n  store i8** %argv, i8*** %argv.addr, align 4\n  %0 = load i32, i32* %argc.addr, align 4\n  %call = call i32 @sum_to(i32 %0)\n  %cmp = icmp eq i32 %call, 15\n  %1 = zext i1 %cmp to i64\n  %cond = select i1 %cmp, i32 0, i32 1\n  ret i32 %cond\n}\n\nattributes #0 = { noinline nounwind optnone \"correctly-rounded-divide-sqrt-fp-math\"=\"false\" \"disable-tail-calls\"=\"false\" \"frame-pointer\"=\"all\" \"less-precise-fpmad\"=\"false\" \"min-legal-vector-width\"=\"0\" \"no-infs-fp-math\"=\"false\" \"no-jump-tables\"=\"false\" \"no-nans-fp-math\"=\"false\" \"no-signed-zeros-fp-math\"=\"false\" \"no-trapping-math\"=\"true\" \"stack-protector-buffer-size\"=\"8\" \"target-cpu\"=\"hexagonv68\" \"target-features\"=\"+v68,-long-calls\" \"unsafe-fp-math\"=\"false\" \"use-soft-float\"=\"false\" }\n\n!llvm.module.flags = !{!0}\n!llvm.ident = !{!1}\n\n!0 = !{i32 1, !\"wchar_size\", i32 4}\n!1 = !{!\"QuIC LLVM Hexagon Clang version 8.5.04\"}\n"}, "ir_o1": {"id": "ir_o1", "path": "evidence/cross_compile/cross_compile_lesson_O1.ll", "label": "LLVM IR · -O1 target build", "target_line": 26, "sha256": "599669a409d9887515cd3c97c6e9c2c6055d509e23b9b2f3b954e362cf8873bd", "bytes": 1940, "text": "; ModuleID = 'cross_compile_lesson.c'\nsource_filename = \"cross_compile_lesson.c\"\ntarget datalayout = \"e-m:e-p:32:32:32-a:0-n16:32-i64:64:64-i32:32:32-i16:16:16-i1:8:8-f32:32:32-f64:64:64-v32:32:32-v64:64:64-v512:512:512-v1024:1024:1024-v2048:2048:2048\"\ntarget triple = \"hexagon-unknown-unknown-elf\"\n\n; Function Attrs: noinline norecurse nounwind readnone\ndefine dso_local i32 @sum_to(i32 %n) local_unnamed_addr #0 {\nentry:\n  %cmp6 = icmp slt i32 %n, 1\n  br i1 %cmp6, label %for.cond.cleanup, label %for.body.preheader\n\nfor.body.preheader:                               ; preds = %entry\n  %0 = shl i32 %n, 1\n  %1 = add i32 %n, -1\n  %2 = zext i32 %1 to i33\n  %3 = add i32 %n, -2\n  %4 = zext i32 %3 to i33\n  %5 = mul i33 %2, %4\n  %6 = lshr i33 %5, 1\n  %7 = trunc i33 %6 to i32\n  %8 = add i32 %0, %7\n  %9 = add i32 %8, -1\n  br label %for.cond.cleanup\n\nfor.cond.cleanup:                                 ; preds = %for.body.preheader, %entry\n  %total.0.lcssa = phi i32 [ 0, %entry ], [ %9, %for.body.preheader ]\n  ret i32 %total.0.lcssa\n}\n\n; Function Attrs: noinline norecurse nounwind readnone\ndefine dso_local i32 @main(i32 %argc, i8** nocapture readnone %argv) local_unnamed_addr #0 {\nentry:\n  %call = call i32 @sum_to(i32 %argc)\n  %cmp = icmp ne i32 %call, 15\n  %cond = zext i1 %cmp to i32\n  ret i32 %cond\n}\n\nattributes #0 = { noinline norecurse nounwind readnone \"correctly-rounded-divide-sqrt-fp-math\"=\"false\" \"disable-tail-calls\"=\"false\" \"frame-pointer\"=\"all\" \"less-precise-fpmad\"=\"false\" \"min-legal-vector-width\"=\"0\" \"no-infs-fp-math\"=\"false\" \"no-jump-tables\"=\"false\" \"no-nans-fp-math\"=\"false\" \"no-signed-zeros-fp-math\"=\"false\" \"no-trapping-math\"=\"true\" \"stack-protector-buffer-size\"=\"8\" \"target-cpu\"=\"hexagonv68\" \"target-features\"=\"+v68,-long-calls\" \"unsafe-fp-math\"=\"false\" \"use-soft-float\"=\"false\" }\n\n!llvm.module.flags = !{!0}\n!llvm.ident = !{!1}\n\n!0 = !{i32 1, !\"wchar_size\", i32 4}\n!1 = !{!\"QuIC LLVM Hexagon Clang version 8.5.04\"}\n"}, "assembly": {"id": "assembly", "path": "evidence/cross_compile/cross_compile_lesson_hexagon.s", "label": "Hexagon assembly · -O1", "target_line": 6, "sha256": "f9636c9aa8c2b338488b3f5b8dd92b6bc6d325039f2e0dd790bc8726af3a6754", "bytes": 1181, "text": "\t.text\n\t.file\t\"cross_compile_lesson.c\"\n\t.globl\tsum_to                          // -- Begin function sum_to\n\t.balign 16\n\t.type\tsum_to,@function\nsum_to:                                 // @sum_to\n// %bb.0:                               // %entry\n\t{\n\t\tr3 = add(r0,#-2)\n\t\tr2 = add(r0,#-1)\n\t\tp0 = cmp.gt(r0,#0); if (!p0.new) jump:nt .LBB0_2\n\t}\n// %bb.1:                               // %for.body.preheader\n\t{\n\t\tr3:2 = mpyu(r2,r3)\n\t\tr4 = asl(r0,#1)\n\t}\n\t{\n\t\tr1:0 = lsr(r3:2,#1)\n\t}\n\t{\n\t\tr0 = add(r4,add(r0,#-1))\n\t\tjumpr r31\n\t}\n\t.falign\n.LBB0_2:\n\t{\n\t\tr0 = #0\n\t\tjumpr r31\n\t}\n.Lfunc_end0:\n\t.size\tsum_to, .Lfunc_end0-sum_to\n                                        // -- End function\n\t.globl\tmain                            // -- Begin function main\n\t.balign 8\n\t.type\tmain,@function\nmain:                                   // @main\n// %bb.0:                               // %entry\n\t{\n\t\tcall sum_to\n\t\tallocframe(r29,#0):raw\n\t}\n\t{\n\t\tr0 = !cmp.eq(r0,#15)\n\t\tr31:30 = dealloc_return(r30):raw\n\t}\n.Lfunc_end1:\n\t.size\tmain, .Lfunc_end1-main\n                                        // -- End function\n\t.ident\t\"QuIC LLVM Hexagon Clang version 8.5.04\"\n\t.section\t\".note.GNU-stack\",\"\",@progbits\n\t.addrsig\n"}, "object_report": {"id": "object_report", "path": "evidence/cross_compile/object_headers_and_relocations.txt", "label": "ELF object headers and relocations", "target_line": 18, "sha256": "fd6d494fda60b099ddffef120b321a945ae65a6f31e6756bbe70c8b05e6406c7", "bytes": 771, "text": "\nFile: ../evidence/cross_compile/cross_compile_lesson_hexagon.o\nFormat: elf32-hexagon\nArch: hexagon\nAddressSize: 32bit\nLoadName: \u003cNot found>\nElfHeader {\n  Ident {\n    Magic: (7F 45 4C 46)\n    Class: 32-bit (0x1)\n    DataEncoding: LittleEndian (0x1)\n    FileVersion: 1\n    OS/ABI: SystemV (0x0)\n    ABIVersion: 0\n    Unused: (00 00 00 00 00 00 00)\n  }\n  Type: Relocatable (0x1)\n  Machine: EM_HEXAGON (0xA4)\n  Version: 1\n  Entry: 0x0\n  ProgramHeaderOffset: 0x0\n  SectionHeaderOffset: 0x154\n  Flags [ (0x68)\n    0x8\n    0x20\n    0x40\n  ]\n  HeaderSize: 52\n  ProgramHeaderEntrySize: 0\n  ProgramHeaderCount: 0\n  SectionHeaderEntrySize: 40\n  SectionHeaderCount: 8\n  StringTableSectionIndex: 1\n}\nRelocations [\n  Section (3) .rela.text {\n    0x28 R_HEX_B22_PCREL sum_to 0x0\n  }\n]\n"}, "disassembly": {"id": "disassembly", "path": "evidence/cross_compile/object_disassembly.txt", "label": "Hexagon object disassembly", "target_line": 11, "sha256": "6ea6dc023541f3ccb43826467b54e021ec556b5c611ba2f4f9aeff8b4c6abbc7", "bytes": 931, "text": "\n../evidence/cross_compile/cross_compile_lesson_hexagon.o:\tfile format elf32-hexagon\n\n\nDisassembly of section .text:\n\n00000000 \u003csum_to>:\n       0:\tc3 7f e0 bf\tbfe07fc3 { \tr3 = add(r0,#-2)\n       4:\te2 7f e0 bf\tbfe07fe2   \tr2 = add(r0,#-1)\n       8:\t10 c0 c0 10\t10c0c010   \tp0 = cmp.gt(r0,#0); if (!p0.new) jump:nt 0x20 \u003csum_to+0x20> } \n       c:\t02 43 42 e5\te5424302 { \tr3:2 = mpyu(r2,r3)\n      10:\t44 c1 00 8c\t8c00c144   \tr4 = asl(r0,#1) } \n      14:\t20 c1 02 80\t8002c120 { \tr1:0 = lsr(r3:2,#1) } \n      18:\te0 60 64 db\tdb6460e0 { \tr0 = add(r4,add(r0,#-1))\n      1c:\t00 c0 9f 52\t529fc000   \tjumpr r31 } \n      20:\tc0 3f 00 48\t48003fc0 { \tr0 = #0; \tjumpr r31 } \n      24:\t00 c0 00 7f\t7f00c000 { \tnop } \n\n00000028 \u003cmain>:\n      28:\t00 40 00 5a\t5a004000 { \tcall 0x28 \u003cmain>\n      2c:\t00 c0 9d a0\ta09dc000   \tallocframe(#0) } \n      30:\te0 61 60 73\t736061e0 { \tr0 = !cmp.eq(r0,#15)\n      34:\t1e c0 1e 96\t961ec01e   \tdealloc_return } \n"}, "file_report": {"id": "file_report", "path": "evidence/cross_compile/file_output.txt", "label": "Host file identification output", "target_line": 1, "sha256": "4e00204c29bedf4341224b48ef98c7e6b027e5068a70fef7bd4723125ea380a3", "bytes": 286, "text": "../evidence/cross_compile/cross_compile_lesson_hexagon.o:   ELF 32-bit LSB relocatable, QUALCOMM DSP6, version 1 (SYSV), not stripped\n../evidence/cross_compile/cross_compile_lesson_hexagon.elf: ELF 32-bit LSB executable, QUALCOMM DSP6, version 1 (SYSV), statically linked, not stripped\n"}, "compiler_version": {"id": "compiler_version", "path": "evidence/cross_compile/toolchain_version.txt", "label": "Compiler version and default target", "target_line": 1, "sha256": "72eac4edff15053e9c2ccb8b571daa3071819e569b10c61a681fb3b0328ff7a9", "bytes": 167, "text": "QuIC LLVM Hexagon Clang version 8.5.04\nTarget: hexagon-unknown-unknown-elf\nThread model: posix\nInstalledDir: /pkg/qct/software/hexagon/releases/tools/8.5.04/Tools/bin\n"}}, "references": {"cross_compile": {"title": "Clang · Cross compilation", "url": "https://clang.llvm.org/docs/CrossCompilation.html", "note": "Explains the target triple and the supporting target headers, libraries and tools Clang may need."}, "llvm_ir": {"title": "LLVM · Language Reference", "url": "https://llvm.org/docs/LangRef.html", "note": "Defines LLVM IR, SSA values, basic blocks, phi nodes, the target triple and data layout."}, "codegen": {"title": "LLVM · Code Generator", "url": "https://llvm.org/docs/CodeGenerator.html", "note": "Describes target instruction selection, machine-level representation, register allocation and code emission."}, "llvm_backend": {"title": "LLVM · Writing a Backend", "url": "https://llvm.org/docs/WritingAnLLVMBackend.html", "note": "Describes the target-specific pieces an LLVM backend provides."}}}</script><script>/* Deterministic states for the C → LLVM → Hexagon cross-compilation reader. */
+(function (root) {
+  'use strict';
+
+  const clone = value => JSON.parse(JSON.stringify(value));
+
+  class CrossCompileLessonModel {
+    constructor(frames) {
+      this.frames = clone(frames);
+      this.index = 0;
+    }
+
+    seek(index) {
+      this.index = Math.max(0, Math.min(this.frames.length - 1, Number(index)));
+      return this.snapshot();
+    }
+
+    step() { return this.seek(this.index + 1); }
+    back() { return this.seek(this.index - 1); }
+    reset() { return this.seek(0); }
+
+    snapshot() {
+      return clone({
+        ...this.frames[this.index],
+        index: this.index,
+        total: this.frames.length,
+        done: this.index === this.frames.length - 1,
+      });
+    }
+  }
+
+  const api = { CrossCompileLessonModel };
+  root.CrossCompileLessonModel = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof window === 'undefined' ? globalThis : window);
+</script><script>(function () {
+  'use strict';
+  const payload = JSON.parse(document.getElementById('cross-compile-data').textContent);
+  const { CrossCompileLessonModel } = window.CrossCompileLessonModel;
+  const model = new CrossCompileLessonModel(payload.frames);
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  const lesson = document.querySelector('[data-lesson]');
+  const svg = lesson.querySelector('svg');
+  const actor = svg.querySelector('#lineage-marker');
+  const controls = lesson.querySelector('.playback');
+  const esc = value => String(value).replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
+  const nodePos = Object.fromEntries(payload.frames.map(frame => [frame.node, frame.pose]));
+  let playing = false, motion = null, raf = 0, lastTime = 0, nextAt = 0, speed = 1;
+
+  function setActor(pose) {
+    actor.setAttribute('transform', 'translate(' + pose[0] + ' ' + pose[1] + ')');
+  }
+  function updatePlay() {
+    const button = controls.querySelector('[data-action="play"]');
+    button.textContent = playing ? 'Ⅱ Pause' : '▶ Play';
+    button.setAttribute('aria-pressed', String(playing));
+    lesson.dataset.playing = String(playing);
+  }
+  function refsHtml(refKeys) {
+    return refKeys.map(key => {
+      const item = payload.references[key];
+      return '<a href="' + esc(item.url) + '" target="_blank" rel="noreferrer">' +
+        esc(item.title) + '</a>';
+    }).join(' · ');
+  }
+  function render(snapshot, animate) {
+    lesson.dataset.index = snapshot.index;
+    lesson.dataset.frames = snapshot.total;
+    lesson.dataset.phase = snapshot.id;
+    lesson.dataset.state = JSON.stringify(snapshot);
+    for (const element of svg.querySelectorAll('[data-node]')) {
+      const id = element.dataset.node;
+      element.dataset.built = String(snapshot.built.includes(id) || id === 'source');
+      element.dataset.active = String(snapshot.node === id);
+    }
+    lesson.querySelector('[data-event-title]').textContent = snapshot.title;
+    lesson.querySelector('[data-event-detail]').textContent = snapshot.detail;
+    lesson.querySelector('[data-code-label]').textContent = snapshot.label;
+    lesson.querySelector('[data-code-preview] code').textContent = snapshot.code;
+    lesson.querySelector('[data-concept-note]').innerHTML =
+      '<strong>' + esc(snapshot.note_title) + '</strong><p>' + esc(snapshot.note) + '</p>' +
+      '<button class="source-open" data-file="c_source">Open complete C source</button>';
+    lesson.querySelector('[data-event-sources]').innerHTML =
+      '<span>' + esc(snapshot.evidence) + '</span> · ' + refsHtml(snapshot.refs);
+    lesson.querySelector('[data-state-strip]').innerHTML = [
+      ['Host', payload.host],
+      ['Target', 'Hexagon v68 · ELF32'],
+      ['Current artifact', snapshot.artifact],
+      ['Execution', snapshot.id === 'runtime' ? 'NOT RUN' : 'not yet reached']
+    ].map(([name, value]) => '<span>' + esc(name) + ' <b>' + esc(value) + '</b></span>').join('');
+    const seek = controls.querySelector('[data-seek]');
+    seek.max = snapshot.total - 1;
+    seek.value = snapshot.index;
+    lesson.querySelector('[data-progress]').textContent =
+      (snapshot.index + 1) + ' / ' + snapshot.total;
+    controls.querySelector('[data-action="back"]').disabled = snapshot.index === 0;
+    controls.querySelector('[data-action="step"]').disabled = snapshot.done;
+    lesson.querySelectorAll('[data-stage]').forEach(button => {
+      const index = Number(button.dataset.stage);
+      button.setAttribute('aria-current', index === snapshot.index ? 'step' : 'false');
+      button.dataset.complete = String(index < snapshot.index);
+    });
+    lesson.querySelector('[data-transcript]').innerHTML = payload.frames.map((frame, index) =>
+      '<li><button data-jump="' + index + '" aria-label="Go to step ' + (index + 1) + '">' +
+      String(index + 1).padStart(2, '0') + '</button><strong>' + esc(frame.title) +
+      '</strong> · ' + esc(frame.detail) + ' <small>' + esc(frame.evidence) + '</small></li>'
+    ).join('');
+    if (!animate || reduced.matches) setActor(snapshot.pose);
+    updatePlay();
+  }
+
+  function cancelMotion() {
+    motion = null;
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    lastTime = 0;
+  }
+  function moveTo(index) {
+    const from = model.snapshot().pose;
+    const to = payload.frames[index].pose;
+    if (reduced.matches || (from[0] === to[0] && from[1] === to[1])) {
+      setActor(to);
+      model.seek(index);
+      render(model.snapshot(), false);
+      if (model.snapshot().done) stop();
+      else nextAt = performance.now() + 850 / speed;
+      return;
+    }
+    motion = { from, to, index, elapsed: 0, duration: 760 / speed };
+    lastTime = 0;
+    pump();
+  }
+  function pump(now) {
+    raf = 0;
+    if (!playing) return;
+    if (motion) {
+      if (lastTime) motion.elapsed += Math.min(80, now - lastTime);
+      lastTime = now;
+      const t = Math.min(1, motion.elapsed / motion.duration);
+      const eased = t * t * (3 - 2 * t);
+      const x = motion.from[0] + (motion.to[0] - motion.from[0]) * eased;
+      const y = motion.from[1] + (motion.to[1] - motion.from[1]) * eased;
+      setActor([x, y]);
+      if (t >= 1) {
+        const index = motion.index;
+        motion = null;
+        model.seek(index);
+        render(model.snapshot(), false);
+        lastTime = 0;
+        if (model.snapshot().done) {
+          stop();
+          return;
+        }
+        nextAt = now + 850 / speed;
+      }
+    } else if (now >= nextAt) {
+      moveTo(Math.min(model.snapshot().index + 1, payload.frames.length - 1));
+    }
+    if (playing) raf = requestAnimationFrame(pump);
+  }
+  function start() {
+    if (model.snapshot().done) {
+      cancelMotion();
+      model.reset();
+      render(model.snapshot(), false);
+    }
+    playing = true;
+    updatePlay();
+    if (!motion) nextAt = performance.now() + 250;
+    lastTime = 0;
+    if (!raf) raf = requestAnimationFrame(pump);
+  }
+  function stop() {
+    playing = false;
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    lastTime = 0;
+    updatePlay();
+  }
+  function seek(index, animate = false) {
+    stop();
+    cancelMotion();
+    const snapshot = model.seek(index);
+    render(snapshot, false);
+    if (animate && !reduced.matches) {
+      const pose = snapshot.pose;
+      setActor(pose);
+    }
+  }
+  function manual(action) {
+    stop();
+    cancelMotion();
+    if (action === 'step') model.step();
+    else if (action === 'back') model.back();
+    else model.reset();
+    render(model.snapshot(), false);
+  }
+
+  const stageNav = lesson.querySelector('[data-stage-nav]');
+  stageNav.innerHTML = payload.frames.map((frame, index) =>
+    '<button data-stage="' + index + '" aria-label="Jump to step ' + (index + 1) + ': ' +
+    esc(frame.title) + '">' + String(index + 1).padStart(2, '0') + ' · ' +
+    esc(frame.short || frame.id) + '</button>'
+  ).join('');
+  document.querySelectorAll('[data-interactive]').forEach(element => { element.hidden = false; });
+  lesson.querySelector('[data-action="play"]').addEventListener('click', () => {
+    if (playing) stop();
+    else start();
+  });
+  lesson.addEventListener('click', event => {
+    const action = event.target.closest('[data-action]')?.dataset.action;
+    if (action && action !== 'play') manual(action);
+    const stage = event.target.closest('[data-stage]')?.dataset.stage;
+    if (stage !== undefined) seek(Number(stage));
+    const jump = event.target.closest('[data-jump]')?.dataset.jump;
+    if (jump !== undefined) seek(Number(jump));
+    const source = event.target.closest('[data-file]')?.dataset.file;
+    if (source) openSource(source, event.target);
+  });
+  lesson.querySelector('[data-seek]').addEventListener('input', event => seek(Number(event.target.value)));
+  lesson.querySelector('[data-speed]').addEventListener('change', event => {
+    speed = Number(event.target.value);
+    if (motion) motion.duration = Math.max(120, motion.duration * speed / Number(event.target.dataset.previous || 1));
+    event.target.dataset.previous = String(speed);
+  });
+  const observer = new IntersectionObserver(entries => {
+    if (!entries[0].isIntersecting) stop();
+  }, { threshold: 0.05 });
+  observer.observe(lesson);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
+  reduced.addEventListener('change', () => {
+    if (reduced.matches && motion) {
+      const { to, index } = motion;
+      cancelMotion();
+      setActor(to);
+      model.seek(index);
+      render(model.snapshot(), false);
+    }
+  });
+  render(model.snapshot(), false);
+
+  // The lesson note card follows the accepted hover/focus/touch behavior.
+  const card = document.getElementById('explanation-card');
+  const badge = lesson.querySelector('[data-card]');
+  let cardTimer = 0;
+  function placeCard(anchor, target) {
+    const rect = anchor.getBoundingClientRect();
+    target.style.left = Math.max(14, Math.min(innerWidth - target.offsetWidth - 14, rect.left)) + 'px';
+    target.style.top = Math.max(14, Math.min(innerHeight - target.offsetHeight - 14, rect.bottom + 10)) + 'px';
+  }
+  function showCard() {
+    clearTimeout(cardTimer);
+    card.hidden = false;
+    placeCard(badge, card);
+  }
+  function hideCardSoon() {
+    cardTimer = setTimeout(() => {
+      if (!card.matches(':hover') && document.activeElement !== card && !badge.matches(':focus')) card.hidden = true;
+    }, 130);
+  }
+  let pointerType = 'mouse';
+  document.addEventListener('pointerdown', event => { pointerType = event.pointerType; }, true);
+  document.addEventListener('keydown', () => { pointerType = 'keyboard'; }, true);
+  badge.addEventListener('mouseenter', () => { if (pointerType !== 'touch') showCard(); });
+  badge.addEventListener('mouseleave', () => { if (pointerType !== 'touch') hideCardSoon(); });
+  badge.addEventListener('focus', () => {
+    if (pointerType !== 'touch' && pointerType !== 'dismiss') showCard();
+  });
+  badge.addEventListener('blur', hideCardSoon);
+  card.addEventListener('mouseenter', () => clearTimeout(cardTimer));
+  card.addEventListener('mouseleave', hideCardSoon);
+  badge.addEventListener('click', () => {
+    if (pointerType === 'touch') card.hidden ? showCard() : (card.hidden = true);
+  });
+  card.querySelector('[data-close-card]').addEventListener('click', () => {
+    card.hidden = true; pointerType = 'dismiss'; badge.focus();
+  });
+
+  const legend = document.getElementById('legend-card');
+  const legendButton = document.getElementById('legend-button');
+  function closeLegend() {
+    legend.hidden = true;
+    legendButton.setAttribute('aria-expanded', 'false');
+  }
+  legendButton.addEventListener('click', () => {
+    legend.hidden = !legend.hidden;
+    legendButton.setAttribute('aria-expanded', String(!legend.hidden));
+    if (!legend.hidden) placeCard(legendButton, legend);
+  });
+  legend.querySelector('[data-close-legend]').addEventListener('click', closeLegend);
+
+  // Full offline text files are embedded in the page and searchable/downloadable.
+  const dialog = document.getElementById('source-dialog');
+  const select = document.getElementById('source-select');
+  const code = document.querySelector('#source-file code');
+  let sourceReturn = null, matchLines = [], matchIndex = -1;
+  const fileItems = Object.values(payload.files);
+  select.innerHTML = fileItems.map(item =>
+    '<option value="' + esc(item.id) + '">' + esc(item.label) + '</option>'
+  ).join('');
+  function renderSource(id) {
+    const item = payload.files[id];
+    if (!item) return;
+    select.value = id;
+    document.getElementById('source-title').textContent = item.label;
+    document.getElementById('source-location').textContent =
+      item.path + ' · SHA-256 ' + item.sha256 + ' · ' + item.bytes + ' bytes';
+    code.innerHTML = item.text.split('\n').map((line, index) =>
+      '<span class="source-line' + (index + 1 === item.target_line ? ' selected' : '') +
+      '" data-line="' + (index + 1) + '"><span>' + String(index + 1).padStart(4, ' ') +
+      '</span>' + esc(line || ' ') + '</span>'
+    ).join('');
+    document.getElementById('source-search').value = '';
+    document.getElementById('source-count').textContent = '';
+    document.getElementById('source-download').href = URL.createObjectURL(
+      new Blob([item.text], { type: 'text/plain;charset=utf-8' })
+    );
+    document.getElementById('source-download').download = item.path.split('/').pop();
+    matchLines = [];
+    matchIndex = -1;
+  }
+  function openSource(id, origin) {
+    sourceReturn = origin;
+    renderSource(id);
+    dialog.showModal();
+  }
+  select.addEventListener('change', () => renderSource(select.value));
+  function findMatch(direction) {
+    const query = document.getElementById('source-search').value.toLowerCase();
+    if (!query) return;
+    const spans = [...code.querySelectorAll('.source-line')];
+    matchLines = spans.filter(line => line.textContent.toLowerCase().includes(query))
+      .map(line => Number(line.dataset.line));
+    matchIndex = matchLines.length ? (matchIndex + direction + matchLines.length) % matchLines.length : -1;
+    spans.forEach(line => line.classList.toggle('search-hit', Number(line.dataset.line) === matchLines[matchIndex]));
+    document.getElementById('source-count').textContent = matchIndex < 0 ? 'No matches' :
+      (matchIndex + 1) + ' / ' + matchLines.length;
+    if (matchIndex >= 0) code.querySelector('[data-line="' + matchLines[matchIndex] + '"]').scrollIntoView({ block: 'center' });
+  }
+  document.getElementById('source-next').addEventListener('click', () => findMatch(1));
+  document.getElementById('source-previous').addEventListener('click', () => findMatch(-1));
+  document.getElementById('source-copy').addEventListener('click', async () => {
+    const text = payload.files[select.value].text;
+    try { await navigator.clipboard.writeText(text); }
+    catch (_) {
+      const area = document.createElement('textarea');
+      area.value = text; document.body.appendChild(area); area.select(); document.execCommand('copy'); area.remove();
+    }
+  });
+  document.getElementById('source-close').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('close', () => { if (sourceReturn?.isConnected) sourceReturn.focus(); });
+  document.querySelectorAll('a[data-open-source]').forEach(link =>
+    link.addEventListener('click', event => { event.preventDefault(); openSource(link.dataset.openSource, link); })
+  );
+  function escapeCards(event) {
+    if (event.key !== 'Escape') return;
+    if (!card.hidden) { card.hidden = true; pointerType = 'dismiss'; badge.focus(); }
+    if (!legend.hidden) { closeLegend(); legendButton.focus(); }
+  }
+  document.addEventListener('keydown', escapeCards);
+  document.addEventListener('click', event => {
+    if (!legend.hidden && !legend.contains(event.target) && !legendButton.contains(event.target)) closeLegend();
+  });
+
+  window.crossCompileLessonSnapshot = () => model.snapshot();
+})();
+
+</script>
+</body></html>

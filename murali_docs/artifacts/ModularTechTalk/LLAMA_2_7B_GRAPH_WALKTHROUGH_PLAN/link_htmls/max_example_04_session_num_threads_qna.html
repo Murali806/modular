@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>S1.num_threads · copied Q&amp;A · MAX example 04</title>
+<style>.reader-card-window { display:flex; flex-direction:column; position:fixed; margin:0; padding:0; overflow:hidden; min-width:min(320px,calc(100vw - 24px)); min-height:140px; max-width:calc(100vw - 24px); max-height:calc(100dvh - 24px); }
+.reader-card-window[hidden],dialog.reader-card-window:not([open]) { display:none; }
+.reader-window-header { flex:none; display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0; padding:12px 14px; border-bottom:1px solid #bccdd8; background:#f3f6f4; cursor:grab; touch-action:none; user-select:none; }
+.reader-window-header:focus-visible { outline:3px solid #ad682e; outline-offset:-3px; }
+.reader-window-header h2,.reader-window-header .kicker { min-width:0; overflow-wrap:anywhere; margin:0; }
+.reader-card-window[data-card-dragging="true"] .reader-window-header { cursor:grabbing; }
+.reader-window-actions { display:flex; flex:none; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:5px; }
+.reader-window-actions button { flex:none; min-height:27px; margin:0; padding:3px 7px; border:1px solid #52788c; border-radius:5px; color:#254253; background:#fffefa; font:700 12px/1.4 ui-sans-serif,system-ui,sans-serif; cursor:pointer; touch-action:manipulation; }
+.reader-window-actions [aria-pressed="true"] { color:#633300; background:#f8e2be; border-color:#9c651a; }
+.reader-window-content { flex:1 1 auto; min-height:0; min-width:0; overflow:auto; overscroll-behavior:contain; padding:10px 17px 25px; }
+.call-explanation-card .reader-window-content { padding:0 0 22px; }
+.reader-card-window .call-tree-scroll { max-width:calc(100% - 28px); }
+.reader-window-resize { position:absolute; right:2px; bottom:2px; z-index:1; width:24px; height:24px; padding:0; border:0; border-radius:4px; color:#254253; background:#f3f6f4; font:700 19px/1 ui-sans-serif,system-ui,sans-serif; cursor:nwse-resize; touch-action:none; }
+.reader-window-resize:focus-visible { outline:3px solid #ad682e; }
+@media(max-width:600px) { .reader-window-header { align-items:flex-start; gap:8px; padding:10px; }.reader-window-actions { max-width:150px; }.reader-window-header h2 { font-size:16px; }.reader-window-content { padding:8px 12px 25px; } }
+@media(pointer:coarse) { .reader-window-actions button { min-height:32px; }.reader-window-resize { width:30px; height:30px; } }
+@media print { .reader-card-window { display:none!important; } }
+
+:root{color-scheme:dark;--bg:#242629;--paper:#2c2f33;--paper-2:#32363a;--ink:#d8dadd;--muted:#a6abb0;--pink:#ff78b8;--green:#83e6a3;--line:#555a60;--code:#25292d}
+*{box-sizing:border-box}
+html{background:var(--bg);color:var(--ink);font:15px/1.75 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
+body{margin:0;background:var(--bg);color:var(--ink)}
+.answer-header,main,.answer-footer{width:min(1160px,calc(100% - 48px));margin-inline:auto}
+.answer-header{padding:26px 0 20px}.answer-header>a,.answer-footer>a{color:var(--green);text-decoration:none}
+.answer-header>span{display:block;margin-top:20px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.11em}
+h1{margin:8px 0;color:var(--pink);font-size:clamp(22px,4vw,32px);line-height:1.35}
+.answer-header>p,.answer-footer{color:var(--muted);font-size:12px}
+.qna-cell,.archive{margin:0 0 18px;border:1px solid var(--line);border-radius:6px;background:var(--paper);overflow:hidden}
+.qna-cell>summary,.archive>summary{cursor:pointer;padding:15px 19px;background:var(--paper-2);color:var(--pink);font-weight:800;line-height:1.55}
+.qna-cell>summary:focus-visible,.archive>summary:focus-visible{outline:2px solid var(--green);outline-offset:-3px}
+.qna-answer{padding:22px 26px;border-top:1px solid var(--line);overflow-wrap:anywhere}
+.qna-answer p{margin:0 0 18px}.qna-answer p:last-child{margin-bottom:0}
+.qna-answer h3{margin:25px 0 12px;color:var(--pink);font-size:1.12em;line-height:1.5}
+strong{color:var(--pink);font-weight:800}
+code{color:var(--green);font-weight:700;overflow-wrap:anywhere}
+a{color:var(--green);text-underline-offset:3px;overflow-wrap:anywhere}
+a:hover{color:var(--pink)}
+.source-link{font-weight:700;text-decoration:none;border-bottom:1px dotted var(--green)}
+.code-scroll{max-width:100%;margin:0 0 18px;overflow:auto;border:1px solid var(--line);border-radius:5px;background:var(--code)}
+.code-scroll pre{margin:0;padding:15px 17px;min-width:max-content}
+.code-scroll code{color:var(--ink);font-size:13px;font-weight:400;line-height:1.7;white-space:pre;overflow-wrap:normal}
+.table-scroll{max-width:100%;margin:0 0 18px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.6}
+th,td{padding:10px 12px;border:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--paper-2);color:var(--green)}td{background:var(--paper)}
+.archive{padding:0 16px 14px;font-size:12px}.archive>details{margin-top:12px}.archive details>summary{cursor:pointer;color:var(--green);overflow-wrap:anywhere}
+.archive .code-scroll{max-height:65vh;margin-top:8px}.archive .code-scroll code{font-size:11px}
+.answer-footer{padding:12px 0 28px}.answer-footer p{margin:0 0 7px}
+.skip-link{position:fixed;z-index:500;top:-60px;left:12px;padding:9px;background:var(--paper);color:var(--green)}.skip-link:focus{top:12px}
+.floating-note{background:#303438!important;color:var(--ink)!important;border-color:var(--line)!important}
+.floating-note .reader-window-header{background:#393d42!important;color:var(--pink)!important}
+.floating-note .reader-window-content,.source-scroll{background:#282c30!important;color:var(--ink)!important}
+.source-window{display:flex;flex-direction:column;overflow:hidden}
+.source-window .reader-window-content{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;overflow:hidden}
+.source-window .source-scroll{display:block;flex:1 1 0;height:0;width:100%;min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain}
+.source-window .source-lines{display:block;width:max-content;min-width:100%;margin:0;color:var(--ink);font:12px/1.8 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;white-space:pre}
+.source-window .source-line{display:block;min-height:1.8em;padding-right:12px;color:var(--ink);white-space:pre}
+.source-window .source-line-number{color:var(--muted)}
+.source-line.is-selected{background:#37483d!important;box-shadow:inset 3px 0 var(--green)!important}
+@media(max-width:700px){.answer-header,main,.answer-footer{width:calc(100% - 22px)}.answer-header{padding-top:18px}.qna-cell>summary{padding:13px;font-size:13px}.qna-answer{padding:17px 13px;font-size:13px}.code-scroll pre{padding:12px}.code-scroll code{font-size:11px}th,td{padding:8px;font-size:12px}}
+@media print{html,body{background:#242629!important;color:#d8dadd!important}.qna-cell:not([open])>.qna-answer{display:block!important}.qna-cell>summary{color:#ff78b8!important}.archive{display:none}}
+
+#copied-answer pre{max-width:100%;margin:18px 0;padding:15px 17px;overflow:auto;border:1px solid var(--line);border-radius:5px;background:var(--code);color:var(--ink);font:13px/1.7 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;white-space:pre}
+#copied-answer pre code{color:inherit;font:inherit;white-space:inherit;overflow-wrap:normal}
+#copied-answer li{margin:0 0 9px}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#qna-session-num-threads">Skip to Q&amp;A</a>
+<header class="answer-header">
+<a href="max_example_04_fused_attention_online_softmax.html#stage-session">← 02.2 Session · S1 call stack</a>
+<span>MAX / ENGINE / ASYNCRT · COPIED Q&amp;A</span>
+<h1>S1.num_threads · why the CPU runtime needs a thread count</h1>
+<p>Copied answer from the S1 walkthrough.</p>
+</header>
+<main>
+<details class="qna-cell" id="qna-session-num-threads">
+<summary>Q&amp;A · S1.num_threads</summary>
+<div class="qna-answer">
+<article id="copied-answer" aria-label="Copied answer"><p><strong><code>S1.num_threads</code> specifies the requested number of CPU execution threads for MAX’s host runtime.</strong> It is optional: leaving it unset lets the runtime choose automatically. See <a href="/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/python/max/engine/api.py:626">the parameter definition</a>.</p>
+<p>For your fused-attention example:</p>
+<pre><code class="language-text">InferenceSession(devices=[device])
+└─ num_threads omitted
+   ├─ S1.num_threads = None               Python stores the supplied value
+   └─ native constructor receives 0      request automatic selection
+      └─ NS1.runtimeConfig.numThreads = 0
+         └─ CPUDeviceOptions.numThreads = 0
+</code></pre>
+<p>This path is in <a href="/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/python/max/engine/api.py:686">api.py</a>, <a href="/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/python/max/_core/max_license/lib/Engine/InferenceSession.cpp:549">InferenceSession.cpp</a>, and <a href="/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/lib/max_license/API/c/EngineContext.cpp:54">EngineContext.cpp</a>.</p>
+<p><strong>Why does a GPU example need CPU execution threads?</strong> Compiling the graph and preparing the executable model require host work. Your actual compilation follows this path:</p>
+<pre><code class="language-text">Python caller: S1.compile(G1)
+└─ compile_async(G1)
+   └─ native Engine::Context::compileModel(...)
+      └─ AsyncRT::addTask(cpuDevice, compilation closure)
+         └─ Q1 schedules the closure on a CPU worker
+            └─ compileModelSync(...) performs compilation
+
+Python caller waits in handle.wait()
+└─ compilation completes → compile() returns C1
+</code></pre>
+<p>The task submission is in <a href="/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/lib/max_license/API/c/EngineContext.cpp:226">EngineContext.cpp</a>; the Python wait is in <a href="/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/python/max/engine/api.py:1104">api.py</a>. The subsequent <code>session.init(compiled)</code> also schedules model setup on a CPU worker. <a href="/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/lib/max_license/API/c/EngineContext.cpp:288">Source</a></p>
+<p><strong>Why expose a thread count?</strong> It controls how much host parallelism the runtime can use. For example, a pool with four workers can execute four independent ready tasks concurrently. A single compilation task does not automatically become four tasks; additional workers help when additional runnable work exists. The pool constructs its workers from the selected count. <a href="/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/AsyncRT/lib/Runtime/ThreadPoolWorkQueue.cpp:1020">Source</a></p>
+<p>Two details matter here:</p>
+<ul>
+<li><strong><code>None → 0</code> means automatic selection.</strong> The resulting count depends on CPU topology, affinity settings and CPU limits; <code>S1.num_threads</code> remains <code>None</code> rather than becoming the resolved count. <a href="/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/AsyncRT/lib/Support/ThreadAffinity.cpp:37">Selection logic</a></li>
+<li><strong>GPU launch dimensions are configured separately.</strong> This attention kernel supplies its own <code>grid_dim</code> and <code>block_dim=32</code>. <a href="/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/examples/custom_ops/kernels/fused_attention.mojo:403">GPU launch</a></li>
+</ul>
+<p>In this walkthrough, G1 has already initialized the shared MAX runtime. S1 reuses that runtime and Q1 when its options match; it does not necessarily create another pool. <a href="/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/max/python/max/_core/max_license/modules/graph.cpp:94">Graph initialization</a> · <a href="/prj/adsp-platform/mur/Murali/aisw/Qgen/Confluence_Readings/Modular/max_serve/modular/Init/lib/Init.cpp:116">Context reuse</a></p></article>
+</div>
+</details>
+</main>
+<footer class="answer-footer">
+<a href="max_example_04_fused_attention_online_softmax.html#stage-session">Return to the Session call stack ↑</a>
+</footer>
+</body>
+</html>

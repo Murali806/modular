@@ -1,0 +1,39 @@
+
+File: ../evidence/cross_compile/cross_compile_lesson_hexagon.o
+Format: elf32-hexagon
+Arch: hexagon
+AddressSize: 32bit
+LoadName: <Not found>
+ElfHeader {
+  Ident {
+    Magic: (7F 45 4C 46)
+    Class: 32-bit (0x1)
+    DataEncoding: LittleEndian (0x1)
+    FileVersion: 1
+    OS/ABI: SystemV (0x0)
+    ABIVersion: 0
+    Unused: (00 00 00 00 00 00 00)
+  }
+  Type: Relocatable (0x1)
+  Machine: EM_HEXAGON (0xA4)
+  Version: 1
+  Entry: 0x0
+  ProgramHeaderOffset: 0x0
+  SectionHeaderOffset: 0x154
+  Flags [ (0x68)
+    0x8
+    0x20
+    0x40
+  ]
+  HeaderSize: 52
+  ProgramHeaderEntrySize: 0
+  ProgramHeaderCount: 0
+  SectionHeaderEntrySize: 40
+  SectionHeaderCount: 8
+  StringTableSectionIndex: 1
+}
+Relocations [
+  Section (3) .rela.text {
+    0x28 R_HEX_B22_PCREL sum_to 0x0
+  }
+]

@@ -1,0 +1,147 @@
+{
+  "page": "link_htmls/llvm_clang_hexagon_cross_compilation.html",
+  "capture_date": "2026-11-07",
+  "evidence": "COMPILE-ONLY · linked and inspected; not run on target",
+  "host": "x86_64 Linux",
+  "target": "hexagon-unknown-unknown-elf",
+  "compiler": "Qualcomm LLVM Hexagon Clang 8.5.04 (LLVM 11 based)",
+  "source": "src/cross_compile_lesson.c",
+  "files": [
+    {
+      "id": "c_source",
+      "path": "src/cross_compile_lesson.c",
+      "label": "C source · complete input",
+      "sha256": "3c93f5a8e11a066f3e15bdf11c7feffc634ab1ef268781b1f0ebd98932eeb632",
+      "bytes": 196
+    },
+    {
+      "id": "ir_o0",
+      "path": "evidence/cross_compile/cross_compile_lesson_O0.ll",
+      "label": "LLVM IR · -O0 reference build",
+      "sha256": "35684f14f6ab580b5714fcc115036892f71654e543489ad79931891946985fd3",
+      "bytes": 2530
+    },
+    {
+      "id": "ir_o1",
+      "path": "evidence/cross_compile/cross_compile_lesson_O1.ll",
+      "label": "LLVM IR · -O1 target build",
+      "sha256": "599669a409d9887515cd3c97c6e9c2c6055d509e23b9b2f3b954e362cf8873bd",
+      "bytes": 1940
+    },
+    {
+      "id": "assembly",
+      "path": "evidence/cross_compile/cross_compile_lesson_hexagon.s",
+      "label": "Hexagon assembly · -O1",
+      "sha256": "f9636c9aa8c2b338488b3f5b8dd92b6bc6d325039f2e0dd790bc8726af3a6754",
+      "bytes": 1181
+    },
+    {
+      "id": "object_report",
+      "path": "evidence/cross_compile/object_headers_and_relocations.txt",
+      "label": "ELF object headers and relocations",
+      "sha256": "fd6d494fda60b099ddffef120b321a945ae65a6f31e6756bbe70c8b05e6406c7",
+      "bytes": 771
+    },
+    {
+      "id": "disassembly",
+      "path": "evidence/cross_compile/object_disassembly.txt",
+      "label": "Hexagon object disassembly",
+      "sha256": "6ea6dc023541f3ccb43826467b54e021ec556b5c611ba2f4f9aeff8b4c6abbc7",
+      "bytes": 931
+    },
+    {
+      "id": "file_report",
+      "path": "evidence/cross_compile/file_output.txt",
+      "label": "Host file identification output",
+      "sha256": "4e00204c29bedf4341224b48ef98c7e6b027e5068a70fef7bd4723125ea380a3",
+      "bytes": 286
+    },
+    {
+      "id": "compiler_version",
+      "path": "evidence/cross_compile/toolchain_version.txt",
+      "label": "Compiler version and default target",
+      "sha256": "72eac4edff15053e9c2ccb8b571daa3071819e569b10c61a681fb3b0328ff7a9",
+      "bytes": 167
+    },
+    {
+      "id": "cross_compile_lesson_hexagon",
+      "path": "evidence/cross_compile/cross_compile_lesson_hexagon.o",
+      "label": "COMPILE-ONLY binary artifact",
+      "sha256": "1a14e4014b018b33ac0db692a021990ae0530e55613799789b70b720ee5dbb40",
+      "bytes": 660,
+      "binary": true
+    },
+    {
+      "id": "cross_compile_lesson_hexagon",
+      "path": "evidence/cross_compile/cross_compile_lesson_hexagon.elf",
+      "label": "COMPILE-ONLY binary artifact",
+      "sha256": "4ddd9d639469f4ed07a6875aecc927dbe439d2ff19e9a9ae6330f50918693576",
+      "bytes": 54560,
+      "binary": true
+    }
+  ],
+  "commands": [
+    {
+      "title": "Compare the frontend-shaped LLVM IR",
+      "command": "clang --target=hexagon-unknown-unknown-elf -O0 -S -emit-llvm cross_compile_lesson.c -o ../evidence/cross_compile/cross_compile_lesson_O0.ll",
+      "note": "A separate reference build. It keeps the source loop in an inspectable LLVM IR form."
+    },
+    {
+      "title": "Capture optimized target LLVM IR",
+      "command": "clang --target=hexagon-unknown-unknown-elf -O1 -fno-inline -S -emit-llvm cross_compile_lesson.c -o ../evidence/cross_compile/cross_compile_lesson_O1.ll",
+      "note": "This separate invocation saves an inspectable LLVM IR snapshot."
+    },
+    {
+      "title": "Emit Hexagon assembly text",
+      "command": "clang --target=hexagon-unknown-unknown-elf -O1 -fno-inline -S cross_compile_lesson.c -o ../evidence/cross_compile/cross_compile_lesson_hexagon.s",
+      "note": "This sibling output shows the backend result. The saved .s file is not input to the -c command."
+    },
+    {
+      "title": "Emit a relocatable object",
+      "command": "clang --target=hexagon-unknown-unknown-elf -O1 -fno-inline -c cross_compile_lesson.c -o ../evidence/cross_compile/cross_compile_lesson_hexagon.o",
+      "note": "The compiler can write the object directly. Saving a .s file first is optional."
+    },
+    {
+      "title": "Link the saved target object",
+      "command": "clang --target=hexagon-unknown-unknown-elf ../evidence/cross_compile/cross_compile_lesson_hexagon.o -o ../evidence/cross_compile/cross_compile_lesson_hexagon.elf",
+      "note": "The linker consumes OBJ1 and combines it with target startup objects and runtime libraries."
+    },
+    {
+      "title": "Print the driver's link plan",
+      "command": "clang --target=hexagon-unknown-unknown-elf -### ../evidence/cross_compile/cross_compile_lesson_hexagon.o -o ../evidence/cross_compile/cross_compile_lesson_hexagon.elf",
+      "note": "Shows hexagon-link and target startup/runtime inputs without running the linker."
+    },
+    {
+      "title": "Inspect the object and its unresolved call",
+      "command": "llvm-readobj --file-headers --relocations ../evidence/cross_compile/cross_compile_lesson_hexagon.o",
+      "note": "Observed relocation: R_HEX_B22_PCREL sum_to. The link step resolves it."
+    },
+    {
+      "title": "Disassemble the object for inspection",
+      "command": "hexagon-llvm-objdump -d ../evidence/cross_compile/cross_compile_lesson_hexagon.o",
+      "note": "This reads existing object bytes; disassembly is an inspection view, not another compilation stage."
+    }
+  ],
+  "references": [
+    {
+      "title": "Clang · Cross compilation",
+      "url": "https://clang.llvm.org/docs/CrossCompilation.html",
+      "note": "Explains the target triple and the supporting target headers, libraries and tools Clang may need."
+    },
+    {
+      "title": "LLVM · Language Reference",
+      "url": "https://llvm.org/docs/LangRef.html",
+      "note": "Defines LLVM IR, SSA values, basic blocks, phi nodes, the target triple and data layout."
+    },
+    {
+      "title": "LLVM · Code Generator",
+      "url": "https://llvm.org/docs/CodeGenerator.html",
+      "note": "Describes target instruction selection, machine-level representation, register allocation and code emission."
+    },
+    {
+      "title": "LLVM · Writing a Backend",
+      "url": "https://llvm.org/docs/WritingAnLLVMBackend.html",
+      "note": "Describes the target-specific pieces an LLVM backend provides."
+    }
+  ]
+}

@@ -1,0 +1,2168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>float32 tensor elements and si64 shape dimensions · MAX example 04</title>
+<style>.reader-card-window { display:flex; flex-direction:column; position:fixed; margin:0; padding:0; overflow:hidden; min-width:min(320px,calc(100vw - 24px)); min-height:140px; max-width:calc(100vw - 24px); max-height:calc(100dvh - 24px); }
+.reader-card-window[hidden],dialog.reader-card-window:not([open]) { display:none; }
+.reader-window-header { flex:none; display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0; padding:12px 14px; border-bottom:1px solid #bccdd8; background:#f3f6f4; cursor:grab; touch-action:none; user-select:none; }
+.reader-window-header:focus-visible { outline:3px solid #ad682e; outline-offset:-3px; }
+.reader-window-header h2,.reader-window-header .kicker { min-width:0; overflow-wrap:anywhere; margin:0; }
+.reader-card-window[data-card-dragging="true"] .reader-window-header { cursor:grabbing; }
+.reader-window-actions { display:flex; flex:none; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:5px; }
+.reader-window-actions button { flex:none; min-height:27px; margin:0; padding:3px 7px; border:1px solid #52788c; border-radius:5px; color:#254253; background:#fffefa; font:700 12px/1.4 ui-sans-serif,system-ui,sans-serif; cursor:pointer; touch-action:manipulation; }
+.reader-window-actions [aria-pressed="true"] { color:#633300; background:#f8e2be; border-color:#9c651a; }
+.reader-window-content { flex:1 1 auto; min-height:0; min-width:0; overflow:auto; overscroll-behavior:contain; padding:10px 17px 25px; }
+.call-explanation-card .reader-window-content { padding:0 0 22px; }
+.reader-card-window .call-tree-scroll { max-width:calc(100% - 28px); }
+.reader-window-resize { position:absolute; right:2px; bottom:2px; z-index:1; width:24px; height:24px; padding:0; border:0; border-radius:4px; color:#254253; background:#f3f6f4; font:700 19px/1 ui-sans-serif,system-ui,sans-serif; cursor:nwse-resize; touch-action:none; }
+.reader-window-resize:focus-visible { outline:3px solid #ad682e; }
+@media(max-width:600px) { .reader-window-header { align-items:flex-start; gap:8px; padding:10px; }.reader-window-actions { max-width:150px; }.reader-window-header h2 { font-size:16px; }.reader-window-content { padding:8px 12px 25px; } }
+@media(pointer:coarse) { .reader-window-actions button { min-height:32px; }.reader-window-resize { width:30px; height:30px; } }
+@media print { .reader-card-window { display:none!important; } }
+
+:root{color-scheme:dark;--bg:#242629;--paper:#2c2f33;--paper-2:#32363a;--ink:#d8dadd;--muted:#a6abb0;--pink:#ff78b8;--green:#83e6a3;--line:#555a60;--code:#25292d}
+*{box-sizing:border-box}
+html{background:var(--bg);color:var(--ink);font:15px/1.75 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
+body{margin:0;background:var(--bg);color:var(--ink)}
+.answer-header,main,.answer-footer{width:min(1160px,calc(100% - 48px));margin-inline:auto}
+.answer-header{padding:26px 0 20px}.answer-header>a,.answer-footer>a{color:var(--green);text-decoration:none}
+.answer-header>span{display:block;margin-top:20px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.11em}
+h1{margin:8px 0;color:var(--pink);font-size:clamp(22px,4vw,32px);line-height:1.35}
+.answer-header>p,.answer-footer{color:var(--muted);font-size:12px}
+.qna-cell,.archive{margin:0 0 18px;border:1px solid var(--line);border-radius:6px;background:var(--paper);overflow:hidden}
+.qna-cell>summary,.archive>summary{cursor:pointer;padding:15px 19px;background:var(--paper-2);color:var(--pink);font-weight:800;line-height:1.55}
+.qna-cell>summary:focus-visible,.archive>summary:focus-visible{outline:2px solid var(--green);outline-offset:-3px}
+.qna-answer{padding:22px 26px;border-top:1px solid var(--line);overflow-wrap:anywhere}
+.qna-answer p{margin:0 0 18px}.qna-answer p:last-child{margin-bottom:0}
+.qna-answer h3{margin:25px 0 12px;color:var(--pink);font-size:1.12em;line-height:1.5}
+strong{color:var(--pink);font-weight:800}
+code{color:var(--green);font-weight:700;overflow-wrap:anywhere}
+a{color:var(--green);text-underline-offset:3px;overflow-wrap:anywhere}
+a:hover{color:var(--pink)}
+.source-link{font-weight:700;text-decoration:none;border-bottom:1px dotted var(--green)}
+.code-scroll{max-width:100%;margin:0 0 18px;overflow:auto;border:1px solid var(--line);border-radius:5px;background:var(--code)}
+.code-scroll pre{margin:0;padding:15px 17px;min-width:max-content}
+.code-scroll code{color:var(--ink);font-size:13px;font-weight:400;line-height:1.7;white-space:pre;overflow-wrap:normal}
+.table-scroll{max-width:100%;margin:0 0 18px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.6}
+th,td{padding:10px 12px;border:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--paper-2);color:var(--green)}td{background:var(--paper)}
+.archive{padding:0 16px 14px;font-size:12px}.archive>details{margin-top:12px}.archive details>summary{cursor:pointer;color:var(--green);overflow-wrap:anywhere}
+.archive .code-scroll{max-height:65vh;margin-top:8px}.archive .code-scroll code{font-size:11px}
+.answer-footer{padding:12px 0 28px}.answer-footer p{margin:0 0 7px}
+.skip-link{position:fixed;z-index:500;top:-60px;left:12px;padding:9px;background:var(--paper);color:var(--green)}.skip-link:focus{top:12px}
+.floating-note{background:#303438!important;color:var(--ink)!important;border-color:var(--line)!important}
+.floating-note .reader-window-header{background:#393d42!important;color:var(--pink)!important}
+.floating-note .reader-window-content,.source-scroll{background:#282c30!important;color:var(--ink)!important}
+.source-window{display:flex;flex-direction:column;overflow:hidden}
+.source-window .reader-window-content{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;overflow:hidden}
+.source-window .source-scroll{display:block;flex:1 1 0;height:0;width:100%;min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain}
+.source-window .source-lines{display:block;width:max-content;min-width:100%;margin:0;color:var(--ink);font:12px/1.8 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;white-space:pre}
+.source-window .source-line{display:block;min-height:1.8em;padding-right:12px;color:var(--ink);white-space:pre}
+.source-window .source-line-number{color:var(--muted)}
+.source-line.is-selected{background:#37483d!important;box-shadow:inset 3px 0 var(--green)!important}
+@media(max-width:700px){.answer-header,main,.answer-footer{width:calc(100% - 22px)}.answer-header{padding-top:18px}.qna-cell>summary{padding:13px;font-size:13px}.qna-answer{padding:17px 13px;font-size:13px}.code-scroll pre{padding:12px}.code-scroll code{font-size:11px}th,td{padding:8px;font-size:12px}}
+@media print{html,body{background:#242629!important;color:#d8dadd!important}.qna-cell:not([open])>.qna-answer{display:block!important}.qna-cell>summary{color:#ff78b8!important}.archive{display:none}}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#qna-dtype-dimensions">Skip to QnA</a>
+<header class="answer-header">
+<a href="max_example_04_tensor_type_to_mlir.html#fields">← TensorType.to_mlir · tensor and shape types</a>
+<span>MAX / MLIR · SOURCE DEEP DIVE</span>
+<h1>Why `float32` data and `si64` shape dimensions?</h1>
+<p>Copied explanation · tensor element dtype versus shape metadata</p>
+</header>
+<main>
+<details class="qna-cell" id="qna-dtype-dimensions">
+<summary>QnA 1 · Why use 64-bit integers for dimensions when the tensor dtype is float32?</summary>
+<article class="qna-answer" id="copied-answer" aria-label="Copied answer"><p><code>float32</code> describes the <strong>values in each tensor element</strong>. The signed <code>i64</code> describes the <strong>shape dimensions</strong>. They are separate parts of the tensor type.</p>
+<p>For this example, <code>dtype = DType.float32</code> is passed as the dtype field of each <code>TensorType</code> in <a class="source-link" data-source="max/examples/custom_ops/fused_attention.py:26" href="../sources/max/examples/custom_ops/fused_attention.py#L26" title="max/examples/custom_ops/fused_attention.py:26">fused_attention.py</a> and <a class="source-link" data-source="max/python/max/graph/type.py:439" href="../sources/max/python/max/graph/type.py#L439" title="max/python/max/graph/type.py:439">TensorType.to_mlir()</a>. Separately, <code>StaticDim.to_mlir()</code> represents each size—here, <code>32</code>—as a signed 64-bit integer attribute before converting it to MAX’s shape-dimension representation (<a class="source-link" data-source="max/python/max/graph/dim.py:570" href="../sources/max/python/max/graph/dim.py#L570" title="max/python/max/graph/dim.py:570">dim.py</a>).</p>
+<div class="code-scroll"><pre><code class="language-text">Tensor elements:  f32, f32, f32, ...   ← each value is 32-bit float
+Shape metadata:   32 : si64, 32 : si64 ← axis lengths are signed 64-bit integers</code></pre></div>
+<p>MAX’s MOSH dialect defines a shape dimension as a scalar <code>si64</code>; its <code>ShapeAttr::getDimType()</code> constructs that type (<a class="source-link" data-source="GraphCompiler/lib/MOSHDialect/MOSHAttrs.cpp:152" href="../sources/GraphCompiler/lib/MOSHDialect/MOSHAttrs.cpp#L152" title="GraphCompiler/lib/MOSHDialect/MOSHAttrs.cpp:152">MOSHAttrs.cpp</a>). So the 64-bit width is part of the compiler’s shape-representation contract. It lets shape inference and shape operations use a consistent integer type for dimensions. The constructor also accepts an <code>int64_t</code> value and checks that it fits the requested MLIR integer type (<a class="source-link" data-source="max/python/max/_core/max_license/modules/dialects/builtin.cpp:85" href="../sources/max/python/max/_core/max_license/modules/dialects/builtin.cpp#L85" title="max/python/max/_core/max_license/modules/dialects/builtin.cpp:85">builtin.cpp</a>).</p>
+<p>It does <strong>not</strong> mean the tensor’s floating-point values become 64-bit, or that MAX allocates an <code>i64</code> buffer for the shape. The dimensions are compile-time IR metadata; <code>float32</code> remains the element dtype. The implementation establishes <code>si64</code> as the dimension type, though the source doesn’t give a separate rationale for choosing 64 bits over another integer width.</p></article>
+</details>
+<details class="archive"><summary>Complete offline source archive</summary><details><summary>max/examples/custom_ops/fused_attention.py · complete source</summary><div class="code-scroll"><pre><code># ===----------------------------------------------------------------------=== #
+# Copyright (c) 2026, Modular Inc. All rights reserved.
+#
+# Licensed under the Apache License v2.0 with LLVM Exceptions:
+# https://llvm.org/LICENSE.txt
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ===----------------------------------------------------------------------=== #
+
+from pathlib import Path
+
+import numpy as np
+from max.driver import CPU, Accelerator, Buffer, accelerator_count
+from max.dtype import DType
+from max.engine.api import InferenceSession
+from max.graph import DeviceRef, Graph, TensorType, ops
+
+
+def main() -&gt; None:
+    mojo_kernels = Path(__file__).parent / &quot;kernels&quot;
+
+    dtype = DType.float32
+
+    # Place the graph on a GPU, if available. Fall back to CPU if not.
+    device = CPU() if accelerator_count() == 0 else Accelerator()
+    if accelerator_count() == 0:
+        N = 8
+        D = 8
+        BD = 4
+        BN = 4
+    else:
+        N = 32
+        D = 32
+        BD = 8
+        BN = 16
+
+    with Graph(
+        &quot;fused_attention&quot;,
+        input_types=[
+            TensorType(
+                dtype, shape=[N, D], device=DeviceRef.from_device(device)
+            ),
+            TensorType(
+                dtype, shape=[N, D], device=DeviceRef.from_device(device)
+            ),
+            TensorType(
+                dtype, shape=[N, D], device=DeviceRef.from_device(device)
+            ),
+        ],
+        custom_extensions=[mojo_kernels],
+    ) as graph:
+        q, k, v, *_ = graph.inputs
+        results = ops.custom(
+            name=&quot;modular_ops::fused_attention_custom&quot;,
+            device=DeviceRef.from_device(device),
+            parameters={&quot;BD&quot;: BD, &quot;BN&quot;: BN},
+            values=[q, k, v],
+            out_types=[
+                TensorType(
+                    dtype, shape=[N, D], device=DeviceRef.from_device(device)
+                )
+            ],
+        )
+        graph.output(*results)
+
+    # Set up an inference session for running the graph.
+    session = InferenceSession(devices=[device])
+
+    # Compile the graph.
+    compiled = session.compile(graph)
+    model = session.init(compiled)
+
+    np.random.seed(123)
+    Q = Buffer.from_numpy(np.random.randn(N, D).astype(&quot;f&quot;)).to(device)
+    K = Buffer.from_numpy(np.random.randn(N, D).astype(&quot;f&quot;)).to(device)
+    V = Buffer.from_numpy(np.random.randn(N, D).astype(&quot;f&quot;)).to(device)
+
+    output = model.execute(Q, K, V)
+    print(output)
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre></div></details><details><summary>max/python/max/graph/type.py · complete source</summary><div class="code-scroll"><pre><code># ===----------------------------------------------------------------------=== #
+# Copyright (c) 2026, Modular Inc. All rights reserved.
+#
+# Licensed under the Apache License v2.0 with LLVM Exceptions:
+# https://llvm.org/LICENSE.txt
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ===----------------------------------------------------------------------=== #
+&quot;&quot;&quot;Library for graph value types.&quot;&quot;&quot;
+
+from __future__ import annotations
+
+import enum
+import math
+from collections.abc import Iterable
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Generic, TypeVar
+
+from max._core import Attribute, NamedAttribute
+from max._core import Type as _Type
+from max._core import graph as _graph
+from max._core.dialects import builtin, m, mo
+from max.driver import CPU, Accelerator, Device
+from max.dtype import DType
+
+from .dim import SymbolicDim
+from .shape import Shape, ShapeLike
+
+MlirType = TypeVar(&quot;MlirType&quot;, bound=_Type)
+OpaqueParameter = bool | int | str | DType
+
+
+class FilterLayout(enum.Enum):
+    &quot;&quot;&quot;The memory layout of a convolution filter tensor.&quot;&quot;&quot;
+
+    RSCF = &quot;RSCF&quot;
+    QRSCF = &quot;QRSCF&quot;
+    FCRS = &quot;FCRS&quot;
+    FCQRS = &quot;FCQRS&quot;
+    CFRS = &quot;CFRS&quot;
+
+    def to_mlir(self) -&gt; mo.LayoutAttr:
+        &quot;&quot;&quot;Returns an MLIR attribute representing this layout.
+
+        This attribute is used in tensor type metadata for certain ops.
+
+        Returns:
+            An Attribute representing the layout.
+        &quot;&quot;&quot;
+        return mo.LayoutAttr(format_str=str(self.value))
+
+    @staticmethod
+    def from_mlir(attr: mo.LayoutAttr) -&gt; FilterLayout:
+        &quot;&quot;&quot;Constructs a layout from an attribute.
+
+        Args:
+            attr: The MLIR Attribute object to parse into a layout.
+
+        Returns:
+            The FilterLayout represented by the Attribute value.
+        &quot;&quot;&quot;
+        return FilterLayout(attr.format.value)
+
+
+class ConvInputLayout(enum.Enum):
+    &quot;&quot;&quot;The memory layout of a convolution input tensor.&quot;&quot;&quot;
+
+    # TODO(GEX-2302): We need to differentiate between 2D - 3D layouts.
+    # TODO(GEX-2302): Another Layout type should be used instead of StringAttr.
+    # Simpler implementation to quickly support CUDNN input formats.
+    NHWC = &quot;NHWC&quot;
+    NCHW = &quot;NCHW&quot;
+
+    def to_mlir(self) -&gt; builtin.StringAttr:
+        &quot;&quot;&quot;Returns an MLIR attribute representing this layout.
+
+        This attribute is used for certain convolution ops.
+
+        Returns:
+            An Attribute representing the layout.
+        &quot;&quot;&quot;
+        return builtin.StringAttr(self.value)
+
+    @staticmethod
+    def from_mlir(attr: builtin.StringAttr) -&gt; ConvInputLayout:
+        &quot;&quot;&quot;Constructs a layout from an attribute.
+
+        Args:
+            attr: The MLIR Attribute object to parse into a layout.
+
+        Returns:
+            The ConvInputLayout represented by the Attribute value.
+        &quot;&quot;&quot;
+        return ConvInputLayout(attr.value)
+
+
+@dataclass(frozen=True)  # noqa: RUF049  # TODO: investigate why this breaks
+class DeviceKind(str, Enum):
+    &quot;&quot;&quot;A device type representation.&quot;&quot;&quot;
+
+    CPU = &quot;cpu&quot;
+    &quot;&quot;&quot;A device on the host CPU.&quot;&quot;&quot;
+    GPU = &quot;gpu&quot;
+    &quot;&quot;&quot;A GPU accelerator device.&quot;&quot;&quot;
+
+    def __str__(self) -&gt; str:
+        return self.value
+
+    @staticmethod
+    def from_string(txt: str) -&gt; DeviceKind:
+        &quot;&quot;&quot;Parses a device kind from its string representation.&quot;&quot;&quot;
+        if txt == str(DeviceKind.CPU):
+            return DeviceKind.CPU
+        elif txt == str(DeviceKind.GPU):
+            return DeviceKind.GPU
+        else:
+            raise ValueError(f&quot;Unknown device kind {txt}&quot;)
+
+
+class DeviceRef:
+    &quot;&quot;&quot;A symbolic device representation.
+
+    DeviceRef type representation consists of a DeviceKind and an id. This is a direct
+    representation of the device attribute in MLIR.
+
+    The following example demonstrates how to create and use device references:
+
+    .. code-block:: python
+
+        from max.graph import DeviceRef
+        # Create a GPU device reference (default id=0)
+        gpu_device = DeviceRef.GPU()
+        print(gpu_device)  # Outputs: gpu:0
+        # Create a CPU device with specific id
+        cpu_device = DeviceRef.CPU(id=1)
+        print(cpu_device)  # Outputs: cpu:1
+    &quot;&quot;&quot;
+
+    device_type: DeviceKind
+    id: int
+
+    @staticmethod
+    def CPU(id: int = 0) -&gt; DeviceRef:
+        &quot;&quot;&quot;Creates a CPU device reference.&quot;&quot;&quot;
+        return DeviceRef(DeviceKind.CPU, id)
+
+    @staticmethod
+    def GPU(id: int = 0) -&gt; DeviceRef:
+        &quot;&quot;&quot;Creates a GPU device reference.&quot;&quot;&quot;
+        return DeviceRef(DeviceKind.GPU, id)
+
+    def __init__(self, device_type: DeviceKind | str, id: int = 0) -&gt; None:
+        if isinstance(device_type, DeviceKind):
+            self.device_type = device_type
+        else:
+            self.device_type = DeviceKind(device_type)
+        id = max(id, 0)
+        self.id = id
+
+    def __str__(self) -&gt; str:
+        return str(self.device_type) + &quot;:&quot; + str(self.id)
+
+    def __repr__(self) -&gt; str:
+        return str(self)
+
+    def __eq__(self, other: object) -&gt; bool:
+        &quot;&quot;&quot;Returns ``True`` if devices are equal.&quot;&quot;&quot;
+        if not isinstance(other, DeviceRef):
+            return False
+        return self.device_type is other.device_type and self.id == other.id
+
+    def __hash__(self) -&gt; int:
+        &quot;&quot;&quot;Hashes based on the immutable identity (device_type, id).&quot;&quot;&quot;
+        return hash((self.device_type, self.id))
+
+    def to_mlir(self) -&gt; m.DeviceRefAttr:
+        &quot;&quot;&quot;Returns an MLIR attribute representing the device.&quot;&quot;&quot;
+        return m.DeviceRefAttr(str(self.device_type), self.id)
+
+    def to_device(self) -&gt; Device:
+        &quot;&quot;&quot;Converts a device reference to a concrete driver ``Device``.&quot;&quot;&quot;
+        if self.device_type is DeviceKind.CPU:
+            return CPU(self.id)
+        elif self.device_type is DeviceKind.GPU:
+            return Accelerator(self.id)
+        else:
+            raise ValueError(f&quot;Unsupported device type: {self.device_type}&quot;)
+
+    def is_cpu(self) -&gt; bool:
+        &quot;&quot;&quot;Returns ``True`` if the device is a CPU device.&quot;&quot;&quot;
+        return self.device_type is DeviceKind.CPU
+
+    def is_gpu(self) -&gt; bool:
+        &quot;&quot;&quot;Returns ``True`` if the device is a GPU device.&quot;&quot;&quot;
+        return self.device_type is DeviceKind.GPU
+
+    @staticmethod
+    def from_mlir(attr: m.DeviceRefAttr) -&gt; DeviceRef:
+        &quot;&quot;&quot;Returns a device reference from an MLIR attribute.&quot;&quot;&quot;
+        return DeviceRef(device_type=DeviceKind(attr.label), id=attr.id)
+
+    @staticmethod
+    def from_device(device: Device | DeviceRef) -&gt; DeviceRef:
+        &quot;&quot;&quot;Converts a ``Device`` or ``DeviceRef`` to a ``DeviceRef``.&quot;&quot;&quot;
+        if isinstance(device, DeviceRef):
+            return device
+        return DeviceRef(DeviceKind(device.label), device.id)
+
+
+class Type(Generic[MlirType]):
+    &quot;&quot;&quot;The type of any value in a MAX graph.
+
+    Every value in the graph has a type, and that type is represented by a :class:`Type`.
+    This type may be inspected to get finer-grained types and learn more
+    about an individual Value.
+
+    The following example shows how to inspect a tensor type:
+
+    .. code-block:: python
+
+        from max.dtype import DType
+        from max.graph import DeviceRef, TensorType
+
+        tensor_type = TensorType(DType.float32, [2, 3], device=DeviceRef.CPU())
+        print(f&quot;Tensor element type: {tensor_type.dtype}&quot;)  # Outputs: DType.float32
+        print(f&quot;Tensor shape: {tensor_type.shape}&quot;)  # Outputs: [Dim(2), Dim(3)]
+    &quot;&quot;&quot;
+
+    def to_mlir(self) -&gt; MlirType:
+        &quot;&quot;&quot;Converts to an ``mlir.Type`` instance.
+
+        Returns:
+            An ``mlir.Type`` in the specified Context.
+        &quot;&quot;&quot;
+        raise NotImplementedError
+
+    @staticmethod
+    def from_mlir(t: MlirType) -&gt; Type[Any]:
+        &quot;&quot;&quot;Constructs a type from an MLIR type.
+
+        Args:
+            t: The MLIR Type object to parse into a type.
+
+        Returns:
+            The type represented by the MLIR Type value.
+        &quot;&quot;&quot;
+        if isinstance(t, mo.TensorType):
+            return TensorType.from_mlir(t)
+        elif isinstance(t, mo.BufferType):
+            return BufferType.from_mlir(t)
+        elif isinstance(t, mo.ChainType):
+            return _ChainType.from_mlir(t)
+        elif isinstance(t, mo.OpaqueType):
+            return _OpaqueType.from_mlir(t)
+        raise TypeError(f&quot;No type found for MLIR type: {t}&quot;)
+
+
+@dataclass
+class _TensorTypeBase(Type[MlirType]):
+    dtype: DType
+    &quot;&quot;&quot;The element type of the tensor value.&quot;&quot;&quot;
+    shape: Shape
+    &quot;&quot;&quot;The dimensions of the tensor value.&quot;&quot;&quot;
+    device: DeviceRef
+    &quot;&quot;&quot;The device of the tensor value.&quot;&quot;&quot;
+
+    def __init__(
+        self, dtype: DType, shape: ShapeLike, device: DeviceRef
+    ) -&gt; None:
+        self.dtype = dtype
+        self.shape = Shape(shape)
+        self.device = device
+
+        if any(dim &lt; 0 for dim in self.shape.static_dims):
+            raise TypeError(
+                f&quot;Static tensor dimensions must be non-negative; got {shape=}&quot;
+            )
+
+    # ===------------------------------------------------------------------=== #
+    # Basic accessors
+    # ===------------------------------------------------------------------=== #
+
+    @property
+    def rank(self) -&gt; int:
+        &quot;&quot;&quot;The rank of the tensor type.
+
+        Returns:
+            The tensor&#x27;s static rank.
+        &quot;&quot;&quot;
+        return len(self.shape)
+
+    def __eq__(self, other: object) -&gt; bool:
+        &quot;&quot;&quot;Checks whether the two tensors have the same type, shape, and device.
+
+        Args:
+            other: The other tensor to check equality against.
+
+        Returns:
+            ``True`` if the tensors have identical element type, shape, and
+            device, ``False`` otherwise.
+        &quot;&quot;&quot;
+        return (
+            isinstance(other, type(self))
+            and (self.dtype == other.dtype)
+            and (self.shape == other.shape)
+            and (self.device == other.device)
+        )
+
+    def __hash__(self) -&gt; int:
+        return hash((self.dtype, tuple(self.shape), self.device))
+
+    # ===------------------------------------------------------------------=== #
+    # Utilities
+    # ===------------------------------------------------------------------=== #
+
+    def num_elements(self) -&gt; int:
+        &quot;&quot;&quot;Counts the total number of elements in the tensor type.
+
+        For a static tensor, returns the product of all static dimensions.
+        This is the number of elements the tensor will hold **during execution**,
+        :class:`TensorType` doesn&#x27;t actually hold any element values at all.
+
+        Raises :obj:`RuntimeError` if the tensor has any symbolic dimensions.
+
+        Returns:
+            The number of elements the tensor contains.
+        &quot;&quot;&quot;
+        if not Shape.is_static(self.shape):
+            raise RuntimeError(
+                &quot;can&#x27;t find num elements since tensor has symbolic dims&quot;
+            )
+
+        return math.prod(int(dim) for dim in self.shape)
+
+    def cast(self, dtype: DType):  # noqa: ANN202
+        &quot;&quot;&quot;Constructs a new tensor type of the same shape with the new ``dtype``.
+
+        Args:
+            dtype: The new element type for the tensor.
+
+        Returns:
+            A new tensor type with the same shape, device, and the new element type.
+        &quot;&quot;&quot;
+        return type(self)(dtype, self.shape, self.device)
+
+    @property
+    def parameters(self) -&gt; Iterable[SymbolicDim]:
+        &quot;&quot;&quot;Lists the symbolic dimension names on which this type depends.&quot;&quot;&quot;
+        return self.shape.parameters
+
+
+@dataclass
+class TensorType(_TensorTypeBase[mo.TensorType]):
+    &quot;&quot;&quot;A symbolic tensor type.
+
+    Use ``TensorType`` to declare the expected ``dtype``, ``shape``, and target
+    ``device`` of tensor values that flow through a graph during model
+    execution. Unlike an eager tensor, a ``TensorType`` holds no data. It is a
+    purely symbolic description of a value&#x27;s type at a specific point in the
+    computation. The graph compiler uses this information for shape inference
+    and optimization during graph construction.
+
+    The following example shows how to create a tensor type and access its
+    properties:
+
+    .. code-block:: python
+
+        from max.graph import TensorType, DeviceRef
+        from max.dtype import DType
+        # Create a tensor type with float32 elements and static dimensions 2x3
+        tensor_type = TensorType(DType.float32, (2, 3), device=DeviceRef.CPU())
+        print(tensor_type.dtype)  # Outputs: DType.float32
+        print(tensor_type.shape)  # Outputs: [2, 3]
+
+    A shape&#x27;s dimensions can be static (integers), symbolic (strings), or
+    algebraic (expressions over symbolic dimensions). In each case the
+    rank is known at graph construction time.
+
+    Pass ``TensorType`` instances to :meth:`~max.engine.InferenceSession.load`
+    or :meth:`Module.compile` (experimental) to define the input types of a
+    graph or model.
+
+    Args:
+        dtype: The data type of the tensor elements.
+        shape: The shape of the tensor, expressed as a
+            :class:`~max.graph.Shape`.
+        device: The device the tensor is located on. Use
+            :meth:`DeviceRef.CPU` or :meth:`DeviceRef.GPU` to create a device
+            reference.
+    &quot;&quot;&quot;
+
+    _layout: FilterLayout | None = field(default=None, repr=False)
+
+    def __init__(
+        self,
+        dtype: DType,
+        shape: ShapeLike,
+        device: Device | DeviceRef,
+        _layout: FilterLayout | None = None,
+    ) -&gt; None:
+        super().__init__(dtype, shape, DeviceRef.from_device(device))
+        self._layout = _layout
+
+    def __hash__(self) -&gt; int:
+        return hash((self.dtype, tuple(self.shape), self.device, self._layout))
+
+    @classmethod
+    def from_mlir(cls, type: mo.TensorType) -&gt; TensorType:
+        &quot;&quot;&quot;Constructs a tensor type from an MLIR type.
+
+        Args:
+            type: The MLIR Type to parse into a tensor type.
+
+        Returns:
+            The tensor type represented by the MLIR Type value.
+        &quot;&quot;&quot;
+        device_ref = DeviceRef.from_mlir(type.device_ref)
+        self = cls(type.dtype, Shape.from_mlir(type.shape), device_ref)
+        for name, attr in type.metadata.value:
+            if name == &quot;layout&quot;:
+                assert isinstance(attr, mo.LayoutAttr)
+                self._layout = FilterLayout.from_mlir(attr)
+        return self
+
+    def to_mlir(self) -&gt; mo.TensorType:
+        &quot;&quot;&quot;Converts to an :obj:`mlir.Type` instance.
+
+        Returns:
+            An :obj:`mlir.Type` in the specified context.
+        &quot;&quot;&quot;
+        metadata = []
+        if self._layout:
+            metadata.append(NamedAttribute(&quot;layout&quot;, self._layout.to_mlir()))
+        return mo.TensorType(
+            self.shape.to_mlir(),
+            self.dtype,
+            self.device.to_mlir(),
+            metadata=builtin.DictionaryAttr(metadata),
+        )
+
+    def as_buffer(self) -&gt; BufferType:
+        &quot;&quot;&quot;Returns the analogous buffer type.&quot;&quot;&quot;
+        return BufferType(self.dtype, self.shape, self.device)
+
+
+class BufferType(_TensorTypeBase[mo.BufferType]):
+    &quot;&quot;&quot;A symbolic buffer type.
+
+    This is a reference to a tensor that can be mutated in place.
+    &quot;&quot;&quot;
+
+    @classmethod
+    def from_mlir(cls, type: mo.BufferType) -&gt; BufferType:
+        &quot;&quot;&quot;Constructs a buffer type from an MLIR type.
+
+        Args:
+            type: The MLIR Type to parse into a buffer type.
+
+        Returns:
+            The buffer type represented by the MLIR Type value.
+        &quot;&quot;&quot;
+        device_ref = DeviceRef.from_mlir(type.device_ref)
+        return cls(type.dtype, Shape.from_mlir(type.shape), device_ref)
+
+    def to_mlir(self) -&gt; mo.BufferType:
+        &quot;&quot;&quot;Converts to an ``mlir.Type`` instance.
+
+        Returns:
+            An ``mlir.Type`` in the specified Context.
+        &quot;&quot;&quot;
+        return mo.BufferType(
+            self.shape.to_mlir(), self.dtype, self.device.to_mlir()
+        )
+
+    def as_tensor(self) -&gt; TensorType:
+        &quot;&quot;&quot;Returns the analogous tensor type.&quot;&quot;&quot;
+        return TensorType(self.dtype, self.shape, self.device)
+
+
+def _value_to_attribute(param: OpaqueParameter) -&gt; Attribute:
+    &quot;&quot;&quot;Converts a native Python value to an MLIR attribute to parametrize a kernel or opaque type.&quot;&quot;&quot;
+    if isinstance(param, bool):
+        return builtin.BoolAttr(param)
+
+    if isinstance(param, int):
+        signedness = builtin.SignednessSemantics.signed
+        return builtin.IntegerAttr(builtin.IntegerType(64, signedness), param)
+
+    if isinstance(param, str):
+        return builtin.StringAttr(param)
+
+    if isinstance(param, DType):
+        # Wrap the MLIR type corresponding to dtype in a TypeAttr,
+        # which MOToKGENLowering expects.
+        dtype = _graph.dtype_to_type(param)
+        return builtin.TypeAttr(dtype)
+
+    raise TypeError(f&quot;unsupported parameter type {type(param)} for custom op&quot;)
+
+
+def _attribute_to_value(value: Attribute) -&gt; OpaqueParameter:
+    &quot;&quot;&quot;Converts an MLIR attribute representing a Mojo parameter to the corresponding Python type.
+
+    This function is the inverse of _value_to_attribute.
+    &quot;&quot;&quot;
+    if isinstance(value, builtin.BoolAttr | builtin.StringAttr):
+        return value.value
+
+    if isinstance(value, builtin.IntegerAttr):
+        type = value.type
+        if isinstance(type, builtin.IntegerType) and type.width == 1:
+            return bool(value.value)
+
+        return value.value
+
+    if isinstance(value, builtin.TypeAttr):
+        val = value.value
+        assert val is not None
+        return _graph.type_to_dtype(val)
+
+    raise TypeError(f&quot;unsupported attribute type {value}&quot;)
+
+
+@dataclass(frozen=True)
+class _OpaqueType(Type[mo.OpaqueType]):
+    &quot;&quot;&quot;A type representing an opaque type.&quot;&quot;&quot;
+
+    name: str
+    &quot;&quot;&quot;Identifier for the opaque type.&quot;&quot;&quot;
+
+    parameters: dict[str, OpaqueParameter] = field(default_factory=dict)
+    &quot;&quot;&quot;Dictionary of Mojo parameter assignments.
+
+    Valid parameter types are ``bool``, ``int``, ``str``, and ``DType``.
+
+    .. code-block:: python
+
+        # Create an opaque type with parameters
+        custom_type = _OpaqueType(
+            name=&quot;MyCustomType&quot;,
+            parameters={
+                &quot;rank&quot;: 3,
+                &quot;mut&quot;: True,
+                &quot;type&quot;: DType.float32,
+                &quot;address_space&quot;: &quot;global&quot;
+            }
+        )
+    &quot;&quot;&quot;
+
+    def to_mlir(self) -&gt; mo.OpaqueType:
+        &quot;&quot;&quot;Converts to an ``mlir.Type`` instance.
+
+        Returns:
+            An ``mlir.Type`` in the specified Context.
+        &quot;&quot;&quot;
+        # Convert Python dict to MLIR DictionaryAttr
+
+        mlir_params = [
+            NamedAttribute(key, _value_to_attribute(value))
+            for key, value in self.parameters.items()
+        ]
+
+        return mo.OpaqueType(
+            builtin.StringAttr(self.name),
+            parameters=builtin.DictionaryAttr(mlir_params),
+        )
+
+    @staticmethod
+    def from_mlir(t: mo.OpaqueType) -&gt; _OpaqueType:
+        &quot;&quot;&quot;Constructs an opaque type from an MLIR type.
+
+        Args:
+            t: The MLIR Type object to parse into an opaque type.
+
+        Returns:
+            The opaque type represented by the MLIR Type value.
+        &quot;&quot;&quot;
+        params: dict[str, OpaqueParameter] = {
+            name: _attribute_to_value(attr) for name, attr in t.parameters.value
+        }
+
+        return _OpaqueType(t.symbol.value, params)
+
+
+@dataclass
+class _ChainType(Type[mo.ChainType]):
+    &quot;&quot;&quot;A chain type.
+
+    Used in order to sequence operations that have side-effects.
+
+    As a user you should never need to directly interact with this type.
+    &quot;&quot;&quot;
+
+    def to_mlir(self) -&gt; mo.ChainType:
+        &quot;&quot;&quot;Converts to an ``mlir.Type`` instance.
+
+        Returns:
+            An ``mlir.Type`` in the specified Context.
+        &quot;&quot;&quot;
+        return mo.ChainType()
+
+    @staticmethod
+    def from_mlir(t: mo.ChainType) -&gt; _ChainType:
+        &quot;&quot;&quot;Constructs a chain type from an MLIR type.
+
+        Args:
+            t: The MLIR Type object to parse into a chain type.
+
+        Returns:
+            The chain type represented by the MLIR Type value.
+        &quot;&quot;&quot;
+        return _ChainType()
+</code></pre></div></details><details><summary>max/python/max/graph/dim.py · complete source</summary><div class="code-scroll"><pre><code># ===----------------------------------------------------------------------=== #
+# Copyright (c) 2026, Modular Inc. All rights reserved.
+#
+# Licensed under the Apache License v2.0 with LLVM Exceptions:
+# https://llvm.org/LICENSE.txt
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ===----------------------------------------------------------------------=== #
+&quot;&quot;&quot;Library for graph dimension types.&quot;&quot;&quot;
+
+from __future__ import annotations
+
+import functools
+import re
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass
+from typing import Any
+
+import numpy as np
+from max._core.dialects import builtin, kgen
+
+
+class Dim:
+    &quot;&quot;&quot;A tensor dimension.
+
+    Dims describe the shape of tensors in a :class:`Graph`. In most cases, you don&#x27;t
+    need to construct a ``Dim`` directly. Instead, you pass dimension values
+    directly to :class:`TensorType` or :class:`BufferType` constructors:
+
+    .. code-block:: python
+
+        from max.dtype import DType
+        from max.graph import Dim, TensorType, DeviceRef
+
+        # Create a TensorType with a symbolic &quot;batch&quot; dimension and a static dimension of size 10
+        tensor_type = TensorType(DType.int64, (&quot;batch&quot;, 10), device=DeviceRef.CPU())
+
+
+    A tensor dimension can be one of three types:
+
+    - **Static**: A known size. See :class:`StaticDim`.
+    - **Symbolic**: An unknown size identified by name. See :class:`SymbolicDim`.
+    - **Algebraic**: An expression derived from symbolic dimensions. See :class:`AlgebraicDim`.
+
+    Static dimensions let the graph compiler resolve shapes at compile time.
+    This enables more aggressive optimizations than symbolic or algebraic
+    dimensions allow. That said, when tensors share a named symbolic dimension,
+    the compiler can leverage the implied shape equality to optimize some
+    operations.
+    &quot;&quot;&quot;
+
+    def __new__(cls, value: DimLike):
+        &quot;&quot;&quot;Converts valid input values to Dim.&quot;&quot;&quot;
+        if cls is not Dim:
+            # For subclass constructors, preserve identity only for same subclass.
+            if isinstance(value, cls):
+                return value
+            return super().__new__(cls)
+        if isinstance(value, Dim):
+            # For base Dim constructor, pass through any existing Dim.
+            return value
+        if isinstance(
+            value, int | np.integer | builtin.IntegerAttr | kgen.SIMDAttr
+        ):
+            return super().__new__(StaticDim)
+        if isinstance(value, str | kgen.ParamDeclRefAttr):
+            return super().__new__(SymbolicDim)
+        if isinstance(value, kgen.ParamOperatorAttr):
+            return super().__new__(AlgebraicDim)
+
+        raise TypeError(f&quot;Unsupported dimension type {value} ({type(value)})&quot;)
+
+    def __index__(self) -&gt; int:
+        &quot;&quot;&quot;Converts this dim to an index as used by indexing and slicing.
+
+        This raises and suggests explicitly converting to int, so that we only
+        support implicit slicing operations on TensorValues.
+        Types such as list and np.ndarray call __index__ on inputs to their
+        __getitem__ special methods to convert those inputs to int.
+
+        This also prevents a MyPy false positive error: Slice index must be an
+        integer or None.
+        Related MyPy discussion: https://github.com/python/mypy/issues/2410
+        &quot;&quot;&quot;
+        raise TypeError(
+            &quot;when using dims to index into a list or NumPy array, explicitly &quot;
+            &quot;convert to int with int(dim)&quot;
+        )
+
+    def __int__(self) -&gt; int:
+        &quot;&quot;&quot;Conversion to an int only supported for static dims.&quot;&quot;&quot;
+        raise TypeError(
+            f&quot;int({self!r}): Int conversions only supported for static dims&quot;
+        )
+
+    def __eq__(self, other: object) -&gt; bool:
+        &quot;&quot;&quot;Checks whether two dimensions are equal.
+
+        Dimensions are equal if they are the same dimension type
+        (symbolic, static). Additionally, static dimensions
+        are only equal if their dimension is the same size, and symbolic
+        dimensions are only equal if they have the same name.
+
+        Args:
+            other: The other dimension to check equality against.
+
+        Returns:
+            True if the dimensions are equal, false otherwise.
+        &quot;&quot;&quot;
+        raise NotImplementedError
+
+    def __ne__(self, other: object) -&gt; bool:
+        &quot;&quot;&quot;Checks whether two dimensions are not equal.
+
+        The inverse of __eq__.
+
+        Args:
+            other: The other dimension to check inequality against.
+
+        Returns:
+            False if the dimensions are equal, true otherwise.
+        &quot;&quot;&quot;
+        return not self == other
+
+    def __add__(self, rhs: DimLike) -&gt; Dim:
+        if not isinstance(rhs, DimLike):
+            return NotImplemented
+        return AlgebraicDim.apply(kgen.POC.add, self, rhs)
+
+    def __radd__(self, lhs: DimLike) -&gt; Dim:
+        if not isinstance(lhs, DimLike):
+            return NotImplemented
+        return Dim(lhs) + self
+
+    def __mul__(self, rhs: DimLike) -&gt; Dim:
+        if not isinstance(rhs, DimLike):
+            return NotImplemented
+        return AlgebraicDim.apply(kgen.POC.mul_no_wrap, self, rhs)
+
+    def __rmul__(self, lhs: DimLike) -&gt; Dim:
+        if not isinstance(lhs, DimLike):
+            return NotImplemented
+        return Dim(lhs) * self
+
+    def __neg__(self) -&gt; Dim:
+        return -1 * self
+
+    def __sub__(self, rhs: DimLike) -&gt; Dim:
+        if not isinstance(rhs, DimLike):
+            return NotImplemented
+        return self + -Dim(rhs)
+
+    def __rsub__(self, lhs: DimLike) -&gt; Dim:
+        if not isinstance(lhs, DimLike):
+            return NotImplemented
+        return lhs + -self
+
+    def __floordiv__(self, rhs: DimLike) -&gt; Dim:
+        if not isinstance(rhs, DimLike):
+            return NotImplemented
+        if isinstance(rhs, int | StaticDim) and int(rhs) == 0:
+            raise ZeroDivisionError
+        return AlgebraicDim.apply(kgen.POC.div, self, rhs)
+
+    def __rfloordiv__(self, lhs: DimLike) -&gt; Dim:
+        if not isinstance(lhs, DimLike):
+            return NotImplemented
+        return lhs // self
+
+    def to_mlir(self) -&gt; builtin.TypedAttr:
+        &quot;&quot;&quot;Creates an ``mlir.Attribute`` representing this dimension.
+
+        This is used internally when constructing tensor MLIR types.
+
+        Returns:
+            An ``mlir.Attribute`` in the context representing the dimension.
+        &quot;&quot;&quot;
+        raise NotImplementedError
+
+    @staticmethod
+    def from_mlir(attr: builtin.TypedAttr) -&gt; Dim:
+        &quot;&quot;&quot;Constructs a dimension from an ``mlir.Attribute``.
+
+        Args:
+            attr: The MLIR Attribute to parse into a dimension.
+
+        Returns:
+            Dim: The dimension represented by the MLIR Attr value.
+        &quot;&quot;&quot;
+        if isinstance(attr, builtin.IntegerAttr | kgen.SIMDAttr):
+            return StaticDim.from_mlir(attr)
+        elif isinstance(attr, kgen.ParamDeclRefAttr):
+            return SymbolicDim.from_mlir(attr)
+        elif isinstance(attr, kgen.ParamOperatorAttr):
+            return AlgebraicDim.from_mlir(attr)
+        else:
+            raise ValueError(&quot;graph api does not support unknown dimensions&quot;)
+
+    @property
+    def parameters(self) -&gt; Iterable[SymbolicDim]:
+        &quot;&quot;&quot;Lists the symbolic dimension names on which this dim depends.&quot;&quot;&quot;
+        raise NotImplementedError
+
+    def substitute(self, mapping: Mapping[str, DimLike]) -&gt; Dim:
+        &quot;&quot;&quot;Returns this dim with named symbols replaced per ``mapping``.
+
+        Substituting static values folds the result through the compiler&#x27;s
+        own attribute evaluation; substituting symbols renames. Unmapped
+        symbols are left intact.
+
+        Args:
+            mapping: A mapping from symbolic dimension name to the
+                replacement dim (or dim-like value).
+
+        Returns:
+            The dim with substitutions applied.
+        &quot;&quot;&quot;
+        raise NotImplementedError
+
+
+@dataclass(frozen=True)
+class SymbolicDim(Dim):
+    &quot;&quot;&quot;A symbolic tensor dimension with an unknown size identified by name.
+
+    When you don&#x27;t know a dimension value at compile time, you can use a
+    symbolic dimension. This helps you identify dimensions by name and lets the
+    compiler optimize operations when two or more dimensions share the same name.
+
+    The following example creates a symbolic dimension implicitly passing the
+    strings ``&quot;batch&quot;`` and ``&quot;x&quot;`` to :class:`TensorType`:
+
+    .. code-block:: python
+
+       from max.dtype import DType
+       from max.graph import DeviceRef, TensorType
+
+       tensor_type = TensorType(DType.float32, (&quot;batch&quot;, &quot;x&quot;, 10), device=DeviceRef.CPU())
+    &quot;&quot;&quot;
+
+    name: str
+    &quot;&quot;&quot;The name of the dimension.&quot;&quot;&quot;
+
+    def __init__(self, name: str | builtin.TypedAttr | SymbolicDim) -&gt; None:
+        if isinstance(name, kgen.ParamDeclRefAttr):
+            name = name.name.value
+        elif isinstance(name, SymbolicDim):
+            name = name.name
+        elif not isinstance(name, str):
+            raise TypeError(
+                f&quot;SymbolicDim.__init__ only accepts str, kgen.ParamDeclRefAttr, or SymbolicDim, got {type(name).__name__}&quot;
+            )
+        # Can&#x27;t assign directly to frozen dataclasses.
+        super().__setattr__(&quot;name&quot;, name)
+        # TODO(MSDK-695): less restrictive names
+        if not re.match(r&quot;^[a-zA-Z_]\w*$&quot;, self.name):
+            raise ValueError(&quot;Invalid name for symbolic dimension&quot;)
+
+    def __str__(self) -&gt; str:
+        return self.name
+
+    def __repr__(self) -&gt; str:
+        return f&quot;Dim({self.name!r})&quot;
+
+    def __eq__(self, other: object) -&gt; bool:
+        &quot;&quot;&quot;Whether the dimension is the same as another symbolic dimension.
+
+        Symbolic dimensions with the same name are interpreted as the same
+        dimensionality! If you use Symbolic dimensions, make sure you&#x27;re naming
+        them consistently, your model will likely fail to compile if you name
+        two actually different dimensions the same name.
+
+        Args:
+            other: The other dimension to check equality against.
+
+        Returns:
+            True if the dimensions have the same name, false otherwise.
+        &quot;&quot;&quot;
+        return self.name == other or (
+            isinstance(other, SymbolicDim) and self.name == other.name
+        )
+
+    def to_mlir(self) -&gt; kgen.ParamDeclRefAttr:
+        &quot;&quot;&quot;Creates an ``mlir.Attribute`` representing this dimension.
+
+        This is used internally when constructing tensor MLIR types.
+
+        Returns:
+            An ``mlir.Attribute`` in the context representing the dimension.
+        &quot;&quot;&quot;
+        si64 = kgen.SIMDType(1, kgen._KGENDType.get_int(64, True))
+        return kgen.ParamDeclRefAttr(self.name, si64)
+
+    @staticmethod
+    def from_mlir(attr: builtin.TypedAttr) -&gt; SymbolicDim:
+        &quot;&quot;&quot;Constructs a ``SymbolicDim`` from a ``kgen.ParamDeclRefAttr``.
+
+        Args:
+            attr: The ``kgen.ParamDeclRefAttr`` to parse into a ``SymbolicDim``.
+
+        Returns:
+            SymbolicDim: The ``SymbolicDim`` represented by the ``kgen.ParamDeclRefAttr``.
+        &quot;&quot;&quot;
+        if not isinstance(attr, kgen.ParamDeclRefAttr):
+            raise TypeError(
+                f&quot;SymbolicDim.from_mlir only accepts kgen.ParamDeclRefAttr, got {type(attr).__name__}&quot;
+            )
+        return SymbolicDim(attr)
+
+    @property
+    def parameters(self) -&gt; Iterable[SymbolicDim]:
+        &quot;&quot;&quot;Lists the symbolic dimension names on which this dim depends.&quot;&quot;&quot;
+        yield self
+
+    def substitute(self, mapping: Mapping[str, DimLike]) -&gt; Dim:
+        &quot;&quot;&quot;Returns this dim with named symbols replaced per ``mapping``.
+
+        Args:
+            mapping: A mapping from symbolic dimension name to the
+                replacement dim (or dim-like value).
+
+        Returns:
+            ``Dim(mapping[self.name])`` if ``self.name`` is in ``mapping``,
+            otherwise this dim unchanged.
+        &quot;&quot;&quot;
+        replacement = mapping.get(self.name)
+        return self if replacement is None else Dim(replacement)
+
+
+@dataclass(frozen=True)
+class AlgebraicDim(Dim):
+    &quot;&quot;&quot;A dimension defined by an expression over symbolic dimensions.
+
+    Arithmetic on symbolic dimensions produces an ``AlgebraicDim``:
+
+    .. code-block:: python
+
+        from max.graph import AlgebraicDim, Dim
+
+        isinstance(Dim(&quot;batch&quot;) * 5, AlgebraicDim)  # True
+
+    Equivalent expressions simplify to the same form:
+
+    .. code-block:: python
+
+        from max.graph import Dim
+
+        Dim(&quot;x&quot;) + 1 + 1 == Dim(&quot;x&quot;) + 2  # True
+
+    .. note::
+
+        Algebraic dimensions are valid inside a graph. However, they can&#x27;t
+        appear in graph input or output types because their underlying values
+        can be ambiguous. For example, a dimension of ``Dim(&quot;foo&quot;) *
+        Dim(&quot;bar&quot;)`` could be satisfied by multiple combinations of ``foo`` and
+        ``bar``.
+
+    &quot;&quot;&quot;
+
+    attr: kgen.ParamOperatorAttr
+
+    def __init__(self, attr: builtin.TypedAttr | AlgebraicDim) -&gt; None:
+        if isinstance(attr, AlgebraicDim):
+            attr = attr.attr
+        elif not isinstance(attr, kgen.ParamOperatorAttr):
+            raise TypeError(
+                f&quot;AlgebraicDim.__init__ only accepts kgen.ParamOperatorAttr or AlgebraicDim, got {type(attr).__name__}&quot;
+            )
+        super().__setattr__(&quot;attr&quot;, attr)
+
+    @classmethod
+    def apply(cls, op: kgen.POC, *operands: DimLike):  # noqa: ANN206
+        &quot;&quot;&quot;Applies a parametric operator to operands and returns the resulting dimension.&quot;&quot;&quot;
+        # kgen.ParamOperatorAttr eagerly folds on construction!
+        #  - this can return static or symbolic dims
+        #  - let Dim decide what type to return
+        attr = kgen.ParamOperatorAttr(
+            op, [Dim(operand).to_mlir() for operand in operands]
+        )
+        return Dim(attr)
+
+    def substitute(self, mapping: Mapping[str, DimLike]) -&gt; Dim:
+        &quot;&quot;&quot;Returns this dim with named symbols replaced per ``mapping``.
+
+        Substitutes into each operand, then reapplies the operator, so
+        substitution to static values folds through the compiler&#x27;s own
+        attribute evaluation rather than being recomputed in Python.
+
+        Args:
+            mapping: A mapping from symbolic dimension name to the
+                replacement dim (or dim-like value).
+
+        Returns:
+            The dim with substitutions applied, re-folded by the compiler.
+
+        Raises:
+            ZeroDivisionError: If substitution produces a zero divisor.
+        &quot;&quot;&quot;
+        operands = [
+            Dim(operand).substitute(mapping) for operand in self.attr.operands
+        ]
+        # __floordiv__&#x27;s zero guard does not run here, and the compiler
+        # neither folds nor rejects a literal zero divisor. A div attribute
+        # always carries two operands - its verifier rejects any other count.
+        if self.attr.opcode == kgen.POC.div and operands[1] == 0:
+            raise ZeroDivisionError(
+                f&quot;substituting into {self} produced a zero divisor&quot;
+            )
+        return AlgebraicDim.apply(self.attr.opcode, *operands)
+
+    def __format__(self, format_spec: str) -&gt; str:
+        formatters: Mapping[str, Callable[[Any], str]] = {
+            &quot;str&quot;: str,
+            &quot;repr&quot;: repr,
+        }
+        formatter = formatters[format_spec or &quot;str&quot;]
+
+        def format(dim: Dim):  # noqa: ANN202
+            formatted = formatter(dim)
+            return (
+                f&quot;({formatted})&quot; if isinstance(dim, AlgebraicDim) else formatted
+            )
+
+        # For the opcodes we support in the graph api, print with python math.
+        opcodes = {
+            kgen.POC.add: &quot;+&quot;,
+            kgen.POC.mul_no_wrap: &quot;*&quot;,
+            kgen.POC.div: &quot;//&quot;,
+        }
+        opcode = self.attr.opcode
+        dims = [Dim(operand) for operand in self.attr.operands]
+        if opcode in opcodes:
+            # Wrap algebraic sub-expressions in parens
+            return f&quot; {opcodes[opcode]} &quot;.join(map(format, dims))
+        return formatter(self.attr)
+
+    def __str__(self) -&gt; str:
+        return f&quot;{self:str}&quot;
+
+    def __repr__(self) -&gt; str:
+        return f&quot;{self:repr}&quot;
+
+    def __eq__(self, other: object) -&gt; bool:
+        return isinstance(other, AlgebraicDim) and self.attr == other.attr
+
+    def to_mlir(self) -&gt; kgen.ParamOperatorAttr:
+        &quot;&quot;&quot;Creates an mlir.Attribute representing this dimension.
+
+        This is used internally when constructing tensor MLIR types.
+
+        Returns:
+            An mlir.Attribute in the context representing the dimension.
+        &quot;&quot;&quot;
+        return self.attr
+
+    @staticmethod
+    def from_mlir(attr: builtin.TypedAttr) -&gt; AlgebraicDim:
+        &quot;&quot;&quot;Constructs an ``AlgebraicDim`` from a ``kgen.ParamOperatorAttr``.
+
+        Args:
+            attr: The ``kgen.ParamOperatorAttr`` to parse into an ``AlgebraicDim``.
+
+        Returns:
+            AlgebraicDim: The ``AlgebraicDim`` represented by the ``kgen.ParamOperatorAttr``.
+        &quot;&quot;&quot;
+        if not isinstance(attr, kgen.ParamOperatorAttr):
+            raise TypeError(
+                f&quot;AlgebraicDim.from_mlir only accepts kgen.ParamOperatorAttr, got {type(attr).__name__}&quot;
+            )
+        return AlgebraicDim(attr)
+
+    @property
+    def parameters(self) -&gt; Iterable[SymbolicDim]:
+        &quot;&quot;&quot;Lists the symbolic dimension names on which this dim depends.&quot;&quot;&quot;
+        for operand in self.attr.operands:
+            yield from Dim(operand).parameters
+
+
+@functools.total_ordering
+@dataclass(frozen=True)
+class StaticDim(Dim):
+    &quot;&quot;&quot;A static tensor dimension with a fixed size.
+
+    Because a static dimension&#x27;s size is fixed, related computation can be
+    optimized at compile time. This is key to good model performance.
+
+    The following example creates static dimensions implicitly by passing
+    integer values to :class:`TensorType`:
+
+    .. code-block:: python
+
+        from max.dtype import DType
+        from max.graph import DeviceRef, TensorType
+        tensor = TensorType(DType.int64, (4, 5), device=DeviceRef.CPU())
+        # This creates a tensor with 2 static dimensions: 4 and 5 respectively
+    &quot;&quot;&quot;
+
+    dim: int
+    &quot;&quot;&quot;The size of the static dimension.&quot;&quot;&quot;
+
+    def __init__(self, dim: int | builtin.TypedAttr | StaticDim) -&gt; None:
+        # Use CastToBuiltinAttr to fold back to integer.
+        if isinstance(dim, kgen.SIMDAttr):
+            dim = kgen.CastToBuiltinAttr(dim)
+
+        if isinstance(dim, builtin.IntegerAttr):
+            dim = dim.value
+        elif isinstance(dim, StaticDim):
+            dim = dim.dim
+        elif not isinstance(dim, int):
+            raise TypeError(
+                f&quot;StaticDim.__init__ only accepts int, builtin.IntegerAttr, or StaticDim, got {type(dim).__name__}&quot;
+            )
+        # Can&#x27;t assign directly to frozen dataclasses.
+        super().__setattr__(&quot;dim&quot;, dim)
+        if not -(2**63) &lt;= self.dim &lt; 2**63:
+            raise ValueError(&quot;Dim value must be -2**63 &lt;= dim &lt; 2**63&quot;)
+
+    def substitute(self, mapping: Mapping[str, DimLike]) -&gt; Dim:
+        &quot;&quot;&quot;Returns this dim unchanged: a static dim has no symbols.
+
+        Args:
+            mapping: A mapping from symbolic dimension name to the
+                replacement dim (or dim-like value). Ignored.
+
+        Returns:
+            This dim, unchanged.
+        &quot;&quot;&quot;
+        return self
+
+    def __str__(self) -&gt; str:
+        return str(self.dim)
+
+    def __repr__(self) -&gt; str:
+        return f&quot;Dim({repr(self.dim)})&quot;
+
+    def __int__(self) -&gt; int:
+        return self.dim
+
+    def __eq__(self, other: object) -&gt; bool:
+        &quot;&quot;&quot;Whether the dimension has the same size as another dimension.
+
+        Args:
+            other: The other dimension to check equality against.
+
+        Returns:
+            True if both dimensions have the same static size, false otherwise.
+        &quot;&quot;&quot;
+        return self.dim == other or (
+            isinstance(other, StaticDim) and self.dim == other.dim
+        )
+
+    def __lt__(self, other: int | StaticDim):
+        return self.dim &lt; (other.dim if isinstance(other, StaticDim) else other)
+
+    def __hash__(self):
+        return hash(self.dim)
+
+    def to_mlir(self) -&gt; builtin.TypedAttr:
+        &quot;&quot;&quot;Creates an ``mlir.Attribute`` representing this dimension.
+
+        This is used internally when constructing tensor MLIR types.
+
+        Returns:
+            An ``mlir.Attribute`` in the context representing the dimension.
+        &quot;&quot;&quot;
+        si64 = builtin.IntegerType(64, builtin.SignednessSemantics.signed)
+        return kgen.CastFromBuiltinAttr(builtin.IntegerAttr(si64, self.dim))
+
+    @staticmethod
+    def from_mlir(attr: builtin.TypedAttr) -&gt; StaticDim:
+        &quot;&quot;&quot;Constructs a ``StaticDim`` from a ``builtin.IntegerAttr``.
+
+        Args:
+            attr: The ``builtin.IntegerAttr`` to parse into a ``StaticDim``.
+
+        Returns:
+            StaticDim: The ``StaticDim`` represented by the ``builtin.IntegerAttr``.
+        &quot;&quot;&quot;
+        if not isinstance(attr, builtin.IntegerAttr | kgen.SIMDAttr):
+            raise TypeError(
+                f&quot;StaticDim.from_mlir only accepts builtin.IntegerAttr, got {type(attr).__name__}&quot;
+            )
+        return StaticDim(attr)
+
+    @property
+    def parameters(self) -&gt; Iterable[SymbolicDim]:
+        &quot;&quot;&quot;Lists the symbolic dimension names on which this dim depends.&quot;&quot;&quot;
+        return ()
+
+
+DimLike = int | str | Dim | np.integer | builtin.TypedAttr
+&quot;&quot;&quot;Anything a dimension accepts: a Python int, a symbolic name, a
+:class:`Dim`, a NumPy integer, or a typed MLIR attribute.
+&quot;&quot;&quot;
+</code></pre></div></details><details><summary>GraphCompiler/lib/MOSHDialect/MOSHAttrs.cpp · complete source</summary><div class="code-scroll"><pre><code>//===----------------------------------------------------------------------===//
+// Copyright (c) 2026, Modular Inc. All rights reserved.
+//
+// Licensed under the MAX License:
+// https://modular.com/legal/max-license
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//===----------------------------------------------------------------------===//
+//
+// This file implements the MOSH dialect attributes.
+//
+//===----------------------------------------------------------------------===//
+
+#include &quot;GraphCompiler/MOSHDialect/MOSHAttrs.h&quot;
+#include &quot;GraphCompiler/MOSHDialect/MOSHDialect.h&quot;
+#include &quot;GraphCompiler/MOSHDialect/MOSHTypes.h&quot;
+#include &quot;Mojo/KGENDialect/KGENTypes.h&quot;
+#include &quot;Mojo/KGENDialect/KGENUtils.h&quot;
+#include &quot;Support/AssertStream.h&quot;
+#include &quot;Support/MDialect/ParserUtils.h&quot;
+#include &quot;mlir/IR/Builders.h&quot;
+#include &quot;llvm/ADT/SmallVectorExtras.h&quot;
+#include &quot;llvm/ADT/TypeSwitch.h&quot;
+
+using namespace M;
+using namespace MOSH;
+
+//===----------------------------------------------------------------------===//
+// MOSHDialect attribute support
+//===----------------------------------------------------------------------===//
+
+void MOSHDialect::registerAttributes() {
+  addAttributes&lt;
+#define GET_ATTRDEF_LIST
+#include &quot;GraphCompiler/MOSHDialect/MOSHAttrs.cpp.inc&quot;
+      &gt;();
+}
+
+//===----------------------------------------------------------------------===//
+// ShapeAttr
+//===----------------------------------------------------------------------===//
+
+OptionalParseResult M::MOSH::parseShapeAttr(AsmParser &amp;p,
+                                            TypedAttr &amp;shapeAttr) {
+  auto shapeTy = p.getBuilder().getType&lt;ShapeType&gt;();
+
+  if (succeeded(p.parseOptionalLSquare())) {
+    SmallVector&lt;TypedAttr&gt; values;
+    if (failed(p.parseOptionalRSquare())) {
+      if (parseShapeValue(p, values) || p.parseRSquare())
+        return failure();
+    }
+
+    shapeAttr = p.getChecked&lt;ShapeAttr&gt;(values, shapeTy);
+    return failure(!shapeAttr);
+  }
+
+  return std::nullopt;
+}
+
+void M::MOSH::printShapeTypedAttr(AsmPrinter &amp;p, TypedAttr shapeAttr) {
+  assert(isa&lt;ShapeType&gt;(shapeAttr.getType()));
+  if (auto declRef = dyn_cast&lt;KGEN::ParamDeclRefAttr&gt;(shapeAttr)) {
+    KGEN::printParamName(p, declRef.getName());
+  } else if (auto declRef = dyn_cast&lt;KGEN::ParamIndexRefAttr&gt;(shapeAttr)) {
+    KGEN::printParamValue(p, declRef, declRef.getType());
+  } else {
+    p &lt;&lt; &quot;[&quot;;
+    printShapeValue(p, cast&lt;ShapeAttr&gt;(shapeAttr).getValues());
+    p &lt;&lt; &quot;]&quot;;
+  }
+}
+
+std::string M::MOSH::shapeTypedAttrToStr(TypedAttr attr) {
+  std::string str;
+  llvm::raw_string_ostream os(str);
+  StreamAsmPrinter printer(os);
+  MOSH::printShapeTypedAttr(printer, attr);
+  return str;
+}
+
+int64_t M::MOSH::findDeclIdx(ShapeAttr shape, KGEN::ParamDeclAttr decl) {
+  StringAttr declName = decl.getName();
+  for (auto [idx, dim] : llvm::enumerate(shape.getValues())) {
+    if (auto dimRef = dyn_cast&lt;KGEN::ParamDeclRefAttr&gt;(dim))
+      if (dimRef.getName() == declName)
+        return idx;
+  }
+  return -1;
+}
+
+static ParseResult parseColonTypeOrDimension(AsmParser &amp;parser, Type &amp;type) {
+  auto dimType = ShapeAttr::getDimType(parser.getContext());
+  return KGEN::parseColonTypeOrDefault(parser, type, dimType);
+}
+
+static ParseResult parseShapeValueElement(AsmParser &amp;p, TypedAttr &amp;value) {
+  Type type;
+  if (parseColonTypeOrDimension(p, type) ||
+      KGEN::parseParamValue(p, value, type))
+    return failure();
+
+  return success();
+}
+
+ParseResult M::MOSH::parseShapeValue(AsmParser &amp;p,
+                                     SmallVectorImpl&lt;TypedAttr&gt; &amp;values) {
+  values.clear();
+
+  if (p.parseCommaSeparatedList([&amp;]() -&gt; ParseResult {
+        return parseShapeValueElement(p, values.emplace_back());
+      }))
+    return failure();
+
+  return success();
+}
+
+ParseResult M::MOSH::parseShapeValue(AsmParser &amp;p,
+                                     SmallVectorImpl&lt;TypedAttr&gt; &amp;values,
+                                     ShapeType type) {
+  return parseShapeValue(p, values);
+}
+
+/// print `:&lt;type&gt; ` or elide it entirely if type is the dim type.
+static void printColonTypeOrDimensionPrefix(AsmPrinter &amp;p, Type type) {
+  if (type == ShapeAttr::getDimType(type.getContext()))
+    return;
+  p &lt;&lt; &#x27;:&#x27;;
+  KGEN::printKGENType(p, type);
+  p &lt;&lt; &#x27; &#x27;;
+}
+
+void M::MOSH::printDimensionValue(AsmPrinter &amp;p, TypedAttr value) {
+  printColonTypeOrDimensionPrefix(p, value.getType());
+  KGEN::printParamValue(p, value);
+}
+
+void M::MOSH::printShapeValue(AsmPrinter &amp;p, ArrayRef&lt;TypedAttr&gt; values) {
+  llvm::interleaveComma(
+      values, p, [&amp;](TypedAttr value) { printDimensionValue(p, value); });
+}
+
+void M::MOSH::printShapeValue(AsmPrinter &amp;p, ArrayRef&lt;TypedAttr&gt; values,
+                              ShapeType type) {
+  printShapeValue(p, values);
+}
+
+KGEN::SIMDType ShapeAttr::getDimType(MLIRContext *ctx) {
+  return KGEN::SIMDType::get(ctx, 1, KGEN::KGENDType::si64);
+}
+
+KGEN::SIMDAttr ShapeAttr::getDim(MLIRContext *ctx, int64_t value) {
+  return KGEN::SIMDAttr::get(value, getDimType(ctx));
+}
+
+/// Is the given type a legal dimension (scalar `si64` SIMD lane)?
+bool ShapeAttr::isDimType(Type type) {
+  if (type == getDimType(type.getContext()))
+    return true;
+
+  if (auto simdType = dyn_cast&lt;KGEN::SIMDType&gt;(type))
+    return simdType.getResolvedSize() == 1 &amp;&amp;
+           simdType.getResolvedDType()
+               .value_or(KGEN::KGENDType::invalid)
+               .isIntLike(); // Also admits bool/index.
+
+  return false;
+}
+
+std::optional&lt;int64_t&gt; ShapeAttr::getStaticDim(Attribute attr) {
+  auto simdAttr = dyn_cast_or_null&lt;KGEN::SIMDAttr&gt;(attr);
+  if (!simdAttr || !isDim(simdAttr))
+    return {};
+
+  return simdAttr.getValues().front().getIntVal().getExtValue();
+}
+
+SmallVector&lt;TypedAttr&gt; dimAttrs(MLIRContext *context,
+                                ArrayRef&lt;int64_t&gt; values) {
+  SmallVector&lt;TypedAttr&gt; attrs;
+  attrs.reserve(values.size());
+
+  for (auto v : values) {
+    if (mlir::ShapedType::isDynamic(v)) {
+      ASSERT_STREAM(false, &quot;ShapeAttr does not support dynamic dimensions&quot;);
+    } else {
+      attrs.push_back(ShapeAttr::getDim(context, v));
+    }
+  }
+  return attrs;
+}
+
+ShapeAttr ShapeAttr::get(ArrayRef&lt;int64_t&gt; values, ShapeType type) {
+  auto ctx = type.getContext();
+  return get(ctx, dimAttrs(ctx, values), type);
+}
+
+ShapeAttr ShapeAttr::getChecked(function_ref&lt;InFlightDiagnostic()&gt; emitError,
+                                ArrayRef&lt;int64_t&gt; values, ShapeType type) {
+  auto ctx = type.getContext();
+  auto dims = dimAttrs(ctx, values);
+  return ShapeAttr::getChecked(emitError, dims, type);
+}
+
+ShapeAttr ShapeAttr::get(IntArrayElementsAttr intDims, ShapeType type) {
+  SmallVector&lt;int64_t&gt; rawDims = llvm::map_to_vector(
+      intDims.getValues(), [](const APInt &amp;dim) { return dim.getSExtValue(); });
+  return get(rawDims, type);
+}
+
+ShapeAttr ShapeAttr::getChecked(function_ref&lt;InFlightDiagnostic()&gt; emitError,
+                                IntArrayElementsAttr intDims, ShapeType type) {
+  auto ctx = type.getContext();
+  auto dims = dimAttrs(ctx, intDims.asArrayRef&lt;int64_t&gt;());
+  return ShapeAttr::getChecked(emitError, dims, type);
+}
+
+bool ShapeAttr::isConstant() const {
+  return llvm::all_of(getValues(), [](TypedAttr attr) {
+    return getStaticDim(attr).has_value();
+  });
+}
+
+LogicalResult ShapeAttr::verify(function_ref&lt;InFlightDiagnostic()&gt; emitError,
+                                ArrayRef&lt;TypedAttr&gt; values, ShapeType type) {
+  for (auto [idx, value] : llvm::enumerate(values)) {
+    if (!ShapeAttr::isDimType(value.getType())) {
+      return emitError() &lt;&lt; &quot;expected all list elements to have &quot;
+                            &quot;scalar&lt;integer&gt; type &quot;
+                         &lt;&lt; value.getType() &lt;&lt; &quot; at position &quot; &lt;&lt; idx;
+    }
+  }
+
+  auto elementTypes =
+      llvm::map_range(values, [](TypedAttr value) { return value.getType(); });
+
+  if (!llvm::all_equal(elementTypes))
+    return emitError() &lt;&lt; &quot;expected all elements to have the same type&quot;;
+
+  return success();
+}
+
+static int64_t symbolicDimToInt(TypedAttr dim) {
+  std::optional&lt;int64_t&gt; v = ShapeAttr::getStaticDim(dim);
+  return v.has_value() ? *v : mlir::ShapedType::kDynamic;
+}
+
+int64_t ShapeAttr::getIntDim(size_t n) const {
+  return symbolicDimToInt(getValues()[n]);
+}
+
+SmallVector&lt;int64_t&gt; ShapeAttr::getIntDims() const {
+  return llvm::map_to_vector(getValues(), symbolicDimToInt);
+}
+
+TypedAttr ShapeAttr::getSymbolicNumElements() const {
+  if (getRank() == 0)
+    return ShapeAttr::getDim(getContext(), 1);
+  return KGEN::ParamOperatorAttr::get(KGEN::POC::MulNoWrap, getValues());
+}
+
+ErrorOr&lt;ShapeAttr&gt; ShapeAttr::broadcastShapes(ShapeAttr xSh, ShapeAttr ySh) {
+  // Follows https://numpy.org/doc/stable/user/basics.broadcasting.html
+  // TODO (#7331): Merge with Support/ML/BroadcastShape.
+
+  if (xSh == ySh)
+    return ySh;
+
+  auto intDim1 = getDim(xSh.getContext(), 1ll);
+
+  SmallVector&lt;TypedAttr&gt; result;
+  ArrayRef&lt;TypedAttr&gt; xShDims = xSh.getValues();
+  ArrayRef&lt;TypedAttr&gt; yShDims = ySh.getValues();
+  for (auto [xShDim, yShDim] :
+       llvm::zip_longest(llvm::reverse(xShDims), llvm::reverse(yShDims))) {
+    if (!yShDim.has_value()) {
+      result.push_back(xShDim.value());
+      continue;
+    }
+
+    if (!xShDim.has_value()) {
+      result.push_back(yShDim.value());
+      continue;
+    }
+
+    TypedAttr xShDimVal = xShDim.value();
+    TypedAttr yShDimVal = yShDim.value();
+
+    if (xShDimVal == yShDimVal) {
+      result.push_back(xShDimVal);
+      continue;
+    }
+
+    if (xShDimVal == intDim1) {
+      result.push_back(yShDimVal);
+      continue;
+    }
+
+    if (yShDimVal == intDim1) {
+      result.push_back(xShDimVal);
+      continue;
+    }
+
+    // Not 1, not dynamic. Then the other shape necessarily matches this.
+    if (xShDimVal != yShDimVal) {
+      return Error(Twine(
+          &quot;upstream dialect should have rejected non-broadcastable inputs&quot;));
+    }
+    result.push_back(xShDimVal);
+  }
+  return ShapeAttr::get(SmallVector&lt;TypedAttr&gt;(llvm::reverse(result)),
+                        xSh.getType());
+}
+
+TypedAttr ShapeAttr::getCommonBroadcastShape(ArrayRef&lt;TypedAttr&gt; shapeParams) {
+  SmallVector&lt;ShapeAttr&gt; staticRankShapes;
+  for (TypedAttr p : shapeParams) {
+    if (auto shape = llvm::dyn_cast&lt;ShapeAttr&gt;(p)) {
+      staticRankShapes.emplace_back(shape);
+    }
+  }
+
+  // If all the shapes are dynamically ranked, we can only determine a common
+  // shape if they are all the same.
+  if (staticRankShapes.empty()) {
+    TypedAttr res = shapeParams.front();
+    auto notSameAsFirst = [res](TypedAttr other) { return res != other; };
+    if (llvm::any_of(shapeParams.drop_front(), notSameAsFirst))
+      return {};
+    return res;
+  }
+
+  // If we have both static and dynamic ranks, we can&#x27;t do anything.
+  if (staticRankShapes.size() != shapeParams.size())
+    return {};
+
+  // All ranks are static: reduce pairwise into the common shape.
+  ShapeAttr commonShape = staticRankShapes.pop_back_val();
+  while (!staticRankShapes.empty()) {
+    ShapeAttr nextShape = staticRankShapes.pop_back_val();
+    ErrorOr&lt;ShapeAttr&gt; maybeCommonShape =
+        ShapeAttr::broadcastShapes(commonShape, nextShape);
+    if (maybeCommonShape.isError())
+      return {};
+    commonShape = maybeCommonShape.takeValue();
+  }
+
+  return commonShape;
+}
+
+ErrorOr&lt;SmallVector&lt;int64_t&gt;&gt;
+ShapeAttr::getBroadcastedAxes(ShapeAttr beforeShape, ShapeAttr bcastedShape) {
+  ArrayRef&lt;TypedAttr&gt; beforeDims = beforeShape.getValues();
+  ArrayRef&lt;TypedAttr&gt; bcastedDims = bcastedShape.getValues();
+
+  ASSERT_STREAM(
+      beforeDims.size() &lt;= bcastedDims.size(),
+      &lt;&lt; &quot;Broadcasting can only increase rank but it is trying to decrease &quot;
+         &quot;rank from &quot;
+      &lt;&lt; beforeDims.size() &lt;&lt; &quot; to &quot; &lt;&lt; bcastedDims.size());
+
+  // Built in reverse since broadcasting aligns innermost dimensions.
+  SmallVector&lt;int64_t&gt; answer;
+  for (size_t iter = 0; iter &lt; beforeDims.size(); ++iter) {
+    int beforeI = beforeDims.size() - iter - 1;
+    int bcastedI = bcastedDims.size() - iter - 1;
+
+    const TypedAttr &amp;beforeDim = beforeDims[beforeI];
+    const TypedAttr &amp;bcastedDim = bcastedDims[bcastedI];
+
+    // A runtime dim A --&gt; B may or may not be a broadcast, so only static
+    // 1 --&gt; not-1 is provably a broadcast axis.
+    std::optional&lt;int64_t&gt; beforeDimInt = ShapeAttr::getStaticDim(beforeDim);
+    std::optional&lt;int64_t&gt; bcastedDimInt = ShapeAttr::getStaticDim(bcastedDim);
+    if (beforeDimInt &amp;&amp; bcastedDimInt &amp;&amp; *beforeDimInt == 1 &amp;&amp;
+        *bcastedDimInt != 1) {
+      answer.push_back(bcastedI);
+    } else if (beforeDim != bcastedDim) {
+      return Error(&quot;Cannot statically prove which dimension broadcast.&quot;);
+    }
+  }
+
+  // Newly introduced leading dims, also in reverse.
+  size_t extraDims = bcastedDims.size() - beforeDims.size();
+  for (size_t iter = 0; iter &lt; extraDims; ++iter) {
+    answer.push_back(extraDims - 1 - iter);
+  }
+
+  std::reverse(answer.begin(), answer.end());
+  return answer;
+}
+
+//===----------------------------------------------------------------------===//
+// ODS-Generated Definitions
+//===----------------------------------------------------------------------===//
+
+#define GET_ATTRDEF_CLASSES
+#include &quot;GraphCompiler/MOSHDialect/MOSHAttrs.cpp.inc&quot;
+</code></pre></div></details><details><summary>max/python/max/_core/max_license/modules/dialects/builtin.cpp · complete source</summary><div class="code-scroll"><pre><code>//===----------------------------------------------------------------------===//
+// Copyright (c) 2026, Modular Inc. All rights reserved.
+//
+// Licensed under the MAX License:
+// https://modular.com/legal/max-license
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//===----------------------------------------------------------------------===//
+
+#include &quot;Support/Nanobind/OptionalPimpl.h&quot;
+#include &quot;Support/Nanobind/TypeCasters.h&quot; // IWYU pragma: keep (type casters)
+#include &quot;_core/Graph/Bindings.h&quot;
+#include &quot;_core/Graph/Checked.h&quot;
+#include &quot;_core/Graph/InferContext.h&quot;
+#include &quot;_core/Graph/InferTypeOpBuilders.h&quot;
+#include &quot;mlir/IR/Builders.h&quot;
+#include &quot;mlir/IR/BuiltinAttributeInterfaces.h&quot;
+#include &quot;mlir/IR/BuiltinAttributes.h&quot;
+#include &quot;mlir/IR/BuiltinOps.h&quot;
+#include &quot;mlir/IR/BuiltinTypes.h&quot;
+#include &quot;mlir/IR/IntegerSet.h&quot;
+#include &quot;mlir/Transforms/Passes.h&quot;
+#include &quot;nanobind/nanobind.h&quot;
+#include &quot;llvm/ADT/APSInt.h&quot;
+
+namespace nb = nanobind;
+
+void M::Graph::Python::bindBuiltinDialect(nb::module_ m) {
+  using namespace mlir;
+  using SignednessSemantics = IntegerType::SignednessSemantics;
+  auto Signless = SignednessSemantics::Signless;
+
+  nb::class_&lt;DenseElementsAttr, ::mlir::Attribute&gt;(m, &quot;DenseElementsAttr&quot;);
+  nb::class_&lt;DenseResourceElementsAttr, ::mlir::Attribute&gt;(
+      m, &quot;DenseResourceElementsAttr&quot;);
+  nb::class_&lt;FlatSymbolRefAttr, ::mlir::Attribute&gt;(m, &quot;FlatSymbolRefAttr&quot;);
+  nb::class_&lt;mlir::AffineMap&gt;(m, &quot;AffineMap&quot;);
+  nb::class_&lt;mlir::IntegerSet&gt;(m, &quot;IntegerSet&quot;);
+  nb::class_&lt;mlir::detail::ElementsAttrIndexer&gt;(m, &quot;_ElementsAttrIndexer&quot;);
+
+  nb::enum_&lt;SignednessSemantics&gt;(m, &quot;SignednessSemantics&quot;)
+      .value(&quot;signless&quot;, SignednessSemantics::Signless)
+      .value(&quot;signed&quot;, SignednessSemantics::Signed)
+      .value(&quot;unsigned&quot;, SignednessSemantics::Unsigned);
+
+  nb::class_&lt;BoolAttr, ::mlir::Attribute&gt;(m, &quot;BoolAttr&quot;)
+      .def(nb::new_(infer_context(&amp;BoolAttr::get)))
+      .def_prop_ro(&quot;value&quot;, &amp;BoolAttr::getValue);
+
+#include &quot;_core/Graph/BuiltinAttributeInterfaces.cpp.inc&quot;
+#include &quot;_core/Graph/BuiltinAttributes.cpp.inc&quot;
+#include &quot;_core/Graph/BuiltinDialect.cpp.inc&quot;
+#include &quot;_core/Graph/BuiltinLocationAttributes.cpp.inc&quot;
+#include &quot;_core/Graph/BuiltinOps.cpp.inc&quot;
+#include &quot;_core/Graph/BuiltinTypeInterfaces.cpp.inc&quot;
+#include &quot;_core/Graph/BuiltinTypes.cpp.inc&quot;
+
+  nb::cast&lt;nb::class_&lt;::mlir::ModuleOp&gt;&gt;(nb::type&lt;::mlir::ModuleOp&gt;())
+      .def(nb::new_(
+               [](Location loc, std::optional&lt;StringRef&gt; name = std::nullopt) {
+                 return mlir::ModuleOp::create(loc, name);
+               }),
+           nb::arg(&quot;location&quot;), nb::arg(&quot;name&quot;) = nb::none())
+      .def_prop_ro(&quot;body&quot;, [](mlir::ModuleOp &amp;self) {
+        return &amp;self.getBodyRegion().front();
+      });
+
+  nb::implicitly_convertible&lt;mlir::Type, mlir::TypeAttr&gt;();
+  nb::implicitly_convertible&lt;bool, BoolAttr&gt;();
+  nb::implicitly_convertible&lt;std::string, StringAttr&gt;();
+
+  // The default IntegerAttr builders aren&#x27;t very ergonomic.
+  // They work with APInts, but expect you to be able to be passing
+  // APInts that are the same width as the IntegerType. There&#x27;s
+  // not really a good way to satisfy this in general right now.
+  // Delete these and create a more sensible constructor.
+  nb::handle IntegerAttr = nb::type&lt;mlir::IntegerAttr&gt;();
+  nb::delattr(IntegerAttr, &quot;__new__&quot;);
+  nb::delattr(IntegerAttr, &quot;__init__&quot;);
+  nb::cast&lt;nb::class_&lt;::mlir::IntegerAttr&gt;&gt;(IntegerAttr)
+      .def(nb::new_([](mlir::IntegerType type, nb::int_ value) {
+             auto str = nb::str(value);
+             llvm::APSInt apsint = llvm::APSInt(str.c_str());
+             if (type.getWidth() &lt; apsint.getBitWidth() ||
+                 (apsint.isNegative() &amp;&amp; !type.isSigned())) {
+               PyErr_Format(PyExc_ValueError,
+                            &quot;IntegerAttr: %R outside range for %R&quot;, value.ptr(),
+                            nb::cast(type).ptr());
+               throw nanobind::python_error();
+             }
+
+             RaisingScopedEmitFn emitFn;
+             return mlir::IntegerAttr::getChecked(
+                 emitFn, type, apsint.extend(type.getWidth()));
+           }),
+           nb::arg(&quot;type&quot;), nb::arg(&quot;value&quot;) = 0)
+      // IndexType is also a valid IntegerAttr type (MLIR&#x27;s IndexAttr).
+      // It has no fixed bit width, so we skip the range check and let MLIR
+      // store the value as a 64-bit APInt.
+      .def(nb::new_([](mlir::IndexType type, int64_t value) {
+             return mlir::IntegerAttr::get(type, value);
+           }),
+           nb::arg(&quot;type&quot;), nb::arg(&quot;value&quot;) = 0)
+      // Single-arg form defaults to IndexType (MLIR&#x27;s IndexAttr). Convenient
+      // shorthand for the common `IntegerAttr(IndexType(), value)` pattern.
+      .def(nb::new_([](int64_t value) {
+             return mlir::IntegerAttr::get(
+                 mlir::IndexType::get(current_context()), value);
+           }),
+           nb::arg(&quot;value&quot;));
+
+  // Register some builtin passes
+  nb::module_ passes = m.def_submodule(&quot;passes&quot;);
+  {
+    nb::module_ m = passes;
+
+    nb::enum_&lt;mlir::GreedySimplifyRegionLevel&gt;(m, &quot;GreedySimplifyRegionLevel&quot;)
+        .value(&quot;normal&quot;, mlir::GreedySimplifyRegionLevel::Normal)
+        .value(&quot;disabled&quot;, mlir::GreedySimplifyRegionLevel::Disabled)
+        .value(&quot;aggressive&quot;, mlir::GreedySimplifyRegionLevel::Aggressive);
+
+    nb::enum_&lt;mlir::ConvergenceFailureAction&gt;(m, &quot;ConvergenceFailureAction&quot;)
+        .value(&quot;warn&quot;, mlir::ConvergenceFailureAction::Warn)
+        .value(&quot;error&quot;, mlir::ConvergenceFailureAction::Error)
+        .value(&quot;silent&quot;, mlir::ConvergenceFailureAction::Silent);
+
+#include &quot;_core/Graph/Passes.cpp.inc&quot;
+  }
+}
+</code></pre></div></details></details>
+</main>
+<footer class="answer-footer">
+<p>Copied answer · MAX revision <code>610f7111836d9a950d45ba52ec9b3e0ed589fe3f</code> · LLVM source revision <code>6941494e2ae550d753728ba13454311b344d82cf</code>.</p>
+<p>Source citations open the complete pinned file at the cited line.</p>
+<a href="max_example_04_tensor_type_to_mlir.html#fields">Return to the TensorType call stack ↑</a>
+</footer>
+<script type="application/json" id="virtual-device-data">{"revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f", "files": {"max/examples/custom_ops/fused_attention.py": {"path": "max/examples/custom_ops/fused_attention.py", "text": "# ===----------------------------------------------------------------------=== #\n# Copyright (c) 2026, Modular Inc. All rights reserved.\n#\n# Licensed under the Apache License v2.0 with LLVM Exceptions:\n# https://llvm.org/LICENSE.txt\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n# ===----------------------------------------------------------------------=== #\n\nfrom pathlib import Path\n\nimport numpy as np\nfrom max.driver import CPU, Accelerator, Buffer, accelerator_count\nfrom max.dtype import DType\nfrom max.engine.api import InferenceSession\nfrom max.graph import DeviceRef, Graph, TensorType, ops\n\n\ndef main() -> None:\n    mojo_kernels = Path(__file__).parent / \"kernels\"\n\n    dtype = DType.float32\n\n    # Place the graph on a GPU, if available. Fall back to CPU if not.\n    device = CPU() if accelerator_count() == 0 else Accelerator()\n    if accelerator_count() == 0:\n        N = 8\n        D = 8\n        BD = 4\n        BN = 4\n    else:\n        N = 32\n        D = 32\n        BD = 8\n        BN = 16\n\n    with Graph(\n        \"fused_attention\",\n        input_types=[\n            TensorType(\n                dtype, shape=[N, D], device=DeviceRef.from_device(device)\n            ),\n            TensorType(\n                dtype, shape=[N, D], device=DeviceRef.from_device(device)\n            ),\n            TensorType(\n                dtype, shape=[N, D], device=DeviceRef.from_device(device)\n            ),\n        ],\n        custom_extensions=[mojo_kernels],\n    ) as graph:\n        q, k, v, *_ = graph.inputs\n        results = ops.custom(\n            name=\"modular_ops::fused_attention_custom\",\n            device=DeviceRef.from_device(device),\n            parameters={\"BD\": BD, \"BN\": BN},\n            values=[q, k, v],\n            out_types=[\n                TensorType(\n                    dtype, shape=[N, D], device=DeviceRef.from_device(device)\n                )\n            ],\n        )\n        graph.output(*results)\n\n    # Set up an inference session for running the graph.\n    session = InferenceSession(devices=[device])\n\n    # Compile the graph.\n    compiled = session.compile(graph)\n    model = session.init(compiled)\n\n    np.random.seed(123)\n    Q = Buffer.from_numpy(np.random.randn(N, D).astype(\"f\")).to(device)\n    K = Buffer.from_numpy(np.random.randn(N, D).astype(\"f\")).to(device)\n    V = Buffer.from_numpy(np.random.randn(N, D).astype(\"f\")).to(device)\n\n    output = model.execute(Q, K, V)\n    print(output)\n\n\nif __name__ == \"__main__\":\n    main()\n", "sha256": "e5874ab1b10e723df30f868d8c73dd3a272eee49fee0bc35bc4620aa52ba7b69"}, "max/python/max/graph/type.py": {"path": "max/python/max/graph/type.py", "text": "# ===----------------------------------------------------------------------=== #\n# Copyright (c) 2026, Modular Inc. All rights reserved.\n#\n# Licensed under the Apache License v2.0 with LLVM Exceptions:\n# https://llvm.org/LICENSE.txt\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n# ===----------------------------------------------------------------------=== #\n\"\"\"Library for graph value types.\"\"\"\n\nfrom __future__ import annotations\n\nimport enum\nimport math\nfrom collections.abc import Iterable\nfrom dataclasses import dataclass, field\nfrom enum import Enum\nfrom typing import Any, Generic, TypeVar\n\nfrom max._core import Attribute, NamedAttribute\nfrom max._core import Type as _Type\nfrom max._core import graph as _graph\nfrom max._core.dialects import builtin, m, mo\nfrom max.driver import CPU, Accelerator, Device\nfrom max.dtype import DType\n\nfrom .dim import SymbolicDim\nfrom .shape import Shape, ShapeLike\n\nMlirType = TypeVar(\"MlirType\", bound=_Type)\nOpaqueParameter = bool | int | str | DType\n\n\nclass FilterLayout(enum.Enum):\n    \"\"\"The memory layout of a convolution filter tensor.\"\"\"\n\n    RSCF = \"RSCF\"\n    QRSCF = \"QRSCF\"\n    FCRS = \"FCRS\"\n    FCQRS = \"FCQRS\"\n    CFRS = \"CFRS\"\n\n    def to_mlir(self) -> mo.LayoutAttr:\n        \"\"\"Returns an MLIR attribute representing this layout.\n\n        This attribute is used in tensor type metadata for certain ops.\n\n        Returns:\n            An Attribute representing the layout.\n        \"\"\"\n        return mo.LayoutAttr(format_str=str(self.value))\n\n    @staticmethod\n    def from_mlir(attr: mo.LayoutAttr) -> FilterLayout:\n        \"\"\"Constructs a layout from an attribute.\n\n        Args:\n            attr: The MLIR Attribute object to parse into a layout.\n\n        Returns:\n            The FilterLayout represented by the Attribute value.\n        \"\"\"\n        return FilterLayout(attr.format.value)\n\n\nclass ConvInputLayout(enum.Enum):\n    \"\"\"The memory layout of a convolution input tensor.\"\"\"\n\n    # TODO(GEX-2302): We need to differentiate between 2D - 3D layouts.\n    # TODO(GEX-2302): Another Layout type should be used instead of StringAttr.\n    # Simpler implementation to quickly support CUDNN input formats.\n    NHWC = \"NHWC\"\n    NCHW = \"NCHW\"\n\n    def to_mlir(self) -> builtin.StringAttr:\n        \"\"\"Returns an MLIR attribute representing this layout.\n\n        This attribute is used for certain convolution ops.\n\n        Returns:\n            An Attribute representing the layout.\n        \"\"\"\n        return builtin.StringAttr(self.value)\n\n    @staticmethod\n    def from_mlir(attr: builtin.StringAttr) -> ConvInputLayout:\n        \"\"\"Constructs a layout from an attribute.\n\n        Args:\n            attr: The MLIR Attribute object to parse into a layout.\n\n        Returns:\n            The ConvInputLayout represented by the Attribute value.\n        \"\"\"\n        return ConvInputLayout(attr.value)\n\n\n@dataclass(frozen=True)  # noqa: RUF049  # TODO: investigate why this breaks\nclass DeviceKind(str, Enum):\n    \"\"\"A device type representation.\"\"\"\n\n    CPU = \"cpu\"\n    \"\"\"A device on the host CPU.\"\"\"\n    GPU = \"gpu\"\n    \"\"\"A GPU accelerator device.\"\"\"\n\n    def __str__(self) -> str:\n        return self.value\n\n    @staticmethod\n    def from_string(txt: str) -> DeviceKind:\n        \"\"\"Parses a device kind from its string representation.\"\"\"\n        if txt == str(DeviceKind.CPU):\n            return DeviceKind.CPU\n        elif txt == str(DeviceKind.GPU):\n            return DeviceKind.GPU\n        else:\n            raise ValueError(f\"Unknown device kind {txt}\")\n\n\nclass DeviceRef:\n    \"\"\"A symbolic device representation.\n\n    DeviceRef type representation consists of a DeviceKind and an id. This is a direct\n    representation of the device attribute in MLIR.\n\n    The following example demonstrates how to create and use device references:\n\n    .. code-block:: python\n\n        from max.graph import DeviceRef\n        # Create a GPU device reference (default id=0)\n        gpu_device = DeviceRef.GPU()\n        print(gpu_device)  # Outputs: gpu:0\n        # Create a CPU device with specific id\n        cpu_device = DeviceRef.CPU(id=1)\n        print(cpu_device)  # Outputs: cpu:1\n    \"\"\"\n\n    device_type: DeviceKind\n    id: int\n\n    @staticmethod\n    def CPU(id: int = 0) -> DeviceRef:\n        \"\"\"Creates a CPU device reference.\"\"\"\n        return DeviceRef(DeviceKind.CPU, id)\n\n    @staticmethod\n    def GPU(id: int = 0) -> DeviceRef:\n        \"\"\"Creates a GPU device reference.\"\"\"\n        return DeviceRef(DeviceKind.GPU, id)\n\n    def __init__(self, device_type: DeviceKind | str, id: int = 0) -> None:\n        if isinstance(device_type, DeviceKind):\n            self.device_type = device_type\n        else:\n            self.device_type = DeviceKind(device_type)\n        id = max(id, 0)\n        self.id = id\n\n    def __str__(self) -> str:\n        return str(self.device_type) + \":\" + str(self.id)\n\n    def __repr__(self) -> str:\n        return str(self)\n\n    def __eq__(self, other: object) -> bool:\n        \"\"\"Returns ``True`` if devices are equal.\"\"\"\n        if not isinstance(other, DeviceRef):\n            return False\n        return self.device_type is other.device_type and self.id == other.id\n\n    def __hash__(self) -> int:\n        \"\"\"Hashes based on the immutable identity (device_type, id).\"\"\"\n        return hash((self.device_type, self.id))\n\n    def to_mlir(self) -> m.DeviceRefAttr:\n        \"\"\"Returns an MLIR attribute representing the device.\"\"\"\n        return m.DeviceRefAttr(str(self.device_type), self.id)\n\n    def to_device(self) -> Device:\n        \"\"\"Converts a device reference to a concrete driver ``Device``.\"\"\"\n        if self.device_type is DeviceKind.CPU:\n            return CPU(self.id)\n        elif self.device_type is DeviceKind.GPU:\n            return Accelerator(self.id)\n        else:\n            raise ValueError(f\"Unsupported device type: {self.device_type}\")\n\n    def is_cpu(self) -> bool:\n        \"\"\"Returns ``True`` if the device is a CPU device.\"\"\"\n        return self.device_type is DeviceKind.CPU\n\n    def is_gpu(self) -> bool:\n        \"\"\"Returns ``True`` if the device is a GPU device.\"\"\"\n        return self.device_type is DeviceKind.GPU\n\n    @staticmethod\n    def from_mlir(attr: m.DeviceRefAttr) -> DeviceRef:\n        \"\"\"Returns a device reference from an MLIR attribute.\"\"\"\n        return DeviceRef(device_type=DeviceKind(attr.label), id=attr.id)\n\n    @staticmethod\n    def from_device(device: Device | DeviceRef) -> DeviceRef:\n        \"\"\"Converts a ``Device`` or ``DeviceRef`` to a ``DeviceRef``.\"\"\"\n        if isinstance(device, DeviceRef):\n            return device\n        return DeviceRef(DeviceKind(device.label), device.id)\n\n\nclass Type(Generic[MlirType]):\n    \"\"\"The type of any value in a MAX graph.\n\n    Every value in the graph has a type, and that type is represented by a :class:`Type`.\n    This type may be inspected to get finer-grained types and learn more\n    about an individual Value.\n\n    The following example shows how to inspect a tensor type:\n\n    .. code-block:: python\n\n        from max.dtype import DType\n        from max.graph import DeviceRef, TensorType\n\n        tensor_type = TensorType(DType.float32, [2, 3], device=DeviceRef.CPU())\n        print(f\"Tensor element type: {tensor_type.dtype}\")  # Outputs: DType.float32\n        print(f\"Tensor shape: {tensor_type.shape}\")  # Outputs: [Dim(2), Dim(3)]\n    \"\"\"\n\n    def to_mlir(self) -> MlirType:\n        \"\"\"Converts to an ``mlir.Type`` instance.\n\n        Returns:\n            An ``mlir.Type`` in the specified Context.\n        \"\"\"\n        raise NotImplementedError\n\n    @staticmethod\n    def from_mlir(t: MlirType) -> Type[Any]:\n        \"\"\"Constructs a type from an MLIR type.\n\n        Args:\n            t: The MLIR Type object to parse into a type.\n\n        Returns:\n            The type represented by the MLIR Type value.\n        \"\"\"\n        if isinstance(t, mo.TensorType):\n            return TensorType.from_mlir(t)\n        elif isinstance(t, mo.BufferType):\n            return BufferType.from_mlir(t)\n        elif isinstance(t, mo.ChainType):\n            return _ChainType.from_mlir(t)\n        elif isinstance(t, mo.OpaqueType):\n            return _OpaqueType.from_mlir(t)\n        raise TypeError(f\"No type found for MLIR type: {t}\")\n\n\n@dataclass\nclass _TensorTypeBase(Type[MlirType]):\n    dtype: DType\n    \"\"\"The element type of the tensor value.\"\"\"\n    shape: Shape\n    \"\"\"The dimensions of the tensor value.\"\"\"\n    device: DeviceRef\n    \"\"\"The device of the tensor value.\"\"\"\n\n    def __init__(\n        self, dtype: DType, shape: ShapeLike, device: DeviceRef\n    ) -> None:\n        self.dtype = dtype\n        self.shape = Shape(shape)\n        self.device = device\n\n        if any(dim \u003c 0 for dim in self.shape.static_dims):\n            raise TypeError(\n                f\"Static tensor dimensions must be non-negative; got {shape=}\"\n            )\n\n    # ===------------------------------------------------------------------=== #\n    # Basic accessors\n    # ===------------------------------------------------------------------=== #\n\n    @property\n    def rank(self) -> int:\n        \"\"\"The rank of the tensor type.\n\n        Returns:\n            The tensor's static rank.\n        \"\"\"\n        return len(self.shape)\n\n    def __eq__(self, other: object) -> bool:\n        \"\"\"Checks whether the two tensors have the same type, shape, and device.\n\n        Args:\n            other: The other tensor to check equality against.\n\n        Returns:\n            ``True`` if the tensors have identical element type, shape, and\n            device, ``False`` otherwise.\n        \"\"\"\n        return (\n            isinstance(other, type(self))\n            and (self.dtype == other.dtype)\n            and (self.shape == other.shape)\n            and (self.device == other.device)\n        )\n\n    def __hash__(self) -> int:\n        return hash((self.dtype, tuple(self.shape), self.device))\n\n    # ===------------------------------------------------------------------=== #\n    # Utilities\n    # ===------------------------------------------------------------------=== #\n\n    def num_elements(self) -> int:\n        \"\"\"Counts the total number of elements in the tensor type.\n\n        For a static tensor, returns the product of all static dimensions.\n        This is the number of elements the tensor will hold **during execution**,\n        :class:`TensorType` doesn't actually hold any element values at all.\n\n        Raises :obj:`RuntimeError` if the tensor has any symbolic dimensions.\n\n        Returns:\n            The number of elements the tensor contains.\n        \"\"\"\n        if not Shape.is_static(self.shape):\n            raise RuntimeError(\n                \"can't find num elements since tensor has symbolic dims\"\n            )\n\n        return math.prod(int(dim) for dim in self.shape)\n\n    def cast(self, dtype: DType):  # noqa: ANN202\n        \"\"\"Constructs a new tensor type of the same shape with the new ``dtype``.\n\n        Args:\n            dtype: The new element type for the tensor.\n\n        Returns:\n            A new tensor type with the same shape, device, and the new element type.\n        \"\"\"\n        return type(self)(dtype, self.shape, self.device)\n\n    @property\n    def parameters(self) -> Iterable[SymbolicDim]:\n        \"\"\"Lists the symbolic dimension names on which this type depends.\"\"\"\n        return self.shape.parameters\n\n\n@dataclass\nclass TensorType(_TensorTypeBase[mo.TensorType]):\n    \"\"\"A symbolic tensor type.\n\n    Use ``TensorType`` to declare the expected ``dtype``, ``shape``, and target\n    ``device`` of tensor values that flow through a graph during model\n    execution. Unlike an eager tensor, a ``TensorType`` holds no data. It is a\n    purely symbolic description of a value's type at a specific point in the\n    computation. The graph compiler uses this information for shape inference\n    and optimization during graph construction.\n\n    The following example shows how to create a tensor type and access its\n    properties:\n\n    .. code-block:: python\n\n        from max.graph import TensorType, DeviceRef\n        from max.dtype import DType\n        # Create a tensor type with float32 elements and static dimensions 2x3\n        tensor_type = TensorType(DType.float32, (2, 3), device=DeviceRef.CPU())\n        print(tensor_type.dtype)  # Outputs: DType.float32\n        print(tensor_type.shape)  # Outputs: [2, 3]\n\n    A shape's dimensions can be static (integers), symbolic (strings), or\n    algebraic (expressions over symbolic dimensions). In each case the\n    rank is known at graph construction time.\n\n    Pass ``TensorType`` instances to :meth:`~max.engine.InferenceSession.load`\n    or :meth:`Module.compile` (experimental) to define the input types of a\n    graph or model.\n\n    Args:\n        dtype: The data type of the tensor elements.\n        shape: The shape of the tensor, expressed as a\n            :class:`~max.graph.Shape`.\n        device: The device the tensor is located on. Use\n            :meth:`DeviceRef.CPU` or :meth:`DeviceRef.GPU` to create a device\n            reference.\n    \"\"\"\n\n    _layout: FilterLayout | None = field(default=None, repr=False)\n\n    def __init__(\n        self,\n        dtype: DType,\n        shape: ShapeLike,\n        device: Device | DeviceRef,\n        _layout: FilterLayout | None = None,\n    ) -> None:\n        super().__init__(dtype, shape, DeviceRef.from_device(device))\n        self._layout = _layout\n\n    def __hash__(self) -> int:\n        return hash((self.dtype, tuple(self.shape), self.device, self._layout))\n\n    @classmethod\n    def from_mlir(cls, type: mo.TensorType) -> TensorType:\n        \"\"\"Constructs a tensor type from an MLIR type.\n\n        Args:\n            type: The MLIR Type to parse into a tensor type.\n\n        Returns:\n            The tensor type represented by the MLIR Type value.\n        \"\"\"\n        device_ref = DeviceRef.from_mlir(type.device_ref)\n        self = cls(type.dtype, Shape.from_mlir(type.shape), device_ref)\n        for name, attr in type.metadata.value:\n            if name == \"layout\":\n                assert isinstance(attr, mo.LayoutAttr)\n                self._layout = FilterLayout.from_mlir(attr)\n        return self\n\n    def to_mlir(self) -> mo.TensorType:\n        \"\"\"Converts to an :obj:`mlir.Type` instance.\n\n        Returns:\n            An :obj:`mlir.Type` in the specified context.\n        \"\"\"\n        metadata = []\n        if self._layout:\n            metadata.append(NamedAttribute(\"layout\", self._layout.to_mlir()))\n        return mo.TensorType(\n            self.shape.to_mlir(),\n            self.dtype,\n            self.device.to_mlir(),\n            metadata=builtin.DictionaryAttr(metadata),\n        )\n\n    def as_buffer(self) -> BufferType:\n        \"\"\"Returns the analogous buffer type.\"\"\"\n        return BufferType(self.dtype, self.shape, self.device)\n\n\nclass BufferType(_TensorTypeBase[mo.BufferType]):\n    \"\"\"A symbolic buffer type.\n\n    This is a reference to a tensor that can be mutated in place.\n    \"\"\"\n\n    @classmethod\n    def from_mlir(cls, type: mo.BufferType) -> BufferType:\n        \"\"\"Constructs a buffer type from an MLIR type.\n\n        Args:\n            type: The MLIR Type to parse into a buffer type.\n\n        Returns:\n            The buffer type represented by the MLIR Type value.\n        \"\"\"\n        device_ref = DeviceRef.from_mlir(type.device_ref)\n        return cls(type.dtype, Shape.from_mlir(type.shape), device_ref)\n\n    def to_mlir(self) -> mo.BufferType:\n        \"\"\"Converts to an ``mlir.Type`` instance.\n\n        Returns:\n            An ``mlir.Type`` in the specified Context.\n        \"\"\"\n        return mo.BufferType(\n            self.shape.to_mlir(), self.dtype, self.device.to_mlir()\n        )\n\n    def as_tensor(self) -> TensorType:\n        \"\"\"Returns the analogous tensor type.\"\"\"\n        return TensorType(self.dtype, self.shape, self.device)\n\n\ndef _value_to_attribute(param: OpaqueParameter) -> Attribute:\n    \"\"\"Converts a native Python value to an MLIR attribute to parametrize a kernel or opaque type.\"\"\"\n    if isinstance(param, bool):\n        return builtin.BoolAttr(param)\n\n    if isinstance(param, int):\n        signedness = builtin.SignednessSemantics.signed\n        return builtin.IntegerAttr(builtin.IntegerType(64, signedness), param)\n\n    if isinstance(param, str):\n        return builtin.StringAttr(param)\n\n    if isinstance(param, DType):\n        # Wrap the MLIR type corresponding to dtype in a TypeAttr,\n        # which MOToKGENLowering expects.\n        dtype = _graph.dtype_to_type(param)\n        return builtin.TypeAttr(dtype)\n\n    raise TypeError(f\"unsupported parameter type {type(param)} for custom op\")\n\n\ndef _attribute_to_value(value: Attribute) -> OpaqueParameter:\n    \"\"\"Converts an MLIR attribute representing a Mojo parameter to the corresponding Python type.\n\n    This function is the inverse of _value_to_attribute.\n    \"\"\"\n    if isinstance(value, builtin.BoolAttr | builtin.StringAttr):\n        return value.value\n\n    if isinstance(value, builtin.IntegerAttr):\n        type = value.type\n        if isinstance(type, builtin.IntegerType) and type.width == 1:\n            return bool(value.value)\n\n        return value.value\n\n    if isinstance(value, builtin.TypeAttr):\n        val = value.value\n        assert val is not None\n        return _graph.type_to_dtype(val)\n\n    raise TypeError(f\"unsupported attribute type {value}\")\n\n\n@dataclass(frozen=True)\nclass _OpaqueType(Type[mo.OpaqueType]):\n    \"\"\"A type representing an opaque type.\"\"\"\n\n    name: str\n    \"\"\"Identifier for the opaque type.\"\"\"\n\n    parameters: dict[str, OpaqueParameter] = field(default_factory=dict)\n    \"\"\"Dictionary of Mojo parameter assignments.\n\n    Valid parameter types are ``bool``, ``int``, ``str``, and ``DType``.\n\n    .. code-block:: python\n\n        # Create an opaque type with parameters\n        custom_type = _OpaqueType(\n            name=\"MyCustomType\",\n            parameters={\n                \"rank\": 3,\n                \"mut\": True,\n                \"type\": DType.float32,\n                \"address_space\": \"global\"\n            }\n        )\n    \"\"\"\n\n    def to_mlir(self) -> mo.OpaqueType:\n        \"\"\"Converts to an ``mlir.Type`` instance.\n\n        Returns:\n            An ``mlir.Type`` in the specified Context.\n        \"\"\"\n        # Convert Python dict to MLIR DictionaryAttr\n\n        mlir_params = [\n            NamedAttribute(key, _value_to_attribute(value))\n            for key, value in self.parameters.items()\n        ]\n\n        return mo.OpaqueType(\n            builtin.StringAttr(self.name),\n            parameters=builtin.DictionaryAttr(mlir_params),\n        )\n\n    @staticmethod\n    def from_mlir(t: mo.OpaqueType) -> _OpaqueType:\n        \"\"\"Constructs an opaque type from an MLIR type.\n\n        Args:\n            t: The MLIR Type object to parse into an opaque type.\n\n        Returns:\n            The opaque type represented by the MLIR Type value.\n        \"\"\"\n        params: dict[str, OpaqueParameter] = {\n            name: _attribute_to_value(attr) for name, attr in t.parameters.value\n        }\n\n        return _OpaqueType(t.symbol.value, params)\n\n\n@dataclass\nclass _ChainType(Type[mo.ChainType]):\n    \"\"\"A chain type.\n\n    Used in order to sequence operations that have side-effects.\n\n    As a user you should never need to directly interact with this type.\n    \"\"\"\n\n    def to_mlir(self) -> mo.ChainType:\n        \"\"\"Converts to an ``mlir.Type`` instance.\n\n        Returns:\n            An ``mlir.Type`` in the specified Context.\n        \"\"\"\n        return mo.ChainType()\n\n    @staticmethod\n    def from_mlir(t: mo.ChainType) -> _ChainType:\n        \"\"\"Constructs a chain type from an MLIR type.\n\n        Args:\n            t: The MLIR Type object to parse into a chain type.\n\n        Returns:\n            The chain type represented by the MLIR Type value.\n        \"\"\"\n        return _ChainType()\n", "sha256": "e5b970d4da9eac80642834cb0e1b2b11be14e3c77af7df03164ffc72b97faf06"}, "max/python/max/graph/dim.py": {"path": "max/python/max/graph/dim.py", "text": "# ===----------------------------------------------------------------------=== #\n# Copyright (c) 2026, Modular Inc. All rights reserved.\n#\n# Licensed under the Apache License v2.0 with LLVM Exceptions:\n# https://llvm.org/LICENSE.txt\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n# ===----------------------------------------------------------------------=== #\n\"\"\"Library for graph dimension types.\"\"\"\n\nfrom __future__ import annotations\n\nimport functools\nimport re\nfrom collections.abc import Callable, Iterable, Mapping\nfrom dataclasses import dataclass\nfrom typing import Any\n\nimport numpy as np\nfrom max._core.dialects import builtin, kgen\n\n\nclass Dim:\n    \"\"\"A tensor dimension.\n\n    Dims describe the shape of tensors in a :class:`Graph`. In most cases, you don't\n    need to construct a ``Dim`` directly. Instead, you pass dimension values\n    directly to :class:`TensorType` or :class:`BufferType` constructors:\n\n    .. code-block:: python\n\n        from max.dtype import DType\n        from max.graph import Dim, TensorType, DeviceRef\n\n        # Create a TensorType with a symbolic \"batch\" dimension and a static dimension of size 10\n        tensor_type = TensorType(DType.int64, (\"batch\", 10), device=DeviceRef.CPU())\n\n\n    A tensor dimension can be one of three types:\n\n    - **Static**: A known size. See :class:`StaticDim`.\n    - **Symbolic**: An unknown size identified by name. See :class:`SymbolicDim`.\n    - **Algebraic**: An expression derived from symbolic dimensions. See :class:`AlgebraicDim`.\n\n    Static dimensions let the graph compiler resolve shapes at compile time.\n    This enables more aggressive optimizations than symbolic or algebraic\n    dimensions allow. That said, when tensors share a named symbolic dimension,\n    the compiler can leverage the implied shape equality to optimize some\n    operations.\n    \"\"\"\n\n    def __new__(cls, value: DimLike):\n        \"\"\"Converts valid input values to Dim.\"\"\"\n        if cls is not Dim:\n            # For subclass constructors, preserve identity only for same subclass.\n            if isinstance(value, cls):\n                return value\n            return super().__new__(cls)\n        if isinstance(value, Dim):\n            # For base Dim constructor, pass through any existing Dim.\n            return value\n        if isinstance(\n            value, int | np.integer | builtin.IntegerAttr | kgen.SIMDAttr\n        ):\n            return super().__new__(StaticDim)\n        if isinstance(value, str | kgen.ParamDeclRefAttr):\n            return super().__new__(SymbolicDim)\n        if isinstance(value, kgen.ParamOperatorAttr):\n            return super().__new__(AlgebraicDim)\n\n        raise TypeError(f\"Unsupported dimension type {value} ({type(value)})\")\n\n    def __index__(self) -> int:\n        \"\"\"Converts this dim to an index as used by indexing and slicing.\n\n        This raises and suggests explicitly converting to int, so that we only\n        support implicit slicing operations on TensorValues.\n        Types such as list and np.ndarray call __index__ on inputs to their\n        __getitem__ special methods to convert those inputs to int.\n\n        This also prevents a MyPy false positive error: Slice index must be an\n        integer or None.\n        Related MyPy discussion: https://github.com/python/mypy/issues/2410\n        \"\"\"\n        raise TypeError(\n            \"when using dims to index into a list or NumPy array, explicitly \"\n            \"convert to int with int(dim)\"\n        )\n\n    def __int__(self) -> int:\n        \"\"\"Conversion to an int only supported for static dims.\"\"\"\n        raise TypeError(\n            f\"int({self!r}): Int conversions only supported for static dims\"\n        )\n\n    def __eq__(self, other: object) -> bool:\n        \"\"\"Checks whether two dimensions are equal.\n\n        Dimensions are equal if they are the same dimension type\n        (symbolic, static). Additionally, static dimensions\n        are only equal if their dimension is the same size, and symbolic\n        dimensions are only equal if they have the same name.\n\n        Args:\n            other: The other dimension to check equality against.\n\n        Returns:\n            True if the dimensions are equal, false otherwise.\n        \"\"\"\n        raise NotImplementedError\n\n    def __ne__(self, other: object) -> bool:\n        \"\"\"Checks whether two dimensions are not equal.\n\n        The inverse of __eq__.\n\n        Args:\n            other: The other dimension to check inequality against.\n\n        Returns:\n            False if the dimensions are equal, true otherwise.\n        \"\"\"\n        return not self == other\n\n    def __add__(self, rhs: DimLike) -> Dim:\n        if not isinstance(rhs, DimLike):\n            return NotImplemented\n        return AlgebraicDim.apply(kgen.POC.add, self, rhs)\n\n    def __radd__(self, lhs: DimLike) -> Dim:\n        if not isinstance(lhs, DimLike):\n            return NotImplemented\n        return Dim(lhs) + self\n\n    def __mul__(self, rhs: DimLike) -> Dim:\n        if not isinstance(rhs, DimLike):\n            return NotImplemented\n        return AlgebraicDim.apply(kgen.POC.mul_no_wrap, self, rhs)\n\n    def __rmul__(self, lhs: DimLike) -> Dim:\n        if not isinstance(lhs, DimLike):\n            return NotImplemented\n        return Dim(lhs) * self\n\n    def __neg__(self) -> Dim:\n        return -1 * self\n\n    def __sub__(self, rhs: DimLike) -> Dim:\n        if not isinstance(rhs, DimLike):\n            return NotImplemented\n        return self + -Dim(rhs)\n\n    def __rsub__(self, lhs: DimLike) -> Dim:\n        if not isinstance(lhs, DimLike):\n            return NotImplemented\n        return lhs + -self\n\n    def __floordiv__(self, rhs: DimLike) -> Dim:\n        if not isinstance(rhs, DimLike):\n            return NotImplemented\n        if isinstance(rhs, int | StaticDim) and int(rhs) == 0:\n            raise ZeroDivisionError\n        return AlgebraicDim.apply(kgen.POC.div, self, rhs)\n\n    def __rfloordiv__(self, lhs: DimLike) -> Dim:\n        if not isinstance(lhs, DimLike):\n            return NotImplemented\n        return lhs // self\n\n    def to_mlir(self) -> builtin.TypedAttr:\n        \"\"\"Creates an ``mlir.Attribute`` representing this dimension.\n\n        This is used internally when constructing tensor MLIR types.\n\n        Returns:\n            An ``mlir.Attribute`` in the context representing the dimension.\n        \"\"\"\n        raise NotImplementedError\n\n    @staticmethod\n    def from_mlir(attr: builtin.TypedAttr) -> Dim:\n        \"\"\"Constructs a dimension from an ``mlir.Attribute``.\n\n        Args:\n            attr: The MLIR Attribute to parse into a dimension.\n\n        Returns:\n            Dim: The dimension represented by the MLIR Attr value.\n        \"\"\"\n        if isinstance(attr, builtin.IntegerAttr | kgen.SIMDAttr):\n            return StaticDim.from_mlir(attr)\n        elif isinstance(attr, kgen.ParamDeclRefAttr):\n            return SymbolicDim.from_mlir(attr)\n        elif isinstance(attr, kgen.ParamOperatorAttr):\n            return AlgebraicDim.from_mlir(attr)\n        else:\n            raise ValueError(\"graph api does not support unknown dimensions\")\n\n    @property\n    def parameters(self) -> Iterable[SymbolicDim]:\n        \"\"\"Lists the symbolic dimension names on which this dim depends.\"\"\"\n        raise NotImplementedError\n\n    def substitute(self, mapping: Mapping[str, DimLike]) -> Dim:\n        \"\"\"Returns this dim with named symbols replaced per ``mapping``.\n\n        Substituting static values folds the result through the compiler's\n        own attribute evaluation; substituting symbols renames. Unmapped\n        symbols are left intact.\n\n        Args:\n            mapping: A mapping from symbolic dimension name to the\n                replacement dim (or dim-like value).\n\n        Returns:\n            The dim with substitutions applied.\n        \"\"\"\n        raise NotImplementedError\n\n\n@dataclass(frozen=True)\nclass SymbolicDim(Dim):\n    \"\"\"A symbolic tensor dimension with an unknown size identified by name.\n\n    When you don't know a dimension value at compile time, you can use a\n    symbolic dimension. This helps you identify dimensions by name and lets the\n    compiler optimize operations when two or more dimensions share the same name.\n\n    The following example creates a symbolic dimension implicitly passing the\n    strings ``\"batch\"`` and ``\"x\"`` to :class:`TensorType`:\n\n    .. code-block:: python\n\n       from max.dtype import DType\n       from max.graph import DeviceRef, TensorType\n\n       tensor_type = TensorType(DType.float32, (\"batch\", \"x\", 10), device=DeviceRef.CPU())\n    \"\"\"\n\n    name: str\n    \"\"\"The name of the dimension.\"\"\"\n\n    def __init__(self, name: str | builtin.TypedAttr | SymbolicDim) -> None:\n        if isinstance(name, kgen.ParamDeclRefAttr):\n            name = name.name.value\n        elif isinstance(name, SymbolicDim):\n            name = name.name\n        elif not isinstance(name, str):\n            raise TypeError(\n                f\"SymbolicDim.__init__ only accepts str, kgen.ParamDeclRefAttr, or SymbolicDim, got {type(name).__name__}\"\n            )\n        # Can't assign directly to frozen dataclasses.\n        super().__setattr__(\"name\", name)\n        # TODO(MSDK-695): less restrictive names\n        if not re.match(r\"^[a-zA-Z_]\\w*$\", self.name):\n            raise ValueError(\"Invalid name for symbolic dimension\")\n\n    def __str__(self) -> str:\n        return self.name\n\n    def __repr__(self) -> str:\n        return f\"Dim({self.name!r})\"\n\n    def __eq__(self, other: object) -> bool:\n        \"\"\"Whether the dimension is the same as another symbolic dimension.\n\n        Symbolic dimensions with the same name are interpreted as the same\n        dimensionality! If you use Symbolic dimensions, make sure you're naming\n        them consistently, your model will likely fail to compile if you name\n        two actually different dimensions the same name.\n\n        Args:\n            other: The other dimension to check equality against.\n\n        Returns:\n            True if the dimensions have the same name, false otherwise.\n        \"\"\"\n        return self.name == other or (\n            isinstance(other, SymbolicDim) and self.name == other.name\n        )\n\n    def to_mlir(self) -> kgen.ParamDeclRefAttr:\n        \"\"\"Creates an ``mlir.Attribute`` representing this dimension.\n\n        This is used internally when constructing tensor MLIR types.\n\n        Returns:\n            An ``mlir.Attribute`` in the context representing the dimension.\n        \"\"\"\n        si64 = kgen.SIMDType(1, kgen._KGENDType.get_int(64, True))\n        return kgen.ParamDeclRefAttr(self.name, si64)\n\n    @staticmethod\n    def from_mlir(attr: builtin.TypedAttr) -> SymbolicDim:\n        \"\"\"Constructs a ``SymbolicDim`` from a ``kgen.ParamDeclRefAttr``.\n\n        Args:\n            attr: The ``kgen.ParamDeclRefAttr`` to parse into a ``SymbolicDim``.\n\n        Returns:\n            SymbolicDim: The ``SymbolicDim`` represented by the ``kgen.ParamDeclRefAttr``.\n        \"\"\"\n        if not isinstance(attr, kgen.ParamDeclRefAttr):\n            raise TypeError(\n                f\"SymbolicDim.from_mlir only accepts kgen.ParamDeclRefAttr, got {type(attr).__name__}\"\n            )\n        return SymbolicDim(attr)\n\n    @property\n    def parameters(self) -> Iterable[SymbolicDim]:\n        \"\"\"Lists the symbolic dimension names on which this dim depends.\"\"\"\n        yield self\n\n    def substitute(self, mapping: Mapping[str, DimLike]) -> Dim:\n        \"\"\"Returns this dim with named symbols replaced per ``mapping``.\n\n        Args:\n            mapping: A mapping from symbolic dimension name to the\n                replacement dim (or dim-like value).\n\n        Returns:\n            ``Dim(mapping[self.name])`` if ``self.name`` is in ``mapping``,\n            otherwise this dim unchanged.\n        \"\"\"\n        replacement = mapping.get(self.name)\n        return self if replacement is None else Dim(replacement)\n\n\n@dataclass(frozen=True)\nclass AlgebraicDim(Dim):\n    \"\"\"A dimension defined by an expression over symbolic dimensions.\n\n    Arithmetic on symbolic dimensions produces an ``AlgebraicDim``:\n\n    .. code-block:: python\n\n        from max.graph import AlgebraicDim, Dim\n\n        isinstance(Dim(\"batch\") * 5, AlgebraicDim)  # True\n\n    Equivalent expressions simplify to the same form:\n\n    .. code-block:: python\n\n        from max.graph import Dim\n\n        Dim(\"x\") + 1 + 1 == Dim(\"x\") + 2  # True\n\n    .. note::\n\n        Algebraic dimensions are valid inside a graph. However, they can't\n        appear in graph input or output types because their underlying values\n        can be ambiguous. For example, a dimension of ``Dim(\"foo\") *\n        Dim(\"bar\")`` could be satisfied by multiple combinations of ``foo`` and\n        ``bar``.\n\n    \"\"\"\n\n    attr: kgen.ParamOperatorAttr\n\n    def __init__(self, attr: builtin.TypedAttr | AlgebraicDim) -> None:\n        if isinstance(attr, AlgebraicDim):\n            attr = attr.attr\n        elif not isinstance(attr, kgen.ParamOperatorAttr):\n            raise TypeError(\n                f\"AlgebraicDim.__init__ only accepts kgen.ParamOperatorAttr or AlgebraicDim, got {type(attr).__name__}\"\n            )\n        super().__setattr__(\"attr\", attr)\n\n    @classmethod\n    def apply(cls, op: kgen.POC, *operands: DimLike):  # noqa: ANN206\n        \"\"\"Applies a parametric operator to operands and returns the resulting dimension.\"\"\"\n        # kgen.ParamOperatorAttr eagerly folds on construction!\n        #  - this can return static or symbolic dims\n        #  - let Dim decide what type to return\n        attr = kgen.ParamOperatorAttr(\n            op, [Dim(operand).to_mlir() for operand in operands]\n        )\n        return Dim(attr)\n\n    def substitute(self, mapping: Mapping[str, DimLike]) -> Dim:\n        \"\"\"Returns this dim with named symbols replaced per ``mapping``.\n\n        Substitutes into each operand, then reapplies the operator, so\n        substitution to static values folds through the compiler's own\n        attribute evaluation rather than being recomputed in Python.\n\n        Args:\n            mapping: A mapping from symbolic dimension name to the\n                replacement dim (or dim-like value).\n\n        Returns:\n            The dim with substitutions applied, re-folded by the compiler.\n\n        Raises:\n            ZeroDivisionError: If substitution produces a zero divisor.\n        \"\"\"\n        operands = [\n            Dim(operand).substitute(mapping) for operand in self.attr.operands\n        ]\n        # __floordiv__'s zero guard does not run here, and the compiler\n        # neither folds nor rejects a literal zero divisor. A div attribute\n        # always carries two operands - its verifier rejects any other count.\n        if self.attr.opcode == kgen.POC.div and operands[1] == 0:\n            raise ZeroDivisionError(\n                f\"substituting into {self} produced a zero divisor\"\n            )\n        return AlgebraicDim.apply(self.attr.opcode, *operands)\n\n    def __format__(self, format_spec: str) -> str:\n        formatters: Mapping[str, Callable[[Any], str]] = {\n            \"str\": str,\n            \"repr\": repr,\n        }\n        formatter = formatters[format_spec or \"str\"]\n\n        def format(dim: Dim):  # noqa: ANN202\n            formatted = formatter(dim)\n            return (\n                f\"({formatted})\" if isinstance(dim, AlgebraicDim) else formatted\n            )\n\n        # For the opcodes we support in the graph api, print with python math.\n        opcodes = {\n            kgen.POC.add: \"+\",\n            kgen.POC.mul_no_wrap: \"*\",\n            kgen.POC.div: \"//\",\n        }\n        opcode = self.attr.opcode\n        dims = [Dim(operand) for operand in self.attr.operands]\n        if opcode in opcodes:\n            # Wrap algebraic sub-expressions in parens\n            return f\" {opcodes[opcode]} \".join(map(format, dims))\n        return formatter(self.attr)\n\n    def __str__(self) -> str:\n        return f\"{self:str}\"\n\n    def __repr__(self) -> str:\n        return f\"{self:repr}\"\n\n    def __eq__(self, other: object) -> bool:\n        return isinstance(other, AlgebraicDim) and self.attr == other.attr\n\n    def to_mlir(self) -> kgen.ParamOperatorAttr:\n        \"\"\"Creates an mlir.Attribute representing this dimension.\n\n        This is used internally when constructing tensor MLIR types.\n\n        Returns:\n            An mlir.Attribute in the context representing the dimension.\n        \"\"\"\n        return self.attr\n\n    @staticmethod\n    def from_mlir(attr: builtin.TypedAttr) -> AlgebraicDim:\n        \"\"\"Constructs an ``AlgebraicDim`` from a ``kgen.ParamOperatorAttr``.\n\n        Args:\n            attr: The ``kgen.ParamOperatorAttr`` to parse into an ``AlgebraicDim``.\n\n        Returns:\n            AlgebraicDim: The ``AlgebraicDim`` represented by the ``kgen.ParamOperatorAttr``.\n        \"\"\"\n        if not isinstance(attr, kgen.ParamOperatorAttr):\n            raise TypeError(\n                f\"AlgebraicDim.from_mlir only accepts kgen.ParamOperatorAttr, got {type(attr).__name__}\"\n            )\n        return AlgebraicDim(attr)\n\n    @property\n    def parameters(self) -> Iterable[SymbolicDim]:\n        \"\"\"Lists the symbolic dimension names on which this dim depends.\"\"\"\n        for operand in self.attr.operands:\n            yield from Dim(operand).parameters\n\n\n@functools.total_ordering\n@dataclass(frozen=True)\nclass StaticDim(Dim):\n    \"\"\"A static tensor dimension with a fixed size.\n\n    Because a static dimension's size is fixed, related computation can be\n    optimized at compile time. This is key to good model performance.\n\n    The following example creates static dimensions implicitly by passing\n    integer values to :class:`TensorType`:\n\n    .. code-block:: python\n\n        from max.dtype import DType\n        from max.graph import DeviceRef, TensorType\n        tensor = TensorType(DType.int64, (4, 5), device=DeviceRef.CPU())\n        # This creates a tensor with 2 static dimensions: 4 and 5 respectively\n    \"\"\"\n\n    dim: int\n    \"\"\"The size of the static dimension.\"\"\"\n\n    def __init__(self, dim: int | builtin.TypedAttr | StaticDim) -> None:\n        # Use CastToBuiltinAttr to fold back to integer.\n        if isinstance(dim, kgen.SIMDAttr):\n            dim = kgen.CastToBuiltinAttr(dim)\n\n        if isinstance(dim, builtin.IntegerAttr):\n            dim = dim.value\n        elif isinstance(dim, StaticDim):\n            dim = dim.dim\n        elif not isinstance(dim, int):\n            raise TypeError(\n                f\"StaticDim.__init__ only accepts int, builtin.IntegerAttr, or StaticDim, got {type(dim).__name__}\"\n            )\n        # Can't assign directly to frozen dataclasses.\n        super().__setattr__(\"dim\", dim)\n        if not -(2**63) \u003c= self.dim \u003c 2**63:\n            raise ValueError(\"Dim value must be -2**63 \u003c= dim \u003c 2**63\")\n\n    def substitute(self, mapping: Mapping[str, DimLike]) -> Dim:\n        \"\"\"Returns this dim unchanged: a static dim has no symbols.\n\n        Args:\n            mapping: A mapping from symbolic dimension name to the\n                replacement dim (or dim-like value). Ignored.\n\n        Returns:\n            This dim, unchanged.\n        \"\"\"\n        return self\n\n    def __str__(self) -> str:\n        return str(self.dim)\n\n    def __repr__(self) -> str:\n        return f\"Dim({repr(self.dim)})\"\n\n    def __int__(self) -> int:\n        return self.dim\n\n    def __eq__(self, other: object) -> bool:\n        \"\"\"Whether the dimension has the same size as another dimension.\n\n        Args:\n            other: The other dimension to check equality against.\n\n        Returns:\n            True if both dimensions have the same static size, false otherwise.\n        \"\"\"\n        return self.dim == other or (\n            isinstance(other, StaticDim) and self.dim == other.dim\n        )\n\n    def __lt__(self, other: int | StaticDim):\n        return self.dim \u003c (other.dim if isinstance(other, StaticDim) else other)\n\n    def __hash__(self):\n        return hash(self.dim)\n\n    def to_mlir(self) -> builtin.TypedAttr:\n        \"\"\"Creates an ``mlir.Attribute`` representing this dimension.\n\n        This is used internally when constructing tensor MLIR types.\n\n        Returns:\n            An ``mlir.Attribute`` in the context representing the dimension.\n        \"\"\"\n        si64 = builtin.IntegerType(64, builtin.SignednessSemantics.signed)\n        return kgen.CastFromBuiltinAttr(builtin.IntegerAttr(si64, self.dim))\n\n    @staticmethod\n    def from_mlir(attr: builtin.TypedAttr) -> StaticDim:\n        \"\"\"Constructs a ``StaticDim`` from a ``builtin.IntegerAttr``.\n\n        Args:\n            attr: The ``builtin.IntegerAttr`` to parse into a ``StaticDim``.\n\n        Returns:\n            StaticDim: The ``StaticDim`` represented by the ``builtin.IntegerAttr``.\n        \"\"\"\n        if not isinstance(attr, builtin.IntegerAttr | kgen.SIMDAttr):\n            raise TypeError(\n                f\"StaticDim.from_mlir only accepts builtin.IntegerAttr, got {type(attr).__name__}\"\n            )\n        return StaticDim(attr)\n\n    @property\n    def parameters(self) -> Iterable[SymbolicDim]:\n        \"\"\"Lists the symbolic dimension names on which this dim depends.\"\"\"\n        return ()\n\n\nDimLike = int | str | Dim | np.integer | builtin.TypedAttr\n\"\"\"Anything a dimension accepts: a Python int, a symbolic name, a\n:class:`Dim`, a NumPy integer, or a typed MLIR attribute.\n\"\"\"\n", "sha256": "c6b900a8014cbf0a6b430d972fc8ade68d07480a448fe95bbdb77aa8f0f19841"}, "GraphCompiler/lib/MOSHDialect/MOSHAttrs.cpp": {"path": "GraphCompiler/lib/MOSHDialect/MOSHAttrs.cpp", "text": "//===----------------------------------------------------------------------===//\n// Copyright (c) 2026, Modular Inc. All rights reserved.\n//\n// Licensed under the MAX License:\n// https://modular.com/legal/max-license\n//\n// Unless required by applicable law or agreed to in writing, software\n// distributed under the License is distributed on an \"AS IS\" BASIS,\n// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n// See the License for the specific language governing permissions and\n// limitations under the License.\n//===----------------------------------------------------------------------===//\n//\n// This file implements the MOSH dialect attributes.\n//\n//===----------------------------------------------------------------------===//\n\n#include \"GraphCompiler/MOSHDialect/MOSHAttrs.h\"\n#include \"GraphCompiler/MOSHDialect/MOSHDialect.h\"\n#include \"GraphCompiler/MOSHDialect/MOSHTypes.h\"\n#include \"Mojo/KGENDialect/KGENTypes.h\"\n#include \"Mojo/KGENDialect/KGENUtils.h\"\n#include \"Support/AssertStream.h\"\n#include \"Support/MDialect/ParserUtils.h\"\n#include \"mlir/IR/Builders.h\"\n#include \"llvm/ADT/SmallVectorExtras.h\"\n#include \"llvm/ADT/TypeSwitch.h\"\n\nusing namespace M;\nusing namespace MOSH;\n\n//===----------------------------------------------------------------------===//\n// MOSHDialect attribute support\n//===----------------------------------------------------------------------===//\n\nvoid MOSHDialect::registerAttributes() {\n  addAttributes\u003c\n#define GET_ATTRDEF_LIST\n#include \"GraphCompiler/MOSHDialect/MOSHAttrs.cpp.inc\"\n      >();\n}\n\n//===----------------------------------------------------------------------===//\n// ShapeAttr\n//===----------------------------------------------------------------------===//\n\nOptionalParseResult M::MOSH::parseShapeAttr(AsmParser &p,\n                                            TypedAttr &shapeAttr) {\n  auto shapeTy = p.getBuilder().getType\u003cShapeType>();\n\n  if (succeeded(p.parseOptionalLSquare())) {\n    SmallVector\u003cTypedAttr> values;\n    if (failed(p.parseOptionalRSquare())) {\n      if (parseShapeValue(p, values) || p.parseRSquare())\n        return failure();\n    }\n\n    shapeAttr = p.getChecked\u003cShapeAttr>(values, shapeTy);\n    return failure(!shapeAttr);\n  }\n\n  return std::nullopt;\n}\n\nvoid M::MOSH::printShapeTypedAttr(AsmPrinter &p, TypedAttr shapeAttr) {\n  assert(isa\u003cShapeType>(shapeAttr.getType()));\n  if (auto declRef = dyn_cast\u003cKGEN::ParamDeclRefAttr>(shapeAttr)) {\n    KGEN::printParamName(p, declRef.getName());\n  } else if (auto declRef = dyn_cast\u003cKGEN::ParamIndexRefAttr>(shapeAttr)) {\n    KGEN::printParamValue(p, declRef, declRef.getType());\n  } else {\n    p \u003c\u003c \"[\";\n    printShapeValue(p, cast\u003cShapeAttr>(shapeAttr).getValues());\n    p \u003c\u003c \"]\";\n  }\n}\n\nstd::string M::MOSH::shapeTypedAttrToStr(TypedAttr attr) {\n  std::string str;\n  llvm::raw_string_ostream os(str);\n  StreamAsmPrinter printer(os);\n  MOSH::printShapeTypedAttr(printer, attr);\n  return str;\n}\n\nint64_t M::MOSH::findDeclIdx(ShapeAttr shape, KGEN::ParamDeclAttr decl) {\n  StringAttr declName = decl.getName();\n  for (auto [idx, dim] : llvm::enumerate(shape.getValues())) {\n    if (auto dimRef = dyn_cast\u003cKGEN::ParamDeclRefAttr>(dim))\n      if (dimRef.getName() == declName)\n        return idx;\n  }\n  return -1;\n}\n\nstatic ParseResult parseColonTypeOrDimension(AsmParser &parser, Type &type) {\n  auto dimType = ShapeAttr::getDimType(parser.getContext());\n  return KGEN::parseColonTypeOrDefault(parser, type, dimType);\n}\n\nstatic ParseResult parseShapeValueElement(AsmParser &p, TypedAttr &value) {\n  Type type;\n  if (parseColonTypeOrDimension(p, type) ||\n      KGEN::parseParamValue(p, value, type))\n    return failure();\n\n  return success();\n}\n\nParseResult M::MOSH::parseShapeValue(AsmParser &p,\n                                     SmallVectorImpl\u003cTypedAttr> &values) {\n  values.clear();\n\n  if (p.parseCommaSeparatedList([&]() -> ParseResult {\n        return parseShapeValueElement(p, values.emplace_back());\n      }))\n    return failure();\n\n  return success();\n}\n\nParseResult M::MOSH::parseShapeValue(AsmParser &p,\n                                     SmallVectorImpl\u003cTypedAttr> &values,\n                                     ShapeType type) {\n  return parseShapeValue(p, values);\n}\n\n/// print `:\u003ctype> ` or elide it entirely if type is the dim type.\nstatic void printColonTypeOrDimensionPrefix(AsmPrinter &p, Type type) {\n  if (type == ShapeAttr::getDimType(type.getContext()))\n    return;\n  p \u003c\u003c ':';\n  KGEN::printKGENType(p, type);\n  p \u003c\u003c ' ';\n}\n\nvoid M::MOSH::printDimensionValue(AsmPrinter &p, TypedAttr value) {\n  printColonTypeOrDimensionPrefix(p, value.getType());\n  KGEN::printParamValue(p, value);\n}\n\nvoid M::MOSH::printShapeValue(AsmPrinter &p, ArrayRef\u003cTypedAttr> values) {\n  llvm::interleaveComma(\n      values, p, [&](TypedAttr value) { printDimensionValue(p, value); });\n}\n\nvoid M::MOSH::printShapeValue(AsmPrinter &p, ArrayRef\u003cTypedAttr> values,\n                              ShapeType type) {\n  printShapeValue(p, values);\n}\n\nKGEN::SIMDType ShapeAttr::getDimType(MLIRContext *ctx) {\n  return KGEN::SIMDType::get(ctx, 1, KGEN::KGENDType::si64);\n}\n\nKGEN::SIMDAttr ShapeAttr::getDim(MLIRContext *ctx, int64_t value) {\n  return KGEN::SIMDAttr::get(value, getDimType(ctx));\n}\n\n/// Is the given type a legal dimension (scalar `si64` SIMD lane)?\nbool ShapeAttr::isDimType(Type type) {\n  if (type == getDimType(type.getContext()))\n    return true;\n\n  if (auto simdType = dyn_cast\u003cKGEN::SIMDType>(type))\n    return simdType.getResolvedSize() == 1 &&\n           simdType.getResolvedDType()\n               .value_or(KGEN::KGENDType::invalid)\n               .isIntLike(); // Also admits bool/index.\n\n  return false;\n}\n\nstd::optional\u003cint64_t> ShapeAttr::getStaticDim(Attribute attr) {\n  auto simdAttr = dyn_cast_or_null\u003cKGEN::SIMDAttr>(attr);\n  if (!simdAttr || !isDim(simdAttr))\n    return {};\n\n  return simdAttr.getValues().front().getIntVal().getExtValue();\n}\n\nSmallVector\u003cTypedAttr> dimAttrs(MLIRContext *context,\n                                ArrayRef\u003cint64_t> values) {\n  SmallVector\u003cTypedAttr> attrs;\n  attrs.reserve(values.size());\n\n  for (auto v : values) {\n    if (mlir::ShapedType::isDynamic(v)) {\n      ASSERT_STREAM(false, \"ShapeAttr does not support dynamic dimensions\");\n    } else {\n      attrs.push_back(ShapeAttr::getDim(context, v));\n    }\n  }\n  return attrs;\n}\n\nShapeAttr ShapeAttr::get(ArrayRef\u003cint64_t> values, ShapeType type) {\n  auto ctx = type.getContext();\n  return get(ctx, dimAttrs(ctx, values), type);\n}\n\nShapeAttr ShapeAttr::getChecked(function_ref\u003cInFlightDiagnostic()> emitError,\n                                ArrayRef\u003cint64_t> values, ShapeType type) {\n  auto ctx = type.getContext();\n  auto dims = dimAttrs(ctx, values);\n  return ShapeAttr::getChecked(emitError, dims, type);\n}\n\nShapeAttr ShapeAttr::get(IntArrayElementsAttr intDims, ShapeType type) {\n  SmallVector\u003cint64_t> rawDims = llvm::map_to_vector(\n      intDims.getValues(), [](const APInt &dim) { return dim.getSExtValue(); });\n  return get(rawDims, type);\n}\n\nShapeAttr ShapeAttr::getChecked(function_ref\u003cInFlightDiagnostic()> emitError,\n                                IntArrayElementsAttr intDims, ShapeType type) {\n  auto ctx = type.getContext();\n  auto dims = dimAttrs(ctx, intDims.asArrayRef\u003cint64_t>());\n  return ShapeAttr::getChecked(emitError, dims, type);\n}\n\nbool ShapeAttr::isConstant() const {\n  return llvm::all_of(getValues(), [](TypedAttr attr) {\n    return getStaticDim(attr).has_value();\n  });\n}\n\nLogicalResult ShapeAttr::verify(function_ref\u003cInFlightDiagnostic()> emitError,\n                                ArrayRef\u003cTypedAttr> values, ShapeType type) {\n  for (auto [idx, value] : llvm::enumerate(values)) {\n    if (!ShapeAttr::isDimType(value.getType())) {\n      return emitError() \u003c\u003c \"expected all list elements to have \"\n                            \"scalar\u003cinteger> type \"\n                         \u003c\u003c value.getType() \u003c\u003c \" at position \" \u003c\u003c idx;\n    }\n  }\n\n  auto elementTypes =\n      llvm::map_range(values, [](TypedAttr value) { return value.getType(); });\n\n  if (!llvm::all_equal(elementTypes))\n    return emitError() \u003c\u003c \"expected all elements to have the same type\";\n\n  return success();\n}\n\nstatic int64_t symbolicDimToInt(TypedAttr dim) {\n  std::optional\u003cint64_t> v = ShapeAttr::getStaticDim(dim);\n  return v.has_value() ? *v : mlir::ShapedType::kDynamic;\n}\n\nint64_t ShapeAttr::getIntDim(size_t n) const {\n  return symbolicDimToInt(getValues()[n]);\n}\n\nSmallVector\u003cint64_t> ShapeAttr::getIntDims() const {\n  return llvm::map_to_vector(getValues(), symbolicDimToInt);\n}\n\nTypedAttr ShapeAttr::getSymbolicNumElements() const {\n  if (getRank() == 0)\n    return ShapeAttr::getDim(getContext(), 1);\n  return KGEN::ParamOperatorAttr::get(KGEN::POC::MulNoWrap, getValues());\n}\n\nErrorOr\u003cShapeAttr> ShapeAttr::broadcastShapes(ShapeAttr xSh, ShapeAttr ySh) {\n  // Follows https://numpy.org/doc/stable/user/basics.broadcasting.html\n  // TODO (#7331): Merge with Support/ML/BroadcastShape.\n\n  if (xSh == ySh)\n    return ySh;\n\n  auto intDim1 = getDim(xSh.getContext(), 1ll);\n\n  SmallVector\u003cTypedAttr> result;\n  ArrayRef\u003cTypedAttr> xShDims = xSh.getValues();\n  ArrayRef\u003cTypedAttr> yShDims = ySh.getValues();\n  for (auto [xShDim, yShDim] :\n       llvm::zip_longest(llvm::reverse(xShDims), llvm::reverse(yShDims))) {\n    if (!yShDim.has_value()) {\n      result.push_back(xShDim.value());\n      continue;\n    }\n\n    if (!xShDim.has_value()) {\n      result.push_back(yShDim.value());\n      continue;\n    }\n\n    TypedAttr xShDimVal = xShDim.value();\n    TypedAttr yShDimVal = yShDim.value();\n\n    if (xShDimVal == yShDimVal) {\n      result.push_back(xShDimVal);\n      continue;\n    }\n\n    if (xShDimVal == intDim1) {\n      result.push_back(yShDimVal);\n      continue;\n    }\n\n    if (yShDimVal == intDim1) {\n      result.push_back(xShDimVal);\n      continue;\n    }\n\n    // Not 1, not dynamic. Then the other shape necessarily matches this.\n    if (xShDimVal != yShDimVal) {\n      return Error(Twine(\n          \"upstream dialect should have rejected non-broadcastable inputs\"));\n    }\n    result.push_back(xShDimVal);\n  }\n  return ShapeAttr::get(SmallVector\u003cTypedAttr>(llvm::reverse(result)),\n                        xSh.getType());\n}\n\nTypedAttr ShapeAttr::getCommonBroadcastShape(ArrayRef\u003cTypedAttr> shapeParams) {\n  SmallVector\u003cShapeAttr> staticRankShapes;\n  for (TypedAttr p : shapeParams) {\n    if (auto shape = llvm::dyn_cast\u003cShapeAttr>(p)) {\n      staticRankShapes.emplace_back(shape);\n    }\n  }\n\n  // If all the shapes are dynamically ranked, we can only determine a common\n  // shape if they are all the same.\n  if (staticRankShapes.empty()) {\n    TypedAttr res = shapeParams.front();\n    auto notSameAsFirst = [res](TypedAttr other) { return res != other; };\n    if (llvm::any_of(shapeParams.drop_front(), notSameAsFirst))\n      return {};\n    return res;\n  }\n\n  // If we have both static and dynamic ranks, we can't do anything.\n  if (staticRankShapes.size() != shapeParams.size())\n    return {};\n\n  // All ranks are static: reduce pairwise into the common shape.\n  ShapeAttr commonShape = staticRankShapes.pop_back_val();\n  while (!staticRankShapes.empty()) {\n    ShapeAttr nextShape = staticRankShapes.pop_back_val();\n    ErrorOr\u003cShapeAttr> maybeCommonShape =\n        ShapeAttr::broadcastShapes(commonShape, nextShape);\n    if (maybeCommonShape.isError())\n      return {};\n    commonShape = maybeCommonShape.takeValue();\n  }\n\n  return commonShape;\n}\n\nErrorOr\u003cSmallVector\u003cint64_t>>\nShapeAttr::getBroadcastedAxes(ShapeAttr beforeShape, ShapeAttr bcastedShape) {\n  ArrayRef\u003cTypedAttr> beforeDims = beforeShape.getValues();\n  ArrayRef\u003cTypedAttr> bcastedDims = bcastedShape.getValues();\n\n  ASSERT_STREAM(\n      beforeDims.size() \u003c= bcastedDims.size(),\n      \u003c\u003c \"Broadcasting can only increase rank but it is trying to decrease \"\n         \"rank from \"\n      \u003c\u003c beforeDims.size() \u003c\u003c \" to \" \u003c\u003c bcastedDims.size());\n\n  // Built in reverse since broadcasting aligns innermost dimensions.\n  SmallVector\u003cint64_t> answer;\n  for (size_t iter = 0; iter \u003c beforeDims.size(); ++iter) {\n    int beforeI = beforeDims.size() - iter - 1;\n    int bcastedI = bcastedDims.size() - iter - 1;\n\n    const TypedAttr &beforeDim = beforeDims[beforeI];\n    const TypedAttr &bcastedDim = bcastedDims[bcastedI];\n\n    // A runtime dim A --> B may or may not be a broadcast, so only static\n    // 1 --> not-1 is provably a broadcast axis.\n    std::optional\u003cint64_t> beforeDimInt = ShapeAttr::getStaticDim(beforeDim);\n    std::optional\u003cint64_t> bcastedDimInt = ShapeAttr::getStaticDim(bcastedDim);\n    if (beforeDimInt && bcastedDimInt && *beforeDimInt == 1 &&\n        *bcastedDimInt != 1) {\n      answer.push_back(bcastedI);\n    } else if (beforeDim != bcastedDim) {\n      return Error(\"Cannot statically prove which dimension broadcast.\");\n    }\n  }\n\n  // Newly introduced leading dims, also in reverse.\n  size_t extraDims = bcastedDims.size() - beforeDims.size();\n  for (size_t iter = 0; iter \u003c extraDims; ++iter) {\n    answer.push_back(extraDims - 1 - iter);\n  }\n\n  std::reverse(answer.begin(), answer.end());\n  return answer;\n}\n\n//===----------------------------------------------------------------------===//\n// ODS-Generated Definitions\n//===----------------------------------------------------------------------===//\n\n#define GET_ATTRDEF_CLASSES\n#include \"GraphCompiler/MOSHDialect/MOSHAttrs.cpp.inc\"\n", "sha256": "e0dcf9f201e6726e4ae176c8a76d8505800e15a8b31dfaffdc22a04d93807fc2"}, "max/python/max/_core/max_license/modules/dialects/builtin.cpp": {"path": "max/python/max/_core/max_license/modules/dialects/builtin.cpp", "text": "//===----------------------------------------------------------------------===//\n// Copyright (c) 2026, Modular Inc. All rights reserved.\n//\n// Licensed under the MAX License:\n// https://modular.com/legal/max-license\n//\n// Unless required by applicable law or agreed to in writing, software\n// distributed under the License is distributed on an \"AS IS\" BASIS,\n// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n// See the License for the specific language governing permissions and\n// limitations under the License.\n//===----------------------------------------------------------------------===//\n\n#include \"Support/Nanobind/OptionalPimpl.h\"\n#include \"Support/Nanobind/TypeCasters.h\" // IWYU pragma: keep (type casters)\n#include \"_core/Graph/Bindings.h\"\n#include \"_core/Graph/Checked.h\"\n#include \"_core/Graph/InferContext.h\"\n#include \"_core/Graph/InferTypeOpBuilders.h\"\n#include \"mlir/IR/Builders.h\"\n#include \"mlir/IR/BuiltinAttributeInterfaces.h\"\n#include \"mlir/IR/BuiltinAttributes.h\"\n#include \"mlir/IR/BuiltinOps.h\"\n#include \"mlir/IR/BuiltinTypes.h\"\n#include \"mlir/IR/IntegerSet.h\"\n#include \"mlir/Transforms/Passes.h\"\n#include \"nanobind/nanobind.h\"\n#include \"llvm/ADT/APSInt.h\"\n\nnamespace nb = nanobind;\n\nvoid M::Graph::Python::bindBuiltinDialect(nb::module_ m) {\n  using namespace mlir;\n  using SignednessSemantics = IntegerType::SignednessSemantics;\n  auto Signless = SignednessSemantics::Signless;\n\n  nb::class_\u003cDenseElementsAttr, ::mlir::Attribute>(m, \"DenseElementsAttr\");\n  nb::class_\u003cDenseResourceElementsAttr, ::mlir::Attribute>(\n      m, \"DenseResourceElementsAttr\");\n  nb::class_\u003cFlatSymbolRefAttr, ::mlir::Attribute>(m, \"FlatSymbolRefAttr\");\n  nb::class_\u003cmlir::AffineMap>(m, \"AffineMap\");\n  nb::class_\u003cmlir::IntegerSet>(m, \"IntegerSet\");\n  nb::class_\u003cmlir::detail::ElementsAttrIndexer>(m, \"_ElementsAttrIndexer\");\n\n  nb::enum_\u003cSignednessSemantics>(m, \"SignednessSemantics\")\n      .value(\"signless\", SignednessSemantics::Signless)\n      .value(\"signed\", SignednessSemantics::Signed)\n      .value(\"unsigned\", SignednessSemantics::Unsigned);\n\n  nb::class_\u003cBoolAttr, ::mlir::Attribute>(m, \"BoolAttr\")\n      .def(nb::new_(infer_context(&BoolAttr::get)))\n      .def_prop_ro(\"value\", &BoolAttr::getValue);\n\n#include \"_core/Graph/BuiltinAttributeInterfaces.cpp.inc\"\n#include \"_core/Graph/BuiltinAttributes.cpp.inc\"\n#include \"_core/Graph/BuiltinDialect.cpp.inc\"\n#include \"_core/Graph/BuiltinLocationAttributes.cpp.inc\"\n#include \"_core/Graph/BuiltinOps.cpp.inc\"\n#include \"_core/Graph/BuiltinTypeInterfaces.cpp.inc\"\n#include \"_core/Graph/BuiltinTypes.cpp.inc\"\n\n  nb::cast\u003cnb::class_\u003c::mlir::ModuleOp>>(nb::type\u003c::mlir::ModuleOp>())\n      .def(nb::new_(\n               [](Location loc, std::optional\u003cStringRef> name = std::nullopt) {\n                 return mlir::ModuleOp::create(loc, name);\n               }),\n           nb::arg(\"location\"), nb::arg(\"name\") = nb::none())\n      .def_prop_ro(\"body\", [](mlir::ModuleOp &self) {\n        return &self.getBodyRegion().front();\n      });\n\n  nb::implicitly_convertible\u003cmlir::Type, mlir::TypeAttr>();\n  nb::implicitly_convertible\u003cbool, BoolAttr>();\n  nb::implicitly_convertible\u003cstd::string, StringAttr>();\n\n  // The default IntegerAttr builders aren't very ergonomic.\n  // They work with APInts, but expect you to be able to be passing\n  // APInts that are the same width as the IntegerType. There's\n  // not really a good way to satisfy this in general right now.\n  // Delete these and create a more sensible constructor.\n  nb::handle IntegerAttr = nb::type\u003cmlir::IntegerAttr>();\n  nb::delattr(IntegerAttr, \"__new__\");\n  nb::delattr(IntegerAttr, \"__init__\");\n  nb::cast\u003cnb::class_\u003c::mlir::IntegerAttr>>(IntegerAttr)\n      .def(nb::new_([](mlir::IntegerType type, nb::int_ value) {\n             auto str = nb::str(value);\n             llvm::APSInt apsint = llvm::APSInt(str.c_str());\n             if (type.getWidth() \u003c apsint.getBitWidth() ||\n                 (apsint.isNegative() && !type.isSigned())) {\n               PyErr_Format(PyExc_ValueError,\n                            \"IntegerAttr: %R outside range for %R\", value.ptr(),\n                            nb::cast(type).ptr());\n               throw nanobind::python_error();\n             }\n\n             RaisingScopedEmitFn emitFn;\n             return mlir::IntegerAttr::getChecked(\n                 emitFn, type, apsint.extend(type.getWidth()));\n           }),\n           nb::arg(\"type\"), nb::arg(\"value\") = 0)\n      // IndexType is also a valid IntegerAttr type (MLIR's IndexAttr).\n      // It has no fixed bit width, so we skip the range check and let MLIR\n      // store the value as a 64-bit APInt.\n      .def(nb::new_([](mlir::IndexType type, int64_t value) {\n             return mlir::IntegerAttr::get(type, value);\n           }),\n           nb::arg(\"type\"), nb::arg(\"value\") = 0)\n      // Single-arg form defaults to IndexType (MLIR's IndexAttr). Convenient\n      // shorthand for the common `IntegerAttr(IndexType(), value)` pattern.\n      .def(nb::new_([](int64_t value) {\n             return mlir::IntegerAttr::get(\n                 mlir::IndexType::get(current_context()), value);\n           }),\n           nb::arg(\"value\"));\n\n  // Register some builtin passes\n  nb::module_ passes = m.def_submodule(\"passes\");\n  {\n    nb::module_ m = passes;\n\n    nb::enum_\u003cmlir::GreedySimplifyRegionLevel>(m, \"GreedySimplifyRegionLevel\")\n        .value(\"normal\", mlir::GreedySimplifyRegionLevel::Normal)\n        .value(\"disabled\", mlir::GreedySimplifyRegionLevel::Disabled)\n        .value(\"aggressive\", mlir::GreedySimplifyRegionLevel::Aggressive);\n\n    nb::enum_\u003cmlir::ConvergenceFailureAction>(m, \"ConvergenceFailureAction\")\n        .value(\"warn\", mlir::ConvergenceFailureAction::Warn)\n        .value(\"error\", mlir::ConvergenceFailureAction::Error)\n        .value(\"silent\", mlir::ConvergenceFailureAction::Silent);\n\n#include \"_core/Graph/Passes.cpp.inc\"\n  }\n}\n", "sha256": "800ad617ede3c170ef88c2b8248ec7ab011cac2ab5f701f653c1c6614b93dbdc"}}, "references": {"max/examples/custom_ops/fused_attention.py:26": {"file": "max/examples/custom_ops/fused_attention.py", "line": 26, "label": "fused_attention.py", "needle": "dtype = DType.float32"}, "max/python/max/graph/type.py:439": {"file": "max/python/max/graph/type.py", "line": 439, "label": "TensorType.to_mlir()", "needle": "return mo.TensorType("}, "max/python/max/graph/dim.py:570": {"file": "max/python/max/graph/dim.py", "line": 570, "label": "dim.py", "needle": "si64 = builtin.IntegerType(64, builtin.SignednessSemantics.signed)"}, "GraphCompiler/lib/MOSHDialect/MOSHAttrs.cpp:152": {"file": "GraphCompiler/lib/MOSHDialect/MOSHAttrs.cpp", "line": 152, "label": "MOSHAttrs.cpp", "needle": "KGEN::SIMDType ShapeAttr::getDimType(MLIRContext *ctx) {"}, "max/python/max/_core/max_license/modules/dialects/builtin.cpp:85": {"file": "max/python/max/_core/max_license/modules/dialects/builtin.cpp", "line": 85, "label": "builtin.cpp", "needle": ".def(nb::new_([](mlir::IntegerType type, nb::int_ value) {"}}}</script>
+<script>/* Movable windows shared by the add-one and standalone compiler readers. */
+(function(root) {
+  'use strict';
+  const records=new WeakMap(),windows=new Set();
+  let serial=0,z=95;
+  const gap=12;
+  const visible=card=>card instanceof HTMLDialogElement?card.open:!card.hidden;
+  const held=card=>records.get(card)?.held===true;
+  const bounds=()=>({width:Math.max(1,innerWidth-2*gap),height:Math.max(1,innerHeight-2*gap)});
+  const rect=card=>{const r=card.getBoundingClientRect();return {left:r.left,top:r.top,width:r.width,height:r.height};};
+  function fit(card,r) {
+    const limit=bounds(),width=Math.min(limit.width,Math.max(Math.min(320,limit.width),r.width)),height=Math.min(limit.height,Math.max(Math.min(140,limit.height),r.height));
+    Object.assign(card.style,{width:width+'px',height:height+'px',maxWidth:limit.width+'px',maxHeight:limit.height+'px',left:Math.max(gap,Math.min(innerWidth-width-gap,r.left))+'px',top:Math.max(gap,Math.min(innerHeight-height-gap,r.top))+'px',margin:'0'});
+  }
+  function buttons(record) {
+    record.card.dataset.cardHeld=String(record.held);
+    record.card.dataset.cardExpanded=String(record.expanded);
+    record.hold.textContent=record.held?'Held':'Hold';
+    record.hold.setAttribute('aria-pressed',String(record.held));
+    record.hold.title=record.held?'Keep open until Close; click to release':'Keep this card open until Close';
+    record.expand.textContent=record.expanded?'Restore':'Expand';
+    record.expand.setAttribute('aria-pressed',String(record.expanded));
+    record.expand.title=record.expanded?'Restore the previous size':'Expand this card to fit the viewport';
+  }
+  function register(card,{header,closeButton,close,body}={}) {
+    if(records.has(card))return records.get(card);
+    header ||= card.querySelector('.call-explanation-card-header,.card-toolbar,.source-toolbar');
+    closeButton ||= header?.querySelector('[data-close-call-explanation],[data-close-card],[data-close-legend],#source-close,[data-window-close]');
+    if(!header||!closeButton)return null;
+    card.classList.add('reader-card-window');
+    card.dataset.cardHeld='false';card.dataset.cardExpanded='false';
+    header.classList.add('reader-window-header');header.tabIndex=0;
+    header.title='Drag to move this card; use arrow keys when this header is focused';
+    if(!body){
+      body=card.querySelector(':scope > .call-explanation-card-body,:scope > .reader-window-content');
+      if(!body){body=document.createElement('div');for(const child of [...card.childNodes])if(child!==header)body.append(child);card.append(body);}
+    }
+    body.classList.add('reader-window-content');
+    let actions=header.querySelector('.reader-window-actions');
+    if(!actions){actions=document.createElement('div');actions.className='reader-window-actions';header.append(actions);}
+    function button(key,label){let b=actions.querySelector('[data-window-'+key+']');if(!b){b=document.createElement('button');b.type='button';b.dataset['window'+key[0].toUpperCase()+key.slice(1)]='';b.textContent=label;actions.append(b);}return b;}
+    const holdButton=button('hold','Hold'),expandButton=button('expand','Expand');
+    closeButton.dataset.windowClose='';closeButton.textContent='Close';closeButton.title='Close this card';actions.append(closeButton);
+    let handle=card.querySelector(':scope > .reader-window-resize');
+    if(!handle){handle=document.createElement('button');handle.type='button';handle.className='reader-window-resize';handle.textContent='◢';handle.setAttribute('aria-label','Resize card');handle.title='Drag to resize; arrow keys change width or height';card.append(handle);}
+    const record={card,header,body,closeButton,hold:holdButton,expand:expandButton,held:false,manual:false,expanded:false,restore:null,close};
+    records.set(card,record);windows.add(card);buttons(record);
+    holdButton.addEventListener('click',()=>{record.held=!record.held;buttons(record);});
+    expandButton.addEventListener('click',()=>{
+      if(record.expanded){record.expanded=false;fit(card,record.restore||rect(card));}
+      else{record.restore=rect(card);record.expanded=true;fit(card,{left:gap,top:gap,width:innerWidth-2*gap,height:innerHeight-2*gap});}
+      record.manual=true;buttons(record);
+    });
+    if(close)closeButton.addEventListener('click',close);
+    card.addEventListener('pointerdown',()=>{card.style.zIndex=String(++z);});
+    card.addEventListener('focusin',()=>{card.style.zIndex=String(++z);});
+    function start(event,resizing){
+      if(event.button!==0||(!resizing&&event.target.closest('button,a,input,textarea,select,[contenteditable]')))return;
+      event.preventDefault();record.manual=true;
+      if(resizing){record.expanded=false;buttons(record);}
+      const element=resizing?handle:header,initial=rect(card),x=event.clientX,y=event.clientY;
+      fit(card,initial);element.setPointerCapture(event.pointerId);card.dataset.cardDragging='true';
+      const move=e=>{if(e.pointerId!==event.pointerId)return;const dx=e.clientX-x,dy=e.clientY-y;fit(card,resizing?{...initial,width:initial.width+dx,height:initial.height+dy}:{...initial,left:initial.left+dx,top:initial.top+dy});};
+      const stop=e=>{if(e.pointerId!==event.pointerId)return;card.dataset.cardDragging='false';element.removeEventListener('pointermove',move);element.removeEventListener('pointerup',stop);element.removeEventListener('pointercancel',stop);element.removeEventListener('lostpointercapture',stop);if(element.hasPointerCapture(event.pointerId))element.releasePointerCapture(event.pointerId);};
+      element.addEventListener('pointermove',move);element.addEventListener('pointerup',stop);element.addEventListener('pointercancel',stop);element.addEventListener('lostpointercapture',stop);
+    }
+    header.addEventListener('pointerdown',e=>start(e,false));handle.addEventListener('pointerdown',e=>start(e,true));
+    function keyboard(event,resizing){
+      if(event.target!==(resizing?handle:header)||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
+      event.preventDefault();const r=rect(card),step=event.shiftKey?40:20,dx=event.key==='ArrowRight'?step:event.key==='ArrowLeft'?-step:0,dy=event.key==='ArrowDown'?step:event.key==='ArrowUp'?-step:0;
+      record.manual=true;if(resizing){record.expanded=false;buttons(record);}
+      fit(card,resizing?{...r,width:r.width+dx,height:r.height+dy}:{...r,left:r.left+dx,top:r.top+dy});
+    }
+    header.addEventListener('keydown',e=>keyboard(e,false));handle.addEventListener('keydown',e=>keyboard(e,true));
+    card.addEventListener('cancel',e=>{if(record.held)e.preventDefault();});
+    return record;
+  }
+  function reset(card){const r=records.get(card);if(!r)return;r.held=false;r.manual=false;r.expanded=false;r.restore=null;for(const property of ['left','top','width','height','maxWidth','maxHeight','margin'])card.style[property]='';buttons(r);}
+  function park(card){
+    const r=records.get(card);if(!r?.held||!visible(card)||card instanceof HTMLDialogElement)return;
+    const geometry=rect(card),copy=card.cloneNode(true),suffix='-held-'+(++serial),ids=new Map();
+    for(const element of [copy,...copy.querySelectorAll('[id]')])if(element.id){const id=element.id;ids.set(id,id+suffix);element.id=id+suffix;}
+    for(const element of [copy,...copy.querySelectorAll('*')]){
+      for(const attr of ['aria-labelledby','aria-describedby','aria-controls','for'])if(element.hasAttribute(attr))element.setAttribute(attr,element.getAttribute(attr).split(' ').map(id=>ids.get(id)||id).join(' '));
+      const hash=element.getAttribute('href');if(hash?.startsWith('#')&&ids.has(hash.slice(1)))element.setAttribute('href','#'+ids.get(hash.slice(1)));
+      if(element.dataset.callTreeId)element.dataset.callTreeId+=suffix;
+    }
+    copy.dataset.heldWindow='true';copy.hidden=false;
+    (document.fullscreenElement||document.body).append(copy);
+    const duplicate=register(copy,{close:()=>{windows.delete(copy);copy.remove();}});
+    duplicate.held=true;duplicate.manual=true;duplicate.expanded=r.expanded;duplicate.restore=r.restore;buttons(duplicate);fit(copy,geometry);copy.style.zIndex=String(++z);
+    reset(card);
+  }
+  function opening(card){const r=records.get(card);if(!r)return;if(card instanceof HTMLDialogElement)return;park(card);if(!visible(card))reset(card);}
+  function positioned(card){const r=records.get(card);if(!r||!visible(card))return;if(r.expanded)fit(card,{left:gap,top:gap,width:innerWidth-2*gap,height:innerHeight-2*gap});else if(r.manual||r.held)fit(card,rect(card));}
+  function followsTrigger(card){const r=records.get(card);return !r||(!r.manual&&!r.expanded&&!r.held);}
+  function openSource(card){if(records.has(card)&&!card.open)reset(card);}
+  function sourceShown(card){const record=records.get(card);if(record){if(record.manual||record.held){positioned(card);return;}const r=rect(card);fit(card,{...r,left:(innerWidth-r.width)/2,top:(innerHeight-r.height)/2});}}
+  document.addEventListener('click',e=>{for(const card of [...windows])if(card.dataset.heldWindow&&!held(card)&&!card.contains(e.target)){windows.delete(card);card.remove();}});
+  document.addEventListener('keydown',e=>{if(e.key!=='Escape'||document.getElementById('source-dialog')?.open)return;const copies=[...windows].filter(card=>card.dataset.heldWindow&&!held(card)&&visible(card)).sort((a,b)=>Number(b.style.zIndex)-Number(a.style.zIndex));if(copies.length){e.preventDefault();windows.delete(copies[0]);copies[0].remove();}});
+  addEventListener('resize',()=>{for(const card of windows)positioned(card);});
+  document.addEventListener('fullscreenchange',()=>{for(const card of windows)if(!(card instanceof HTMLDialogElement)){(document.fullscreenElement||document.body).append(card);if(visible(card))fit(card,rect(card));}});
+  root.CompilerCardWindows={register,isHeld:held,opening,closed:reset,positioned,followsTrigger,openSource,sourceShown};
+})(window);
+
+/* Offline source windows; the copied answer remains readable without JavaScript. */
+(function () {
+  'use strict';
+  const data = JSON.parse(document.getElementById('virtual-device-data').textContent);
+  const helper = window.CompilerCardWindows;
+  const windows = new Map();
+  let serial = 0;
+
+  function close(win, force) {
+    if (!force && helper.isHeld(win)) return;
+    win.hidden = true;
+    helper.closed(win);
+    if (force && win.origin && win.origin.isConnected) win.origin.focus({preventScroll: true});
+  }
+
+  function openSource(token, origin) {
+    const ref = data.references[token];
+    if (!ref) return;
+    let key = 'source';
+    if (windows.has(key) && !windows.get(key).hidden && helper.isHeld(windows.get(key))) {
+      key = 'source-' + (++serial);
+    }
+    let win = windows.get(key);
+    if (!win) {
+      win = document.createElement('aside');
+      win.className = 'floating-note source-window';
+      win.hidden = true;
+      win.setAttribute('role', 'dialog');
+      win.setAttribute('aria-modal', 'false');
+      const titleId = 'source-title-' + (++serial);
+      win.setAttribute('aria-labelledby', titleId);
+      const header = document.createElement('header');
+      header.innerHTML = '<h2 id="' + titleId + '">Source explorer · complete pinned file</h2>' +
+                         '<button type="button" data-window-close>Close</button>';
+      const body = document.createElement('div');
+      body.className = 'reader-window-content';
+      body.innerHTML = '<p class="source-path"></p>' +
+        '<div class="source-toolbar-fields"><select aria-label="Source file"></select>' +
+        '<label>Line <input type="number" min="1" aria-label="Source line"></label>' +
+        '<button type="button" data-go-line>Go</button></div>' +
+        '<div class="source-scroll" tabindex="0" aria-label="Complete pinned source">' +
+        '<pre class="source-lines"></pre></div>';
+      win.append(header, body);
+      document.body.append(win);
+      helper.register(win, {header, body, closeButton: header.querySelector('button'),
+                           close: () => close(win, true)});
+      windows.set(key, win);
+      const select = win.querySelector('select');
+      for (const file of Object.keys(data.files).sort()) {
+        const option = document.createElement('option');
+        option.value = file;
+        option.textContent = file;
+        select.append(option);
+      }
+      select.addEventListener('change', () => show(win, select.value, 1));
+      win.querySelector('[data-go-line]').addEventListener('click', () =>
+        show(win, select.value, Number(win.querySelector('input').value)));
+      win.querySelector('input').addEventListener('keydown', event => {
+        if (event.key === 'Enter') show(win, select.value, Number(event.target.value));
+      });
+    }
+    if (win.hidden) helper.opening(win);
+    win.hidden = false;
+    win.origin = origin;
+    helper.sourceShown(win);
+    show(win, ref.file, ref.line);
+    win.querySelector('.reader-window-header').focus({preventScroll: true});
+  }
+
+  function show(win, file, requestedLine) {
+    const source = data.files[file];
+    if (!source) return;
+    const lines = source.text.split('\n');
+    const line = Math.max(1, Math.min(lines.length, Math.trunc(requestedLine) || 1));
+    win.querySelector('select').value = file;
+    const input = win.querySelector('input');
+    input.value = line;
+    input.max = lines.length;
+    win.querySelector('.source-path').textContent = file + ':' + line + ' · revision ' + (source.revision || data.revision);
+    const pre = win.querySelector('.source-lines');
+    if (pre.dataset.file !== file) {
+      const fragment = document.createDocumentFragment();
+      lines.forEach((text, index) => {
+        const row = document.createElement('span');
+        row.className = 'source-line';
+        row.dataset.line = String(index + 1);
+        const number = document.createElement('span');
+        number.className = 'source-line-number';
+        number.textContent = index + 1;
+        row.append(number, document.createTextNode(text || ' '));
+        fragment.append(row);
+      });
+      pre.replaceChildren(fragment);
+      pre.dataset.file = file;
+    }
+    const selected = pre.querySelector('.is-selected');
+    if (selected) selected.classList.remove('is-selected');
+    const target = pre.children[line - 1];
+    target.classList.add('is-selected');
+    win.dataset.sourceFile = file;
+    win.dataset.sourceLine = String(line);
+    requestAnimationFrame(() => {
+      const scroll = win.querySelector('.source-scroll');
+      scroll.scrollTop = target.offsetTop - scroll.offsetTop - scroll.clientHeight / 2 + target.offsetHeight / 2;
+    });
+  }
+
+  document.addEventListener('click', event => {
+    const link = event.target.closest('a[data-source]');
+    if (!link) return;
+    event.preventDefault();
+    openSource(link.dataset.source, link);
+  });
+  document.addEventListener('pointerdown', event => {
+    if (event.target.closest('.floating-note,a[data-source]')) return;
+    for (const win of windows.values()) if (!win.hidden) close(win, false);
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    const open = [...windows.values()].filter(win => !win.hidden && !helper.isHeld(win));
+    open.sort((a, b) => Number(b.style.zIndex) - Number(a.style.zIndex));
+    if (open.length) {
+      event.preventDefault();
+      close(open[0], true);
+    }
+  });
+})();
+</script>
+</body>
+</html>

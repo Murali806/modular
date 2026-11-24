@@ -1,0 +1,4 @@
+QuIC LLVM Hexagon Clang version 8.5.04
+Target: hexagon-unknown-unknown-elf
+Thread model: posix
+InstalledDir: /pkg/qct/software/hexagon/releases/tools/8.5.04/Tools/bin

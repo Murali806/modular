@@ -1,13 +1,16 @@
 {
-  "checked_at": "2026-11-06T02:24:37.593280+00:00",
+  "checked_at": "2026-11-06T16:14:57.424228+00:00",
   "revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
   "command": "PYTHONDONTWRITEBYTECODE=1 python3 src/validate.py",
   "result": "PASS",
-  "source_files": 49,
+  "source_files": 55,
   "complete_source_cells": 39,
   "displayed_source_lines": 2012,
   "call_stack_sections": 1,
   "call_stack_source_targets": 129,
+  "engine_source_targets": 47,
+  "engine_component_count": 40,
+  "engine_chapters": 6,
   "memory_planning_source_targets": 100,
   "memory_planning_complete_code_cells": 23,
   "memory_planning_displayed_source_lines": 1534,
@@ -28,7 +31,7 @@
   "os_components_state_machines": 3,
   "os_components_states": 19,
   "os_components_paths": 8,
-  "local_links_checked": 2066,
+  "local_links_checked": 2281,
   "external_runtime_dependencies": 0,
   "evidence": "Document/source validation only; no MAX model execution."
 }

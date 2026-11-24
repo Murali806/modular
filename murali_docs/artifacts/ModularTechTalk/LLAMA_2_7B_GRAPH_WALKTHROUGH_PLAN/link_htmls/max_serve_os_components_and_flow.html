@@ -34,10 +34,13 @@ body.story-page { background: #f6f5f0; color: #26372f; font-size: 16px; line-hei
 .story-page .brand-mark { border: 0; background: #234d3d; color: #f9faf3; border-radius: 50%; width: 31px; height: 31px; font-size: 16px; }
 .story-page .topbar a { color: #254e3b; }
 .story-page .topbar button { background: transparent; color: #33483c; border-color: #70826d; }
-.ss-menu { position: sticky; z-index: 40; top: 0; display: flex; align-items: center; gap: 18px; padding: 9px max(24px, calc((100vw - 1300px) / 2)); border-bottom: 1px solid #d6dcd5; background: #f6f5f0; }
-.story-page .section-nav { position: static; min-width: 0; flex: 1; background: transparent; backdrop-filter: none; max-width: none; margin: 0; padding: 10px 0; border: 0; gap: 27px; }
+.ss-menu { position: sticky; z-index: 40; top: 0; display: flex; align-items: center; gap: 12px; padding: 3px max(24px, calc((100vw - 1300px) / 2)); border-bottom: 1px solid #d6dcd5; background: #f6f5f0; }
+.story-page .section-nav { position: static; min-width: 0; flex: 1; background: transparent; backdrop-filter: none; max-width: none; margin: 0; padding: 3px 0; border: 0; gap: 27px; line-height: 1.2; overflow-x: auto; scrollbar-width: thin; scrollbar-color: #8ca08c transparent; }
+.story-page .section-nav::-webkit-scrollbar { height: 5px; }
+.story-page .section-nav::-webkit-scrollbar-thumb { border-radius: 4px; background: #8ca08c; }
 .story-page .section-nav a { color: #486050; font-size: 12px; }
 .story-page .section-nav a:hover { color: #0c5338; }
+.ss-menu .ss-legend-button { width: 30px; height: 30px; font-size: 19px; }
 .story-page main { max-width: 1372px; padding: 0 36px; }
 .ss-hero { padding: 72px 0 46px; max-width: 930px; }
 .ss-kicker { display: flex; align-items: center; gap: 12px; color: #486c57; font: 600 11px/1.5 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
@@ -172,6 +175,8 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
 .ss-batch-budget-cell > text { fill: var(--component-color); font: 10px ui-monospace, monospace; }
 .ss-batch-budget-cell[data-occupied="true"] > rect { fill: var(--component-tint); stroke-dasharray: none; }
 .ss-batch-story .ss-event[data-kind="wait"], .ss-batch-story .ss-event[data-kind="preempt"], .ss-batch-story .ss-event[data-kind="fatal"] { color: #793b28; background: #f8e9df; border-color: #ae684c; }
+.ss-batch-story [data-batch-component="readiness"] > [data-batch-readiness] { fill: #54317f; font-size: 13px; font-weight: 700; }
+.ss-batch-readiness-backplate { fill: #f8f2ff; stroke: #a58acb; stroke-width: 1; }
 .ss-batch-story [data-batch-request-states] > span { flex: 1 1 260px; }
 .ss-api-story .ss-api-thread-badge { --thread-ink: #54317f; --thread-fill: #f8f2ff; }
 .ss-api-story .ss-api-thread-badge[data-api-thread="T2"] { --thread-ink: #875015; --thread-fill: #fff6df; }
@@ -180,6 +185,9 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
 .ss-api-story .ss-api-thread-badge > text { fill: var(--thread-ink); font: 600 11px ui-monospace, monospace; }
 .ss-api-story .ss-api-thread-lane { fill: #fffaf2; stroke: #ae754c; stroke-width: 1; stroke-dasharray: 3 2; }
 .ss-api-story .ss-api-loop-task { fill: #3f6247; font-size: 13px; font-weight: 700; }
+.ss-api-story .ss-api-loop-task-backplate { fill: #f1ebff; stroke: #b9a6d8; stroke-width: 1; }
+.ss-worker-diagram [data-worker-loop] { fill: #3f6247; font-size: 13px; font-weight: 700; }
+.ss-worker-loop-backplate { fill: #edf3e8; stroke: #a7b99f; stroke-width: 1; }
 .ss-api-story [data-api-tokenizer-trigger] { cursor: help; }
 .ss-api-story [data-api-tokenizer-trigger]:hover > .ss-component-box,
 .ss-api-story [data-api-tokenizer-trigger]:focus-visible > .ss-component-box { stroke-width: 3; }
@@ -258,7 +266,7 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
 .ss-phases li { margin: 0; padding: 5px 7px; border-radius: 4px; font-size: 10px; color: #56685a; border: 1px solid transparent; }
 .ss-phases li span { font-family: ui-monospace, monospace; margin-right: 5px; }
 .ss-phases li[data-current="true"] { background: #e2edda; color: #284b32; border-color: #89a180; }
-.ss-event { padding: 13px 16px; margin: 0 16px 16px; min-height: 69px; background: #eef3e7; border-left: 3px solid #80976e; font-size: 13px; line-height: 1.65; color: #354d34; border-radius: 0 5px 5px 0; }
+.ss-event { box-sizing: border-box; width: fit-content; max-width: calc(100% - 32px); padding: 11px 14px; margin: 0 16px 16px; background: #eef3e7; border-left: 3px solid #80976e; font-size: 14px; font-weight: 650; line-height: 1.55; color: #354d34; border-radius: 0 6px 6px 0; }
 .ss-event[data-kind="reject"] { color: #793b28; background: #f8e9df; border-color: #ae684c; }
 .ss-inspection { border-top: 1px solid #dfe5db; margin: 0 16px; padding: 14px 0; }
 .ss-request-strip { display: flex; gap: 6px; flex-wrap: wrap; min-height: 28px; margin-bottom: 10px; }
@@ -312,8 +320,8 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
   .story-page .brand { font-size: 9px; gap: 7px; }
   .story-page .brand-mark { width: 26px; height: 26px; font-size: 13px; }
   .story-page .top-actions, .story-page .header-links { gap: 10px; font-size: 10px; }
-  .ss-menu { padding: 8px 17px; gap: 12px; }
-  .story-page .section-nav { padding: 9px 0; gap: 21px; }
+  .ss-menu { padding: 3px 17px; gap: 10px; }
+  .story-page .section-nav { padding: 3px 0; gap: 21px; }
   .ss-legend-button { width: 42px; height: 42px; }
   .ss-floating-card { padding: 18px; }
   .ss-legend-rows > li { grid-template-columns: 12px minmax(0, 1fr); gap: 7px 10px; }
@@ -345,7 +353,7 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
   .ss-meters { gap: 6px; padding: 13px; }
   .ss-meters span { font-size: 9px; }
   .ss-meters b { font-size: 21px; }
-  .ss-event { margin: 0 12px 12px; padding: 11px; font-size: 12px; }
+  .ss-event { max-width: calc(100% - 24px); margin: 0 12px 12px; padding: 10px 11px; font-size: 13px; }
   .ss-phases { padding: 8px 10px; }
   .ss-phases li { font-size: 9px; padding: 4px; }
   .ss-lanes > div { grid-template-columns: 77px 1fr; gap: 6px; padding: 8px; }
@@ -412,7 +420,7 @@ html:not(.ss-enhanced) [data-card-dismiss] { display: none; }
 <desc id="ss-api-desc">One API process contains Uvicorn's Server, FastAPI and the shared uvloop thread T1. Repeated T1 badges identify the same thread. The event loop surrounds the async work; it is not another request station. T2 and T3 illustrate executor threads running CPU tokenization jobs while request tasks await and later resume on T1. These are teaching IDs and example assignments; real pool sizing and reuse vary. R1 and R2 identify requests. The admission lock covers only the writability probe and send to the connected request IPC channel. The model worker is outside this view. Use the controls and current event for an equivalent text explanation.</desc>
 <defs><marker id="ss-api-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7" fill="#73877a"/></marker></defs>
 <g data-component="api-process"><rect class="ss-component-box ss-process" x="112" y="22" width="876" height="484" rx="15"/><text class="ss-process-label" x="550" y="48">API PROCESS · ONE OS PROCESS</text></g>
-<g data-component="loop" data-api-component="loop"><rect class="ss-component-box ss-api-loop-box" x="136" y="68" width="828" height="271" rx="12"/><g class="ss-api-thread-badge" data-api-thread="T1" transform="translate(166 94)" role="img" aria-label="T1: Shared API loop thread: Uvicorn, FastAPI and admission"><title>T1: Shared API loop thread: Uvicorn, FastAPI and admission</title><rect x="-14" y="-10" width="28" height="20" rx="4"/><text y="4">T1</text></g><text class="ss-node-label ss-api-loop-name" x="302" y="97" data-api-loop-name>uvloop event loop</text><text class="ss-svg-muted" x="720" y="97">ONE LOOP THREAD · READY ASYNC TASKS TAKE TURNS</text><circle class="ss-api-pulse" cx="586" cy="318" r="4"/><text class="ss-svg-muted ss-api-loop-task" x="762" y="322" data-api-loop-task>Ready to run · awaiting your first step</text></g>
+<g data-component="loop" data-api-component="loop"><rect class="ss-component-box ss-api-loop-box" x="136" y="68" width="828" height="271" rx="12"/><g class="ss-api-thread-badge" data-api-thread="T1" transform="translate(166 94)" role="img" aria-label="T1: Shared API loop thread: Uvicorn, FastAPI and admission"><title>T1: Shared API loop thread: Uvicorn, FastAPI and admission</title><rect x="-14" y="-10" width="28" height="20" rx="4"/><text y="4">T1</text></g><text class="ss-node-label ss-api-loop-name" x="302" y="97" data-api-loop-name>uvloop event loop</text><text class="ss-svg-muted" x="720" y="97">ONE LOOP THREAD · READY ASYNC TASKS TAKE TURNS</text><circle class="ss-api-pulse" cx="586" cy="318" r="4"/><rect class="ss-api-loop-task-backplate" data-api-loop-task-backplate x="620" y="303" width="284" height="28" rx="6"/><text class="ss-svg-muted ss-api-loop-task" x="762" y="322" data-api-loop-task>Ready to run · awaiting your first step</text></g>
 <path class="ss-wire" d="M82 226 H158 M384 226 H406 M640 226 H662 M942 226 H1040" marker-end="url(#ss-api-arrow)"/>
 <circle class="ss-client" cx="53" cy="163" r="25"/><path class="ss-client-icon" d="M39 169 Q53 154 67 169 M53 146 v4"/>
 <text class="ss-node-label" x="53" y="121">Client</text><text class="ss-svg-muted" x="53" y="295">HTTP</text>
@@ -551,7 +559,7 @@ The admission lock is released before waiting for model output.</pre></details>
 <defs><marker id="ss-worker-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7" fill="#73877a"/></marker></defs>
 <g data-component="worker"><rect class="ss-component-box ss-process" x="210" y="22" width="792" height="546" rx="15"/><text class="ss-process-label" x="606" y="48">MODEL WORKER · SEPARATE PROCESS</text></g>
 <g data-component="loop" data-worker-component="loop"><rect class="ss-component-box" x="234" y="68" width="740" height="42" rx="8"/><text class="ss-node-label" x="604" y="94">Worker uvloop · repeat scheduler.run_iteration()</text></g>
-<text class="ss-svg-muted" x="604" y="133" data-worker-loop>One loop thread · ready for the next iteration</text>
+<rect class="ss-worker-loop-backplate" data-worker-loop-backplate x="468" y="117" width="272" height="27" rx="6"/><text class="ss-svg-muted" x="604" y="136" data-worker-loop>One loop thread · ready for the next iteration</text>
 <text class="ss-node-label" x="102" y="94">API offstage</text><text class="ss-svg-muted" x="102" y="114">already admitted</text>
 <g data-component="ipc" data-worker-component="ipc"><rect class="ss-component-box" x="16" y="148" width="172" height="170" rx="9"/><text class="ss-node-label" x="102" y="173">Request IPC</text><text class="ss-svg-muted" x="102" y="194">ZeroMQ · contexts</text><g data-worker-ipc-slots><g class="ss-worker-slot" data-occupied="true" transform="translate(72 234)"><rect x="-26" y="-15" width="52" height="30" rx="5"/><text y="4">R1</text></g><g class="ss-worker-slot" data-occupied="true" transform="translate(134 234)"><rect x="-26" y="-15" width="52" height="30" rx="5"/><text y="4">R2</text></g></g><text class="ss-count" x="102" y="279" data-worker-ipc-count>2 / 2 used</text><text class="ss-svg-muted" x="102" y="303">2 teaching slots</text></g>
 <g data-component="pending" data-worker-component="sets"><rect class="ss-component-box" x="242" y="148" width="180" height="170" rx="9"/><text class="ss-node-label" x="332" y="173">Request sets</text><text class="ss-svg-muted" x="332" y="194">CE: prefill · TG: decode</text><g data-worker-set-slots></g><text class="ss-svg-muted" x="332" y="303" data-worker-set-count>CPU contexts · M = 2</text></g>
@@ -626,7 +634,7 @@ One ordinary non-overlap pipeline; tiny queues, budgets and reservations are tea
 <g data-component="scheduler"><rect class="ss-component-box ss-batch-owner" x="208" y="22" width="816" height="616" rx="14"/><text class="ss-process-label" x="616" y="45">INSIDE THE BATCH CONSTRUCTOR</text><text class="ss-svg-muted" x="616" y="63">Python object · owned by the model-worker process</text></g>
 <text class="ss-svg-muted" x="102" y="44">MODEL WORKER</text><text class="ss-svg-muted" x="102" y="62">scheduler loop</text>
 <g data-component="worker"><rect class="ss-component-box" x="18" y="158" width="166" height="160" rx="9"/><text class="ss-node-label" x="101" y="183">Caller: scheduler</text><text class="ss-svg-muted" x="101" y="209">enqueue_new_request()</text><text class="ss-svg-muted" x="101" y="234">construct_batch()</text><text class="ss-svg-muted" x="101" y="274">already-admitted</text><text class="ss-svg-muted" x="101" y="294">request contexts</text></g>
-<g data-component="loop" data-batch-component="readiness"><rect class="ss-component-box" x="232" y="74" width="768" height="61" rx="8"/><text class="ss-node-label" x="616" y="96">Poll transfers · readmit landed onloads · promote grammar-ready requests</text><text class="ss-svg-muted" x="616" y="119" data-batch-readiness>No held work · ordinary replica · same worker loop</text></g>
+<g data-component="loop" data-batch-component="readiness"><rect class="ss-component-box" x="232" y="74" width="768" height="61" rx="8"/><text class="ss-node-label" x="616" y="96">Poll transfers · readmit landed onloads · promote grammar-ready requests</text><rect class="ss-batch-readiness-backplate" data-batch-readiness-backplate x="438" y="101" width="356" height="29" rx="6"/><text class="ss-svg-muted" x="616" y="121" data-batch-readiness>No held work · ordinary replica · same worker loop</text></g>
 <g data-component="pending" data-batch-component="sets"><rect class="ss-component-box" x="232" y="158" width="232" height="350" rx="9"/><text class="ss-node-label" x="348.0" y="182">Owned request state</text><text class="ss-svg-muted" x="348.0" y="202">ReplicaRequests · ordered contexts</text></g><g data-component="scheduler" data-batch-component="policy"><rect class="ss-component-box" x="490" y="158" width="224" height="80" rx="9"/><text class="ss-node-label" x="602.0" y="182">Choose priority</text><text class="ss-svg-muted" x="602.0" y="202">per replica / global override</text></g><g data-component="scheduler" data-batch-component="checks"><rect class="ss-component-box" x="490" y="261" width="224" height="247" rx="9"/><text class="ss-node-label" x="602.0" y="285">Candidate checks</text><text class="ss-svg-muted" x="602.0" y="305">one request at a time</text></g><g data-component="scheduler" data-batch-component="batch"><rect class="ss-component-box" x="740" y="158" width="260" height="350" rx="9"/><text class="ss-node-label" x="870.0" y="182">Next input batch</text><text class="ss-svg-muted" x="870.0" y="202">references · one fixed pass</text></g>
 <text class="ss-node-label" x="250" y="228" text-anchor="start">CE · needs prefill</text><g data-batch-ce-rows data-component="pending"></g>
 <text class="ss-node-label" x="250" y="383" text-anchor="start">TG · ready to decode</text><g data-batch-tg-rows data-component="pending"></g>
@@ -1856,7 +1864,9 @@ A connected client does not require its own spawned model-worker process.</pre><
       node.querySelectorAll("[data-worker-phase]").forEach(el => el.dataset.current = String(el.dataset.workerPhase === s.phase));
       const active = {drain:["ipc", "sets"], select:["batch", "kv"], execute:["pipeline", "runtime", "gpu"], advance:["results", "kv"], publish:s.results.length ? ["results", "response"] : ["results"], idle:["loop"]}[s.phase] || [];
       node.querySelectorAll("[data-worker-component]").forEach(el => el.dataset.active = String(active.includes(el.dataset.workerComponent)));
+      const loopStatus = node.querySelector("[data-worker-loop]");
       text("[data-worker-loop]", s.phase === "execute" ? "Inside pipeline.execute() · this pass keeps its selected members" : s.phase === "idle" ? "NO_PROGRESS → await backoff → check again" : "One loop thread · " + ({ready:"ready for the next iteration", drain:"pull admitted contexts", select:"choose eligible work", advance:"update request and cache ownership", publish:"send results; then repeat"}[s.phase] || s.phase));
+      fitSvgBackplate(loopStatus, node.querySelector("[data-worker-loop-backplate]"));
       text("[data-worker-ipc-count]", s.ipc + " / 2 used");
       text("[data-worker-set-count]", "CE " + s.ce + " · TG " + s.requests.filter(r => r.state === "decode").length + " · M = 2");
       text("[data-worker-budget]", (["select", "execute", "advance", "publish"].includes(s.phase) ? s.batch.reduce((n, op) => n + op.tokens, 0) : 0) + " / 8 input tokens");
@@ -1962,6 +1972,13 @@ A connected client does not require its own spawned model-worker process.</pre><
       return moving;
     }
   };
+  function fitSvgBackplate(text, backplate) {
+    const box = text.getBBox(), paddingX = 8, paddingY = 5;
+    backplate.setAttribute("x", box.x - paddingX);
+    backplate.setAttribute("y", box.y - paddingY);
+    backplate.setAttribute("width", box.width + paddingX * 2);
+    backplate.setAttribute("height", box.height + paddingY * 2);
+  }
 })();
 </script><script>/* SOURCE branch projection of TextBatchConstructor, for one ordinary replica.
  * Counts, page costs and readiness events are teaching inputs, not GPU traces.
@@ -2212,6 +2229,13 @@ A connected client does not require its own spawned model-worker process.</pre><
 </script><script>/* Presentation for the batch-constructor lesson; uses the shared frame loop. */
 (function () {
   "use strict";
+  function fitSvgBackplate(text, backplate) {
+    const box = text.getBBox(), paddingX = 8, paddingY = 5;
+    backplate.setAttribute("x", box.x - paddingX);
+    backplate.setAttribute("y", box.y - paddingY);
+    backplate.setAttribute("width", box.width + paddingX * 2);
+    backplate.setAttribute("height", box.height + paddingY * 2);
+  }
   window.ServeBatchView = class BatchStory {
     constructor(node, {reduced, startFrames, escape, element}) {
       Object.assign(this, {node, reduced, startFrames, escape, element});
@@ -2268,7 +2292,9 @@ A connected client does not require its own spawned model-worker process.</pre><
         complete:["sets", "advance"], fatal:["checks"], idle:["readiness"]}[s.phase] || [];
       node.querySelectorAll("[data-batch-component]").forEach(el => el.dataset.active = String(active.includes(el.dataset.batchComponent)));
       const held = s.requests.filter(r => r.phase === "HOLD");
+      const readiness = node.querySelector("[data-batch-readiness]");
       this.text("[data-batch-readiness]", held.length ? held.map(r => r.id + " · " + r.hold + " pending").join("    |    ") : "No held work · one Python object on the worker's loop");
+      fitSvgBackplate(readiness, node.querySelector("[data-batch-readiness-backplate]"));
       this.text("[data-batch-priority]", s.priority === "NONE" ? "no runnable work" : s.priority === "not chosen" ? "not chosen" : s.priority + (s.priority === "TG" && s.config.policy === "mixed" ? " → CE backfill" : " priority"));
       const get = id => s.requests.find(r => r.id === id);
       const ceRows = Array.from({length:3}, (_, i) => {
@@ -2411,6 +2437,13 @@ A connected client does not require its own spawned model-worker process.</pre><
     decode:["#dbedd6", "#6b8d5e", "#34572d"], streaming:["#dceee4", "#6b907c", "#31573f"],
     done:["#e1ecdb", "#829976", "#3b5c30"], rejected:["#f7dfd1", "#bd8267", "#813c22"],
     cancelled:["#ece5df", "#a08e7c", "#64503e"], cancel_pending:["#f2e4d7", "#ad8968", "#6c4d34"]};
+  const fitSvgBackplate = (text, backplate) => {
+    const box = text.getBBox(), paddingX = 8, paddingY = 5;
+    backplate.setAttribute("x", box.x - paddingX);
+    backplate.setAttribute("y", box.y - paddingY);
+    backplate.setAttribute("width", box.width + paddingX * 2);
+    backplate.setAttribute("height", box.height + paddingY * 2);
+  };
   const controllers = [];
   const cards = [];
   let frame = null;
@@ -2938,7 +2971,9 @@ A connected client does not require its own spawned model-worker process.</pre><
       node.querySelector("[data-api-purpose]").textContent = m.purpose;
       node.querySelectorAll("[data-api-mode]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.apiMode === m.mode)));
       node.querySelector("[data-api-loop-name]").textContent = m.mode === "no-loop" ? "event loop absent" : m.mode === "asyncio" ? "asyncio event loop" : "uvloop event loop";
-      node.querySelector("[data-api-loop-task]").textContent = m.loopTask;
+      const loopTask = node.querySelector("[data-api-loop-task]");
+      loopTask.textContent = m.loopTask;
+      fitSvgBackplate(loopTask, node.querySelector("[data-api-loop-task-backplate]"));
       node.querySelectorAll("[data-api-component]").forEach(el => {
         el.dataset.active = String(el.dataset.apiComponent === m.active);
         el.dataset.missing = String(el.dataset.apiComponent === m.missing);

@@ -1,0 +1,2 @@
+../evidence/cross_compile/cross_compile_lesson_hexagon.o:   ELF 32-bit LSB relocatable, QUALCOMM DSP6, version 1 (SYSV), not stripped
+../evidence/cross_compile/cross_compile_lesson_hexagon.elf: ELF 32-bit LSB executable, QUALCOMM DSP6, version 1 (SYSV), statically linked, not stripped
