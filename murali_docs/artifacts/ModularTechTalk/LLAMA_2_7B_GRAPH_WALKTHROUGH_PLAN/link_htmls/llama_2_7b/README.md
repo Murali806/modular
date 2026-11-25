@@ -21,6 +21,40 @@ and numerator. The KV calculator separates payload from page-rounded capacity;
 its second view resolves logical positions into physical page/element/byte
 offsets. These are small numerical teaching examples.
 
+## Architecture, costs and numerical animation
+
+`architecture.html` begins with a complete **Stage / Input / Output / Weight
+and operation** table and an explicit KV lifetime diagram. Its companion
+navigation opens:
+
+- `architecture_01_prefill.html`: a 512-token prefill, with a per-stage calculator.
+- `architecture_02_decode.html`: one new token after 512 cached positions,
+  including the 4-to-5-page capacity change at page size 128.
+- `architecture_math.html`: a computed miniature decoder with matrix
+  multiplication microsteps, normalization, RoPE, causal softmax, residuals,
+  gated MLP, an untied head and stable KV page identities across three passes.
+
+Select a stage in either calculator for substituted MAC, transfer-byte,
+bandwidth, arithmetic-intensity and live-buffer formulas. Editable inputs
+include active/cached token counts, equal-length batch size, payload bytes,
+page size, causal versus rectangular contraction counts, attention traffic
+boundary, KV read multiplier and hypothetical timing/rate assumptions. Export
+the exact numerical ledger as small JSON. Packed-byte options are payload
+experiments; they do not establish a supported encoding or quantization costs.
+
+The default contraction totals are 3,350,272,671,744 MACs for causal initial
+prefill and 6,741,557,248 MACs for a decode at C=512. Elementwise operations,
+reductions and sampling are described separately. The calculator distinguishes
+stored capacity from bytes moved, and analytical roofline terms from measured
+performance. The byte accounting and working-set schedule are explicit.
+
+The animation uses invented deterministic weights (D=4, F=6, two heads, two
+layers, six token IDs) and browser FP64 arithmetic. Choose a head or output
+cell to inspect different dot products. The online attention view computes a
+vector weighted-value result from tiles. These are educational numerical
+checks, not Llama output parity or GPU measurements. The full transcript and
+default tables remain readable without JavaScript.
+
 ## Scope and evidence
 
 - **SOURCE:** MAX revision
@@ -72,11 +106,14 @@ Authoring files live under `src/llama_2_7b/`. Run from the repository root:
 PYTHONDONTWRITEBYTECODE=1 python3 murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/build.py
 PYTHONDONTWRITEBYTECODE=1 python3 murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify.py
 node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_model.cjs
+node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_architecture.cjs
 node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_browser.cjs
+node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_architecture_browser.cjs
 git diff --check
 ```
 
-Building needs Python and the `markdown` package, the surrounding pinned
+Building needs Python and the `markdown` package, Node.js for the shared
+architecture cost formulas, the surrounding pinned
 sources/Example 04 snapshots and Git history. The accepted shared window
 helper is extracted byte-for-byte from `cde7f11ef5^`; the builder changes only
 this supplement. It performs no MAX build or model download.
@@ -95,6 +132,16 @@ state reconstruction, exact KV/address arithmetic and the online-softmax
 recurrence against an independent stable normalization. The final recorded
 documentation evidence lives in the parent `evidence/` directory.
 
+`verify_architecture.cjs` checks independently worked counts, page-boundary
+arithmetic, nonduplicated fused accounting and an independent full-sequence
+miniature-decoder oracle. It compares cached and recomputed forwards and
+checks causality and online softmax. `verify_architecture_browser.cjs` exercises
+every numerical microstep, visible KV slots, selected dot products, calculator
+formulas/export, source windows, playback, mobile/no-JavaScript/print and
+offline navigation. Reference reconciliation and this addition's validation
+are recorded as `evidence/architecture_math_reference_notes.md` and
+`evidence/architecture_math_validation.json` beside the parent guide.
+
 ## Source organization
 
 | File | Responsibility |
@@ -105,6 +152,10 @@ documentation evidence lives in the parent `evidence/` directory.
 | `coverage.py` | Example 04 coverage ledger; missing companions fail the build |
 | `model.js` | Pure state snapshots and numerical examples |
 | `reader.js`, `labs.js`, `reader.css` | Shared controller, source windows and calculators |
+| `architecture_pages.py` | Shape/operation tables, prefill/decode companions and math-page shell |
+| `architecture_model.js`, `architecture_costs.js` | Pure cost arithmetic and its offline controls |
+| `architecture_toy.js`, `architecture_math.js` | Independent numerical state model and matrix/KV playback |
+| `architecture.css` | Scoped, responsive companion styling |
 | `build.py` | Scoped HTML/assets/source-chunk generation and size limit |
 | `verify*` | Reproducible static, numerical and browser checks |
 

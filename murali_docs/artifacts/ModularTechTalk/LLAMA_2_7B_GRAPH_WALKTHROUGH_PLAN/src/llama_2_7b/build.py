@@ -92,6 +92,10 @@ def scene_html(c):
 
 def chapter_html(c, nav, i, sources):
     text = header(c['title'], c['subtitle'], c['slug'], nav)
+    if c['slug'] == 'architecture':
+        from architecture_pages import overview, reports
+        text = text.replace('</head>', '<link rel="stylesheet" href="architecture.css"></head>')
+        text += overview(reports()[0], sources, refs_html)
     if c['slug'] == 'index':
         text += '<div class="route-note"><b>Serving gate:</b> the saved checkpoint uses FP16, but this revision’s Llama architecture does not list <code>float16</code> as a supported encoding. The lessons follow a compatible resolved unquantized configuration; they do not claim that the original checkpoint was served. <a href="build_startup.html#q2">Inspect the validation gate →</a></div>'
     text += '<nav class="in-page"><a href="#call-tree">Call order</a><a href="#animation">Animation</a><a href="#deep-dive">Detailed explanation</a><a href="#event-transcript">All events / print</a></nav>'
@@ -157,7 +161,9 @@ def build():
                 assert s['changes'] and s['refs'], (c['slug'],s['title'])
     manifest = build_sources(sources)
     for i,c in enumerate(CHAPTERS): (OUT/(c['slug']+'.html')).write_text(chapter_html(c,CHAPTERS,i,sources))
-    for name in ('reader.css','reader.js','model.js','labs.js','README.md'):
+    from architecture_pages import ASSETS, build_companions
+    build_companions(CHAPTERS, sources, header, footer, md, refs_html)
+    for name in ('reader.css','reader.js','model.js','labs.js','README.md') + ASSETS:
         shutil.copyfile(HERE/name,OUT/name)
     for ext in ('js','css'):
         # Reuse the accepted card implementation without duplicating authoring code.

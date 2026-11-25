@@ -1,0 +1,130 @@
+{
+  "evidence": "CPU-RUN \u2014 document validation and miniature numerical decoder only; SOURCE for the pinned model contracts",
+  "validated_on": "2026-11-25",
+  "source_revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "checkout_before_change": "c992233a80503548b3ed660f3cab9a9fc27dcf6d",
+  "model_id": "meta-llama/Llama-2-7b-hf",
+  "device": "Host Python/Node/Chromium; no MAX, CUDA or accelerator inference",
+  "scope": "Architecture overview plus prefill/decode calculation pages and a separate mathematical animation; existing course content preserved",
+  "commands": [
+    "PYTHONDONTWRITEBYTECODE=1 python3 murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/build.py",
+    "PYTHONDONTWRITEBYTECODE=1 python3 murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify.py",
+    "node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_model.cjs",
+    "node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_architecture.cjs",
+    "NODE_PATH=/tmp/max-os-playwright/node_modules node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_browser.cjs",
+    "NODE_PATH=/tmp/max-os-playwright/node_modules node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_architecture_browser.cjs",
+    "git diff --check"
+  ],
+  "static": {
+    "lessons": 26,
+    "routes": 31,
+    "states": 204,
+    "author_anchors": 962,
+    "rendered_source_links": 1002,
+    "local_links": 1882,
+    "complete_sources": 76,
+    "provenance": {
+      "git_revision": 75,
+      "saved_snapshot": 1
+    },
+    "example_04_companions": 35,
+    "files": 230,
+    "total_bytes": 5165000,
+    "largest_file_bytes": 40701,
+    "largest_html_bytes": 40701,
+    "result": "PASS"
+  },
+  "existing_numerical": {
+    "snapshots": 408,
+    "addressCases": 648,
+    "softmaxCases": 447,
+    "parameters": 6738415616,
+    "result": "PASS"
+  },
+  "architecture_numerical": {
+    "costCases": 75,
+    "oracleForwards": 60,
+    "cachedForwards": 150,
+    "onlineCases": 240,
+    "timelineEvents": 127,
+    "independentOracle": "Full-sequence, two-layer FP64 decoder with separate loops; cached-prefix and causality checks",
+    "golden": {
+      "prefillMACs": 3350272671744,
+      "decodeMACs": 6741557248,
+      "parameterBytes": 13476831232
+    },
+    "result": "PASS"
+  },
+  "existing_browser": {
+    "checks": [
+      "All lesson/scenario states: Step, Back, Reset, seek, direct call-tree source links",
+      "Real timed Play/Pause/resume, automatic end stop, replay, offscreen pause, stable moving DOM identity",
+      "Hold preserves content; held-source paging/all-file controls; Close/Escape; pointer/keyboard drag and resize; Expand/Restore; all source hashes loaded offline; search",
+      "Fullscreen source windows and stable deltas; numerical labs and page selection; every lesson at 390px; mobile source card; reduced motion",
+      "Every lesson readable without JavaScript; original source fallback links; no-JavaScript print; real PDF print/restored disclosures",
+      "Real startup InferenceSession link opens index; lesson selector; coverage navigation; offline source-file selector/history/search"
+    ],
+    "desktopStates": 204,
+    "mobilePages": 26,
+    "sourceFiles": 76,
+    "chromium": "156.0.8078.4",
+    "node": "v22.11.0",
+    "playwright": "1.64.1",
+    "offline": true,
+    "pageErrors": [],
+    "networkRequests": [],
+    "result": "PASS"
+  },
+  "architecture_browser": {
+    "checks": [
+      "Architecture stage links; prefill/decode/chunk presets; per-stage MAC/byte/BW/AI formulas; materialized vs fused accounting; invalid inputs; precision controls; page rounding; JSON export",
+      "Every numerical microstep across prefill and both decodes; reversible seek/back/reset; unchanged old KV; stable DOM buffers/pages; selected dot products; head selection; causal mask; page-boundary append; online vector softmax",
+      "Timed Play/Pause/resume/end/replay and offscreen pause; badge, legend, Hold/Close/Escape; fullscreen source windows with exact target line and Expand",
+      "390px layouts, sticky cache controls and mobile card bounds; reduced motion; all four pages readable without JavaScript; real print and disclosure restoration"
+    ],
+    "numericalFrames": 355,
+    "mathPasses": 3,
+    "mobilePages": 4,
+    "noJavaScriptPages": 4,
+    "chromium": "156.0.8078.4",
+    "node": "v22.11.0",
+    "playwright": "1.64.1",
+    "offline": true,
+    "pageErrors": [],
+    "networkRequests": [],
+    "result": "PASS"
+  },
+  "deterministic_rebuild": {
+    "result": "PASS",
+    "files": 230,
+    "manifest_sha256": "e0dae3d03dc0428c352d7e1644ad07c0042f4c81a6e31c42fe20600d3222cc93"
+  },
+  "architecture_files": {
+    "architecture.css": 13354,
+    "architecture.html": 40701,
+    "architecture_01_prefill.html": 35389,
+    "architecture_02_decode.html": 35345,
+    "architecture_costs.js": 10568,
+    "architecture_math.html": 14635,
+    "architecture_math.js": 21599,
+    "architecture_model.js": 13215,
+    "architecture_toy.js": 15785
+  },
+  "syntax": "All authoring Python parsed; Node syntax checks and executed model/browser checks passed",
+  "visual_review": [
+    "Overview stage table, desktop",
+    "Selected-stage calculator, desktop",
+    "Causal mask and vector attention, desktop",
+    "Physical KV page crossing, desktop",
+    "RoPE matrices, buffers and page slots at 390px"
+  ],
+  "temporary_artifacts": "Screenshots, print PDF and browser reports are under /tmp and are not committed",
+  "reference_notes": "architecture_math_reference_notes.md",
+  "limits": [
+    "No actual Llama inference or hardware measurement",
+    "MACs count matrix contractions; scalar operations and reductions are described separately",
+    "Traffic and live storage use explicit analytical boundaries, not captured allocator or HBM traces",
+    "Quantized payload controls omit metadata and conversion costs and do not prove encoding support",
+    "Miniature weights and dimensions are invented; cached/full equality is for the demonstrator, not Llama parity"
+  ]
+}
