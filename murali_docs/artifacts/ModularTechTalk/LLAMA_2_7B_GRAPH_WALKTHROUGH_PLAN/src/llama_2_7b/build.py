@@ -163,6 +163,7 @@ def build():
     for i,c in enumerate(CHAPTERS): (OUT/(c['slug']+'.html')).write_text(chapter_html(c,CHAPTERS,i,sources))
     from architecture_pages import ASSETS, build_companions
     build_companions(CHAPTERS, sources, header, footer, md, refs_html)
+    (OUT / "architecture_toy.js").unlink(missing_ok=True)  # Replaced by actual-dimension probes.
     for name in ('reader.css','reader.js','model.js','labs.js','README.md') + ASSETS:
         shutil.copyfile(HERE/name,OUT/name)
     for ext in ('js','css'):

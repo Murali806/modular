@@ -7,7 +7,7 @@ from functools import lru_cache
 from catalog import HERE, OUT, resolve
 
 ASSETS = ('architecture.css', 'architecture_model.js', 'architecture_costs.js',
-          'architecture_toy.js', 'architecture_math.js')
+          'architecture_tensor.js', 'architecture_math.js')
 
 
 @lru_cache(maxsize=1)
@@ -218,20 +218,24 @@ def methodology(md):
 
 
 def math_shell():
-    return '''<section class="math-workbench" id="math-animation" aria-label="Numerical transformer and KV buffer animation">
-<div class="scene-top"><button class="lesson-badge" id="math-badge" aria-label="Explain the numerical example">03</button><strong>Small numbers · the same mathematical operations</strong><span class="scene-top-right"><button id="math-fullscreen">Full screen</button><button class="legend" id="math-legend" aria-label="Buffer legend">L</button></span></div>
-<p class="toy-warning"><b>CPU-RUN teaching model:</b> D=4, F=6, two heads × two channels, two decoder layers, six toy IDs, page size 2. Deterministic invented weights; browser FP64 arithmetic. Real Llama dimensions appear beside each stage. These numbers are not Llama predictions.</p>
-<div class="math-transport"><div class="controls"><button id="math-reset">Reset</button><button id="math-back">← Back</button><button id="math-play" aria-pressed="false">Play</button><button id="math-step">Step →</button><label>Pass <select id="math-pass"><option value="prefill">Prefill: 0 → 3 positions</option><option value="decode">Decode: 3 → 4 positions</option><option value="crosspage">Decode: 4 → 5 positions</option></select></label><label>Speed <select id="math-speed"><option value="1200">Normal</option><option value="500">Fast</option><option value="2400">Slow</option></select></label></div>
-<div class="controls"><label>Stage <select id="math-stage"></select></label><label>Head <select id="math-head"><option value="0">0</option><option value="1">1</option></select></label><label class="seek-label">Event <input type="range" min="0" max="1" value="0" id="math-seek" aria-label="Seek mathematical event"></label><output id="math-progress"></output></div></div>
-<div class="event" id="math-event" aria-live="polite"><strong>Start with token IDs and empty KV pages.</strong><p>Use Step or choose a stage. Each matrix product exposes its row × column accumulation.</p></div>
-<div class="math-pipeline" id="math-pipeline" aria-label="Equation path"></div>
+    return '''<section class="math-workbench" id="math-animation" aria-label="Actual-dimension Llama tensor and KV animation">
+<div class="scene-top"><button class="lesson-badge" id="math-badge" aria-label="Explain the tensor explorer">03</button><strong>Llama 2 7B · actual tensor dimensions</strong><span class="scene-top-right"><button id="math-fullscreen">Full screen</button><button class="legend" id="math-legend" aria-label="Buffer legend">L</button></span></div>
+<p class="math-scope"><b>SOURCE dimensions · CPU-RUN operation probes.</b> 32 layers · 4096 hidden · 32 heads × 128 · 11008 FFN · 32000 vocabulary. Select any coordinate; only a small viewport is drawn. Values are deterministic generated operands in browser FP64. Each operation is a separate numerical probe; RoPE, KV, scores, softmax and P·V share one consistent attention example. This is a math explorer, not a checkpoint forward.</p>
+<div class="math-transport"><div class="controls"><button id="math-reset">Reset</button><button id="math-back">← Back</button><button id="math-play" aria-pressed="false">Play</button><button id="math-step">Step →</button><button id="math-finish">Finish operation</button><button id="math-next">Next stage ⇥</button><label>Pass <select id="math-pass"><option value="prefill">Prefill · 512 tokens</option><option value="decode">Decode · 512 → 513</option><option value="next">Decode · 513 → 514</option></select></label></div>
+<div class="controls"><label>Stage <select id="math-stage"></select></label><label>Layer <select id="math-layer" aria-label="Decoder layer"></select></label><label>Head <select id="math-head" aria-label="Attention head"></select></label><label>Step size <select id="math-chunk"><option value="128">128 terms / slots</option><option value="32">32 terms / slots</option><option value="1">1 term / slot</option><option value="512">512 terms / slots</option></select></label><label>Speed <select id="math-speed"><option value="1100">Normal</option><option value="400">Fast</option><option value="2200">Slow</option></select></label></div></div>
+<p class="math-layer-caption">32 decoder layers · small numbers show valid KV positions per layer</p><div class="math-layer-rail" id="math-layers" aria-label="All 32 decoder layer slices"></div>
+<div class="event" id="math-event" aria-live="polite"><strong>Explore a full-size operation.</strong><p>Choose a stage, then use Step to follow the reduction. Finish operation jumps to its result.</p></div>
+<div class="math-pipeline" id="math-pipeline" aria-label="Select a mathematical operation"></div>
+<div class="math-shape-equation" id="math-shape-equation"></div>
+<div class="controls matrix-choices"><label>Result row <input type="number" id="math-row" min="0" value="0" aria-label="Result row"></label><label>Result column <input type="number" id="math-col" min="0" value="0" aria-label="Result column"></label><button id="math-last-row">Last row</button><button id="math-last-col">Last column</button><label id="math-rope-control" hidden>Rotate <select id="math-rope-kind"><option value="Q">Q</option><option value="K">K</option></select></label><span id="math-selection"></span></div>
 <div class="math-matrices" id="math-matrices"><article id="math-left"></article><b class="math-operator" id="math-operator">×</b><article id="math-right"></article><b class="math-operator">→</b><article id="math-result"></article></div>
+<div class="math-reduction"><div class="reduction-heading"><b id="math-reduction-title">Reduction</b><output id="math-progress"></output></div><input type="range" min="0" max="1" value="0" id="math-seek" aria-label="Terms or phases completed"><div id="math-reduction-bands" class="reduction-bands"></div><small id="math-reduction-note"></small></div>
 <div class="math-equation" id="math-equation" aria-live="polite"></div>
-<div class="controls matrix-choices"><label>Output row <select id="math-row"></select></label><label>Output column <select id="math-col"></select></label><span>Click an output cell to inspect its dot product; Step reveals one multiply–accumulate at a time.</span></div>
-<div id="math-buffer-shelf" class="math-buffer-shelf" aria-label="Named buffer lifetimes"></div>
-<section class="math-cache"><h3>Retained KV · stable physical page identities</h3><p id="math-cache-state"></p><div id="math-cache-pages"></div><p id="math-cache-address" class="math-equation"></p></section>
-<details id="math-online"><summary>Same attention result, one tile at a time · online softmax</summary><div class="online-body"><p>Choose an attention head and query row above. The tile walkthrough uses this layer’s complete valid K/V, independent of the main timeline. It accumulates a two-channel weighted value without a full score buffer.</p><div class="controls"><button id="online-reset">First tile</button><button id="online-back">← Previous tile</button><button id="online-step">Next tile →</button><output id="online-progress"></output></div><div id="online-result"></div></div></details>
-<div id="math-sources"></div><noscript><p>Enable JavaScript for the computed matrices. The readable operation transcript, shape tables and cache equations remain below.</p></noscript></section>'''
+<div id="math-cost-link" class="math-cost-link"></div>
+<details class="math-buffers-detail"><summary>Buffer ownership · what survives this operation?</summary><div id="math-buffer-shelf" class="math-buffer-shelf"></div></details>
+<section class="math-cache"><div class="cache-heading"><h3>KV memory · one request, all 32 layer slices</h3><label>Inspect absolute position <input type="number" min="0" max="511" value="0" id="math-cache-position"></label><label>Channel <input type="number" min="0" max="127" value="0" id="math-cache-channel"></label></div><p id="math-cache-state"></p><div id="math-cache-pages" class="full-cache-pages"></div><div id="math-cache-vector" class="cache-vector"></div><details><summary>Resolve this position to its physical K/V byte addresses</summary><div id="math-cache-address" class="math-equation"></div></details></section>
+<details id="math-online"><summary>Attention without a full score buffer · 128-key online tiles</summary><div class="online-body"><p>Same generated Q/K/V, selected layer and head. Accumulate all 128 output channels with a running maximum, denominator and numerator. Tile size 128 is an illustrative teaching schedule, not a measured kernel configuration.</p><div class="controls"><label>Query row <input id="online-query" type="number" min="0" max="511" value="511"></label><button id="online-reset">First tile</button><button id="online-back">← Previous tile</button><button id="online-step">Next tile →</button><output id="online-progress"></output></div><div id="online-result"></div></div></details>
+<div id="math-sources"></div><noscript><p>The full-size sequence, equations and cache map are available in the transcript below. Enable JavaScript for coordinate selection and computed operation probes.</p></noscript></section>'''
 
 
 def build_companions(nav, sources, header, footer, md, refs_html):
@@ -248,7 +252,7 @@ def build_companions(nav, sources, header, footer, md, refs_html):
         text+=footer()
         text=text.replace('</body>','<script src="architecture_model.js"></script><script src="architecture_costs.js"></script></body>')
         (OUT/(slug+'.html')).write_text(text)
-    text=header('Animate the math: matrices, residuals and KV memory','Follow actual numerical values through a miniature decoder, then watch cached entries survive the next input.','architecture',nav)
+    text=header('Animate the math: matrices, residuals and KV memory','Explore full-size tensor coordinates, complete reductions and the 512 → 513 token cache boundary.','architecture',nav)
     text=text.replace('</head>','<link rel="stylesheet" href="architecture.css"></head>')
     text+=navigation('architecture_math')+math_shell()
     text+='<section id="math-transcript"><h2>The mathematical sequence · portable / print</h2>'+md('''
@@ -271,15 +275,32 @@ last = gather_last(X) → RMSNorm → independent W_headᵀ → logits
 sample ID → next pass input        sampling itself writes no K/V
 ```
 
-The browser runs the miniature model for two layers. Decode routes first compute a valid prefix cache using those same weights. New-token results can therefore be checked against recomputing the full prefix. All matrices use row vectors and stored weights `[out,in]`; the displayed right operand is the transposed weight. Head selection changes the actual Q/K/V numbers, causal mask and weighted-value calculation.
+**Actual sizes, bounded viewport.** Prefill uses T=512, C=0, L=512. Decode uses T=1, C=512, L=513; the following decode uses C=513, L=514. All 32 layers are selectable. Q/K/V have 32 heads of 128 channels. A viewport shows a few entries with their **absolute row and column indices**; the overview shows where that tile sits in the complete tensor. Click its overview to move, enter an exact coordinate, or choose the last row/column.
 
-For RMSNorm, the vector is multiplied by `1/sqrt(mean(x²)+1e−5)` and its learned scale. For one RoPE pair `(x,y)`, angle `θ=position×10000^(−2i/d)` gives `(x cosθ − y sinθ, x sinθ + y cosθ)`; norms are preserved. The toy head has only one pair, so its angle is the position. The real head has 64 pairs. Coordinate pairing follows the weight layout; the toy’s two-coordinate pair has no interleaving ambiguity.
+**Complete reductions.** Q/K/V/O and the gate/up/head projections reduce 4096 products for each selected output. The down projection reduces 11008. QKᵀ reduces 128, then scales by 1/√128. P·V reduces L value rows. Step reveals 1, 32, 128 or 512 terms; the seek control addresses every term, including the final partial tile. A running accumulator changes while the output cell remains pending until its reduction finishes. Other viewport cells are completed references. No discarded channels or rescaled miniature matrices are involved.
 
-The matrix panels expose **mathematical** S/P values. The buffer shelf calls them conceptual attention scratch: the real fused operation consumes tiles. The separate online view uses `m′=max(m,max(tile_scores))`, `α=exp(m−m′)`, `p=exp(tile_scores−m′)`, `ℓ′=αℓ+Σp`, `u′=αu+ΣpV`, then `output=u′/ℓ′`. Future keys contribute zero. Its vector result is checked against full stable softmax.
+**Numerical scope.** Deterministically generated operands avoid downloading model weights. Each operation is a separate FP64 probe; dense-projection values are not propagated through a full 32-layer forward. The attention probes are connected: generated Q/K/V → RoPE → retained K′/V → scores → softmax → P·V. Their values agree across these stages and across pass boundaries for the same absolute positions. This proves the illustrated arithmetic, not Llama output parity. Model extents and operation order follow the pinned sources. Payload memory uses an explicit 2-byte assumption; browser computation is FP64.
 
-**Reading the buffers:** an active operation marks its operands READ and its result WRITE. Old residuals stay until their residual add. K′/V pages are retained per layer and request. Cache lengths can temporarily differ between layers while one forward runs; the request’s completed length advances only after every layer has processed the input. Only sampled IDs, not their future K/V, exist at the end of the sampling stage.
+**Norm and rotary detail.** RMSNorm uses all 4096 channels: yⱼ=xⱼγⱼ/√(Σx²/4096+1e−5). A safetensors split-half head pairs channel c with c+64, for c=0…63. Angle θ=position×10000^(−2c/128) gives (x cosθ−y sinθ, x sinθ+y cosθ). Q and K rotate; V does not. The pair inspector exposes both outputs and preserves pair norm. The absolute position is C+i.
 
-**Physical mapping used by the toy:** logical pages 0,1,2 map to physical pages 3,1,5. Each page holds two token slots for both layers. The labels stay stable across prefill and both decodes. Position 2 uses page 1/slot 0; position 3 fills its slot 1; position 4 uses page 5/slot 0. These small page IDs are deliberately illustrative. Use the real-size calculator for the 512-token / P=128 case.
+**Attention and the mask.** For head h, [T,128] × [128,L] gives [T,L] scores. Mask key j when j>C+i, then compute exp(S−row maximum)/Σexp(S−row maximum). All 32 heads have their own scores and values. [T,L] × [L,128] gives the head context; merging maps hidden channel = h×128+c. S/P are mathematical matrices; fused attention need not allocate them in full. The online inspector uses m′=max(m,tile max), α=exp(m−m′), ℓ′=αℓ+Σexp(S−m′), u′=αu+Σexp(S−m′)V and output=u′/ℓ′, for all 128 channels. Fully masked tiles preserve the accumulated result.
+
+**KV occupancy and lifetime.** The page grid shows all 128 slots of each illustrated physical page for the selected layer. Old entries remain READ/RETAINED; Step at KV store fills only new slots. Earlier layers can have longer valid prefixes while the current forward runs. The 32 layer indicators expose this; the minimum length advances only when all layers finish storing. Named scratch buffers are illustrative mathematical lifetimes, not a captured compiler allocation schedule. Sampling itself writes no K/V.
+
+**Concrete page boundary.** P=128 is a chosen paging setting. Logical pages 0,1,2,3,4 map to illustrative physical IDs 3,1,5,2,7. Each page covers 128 positions, both K/V, all 32 layers, all 32 heads and 128 channels. Four pages hold 512 tokens. The first decode assigns a fifth page and writes position 512 to slot 0; the next writes position 513 to slot 1. IDs stay fixed across routes.
+At 2 bytes/value: K+V=16 KiB/token/layer, 512 KiB/token across all layers, and 64 MiB/page. Completed prefill uses 256 MiB. Completed first decode uses 256.5 MiB in 320 MiB assigned capacity; the remaining 63.5 MiB is unused page capacity. This excludes any larger allocator pool and metadata.
+
+```text
+logical_page = absolute_position // 128
+slot         = absolute_position % 128
+physical     = lookup[logical_page]
+backing      = [physical_pages, 2, 32, 128, 32, 128]
+page_stride  = 2 × 32 × 128 × 32 × 128 = 33,554,432 elements
+within_page  = ((((kv × 32 + layer) × 128 + slot) × 32 + head) × 128 + channel)
+byte_address = (physical × page_stride + within_page) × 2
+kv = 0 for rotated K; kv = 1 for V
+```
+
 ''')+'</section>'+refs
     text+='<p><a href="architecture_01_prefill.html#cost-calculator">Real-size prefill calculations</a> · <a href="architecture_02_decode.html#cost-calculator">Real-size decode calculations</a> · <a href="attention_rope.html">Source-level attention and RoPE lesson</a></p>'
     text+='<script type="application/json" id="math-source-data">'+json.dumps({key:resolve(sources,*spec) for key,spec in {
@@ -290,5 +311,5 @@ The matrix panels expose **mathematical** S/P values. The buffer shelf calls the
         'logits':('transformer','last_h = ops.gather(h, input_row_offsets[1:] - 1, axis=0)'),
         'sampling':('pipeline','self._sampler_device: Device = (')}.items()},ensure_ascii=False).replace('</','<\\/')+'</script>'
     text+=footer()
-    text=text.replace('</body>','<script src="architecture_toy.js"></script><script src="architecture_math.js"></script></body>')
+    text=text.replace('</body>','<script src="architecture_tensor.js"></script><script src="architecture_math.js"></script></body>')
     (OUT/'architecture_math.html').write_text(text)

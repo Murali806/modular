@@ -30,9 +30,9 @@ navigation opens:
 - `architecture_01_prefill.html`: a 512-token prefill, with a per-stage calculator.
 - `architecture_02_decode.html`: one new token after 512 cached positions,
   including the 4-to-5-page capacity change at page size 128.
-- `architecture_math.html`: a computed miniature decoder with matrix
-  multiplication microsteps, normalization, RoPE, causal softmax, residuals,
-  gated MLP, an untied head and stable KV page identities across three passes.
+- `architecture_math.html`: actual Llama tensor dimensions with selectable
+  layer, head and absolute coordinates; full reductions, rotary pairs, causal
+  attention and 128-slot KV pages across prefill and two decode passes.
 
 Select a stage in either calculator for substituted MAC, transfer-byte,
 bandwidth, arithmetic-intensity and live-buffer formulas. Editable inputs
@@ -48,12 +48,31 @@ reductions and sampling are described separately. The calculator distinguishes
 stored capacity from bytes moved, and analytical roofline terms from measured
 performance. The byte accounting and working-set schedule are explicit.
 
-The animation uses invented deterministic weights (D=4, F=6, two heads, two
-layers, six token IDs) and browser FP64 arithmetic. Choose a head or output
-cell to inspect different dot products. The online attention view computes a
-vector weighted-value result from tiles. These are educational numerical
-checks, not Llama output parity or GPU measurements. The full transcript and
-default tables remain readable without JavaScript.
+The animation uses the actual D=4096, F=11008, 32 layers, 32 heads × 128
+channels and 32000-token vocabulary. Prefill is T=512; decode is T=1 after
+512 or 513 cached positions. Matrix overviews locate a bounded 3×5 viewport
+inside each full tensor; coordinates are absolute. Select any output and
+follow every term of its 4096-, 11008-, 128- or L-term reduction. Step size,
+Back, seek, Finish operation, Next stage and all 32 layer selectors make
+long reductions navigable. RoPE exposes split-half pairs c and c+64.
+
+The numbers are deterministic generated operands, evaluated lazily in browser
+FP64. Each operation is a separate numerical probe, not an end-to-end model
+forward. The attention probes share their Q/K/V values across RoPE, cache,
+scores, stable softmax and P·V, and preserve old positions across passes.
+Independent tests cover full reductions and online softmax for all 128
+channels. No real checkpoint values, output parity or GPU timing is claimed.
+
+The cache grid shows every slot in four or five 128-token pages for the
+selected layer. All 32 layer counters expose partially completed writes.
+Inspect any slot, including unused capacity, and resolve exact K/V byte
+offsets. A 2-byte payload assumption gives 256 MiB used at 512 completed
+tokens, then 256.5 MiB used within 320 MiB assigned at 513. Physical page IDs
+and paging size are teaching settings. The larger allocator pool is excluded.
+
+Assets are shared and work offline. No large matrix, model weight or bitmap
+is embedded. Source cards, a no-JavaScript transcript and print remain
+available.
 
 ## Scope and evidence
 
@@ -132,15 +151,16 @@ state reconstruction, exact KV/address arithmetic and the online-softmax
 recurrence against an independent stable normalization. The final recorded
 documentation evidence lives in the parent `evidence/` directory.
 
-`verify_architecture.cjs` checks independently worked counts, page-boundary
-arithmetic, nonduplicated fused accounting and an independent full-sequence
-miniature-decoder oracle. It compares cached and recomputed forwards and
-checks causality and online softmax. `verify_architecture_browser.cjs` exercises
-every numerical microstep, visible KV slots, selected dot products, calculator
-formulas/export, source windows, playback, mobile/no-JavaScript/print and
-offline navigation. Reference reconciliation and this addition's validation
-are recorded as `evidence/architecture_math_reference_notes.md` and
-`evidence/architecture_math_validation.json` beside the parent guide.
+`verify_architecture.cjs` checks independently worked cost counts, literal
+full-size reductions, split-half rotary pairs, stable attention for all 128
+channels, per-layer KV occupancy and exact physical addresses.
+`verify_architecture_browser.cjs` checks actual dimensions, last coordinates,
+every operation across three passes, all 32 cache slices, bounded DOM size,
+matrix navigation, retained values, calculator links, Play/Pause, cards,
+mobile, no-JavaScript and print. See
+`evidence/architecture_tensor_validation.json` beside the parent guide.
+The older `architecture_math_validation.json` records the previous
+miniature version; its forward-parity checks do not describe this explorer.
 
 ## Source organization
 
@@ -154,7 +174,7 @@ are recorded as `evidence/architecture_math_reference_notes.md` and
 | `reader.js`, `labs.js`, `reader.css` | Shared controller, source windows and calculators |
 | `architecture_pages.py` | Shape/operation tables, prefill/decode companions and math-page shell |
 | `architecture_model.js`, `architecture_costs.js` | Pure cost arithmetic and its offline controls |
-| `architecture_toy.js`, `architecture_math.js` | Independent numerical state model and matrix/KV playback |
+| `architecture_tensor.js`, `architecture_math.js` | Lazy full-size operation probes, coordinate viewports and KV playback |
 | `architecture.css` | Scoped, responsive companion styling |
 | `build.py` | Scoped HTML/assets/source-chunk generation and size limit |
 | `verify*` | Reproducible static, numerical and browser checks |

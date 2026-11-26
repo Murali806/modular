@@ -1,8 +1,8 @@
 /* Independent arithmetic and numerical checks; this does not run MAX. */
 'use strict';
 const assert=require('node:assert/strict');
-const cost=require('./architecture_model.js'),toy=require('./architecture_toy.js');
-const report={costCases:0,oracleForwards:0,cachedForwards:0,onlineCases:0,timelineEvents:0};
+const cost=require('./architecture_model.js'),tensor=require('./architecture_tensor.js');
+const report={costCases:0,completeReductions:0,rotaryPairs:0,attentionRows:0,onlineVectors:0,cacheStates:0,addressCases:0};
 const close=(a,b,tol=3e-11)=>assert.ok(Math.abs(a-b)<=tol*Math.max(1,Math.abs(a),Math.abs(b)),`${a} != ${b}`);
 function arrayClose(a,b){assert.equal(a.length,b.length);a.forEach((x,i)=>Array.isArray(x)?arrayClose(x,b[i]):close(x,b[i]));}
 const row=(r,id)=>r.rows.find(x=>x.id===id);
@@ -77,85 +77,85 @@ const ms=cost.calculate({budgetMs:5});assert.equal(ms.totals.requiredGBs,2*prefi
 const rate=cost.calculate({bandwidth:500,tflops:50});assert.equal(rate.totals.memoryMs,2*prefill.totals.memoryMs);assert.equal(rate.totals.computeMs,2*prefill.totals.computeMs);
 for(const invalid of [{T:0},{T:512,C:4000},{T:1.5},{B:0},{B:65},{k:0},{w:3},{P:17},{budgetMs:0},{bandwidth:1e-300},{bandwidth:NaN},{kvReads:1.5},{traffic:'unknown'}])assert.throws(()=>cost.calculate(invalid));
 
-// A separate full-sequence decoder oracle: use loops and parameter tensors,
-// without calling the toy's matmul/norm/RoPE/softmax/forward implementations.
-const parameters=toy.parameters();
-function denseOracle(input,weight){return input.map(x=>weight.map(w=>{let s=0;for(let k=0;k<x.length;k++)s+=x[k]*w[k];return s;}));}
-function normOracle(input,gamma){return input.map(x=>{let squares=0;for(const v of x)squares+=v*v;const rms=Math.sqrt(squares/x.length+1e-5);return x.map((v,j)=>v/rms*gamma[j]);});}
-function oracle(tokens){
-  let x=tokens.map(id=>parameters.embedding[id].slice());const cache=[];
-  for(let l=0;l<2;l++){
-    const w=parameters.weights[l],n=normOracle(x,w.norm1),q=denseOracle(n,w.q),k=denseOracle(n,w.k),v=denseOracle(n,w.v);
-    for(let i=0;i<tokens.length;i++)for(let h=0;h<2;h++)for(const vector of [q[i],k[i]]){
-      const j=h*2,a=vector[j],b=vector[j+1];vector[j]=a*Math.cos(i)-b*Math.sin(i);vector[j+1]=a*Math.sin(i)+b*Math.cos(i);
-    }
-    cache.push({K:k,V:v});
-    const context=Array.from({length:tokens.length},()=>Array(4).fill(0));
-    for(let i=0;i<tokens.length;i++)for(let h=0;h<2;h++){
-      const scores=[];for(let j=0;j<=i;j++)scores.push((q[i][h*2]*k[j][h*2]+q[i][h*2+1]*k[j][h*2+1])/Math.sqrt(2));
-      const maximum=Math.max(...scores),e=scores.map(s=>Math.exp(s-maximum)),sum=e.reduce((a,b)=>a+b,0);
-      for(let j=0;j<=i;j++)for(let d=0;d<2;d++)context[i][h*2+d]+=e[j]/sum*v[j][h*2+d];
-    }
-    const projected=denseOracle(context,w.o),residual=x.map((r,i)=>r.map((z,j)=>z+projected[i][j]));
-    const normalized=normOracle(residual,w.norm2),g=denseOracle(normalized,w.gate),u=denseOracle(normalized,w.up);
-    const z=g.map((r,i)=>r.map((g,j)=>g/(1+Math.exp(-g))*u[i][j])),down=denseOracle(z,w.down);
-    x=residual.map((r,i)=>r.map((z,j)=>z+down[i][j]));
+
+// Full-size operation probes: independent reductions over literal model extents.
+assert.deepEqual([tensor.spec.D,tensor.spec.F,tensor.spec.H,tensor.spec.d,tensor.spec.N,tensor.spec.V,tensor.spec.P],[4096,11008,32,128,32,32000,128]);
+assert.equal(tensor.events.length,581);
+const event=(stage,layer=0)=>tensor.events.find(e=>e.stage===stage&&(e.layer===layer||e.layer===null));
+for(let l=0;l<32;l++)assert.deepEqual(tensor.events.filter(e=>e.layer===l).map(e=>e.stage),tensor.block);
+for(const pass of ['prefill','decode','next'])for(const l of [0,7,31])for(const stage of ['q','k','v','o','gate','up','down','head']){
+  const op=tensor.operation(pass,event(stage,l)),K=stage==='down'?11008:4096;
+  assert.equal(op.inner,K);assert.equal(op.left.cols,K);assert.equal(op.right.rows,K);
+  assert.deepEqual(op.weightShape,[op.result.cols,K]);
+  for(const [i,j]of [[0,0],[op.result.rows-1,op.result.cols-1]]){
+    const p=tensor.probe(op,i,j);let dot=0;
+    for(let k=0;k<K;k++){dot+=op.left.get(i,k)*op.right.get(k,j);if([0,127,128,K-2,K-1].includes(k))close(p.prefix[k+1],dot);}
+    close(p.expected,dot);close(op.result.get(i,j),dot);
+    assert.equal(p.prefix.length,K+1);report.completeReductions++;
   }
-  return {hidden:x,cache,logits:denseOracle(normOracle([x.at(-1)],parameters.finalGamma),parameters.outputWeight)};
+  const again=tensor.operation(pass,{...event(stage,l)});close(again.result.get(0,0),op.result.get(0,0));
 }
-let seed=1841;function random(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;}
-for(let n=1;n<=6;n++)for(let trial=0;trial<10;trial++){
-  const tokens=Array.from({length:n},()=>Math.floor(random()*6)),full=toy.forward(tokens),ref=oracle(tokens);
-  arrayClose(full.hidden,ref.hidden);arrayClose(full.logits,ref.logits);
-  for(let l=0;l<2;l++){arrayClose(full.cache[l].K,ref.cache[l].K);arrayClose(full.cache[l].V,ref.cache[l].V);}
-  report.oracleForwards++;
-  for(let split=1;split<n;split++){
-    const prefix=toy.forward(tokens.slice(0,split)),saved=structuredClone(prefix.cache),next=toy.forward(tokens.slice(split),prefix.cache);
-    assert.deepEqual(prefix.cache,saved,'a call must not mutate its caller-owned prefix snapshot');
-    arrayClose(next.logits,ref.logits);arrayClose(next.hidden,ref.hidden.slice(split));
-    for(let l=0;l<2;l++){arrayClose(next.cache[l].K.slice(0,split),saved[l].K);arrayClose(next.cache[l].V.slice(0,split),saved[l].V);}
-    report.cachedForwards++;
-  }
-  if(n>1){const changed=tokens.slice();changed[n-1]=(changed[n-1]+1)%6;arrayClose(toy.forward(changed).hidden.slice(0,n-1),full.hidden.slice(0,n-1));}
+for(const pass of ['prefill','decode','next'])for(const l of [0,15,31])for(const stage of ['norm1','norm2','finalnorm']){
+  const op=tensor.operation(pass,event(stage,l)),i=op.result.rows-1,p=tensor.probe(op,i,4095);
+  let squares=0;for(let c=0;c<4096;c++)squares+=op.left.get(i,c)**2;
+  close(p.prefix[4096],squares);close(p.expected,op.left.get(i,4095)*op.right.get(0,4095)/Math.sqrt(squares/4096+1e-5));report.completeReductions++;
 }
-for(const name of ['prefill','decode','crosspage']){
-  const data=toy.route(name),frames=toy.timeline(data);assert.deepEqual(toy.route(name),data,'route reset is deterministic');
-  let lengths=[data.C,data.C];
-  for(const event of data.events){
-    if(event.written)lengths[event.layer]++;
-    assert.deepEqual(event.cache.map(c=>c.K.length),lengths);
-    assert.deepEqual(event.cache.map(c=>c.V.length),lengths);
-    if(event.kind==='matmul')for(const h of event.headMatrices||[event]){
-      const a=h.left.values,b=h.right.values,out=h.result.values;
-      for(let i=0;i<a.length;i++)for(let j=0;j<b[0].length;j++){
-        let dot=0;for(let k=0;k<a[0].length;k++)dot+=a[i][k]*b[k][j];close(dot*(event.scale||1),out[i][j]);
-      }
+for(const l of [0,17,31])for(const h of [0,13,31])for(const pos of [0,127,511,512,513])for(const pair of [0,1,31,63])for(const kind of ['Q','K']){
+  const a=tensor.raw(kind,l,h,pos,pair),b=tensor.raw(kind,l,h,pos,pair+64),theta=pos*10000**(-pair/64);
+  const x=tensor.rotated(kind,l,h,pos,pair),y=tensor.rotated(kind,l,h,pos,pair+64);
+  close(x,a*Math.cos(theta)-b*Math.sin(theta));close(y,a*Math.sin(theta)+b*Math.cos(theta));close(x*x+y*y,a*a+b*b);report.rotaryPairs++;
+}
+for(const pass of ['prefill','decode','next'])for(const l of [0,31])for(const h of [0,31]){
+  const r=tensor.route(pass),a=tensor.attention(pass,l,h);
+  for(const q of new Set([0,Math.floor((r.T-1)/2),r.T-1])){
+    // Independent stable causal softmax followed by a complete 128-channel PV.
+    const scores=Array.from({length:r.L},(_,j)=>{if(j>r.C+q)return -Infinity;let s=0;for(let c=0;c<128;c++)s+=a.q(q,c)*a.k(j,c);return s/Math.sqrt(128);});
+    const m=Math.max(...scores),exp=scores.map(x=>Math.exp(x-m)),denom=exp.reduce((x,y)=>x+y,0),prob=exp.map(x=>x/denom);
+    const full=Array.from({length:128},(_,c)=>prob.reduce((s,p,j)=>s+p*a.v(j,c),0));
+    for(let j=0;j<r.L;j++){close(a.row(q).p[j],prob[j]);if(j>r.C+q)assert.equal(prob[j],0);}
+    close(prob.reduce((x,y)=>x+y,0),1);
+    for(const width of [1,127,128,256]){
+      const tiles=tensor.online(a,q,width);arrayClose(tiles.at(-1).output,full);assert.equal(tiles.at(-1).end,r.L);report.onlineVectors++;
     }
-    if(event.kind==='rope')for(const h of event.headMatrices)for(let i=0;i<h.left.values.length;i++){
-      const x=h.left.values[i],y=h.result.values[i];for(const off of [0,2])close(x[off]**2+x[off+1]**2,y[off]**2+y[off+1]**2);
-    }
-    report.timelineEvents++;
-  }
-  assert.deepEqual(lengths,[data.C+data.T,data.C+data.T]);
-  assert.equal(data.events.at(-1).stage,'sample');
-  assert.deepEqual(data.events.at(-1).cache,data.events.at(-2).cache,'sampling must not append a future token');
-  assert.equal(frames.filter(f=>f.term>0).length,frames.length-data.events.length);
-  for(const ctx of data.contexts)for(let h=0;h<2;h++)for(let i=0;i<ctx.T;i++){
-    close(ctx.probabilities[h][i].reduce((a,b)=>a+b,0),1);
-    ctx.probabilities[h][i].forEach((v,j)=>{if(j>ctx.C+i)assert.equal(v,0);});
+    const pv=tensor.operation(pass,event('pv',l),h);for(const c of [0,127])close(tensor.probe(pv,q,c).expected,full[c]);
+    const qk=tensor.operation(pass,event('qk',l),h),last=r.C+q;close(tensor.probe(qk,q,last).prefix[128]/Math.sqrt(128),scores[last]);report.attentionRows++;
   }
 }
-// Online attention tested against independently normalized full weighted sums.
-for(const n of [1,2,3,7,17])for(const dimension of [2,4])for(let query=0;query<n;query++)for(const tile of [1,2,3,8]){
-  const q=Array.from({length:dimension},()=>random()*20-10),k=Array.from({length:n},()=>q.map(()=>random()*20-10));
-  const v=k.map(()=>Array.from({length:3},()=>random()*10-5));
-  const logits=k.slice(0,query+1).map(key=>q.reduce((s,x,i)=>s+x*key[i],0)/Math.sqrt(dimension)),max=Math.max(...logits);
-  const p=logits.map(s=>Math.exp(s-max)),sum=p.reduce((a,b)=>a+b,0),expected=[0,0,0];
-  for(let i=0;i<p.length;i++)for(let j=0;j<3;j++)expected[j]+=p[i]/sum*v[i][j];
-  const actual=toy.online(q,k,v,query,tile);arrayClose(actual.output,expected);
-  assert.equal(actual.tiles.at(-1).end,query+1);report.onlineCases++;
+// RoPE → K store → QK and probabilities → PV share the same generated values.
+for(const pass of ['prefill','decode','next']){
+  const r=tensor.route(pass),rope=tensor.operation(pass,event('rope',31),31,'K'),kv=tensor.operation(pass,event('kv',31),31),qk=tensor.operation(pass,event('qk',31),31);
+  for(const c of [0,63,64,127]){
+    close(rope.result.get(r.T-1,c),kv.left.get(r.T-1,c));close(kv.left.get(r.T-1,c),qk.right.get(c,r.L-1));
+  }
+  for(let l=0;l<32;l++)for(const stage of tensor.block){
+    const e=event(stage,l),op=tensor.operation(pass,e);
+    for(const step of new Set([0,Math.floor(op.steps/2),op.steps])){
+      const cache=tensor.cacheState(pass,e,step),at=tensor.block.indexOf(stage),store=tensor.block.indexOf('kv');
+      const expected=Array.from({length:32},(_,k)=>k<l?r.L:k>l?r.C:at<store?r.C:at>store?r.L:r.C+step);
+      assert.deepEqual(cache.lengths,expected);
+      assert.equal(cache.used,expected.reduce((a,b)=>a+b,0)*16384);assert.equal(cache.assigned,Math.ceil(r.L/128)*64*2**20);report.cacheStates++;
+    }
+  }
+  const end=tensor.cacheState(pass,event('sample'),32000);assert.deepEqual(end.lengths,Array(32).fill(r.L));
+  assert.deepEqual(tensor.cacheState(pass,event('head'),0),end,'sampling never appends a new KV position');
 }
-const extreme=toy.online([10000,10000],[[10000,10000],[-10000,-10000]],[[3,-2],[7,1]],1,1);arrayClose(extreme.output,[3,-2]);
-report.independentOracle='Full-sequence, two-layer FP64 decoder with separate loops; cached-prefix and causality checks';
+for(const pos of [0,127,128,511,512,513,639])for(const l of [0,15,31])for(const h of [0,31])for(const c of [0,127])for(const kv of [0,1]){
+  const a=tensor.address(pos,l,h,c,kv),physical=[3,1,5,2,7][Math.floor(pos/128)];
+  // Independent strides for dimensions [page,kv,layer,slot,head,channel].
+  const expected=physical*33554432+kv*16777216+l*524288+(pos%128)*4096+h*128+c;
+  assert.equal(a.element,expected);assert.equal(a.byte,expected*2);assert.equal(a.slot,pos%128);report.addressCases++;
+}
+for(const bad of [[640,0,0,0],[-1,0,0,0],[0,32,0,0],[0,0,32,0],[0,0,0,128],[0,0,0,0,2]])assert.throws(()=>tensor.address(...bad));
+for(const pass of ['prefill','decode','next']){
+  const e=tensor.operation(pass,event('embedding'));assert.equal(e.right.rows,32000);assert.equal(e.right.cols,4096);
+  close(e.result.get(e.result.rows-1,4095),e.right.get(tensor.token(e.C+e.T-1),4095));
+  const s=tensor.operation(pass,event('swiglu',31)),x=s.left.get(s.T-1,11007),u=s.right.get(s.T-1,11007);
+  close(s.result.get(s.T-1,11007),x/(1+Math.exp(-x))*u);
+  const g=tensor.operation(pass,event('gather'));close(g.result.get(0,4095),g.left.get(g.T-1,4095));
+  const sample=tensor.operation(pass,event('sample')),p=tensor.probe(sample,0,0);
+  let best=-Infinity,id=-1;for(let j=0;j<32000;j++){const x=sample.left.get(0,j);if(x>best){best=x;id=j;}}
+  assert.equal(p.ids[32000],id);assert.equal(p.expected,id);close(p.prefix[32000],best);
+}
+report.independentOracle='Full-size selected contractions and 128-channel stable attention; synthetic operands, not a model forward';
 report.golden={prefillMACs:prefill.totals.mac,decodeMACs:decode.totals.mac,parameterBytes:prefill.memory.weights};
 report.result='PASS';console.log(JSON.stringify(report,null,2));

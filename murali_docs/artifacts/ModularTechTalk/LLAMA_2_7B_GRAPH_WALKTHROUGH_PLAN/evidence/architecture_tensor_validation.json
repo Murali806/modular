@@ -1,0 +1,124 @@
+{
+  "evidence": "CPU-RUN documentation and full-size synthetic operation probes; SOURCE for pinned shapes and mathematical order",
+  "validated_on": "2026-11-26",
+  "source_revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "checkout_before_change": "ad5bf6fed4db1f14106ad8aa92cb0933dc4fb5a8",
+  "model_id": "meta-llama/Llama-2-7b-hf",
+  "device": "Host Python / Node / Chromium; no MAX model execution or GPU timing",
+  "scope": "Actual tensor extents with bounded viewports, complete selected reductions and paged KV occupancy across prefill and two decodes",
+  "numerical_limits": [
+    "Deterministic generated operands; no checkpoint weights loaded or embedded",
+    "Each operation is an independent FP64 probe, not an end-to-end 32-layer forward",
+    "Attention Q/K/V, split-half RoPE, cache, scores, stable softmax and P\u00b7V are connected within the example",
+    "Payload memory uses 2 bytes/value; page size 128 and physical page IDs are explicit teaching settings",
+    "Numerical tiles and playback speed do not establish kernel tiling or measured hardware performance"
+  ],
+  "commands": [
+    "PYTHONDONTWRITEBYTECODE=1 python3 murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/build.py",
+    "PYTHONDONTWRITEBYTECODE=1 python3 murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify.py",
+    "node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_model.cjs",
+    "node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_architecture.cjs",
+    "NODE_PATH=/tmp/max-os-playwright/node_modules node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_browser.cjs",
+    "NODE_PATH=/tmp/max-os-playwright/node_modules node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_architecture_browser.cjs",
+    "git diff --check"
+  ],
+  "static": {
+    "lessons": 26,
+    "routes": 31,
+    "states": 204,
+    "author_anchors": 962,
+    "rendered_source_links": 1002,
+    "local_links": 1882,
+    "complete_sources": 76,
+    "provenance": {
+      "git_revision": 75,
+      "saved_snapshot": 1
+    },
+    "example_04_companions": 35,
+    "files": 230,
+    "total_bytes": 5185170,
+    "largest_file_bytes": 40701,
+    "largest_html_bytes": 40701,
+    "result": "PASS"
+  },
+  "existing_numerical": {
+    "snapshots": 408,
+    "addressCases": 648,
+    "softmaxCases": 447,
+    "parameters": 6738415616,
+    "result": "PASS"
+  },
+  "architecture_numerical": {
+    "costCases": 75,
+    "completeReductions": 171,
+    "rotaryPairs": 360,
+    "attentionRows": 20,
+    "onlineVectors": 80,
+    "cacheStates": 5024,
+    "addressCases": 168,
+    "independentOracle": "Full-size selected contractions and 128-channel stable attention; synthetic operands, not a model forward",
+    "golden": {
+      "prefillMACs": 3350272671744,
+      "decodeMACs": 6741557248,
+      "parameterBytes": 13476831232
+    },
+    "result": "PASS"
+  },
+  "existing_browser": {
+    "checks": [
+      "All lesson/scenario states: Step, Back, Reset, seek, direct call-tree source links",
+      "Real timed Play/Pause/resume, automatic end stop, replay, offscreen pause, stable moving DOM identity",
+      "Hold preserves content; held-source paging/all-file controls; Close/Escape; pointer/keyboard drag and resize; Expand/Restore; all source hashes loaded offline; search",
+      "Fullscreen source windows and stable deltas; numerical labs and page selection; every lesson at 390px; mobile source card; reduced motion",
+      "Every lesson readable without JavaScript; original source fallback links; no-JavaScript print; real PDF print/restored disclosures",
+      "Real startup InferenceSession link opens index; lesson selector; coverage navigation; offline source-file selector/history/search"
+    ],
+    "desktopStates": 204,
+    "mobilePages": 26,
+    "sourceFiles": 76,
+    "chromium": "156.0.8078.4",
+    "node": "v22.11.0",
+    "playwright": "1.64.1",
+    "offline": true,
+    "pageErrors": [],
+    "networkRequests": [],
+    "result": "PASS"
+  },
+  "architecture_browser": {
+    "checks": [
+      "Architecture stage links; prefill/decode/chunk presets; per-stage MAC/byte/BW/AI formulas; materialized vs fused accounting; invalid inputs; precision controls; page rounding; JSON export",
+      "All 23 operations across three passes; actual shapes and full reductions; bounded DOM; every layer slice; complete down projection; viewports and last coordinates; stable DOM; retained KV values and 4\u21925 page boundary; causal mask; online 128-channel vectors; exact cost links",
+      "Actual Play/Pause/resume/end/replay; offscreen pause; badge/legend/Hold/Escape; fullscreen exact source and Expand; next-layer transition",
+      "390px full-size viewports, page grid and card bounds; reduced motion; four no-JavaScript pages; real print and restored disclosures"
+    ],
+    "numericalFrames": 245,
+    "mathPasses": 3,
+    "mobilePages": 4,
+    "noJavaScriptPages": 4,
+    "chromium": "156.0.8078.4",
+    "node": "v22.11.0",
+    "playwright": "1.64.1",
+    "offline": true,
+    "pageErrors": [],
+    "networkRequests": [],
+    "result": "PASS"
+  },
+  "deterministic_rebuild": {
+    "result": "PASS",
+    "files": 230,
+    "manifest_sha256": "e28844f8f6f851d52dc084b15db6bfa95a670c2c8be81de62e672e38e76ef437",
+    "file_budget_bytes": 102400,
+    "largest_file_bytes": 40701
+  },
+  "visual_review": {
+    "result": "PASS",
+    "reviewed": [
+      "FFN down projection at row 511, column 4095, reduction 5632/11008",
+      "Split-half RoPE head 31, pair (63,127)",
+      "Online attention at tile 3/4, all 128 channels computed",
+      "Desktop and 390px KV page boundary with 513 valid positions in all 32 layers"
+    ],
+    "temporary_screenshots_only": true
+  },
+  "historical_evidence": "architecture_math_validation.json records the superseded miniature decoder and its different numerical checks"
+}
