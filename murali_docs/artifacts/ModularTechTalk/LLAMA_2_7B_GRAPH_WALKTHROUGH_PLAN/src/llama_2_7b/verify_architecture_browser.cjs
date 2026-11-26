@@ -79,6 +79,47 @@ async function calculations(){
   report.checks.push('Architecture stage links; prefill/decode/chunk presets; per-stage MAC/byte/BW/AI formulas; materialized vs fused accounting; invalid inputs; precision controls; page rounding; JSON export');
 }
 
+async function modelOverview(){
+  await open('architecture_math');
+  const stageIds=await page.locator('#model-map [data-model-stage]').evaluateAll(nodes=>[...new Set(nodes.map(n=>n.dataset.modelStage))].sort());
+  assert.deepEqual(stageIds,Object.keys(tensor.definitions).sort(),'each mathematical stage is reachable from the full model');
+  for(const id of stageIds){
+    await page.locator('#model-map [data-model-stage="'+id+'"]').last().click();
+    assert.equal(await page.evaluate(()=>LlamaMath.snapshot().stage),id);
+    assert.equal(await page.locator('#math-stage').inputValue(),id);
+    assert.ok(await page.locator('#model-map [data-model-stage="'+id+'"].active').count());
+    assert.ok((await page.locator('#model-map-selected').textContent()).includes(tensor.definitions[id][0]));
+  }
+  // Keyboard activation and the return link use the same stage state.
+  await page.locator('#model-head').focus();await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(()=>LlamaMath.snapshot().stage),'head');
+  await page.locator('.model-return').click();
+  assert.equal(await page.locator('#model-overview').getAttribute('open'),'');
+  for(const name of ['prefill','decode','next']){
+    await page.selectOption('#math-pass',name);await stage('kv');await page.selectOption('#math-layer','31');
+    const r=tensor.route(name);
+    assert.equal(await page.locator('#model-map [data-model-text="scores"]').textContent(),'[32,'+r.T+','+r.L+']');
+    assert.equal(await page.locator('#model-map [data-model-text="gate"]').textContent(),'G ['+r.T+',11008]');
+    assert.ok((await page.locator('#model-map [data-model-text="cache-valid"]').textContent()).includes(r.C+' / '+r.L));
+    await page.locator('#math-finish').click();
+    assert.ok((await page.locator('#model-map [data-model-text="cache-valid"]').textContent()).includes(r.L+' / '+r.L));
+    assert.equal(await page.locator('#model-map [data-model-text="next-layer"]').textContent(),'Next: last-row gather');
+    const overflow=await page.locator('#model-map .model-node').evaluateAll(nodes=>nodes.flatMap(n=>{
+      const r=n.querySelector('rect').getBBox();
+      return [...n.querySelectorAll('text')].filter(t=>{const b=t.getBBox();return b.x<r.x+2||b.x+b.width>r.x+r.width-2||b.y+b.height>r.y+r.height-2;}).map(t=>({node:n.id,text:t.textContent}));
+    }));
+    assert.deepEqual(overflow,[],'SVG labels fit their blocks');
+  }
+  await page.locator('#model-map').screenshot({path:'/tmp/llama_model_map_decode.png'});
+  await page.selectOption('#math-pass','prefill');await stage('qk');
+  await page.locator('#model-map').screenshot({path:'/tmp/llama_model_map_prefill.png'});
+  await page.locator('#model-overview>summary').click();
+  assert.equal(await page.locator('#model-map').isVisible(),false);
+  await page.locator('.model-return').click();
+  assert.equal(await page.locator('#model-map').isVisible(),true);
+  report.checks.push('Full model: every stage clickable; keyboard drill-down; return/collapse; live pass/layer shapes and cache counts; SVG label bounds');
+}
+
 async function timelines(){
   await open('architecture_math');
   assert.equal(await page.evaluate(()=>LlamaMath.snapshot().playing),false);
@@ -218,6 +259,11 @@ async function layouts(){
       await p.locator('#cost-calculator').scrollIntoViewIfNeeded();await p.screenshot({path:'/tmp/llama_architecture_costs_mobile.png',fullPage:true});
     }
     if(slug==='architecture_math'){
+      assert.equal(await p.locator('#model-map').isVisible(),true);
+      await p.locator('#model-head').click();assert.equal(await p.evaluate(()=>LlamaMath.snapshot().stage),'head');
+      await p.locator('.model-return').click();
+      await p.screenshot({path:'/tmp/llama_model_map_mobile.png'});
+      await p.locator('#model-overview>summary').click();
       await p.selectOption('#math-stage','pv');await p.locator('#math-last-row').click();await p.locator('#math-last-col').click();
       await seek(256,p);await fit(p);
       await p.locator('#math-matrices').scrollIntoViewIfNeeded();await p.screenshot({path:'/tmp/llama_tensor_math_mobile.png',fullPage:true});
@@ -236,6 +282,8 @@ async function layouts(){
     if(slug==='architecture_math'){
       assert.ok((await n.locator('#math-transcript').textContent()).includes('sampling itself writes no K/V'));
       assert.ok((await n.locator('#math-transcript').textContent()).includes('11008'));
+      assert.equal(await n.locator('#model-map').isVisible(),true);
+      assert.ok((await n.locator('.model-portable').textContent()).includes('REPEAT ×32'));
     }else assert.equal(await n.locator('.architecture-ledger tbody tr:not(.layer-band)').count(),23);
   }
   await nojs.close();await open('architecture_math');await stage('softmax');
@@ -246,6 +294,7 @@ async function layouts(){
 (async()=>{
   browser=await chromium.launch({headless:true,args:['--no-sandbox']});page=await (await context()).newPage();
   await calculations();console.log('Calculators and navigation passed');
+  await modelOverview();console.log('Full model block diagram passed');
   await timelines();console.log(report.numericalFrames+' actual-dimension frames passed');
   await playbackAndWindows();await layouts();
   assert.deepEqual(errors,[]);assert.deepEqual(network,[]);

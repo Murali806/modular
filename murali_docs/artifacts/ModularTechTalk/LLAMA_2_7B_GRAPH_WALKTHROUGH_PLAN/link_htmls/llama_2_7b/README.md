@@ -48,6 +48,17 @@ reductions and sampling are described separately. The calculator distinguishes
 stored capacity from bytes moved, and analytical roofline terms from measured
 performance. The byte accounting and working-set schedule are explicit.
 
+The animation opens with a complete model block diagram. The top route shows
+prompt tokenization, embedding, all 32 decoder layers, last-row selection,
+final norm, the untied LM head and sampling. A feedback arrow returns the
+sampled ID to embedding for the next decode. Below it, one expanded block
+shows Q/K/V branches, RoPE, retained cache, causal attention, both residual
+bypasses and the gate/up/down FFN. Labels track the current pass and layer.
+Click a block to inspect its calculation; use **Full model diagram** to
+return. The overview can be collapsed and remains available offline,
+without JavaScript and in print. Diagram validation is recorded in
+`evidence/architecture_model_diagram_validation.json` beside the parent guide.
+
 The animation uses the actual D=4096, F=11008, 32 layers, 32 heads × 128
 channels and 32000-token vocabulary. Prefill is T=512; decode is T=1 after
 512 or 513 cached positions. Matrix overviews locate a bounded 3×5 viewport
@@ -173,6 +184,7 @@ miniature version; its forward-parity checks do not describe this explorer.
 | `model.js` | Pure state snapshots and numerical examples |
 | `reader.js`, `labs.js`, `reader.css` | Shared controller, source windows and calculators |
 | `architecture_pages.py` | Shape/operation tables, prefill/decode companions and math-page shell |
+| `architecture_diagram.py` | Full model SVG, decoder branches, residual/KV edges and portable equivalent |
 | `architecture_model.js`, `architecture_costs.js` | Pure cost arithmetic and its offline controls |
 | `architecture_tensor.js`, `architecture_math.js` | Lazy full-size operation probes, coordinate viewports and KV playback |
 | `architecture.css` | Scoped, responsive companion styling |

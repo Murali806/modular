@@ -61,3 +61,56 @@
 .overview-mask{fill:#758896;fill-opacity:.2}
 
 .math-layer-caption{padding:.5rem 1rem 0;margin:0;font-size:.69rem;color:#4d6570}.math-layer-rail{padding-top:.35rem}
+/* Complete model map and the expanded block share the existing stage state. */
+.model-overview{margin:.8rem 1rem 1rem;border:1px solid #a9bdc8;background:#fff;scroll-margin-top:7rem}
+.model-overview>summary{padding:.75rem 1rem;font-size:.91rem;background:#f6faf8}
+.model-map-toolbar{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1rem}
+.model-map-toolbar p{flex:1;margin:0;font-size:.76rem}.model-map-toolbar b{display:block;color:#096649;margin-top:.25rem}
+.model-map-toolbar a{font-size:.75rem;white-space:nowrap}
+.model-map-scroll{width:100%;overflow-x:auto;overscroll-behavior-x:contain}
+#model-map{display:block;width:100%;min-width:1040px;height:auto}
+#model-map text{font-family:system-ui,-apple-system,sans-serif;fill:#293f4a}
+#model-map .model-whole{fill:#f5f8fa;stroke:#b8cad3}
+#model-map .model-decoder-frame{fill:#fbfcfa;stroke:#a5beb1;stroke-dasharray:7 4}
+#model-map .model-decoder-frame.in-progress{stroke:#096649;stroke-width:2}
+#model-map .model-attention-region{fill:#fff9f0;stroke:#ead7b6}
+#model-map .model-ffn-region{fill:#f0f7f4;stroke:#c0d8cd}
+#model-map .model-section-title{font-size:15px;font-weight:750}
+#model-map .model-region-title{font-size:12px;font-weight:750;letter-spacing:.04em}
+#model-map .model-caption{font-size:12px}
+#model-map .model-node rect{fill:#fff;stroke:#90a8b5;stroke-width:1.5}
+#model-map .model-node-title{font-size:14px;font-weight:700}
+#model-map .model-node-detail{font:12px ui-monospace,SFMono-Regular,monospace}
+#model-map .model-node text{pointer-events:none}
+#model-map .model-weights rect{fill:#f6f1fc;stroke:#9576b5}
+#model-map .model-norm rect{fill:#eaf6f4;stroke:#78a9a6}
+#model-map .model-attention rect{fill:#fff4df;stroke:#bf9a61}
+#model-map .model-cache rect{fill:#edf4fc;stroke:#245b97;stroke-width:2}
+#model-map .model-residual rect{fill:#eaf5ee;stroke:#669b81}
+#model-map .model-node.active rect,#model-map .model-node:focus rect{stroke:#a52262;stroke-width:3.5}
+#model-map .model-node.active .model-node-title{fill:#8a174e}
+#model-map a:hover rect{stroke:#a52262;stroke-width:2.5}
+#model-map a{cursor:pointer;text-decoration:none}
+#model-map .model-node.in-progress rect{stroke:#096649;stroke-width:2.5}
+#model-map .model-wire{fill:none;stroke:#617887;stroke-width:1.7}
+#model-map .model-residual-wire{stroke:#096649;stroke-width:2}
+#model-map .model-cache-wire{stroke:#245b97;stroke-width:2}
+#model-map .model-feedback{stroke:#245b97;stroke-dasharray:6 3}
+#model-map .model-expansion{stroke:#849a91;stroke-dasharray:3 4}
+#model-map .model-wire.active{stroke:#a52262;stroke-width:3}
+#model-map .model-skip-label{fill:#096649;font-size:12px;font-weight:650}
+#model-map .model-output{font:700 14px ui-monospace,monospace;fill:#096649}
+.model-map-footer{display:flex;justify-content:space-between;gap:.5rem 1rem;flex-wrap:wrap;padding:.4rem 1rem;background:#f5f8fa;border-top:1px solid #d8e3e6}
+.model-map-footer p{font-size:.73rem;margin:.25rem 0}
+#model-map-selected{font-weight:700;color:#8a174e}
+.model-key{display:inline-block;width:15px;height:3px;vertical-align:middle;margin:0 .25rem 0 .6rem}
+.residual-key{background:#096649}.cache-key{background:#245b97}.active-key{background:#a52262}
+.model-map-note{font-size:.74rem;line-height:1.6;padding:0 1rem;color:#4f6670}
+.model-portable{margin:.5rem 1rem 1rem}.model-portable summary{font-size:.75rem;padding:.6rem}
+.model-portable pre{font-size:11px;margin:0}
+.model-return{display:inline-block;font-size:.74rem;margin:.4rem 1rem 0}
+#math-event{scroll-margin-top:8rem}
+@media(max-width:650px){.model-overview{margin:.7rem}.model-overview>summary{font-size:.82rem}.model-map-toolbar{padding:.5rem .7rem}.model-map-toolbar p{font-size:.7rem}.model-map-scroll:after{content:"Scroll across the diagram to follow every branch →";display:block;font-size:.68rem;padding:.4rem .7rem;color:#526873}.model-overview,#math-event{scroll-margin-top:1rem}}
+@media print{.model-overview{border:0;margin:0;break-inside:avoid}.model-map-scroll{overflow:visible}#model-map{min-width:0;width:100%}.model-map-toolbar a,.model-return{display:none}.model-map-footer,.model-map-note{font-size:8pt}.model-portable{break-inside:auto}#model-map .model-node.active rect{stroke:#6a7e89;stroke-width:1.5}}
+
+@media(max-width:650px){.model-map-toolbar:after{content:"Scroll sideways to follow the whole diagram →";display:block;flex-basis:100%;font-size:.68rem;color:#526873}}

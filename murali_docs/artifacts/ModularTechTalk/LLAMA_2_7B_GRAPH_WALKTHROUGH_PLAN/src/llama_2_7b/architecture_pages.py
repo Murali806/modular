@@ -5,6 +5,7 @@ import subprocess
 from functools import lru_cache
 
 from catalog import HERE, OUT, resolve
+from architecture_diagram import model_diagram
 
 ASSETS = ('architecture.css', 'architecture_model.js', 'architecture_costs.js',
           'architecture_tensor.js', 'architecture_math.js')
@@ -223,8 +224,9 @@ def math_shell():
 <p class="math-scope"><b>SOURCE dimensions · CPU-RUN operation probes.</b> 32 layers · 4096 hidden · 32 heads × 128 · 11008 FFN · 32000 vocabulary. Select any coordinate; only a small viewport is drawn. Values are deterministic generated operands in browser FP64. Each operation is a separate numerical probe; RoPE, KV, scores, softmax and P·V share one consistent attention example. This is a math explorer, not a checkpoint forward.</p>
 <div class="math-transport"><div class="controls"><button id="math-reset">Reset</button><button id="math-back">← Back</button><button id="math-play" aria-pressed="false">Play</button><button id="math-step">Step →</button><button id="math-finish">Finish operation</button><button id="math-next">Next stage ⇥</button><label>Pass <select id="math-pass"><option value="prefill">Prefill · 512 tokens</option><option value="decode">Decode · 512 → 513</option><option value="next">Decode · 513 → 514</option></select></label></div>
 <div class="controls"><label>Stage <select id="math-stage"></select></label><label>Layer <select id="math-layer" aria-label="Decoder layer"></select></label><label>Head <select id="math-head" aria-label="Attention head"></select></label><label>Step size <select id="math-chunk"><option value="128">128 terms / slots</option><option value="32">32 terms / slots</option><option value="1">1 term / slot</option><option value="512">512 terms / slots</option></select></label><label>Speed <select id="math-speed"><option value="1100">Normal</option><option value="400">Fast</option><option value="2200">Slow</option></select></label></div></div>
+''' + model_diagram() + '''
 <p class="math-layer-caption">32 decoder layers · small numbers show valid KV positions per layer</p><div class="math-layer-rail" id="math-layers" aria-label="All 32 decoder layer slices"></div>
-<div class="event" id="math-event" aria-live="polite"><strong>Explore a full-size operation.</strong><p>Choose a stage, then use Step to follow the reduction. Finish operation jumps to its result.</p></div>
+<a class="model-return" href="#model-overview">↑ Full model diagram</a><div class="event" id="math-event" aria-live="polite"><strong>Explore a full-size operation.</strong><p>Choose a stage, then use Step to follow the reduction. Finish operation jumps to its result.</p></div>
 <div class="math-pipeline" id="math-pipeline" aria-label="Select a mathematical operation"></div>
 <div class="math-shape-equation" id="math-shape-equation"></div>
 <div class="controls matrix-choices"><label>Result row <input type="number" id="math-row" min="0" value="0" aria-label="Result row"></label><label>Result column <input type="number" id="math-col" min="0" value="0" aria-label="Result column"></label><button id="math-last-row">Last row</button><button id="math-last-col">Last column</button><label id="math-rope-control" hidden>Rotate <select id="math-rope-kind"><option value="Q">Q</option><option value="K">K</option></select></label><span id="math-selection"></span></div>

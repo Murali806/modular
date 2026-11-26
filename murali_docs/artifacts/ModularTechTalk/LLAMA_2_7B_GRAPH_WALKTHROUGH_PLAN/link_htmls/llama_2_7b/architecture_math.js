@@ -168,6 +168,44 @@
     $('online-back').disabled=onlineIndex===0;$('online-step').disabled=onlineIndex===onlineData.length-1;
     $('online-result').innerHTML=`<div class="online-grid"><article><b>Read Q [1,128] and K/V [${t.end-t.start},128]</b><p>layer ${l}, head ${head}, query ${query}; allowed keys 0…${r.C+query}. Tile keys ${t.start}…${t.end-1}.</p><div class="online-tile-map">${onlineData.map((x,i)=>`<span class="${i<=onlineIndex?'done':''}">${x.start}…${x.end-1}</span>`).join('')}</div><p>Before: m=${f(t.old.m,8)}, ℓ=${f(t.old.l,8)}<br>After: m′=${f(t.m,8)}, ℓ′=${f(t.l,8)}<br>α = exp(old m − m′) = ${f(t.alpha,8)}</p></article><article><b>128-channel numerator · inspect channel ${channel}</b><p>old u[${channel}] = ${f(t.old.u[channel],9)}<br>u′ = α·u + Σ exp(S−m′)·V = ${f(t.u[channel],9)}<br>u′/ℓ′ = <b>${f(t.output[channel],9)}</b></p><p>Complete attention reference: ${f(ref,9)}. ${onlineIndex===onlineData.length-1?'All tiles included.':'Continue to include remaining key tiles.'}</p><small>m and ℓ are scalars; u has 128 entries. The inspector computes every channel.</small></article></div>`;
   }
+  const diagram=$('model-map');
+  diagram.addEventListener('click',e=>{
+    const block=e.target.closest('[data-model-stage]');
+    if(!block)return;
+    e.preventDefault();selectStage(block.dataset.modelStage);
+    $('math-event').scrollIntoView({block:'start'});
+  });
+  document.querySelector('.model-return').addEventListener('click',()=>{
+    $('model-overview').open=true;
+  });
+  function renderDiagram(){
+    const r=model.route(pass),l=events[eventIndex].layer??layer,cache=model.cacheState(pass,events[eventIndex],step);
+    const labels={
+      active:`[${r.T},4096]`,input:`Xₗ [${r.T},4096]`,
+      layer:`EXPANDED DECODER · layer ${l} of 0…31`,
+      'heads-rope':`each [${r.T},32,128] · absolute positions C+i`,
+      'cache-shape':`target each [${r.L},32,128]`,
+      'cache-valid':`layer ${l} · ${cache.lengths[l]} / ${r.L} stored`,
+      scores:`[32,${r.T},${r.L}]`,probabilities:`P [32,${r.T},${r.L}]`,
+      'v-shape':`V [${r.T},32,128]`,'next-layer':l<31?`Next: block ${l+1}`:'Next: last-row gather',
+      heads:`[${r.T},32,128]`,hidden:`H [${r.T},4096] → FFN input`,
+      gate:`G [${r.T},11008]`,up:`U [${r.T},11008]`,
+      output:`Xₗ₊₁ [${r.T},4096]`
+    };
+    for(const n of diagram.querySelectorAll('[data-model-text]')){
+      const text=labels[n.dataset.modelText];if(text!==undefined&&n.textContent!==text)n.textContent=text;
+    }
+    for(const n of diagram.querySelectorAll('[data-model-stage]')){
+      const active=n.dataset.modelStage===op.stage;n.classList.toggle('active',active);
+      if(active)n.setAttribute('aria-current','step');else n.removeAttribute('aria-current');
+    }
+    for(const n of diagram.querySelectorAll('[data-model-group]'))n.classList.toggle('in-progress',model.block.includes(op.stage));
+    for(const n of diagram.querySelectorAll('[data-model-edge]'))n.classList.toggle('active',n.dataset.modelEdge===op.stage);
+    const context=`${pass==='prefill'?'Prefill':'Decode'} · T=${r.T} active, C=${r.C} cached, L=${r.L} after append`;
+    if($('model-map-context').textContent!==context)$('model-map-context').textContent=context;
+    const selected=`Selected: ${events[eventIndex].layer===null?'':`layer ${l} · `}${op.title}`;
+    if($('model-map-selected').textContent!==selected)$('model-map-selected').textContent=selected;
+  }
   function render(){
     loadOperation();const e=events[eventIndex];layer=e.layer??(e.stage==='embedding'?0:31);
     $('math-stage').value=e.stage;$('math-layer').value=layer;$('math-head').value=head;
@@ -181,7 +219,7 @@
     $('math-row').max=op.result.rows-1;$('math-row').value=row;$('math-col').max=op.result.cols-1;$('math-col').value=col;
     $('math-selection').textContent=`Rows 0…${op.result.rows-1}; columns 0…${op.result.cols-1}. Overviews show the full extent; tables show a viewport.`;
     for(const id of views.keys())drawMatrix(id);
-    equation();renderCache();buffers();online();
+    equation();renderCache();buffers();online();renderDiagram();
     const src=sources[op.source];$('math-sources').innerHTML=`<div class="source-refs">SOURCE · <a class="source-link" href="sources.html?file=${src.file}&amp;line=${src.line}" data-source="${src.file}" data-line="${src.line}">${esc(src.label)} <small>L${src.line}</small></a> · viewport values are generated operation probes.</div>`;
     const costStage={merge:'pv',gather:'gather',swiglu:'swiglu'}[op.stage]||op.stage;
     $('math-cost-link').innerHTML=`<a href="architecture_${pass==='prefill'?'01_prefill':'02_decode'}.html#cost-${costStage}">MACs, bytes moved, bandwidth and arithmetic intensity for this stage ↗</a>${pass==='next'?' · Set cached length C=513 in the calculator.':''}`;

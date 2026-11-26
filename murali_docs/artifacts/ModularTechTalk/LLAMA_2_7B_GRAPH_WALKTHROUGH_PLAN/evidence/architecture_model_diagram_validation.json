@@ -1,0 +1,98 @@
+{
+  "validated_on": "2026-11-26",
+  "evidence": "SOURCE model structure; CPU-RUN document and browser verification",
+  "checkout_before_change": "a7771b0d61865d1b88bcb13a466f5fb6fa194ed3",
+  "source_revision": "610f7111836d9a950d45ba52ec9b3e0ed589fe3f",
+  "model_id": "meta-llama/Llama-2-7b-hf",
+  "device": "Host Python / Chromium; no model inference or GPU execution",
+  "scope": "Full model SVG and an expanded decoder block inside Animate the math",
+  "source_contracts": [
+    "LAST_TOKEN: gather last hidden row before final RMSNorm and the untied head",
+    "32 layers, hidden 4096, intermediate 11008, 32 Q and KV heads of dimension 128, vocabulary 32000",
+    "RoPE on Q/K; retain rotated K and V per layer; attention uses current queries and all valid cached keys/values",
+    "Attention residual H = X + attention output; FFN = down(SiLU(gate(norm(H))) * up(norm(H))); output = H + FFN",
+    "Sampled ID returns to embedding on the next decode; sampling itself does not append KV"
+  ],
+  "commands": [
+    "PYTHONDONTWRITEBYTECODE=1 python3 murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/build.py",
+    "PYTHONDONTWRITEBYTECODE=1 python3 murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify.py",
+    "NODE_PATH=/tmp/max-os-playwright/node_modules node murali_docs/artifacts/ModularTechTalk/LLAMA_2_7B_GRAPH_WALKTHROUGH_PLAN/src/llama_2_7b/verify_architecture_browser.cjs",
+    "git diff --check"
+  ],
+  "static": {
+    "lessons": 26,
+    "routes": 31,
+    "states": 204,
+    "author_anchors": 962,
+    "rendered_source_links": 1002,
+    "local_links": 1910,
+    "complete_sources": 76,
+    "provenance": {
+      "git_revision": 75,
+      "saved_snapshot": 1
+    },
+    "example_04_companions": 35,
+    "files": 230,
+    "total_bytes": 5215664,
+    "largest_file_bytes": 41564,
+    "largest_html_bytes": 41564,
+    "result": "PASS"
+  },
+  "browser": {
+    "checks": [
+      "Architecture stage links; prefill/decode/chunk presets; per-stage MAC/byte/BW/AI formulas; materialized vs fused accounting; invalid inputs; precision controls; page rounding; JSON export",
+      "Full model: every stage clickable; keyboard drill-down; return/collapse; live pass/layer shapes and cache counts; SVG label bounds",
+      "All 23 operations across three passes; actual shapes and full reductions; bounded DOM; every layer slice; complete down projection; viewports and last coordinates; stable DOM; retained KV values and 4\u21925 page boundary; causal mask; online 128-channel vectors; exact cost links",
+      "Actual Play/Pause/resume/end/replay; offscreen pause; badge/legend/Hold/Escape; fullscreen exact source and Expand; next-layer transition",
+      "390px full-size viewports, page grid and card bounds; reduced motion; four no-JavaScript pages; real print and restored disclosures"
+    ],
+    "numericalFrames": 245,
+    "mathPasses": 3,
+    "mobilePages": 4,
+    "noJavaScriptPages": 4,
+    "chromium": "156.0.8078.4",
+    "node": "v22.11.0",
+    "playwright": "1.64.1",
+    "offline": true,
+    "pageErrors": [],
+    "networkRequests": [],
+    "result": "PASS"
+  },
+  "diagram": {
+    "clickable_blocks": 25,
+    "distinct_math_stages": 23,
+    "checked_passes": [
+      "prefill T=512 C=0",
+      "decode T=1 C=512",
+      "decode T=1 C=513"
+    ],
+    "checked_navigation": [
+      "mouse selection",
+      "keyboard Enter",
+      "return to overview",
+      "collapse/reopen",
+      "existing stage/layer selectors"
+    ],
+    "live_labels": [
+      "active and total tensor dimensions",
+      "expanded layer",
+      "per-layer KV occupancy",
+      "next layer or final gather"
+    ],
+    "visual_review": [
+      "desktop prefill with attention selected",
+      "desktop decode with layer 31 KV selected",
+      "390px horizontal diagram navigation"
+    ],
+    "text_bounds": "All node labels fit their rectangles in every pass",
+    "portable_equivalent": "ASCII block diagram available without scripting and for print",
+    "screenshots": "Temporary files under /tmp; no images committed",
+    "numerical_scope": "Uses the existing synthetic operation probes; structure and dependencies are source established"
+  },
+  "deterministic_rebuild": {
+    "result": "PASS",
+    "files": 230,
+    "manifest_sha256": "77cef2e470f6919e189668f0f2b798961626e8f4374e906fea5c0f63a428cb78"
+  },
+  "result": "PASS"
+}
